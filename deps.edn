@@ -1,1 +1,3 @@
-{:paths ["."]}
+{:paths ["."]
+ :aliases {:differential-v3 {:main-opts ["-m" "differential-v3"]}
+           :differential-v5 {:main-opts ["-m" "differential-v5"]}}}
