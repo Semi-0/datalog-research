@@ -1,0 +1,16 @@
+[package]
+name = "leapfrog"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[[bench]]
+name = "leapfrog_bench"
+harness = false
+
+[dependencies]
+
+[dev-dependencies]
+criterion = "0.5"
