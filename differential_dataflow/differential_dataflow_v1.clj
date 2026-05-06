@@ -1,68 +1,11 @@
 (ns differential-dataflow.differential-dataflow-v1
   "Keyed difference trace: one multiset per timestep (Python `DifferenceSequence`).
-  Each multiset row is `[[key value] multiplicity]`; nesting rules → `differential-dataflow.multiset`."
-  (:require [differential-dataflow.multiset
+  Each multiset row is `[[key value] multiplicity]`; nesting rules → `differential-dataflow.multiset`.
+  Key → bag-of-values lives in `differential-dataflow.index`."
+  (:require [differential-dataflow.index :as index]
+            [differential-dataflow.multiset
              :refer [multiset-append multiset-consolidate multiset-filter multiset-map
                      multiset-negate multiset-subtract-ms]]))
-
-;;; Index: map key → bag of [value multiplicity] vectors
-
-(def ^:private index-empty {})
-
-(defn- index-add-at
-  "Add one `[value mult]` under `key`."
-  [index key value mult]
-  (assoc index key (multiset-append (get index key []) [[value mult]])))
-
-(defn- index-merge-deltas
-  "Merge `delta` into `index`: same keys get `multiset-append` on their bags."
-  [index delta]
-  (merge-with multiset-append index delta))
-
-(defn- index-compact-keys
-  "Consolidate each listed key's bag (merge duplicate values, drop zeros)."
-  [index keys]
-  (reduce (fn [idx k] (assoc idx k (multiset-consolidate (get idx k [])))) index keys))
-
-(defn- index-join-cartesian
-  "For keys in both maps, emit `[[key [v1 v2]] (* m1 m2)]` for every pair of entries."
-  [left right]
-  (vec (sort (for [k (sort (keys left))
-                  :when (contains? right k)
-                  [v1 m1] (get left k [])
-                  [v2 m2] (get right k [])]
-              [[k [v1 v2]] (* (long m1) (long m2))]))))
-
-(defn- multiset->index-by-key
-  "Turn multiset rows `[[[k v] m] ...]` into a key-indexed map of bags."
-  [multiset-rows]
-  (reduce (fn [idx [[k v] m]] (index-add-at idx k v m)) index-empty multiset-rows))
-
-(defn- index-merge-collection
-  "Fold multiset rows into `index`; return `[next-index keys-seen]`."
-  [index multiset-rows]
-  (reduce (fn [[idx keys] [[k v] m]]
-            [(index-add-at idx k v m) (conj keys k)])
-          [index #{}]
-          multiset-rows))
-
-(defn- trace-reduce-step-keys
-  "For each key in `sorted-keys`, emit multiset delta of `[[k v] m]` rows vs prior out-index."
-  [f index-in index-out sorted-keys]
-  (reduce (fn [[pairs out-idx] key]
-            (let [curr-in (get index-in key [])
-                  curr-out (get out-idx key [])
-                  next-out (f curr-in)
-                  delta (multiset-subtract-ms next-out curr-out)
-                  pairs* (into pairs (map (fn [[v m]] [[key v] m]) delta))
-                  out-idx* (reduce (fn [idx [v m]] (index-add-at idx key v m))
-                                   out-idx
-                                   delta)]
-              [pairs* out-idx*]))
-          [[] index-out]
-          sorted-keys))
-
-;;; Trace: vector of multisets
 
 (defn trace-map [f trace]
   (mapv (partial multiset-map f) trace))
@@ -89,28 +32,72 @@
         padded-b (pad-trace trace-b len)]
     (vec (second
           (reduce (fn [[[idx-a idx-b] rows] step]
-                    (let [delta-a (multiset->index-by-key (nth padded-a step))
-                          delta-b (multiset->index-by-key (nth padded-b step))
-                          part-a (index-join-cartesian delta-a idx-b)
-                          idx-a* (index-merge-deltas idx-a delta-a)
-                          part-b (index-join-cartesian idx-a* delta-b)
-                          idx-b* (index-merge-deltas idx-b delta-b)
+                    (let [delta-a (index/from-multiset (nth padded-a step))
+                          delta-b (index/from-multiset (nth padded-b step))
+                          part-a (index/join-cartesian delta-a idx-b)
+                          idx-a* (index/merge-deltas idx-a delta-a)
+                          part-b (index/join-cartesian idx-a* delta-b)
+                          idx-b* (index/merge-deltas idx-b delta-b)
                           row (multiset-consolidate (multiset-append part-a part-b))]
                       [[idx-a* idx-b*] (conj rows row)]))
-                  [[index-empty index-empty] []]
+                  [[index/empty-index index/empty-index] []]
                   (range len))))))
+
+(defn merge-collection [f indexed-input indexed-output collection]
+  (let [*indexed-input (reduce (fn [state, next-element]
+                        (let [[[key, value], multiciplicty] next-element]
+                          (index/add-at state key, value, multiciplicty))) 
+                      indexed-input
+                      collection)
+        keys (sort (into #{} (map (fn [[[k _v] _m]] k)) collection))]
+    (loop [accumulated []
+           *indexed-output indexed-output
+           keys-seq (seq keys)]
+      (if (empty? keys-seq)
+        (let [ks (vec keys)
+              compacted-input (index/compact-keys *indexed-input ks)
+              compacted-output (index/compact-keys *indexed-output ks)]
+          [compacted-input compacted-output accumulated])
+        (let [curr-key        (first keys-seq)
+              curr-item       (get *indexed-input curr-key [])
+              prev            (get *indexed-output curr-key [])
+              curr            (f curr-item)
+              delta           (multiset-subtract-ms curr prev)
+              new-accumulated (reduce (fn [acc [value multiplicity]] 
+                                        (conj acc [[curr-key value] multiplicity])) 
+                                      accumulated
+                                      delta)
+              new-index       (reduce (fn [old-index [value multiplicity]] 
+                                        (index/add-at old-index curr-key value multiplicity))
+                                      *indexed-output
+                                      delta)]
+          (recur new-accumulated
+                 new-index
+                 (rest keys-seq)))))))
+
 
 (defn trace-reduce [f trace]
   (vec
-   (peek (reduce (fn [[index-in index-out rows] coll]
-                   (let [[index* keys-here] (index-merge-collection index-in coll)
-                         keys-sorted (vec (sort keys-here))
-                         [pairs out*] (trace-reduce-step-keys f index* index-out keys-sorted)]
-                     [(index-compact-keys index* keys-sorted)
-                      (index-compact-keys out* keys-sorted)
-                      (conj rows pairs)]))
-                 [index-empty index-empty []]
+   (peek (reduce (fn [[indexed-input indexed-output chunks] next-patch]
+                   (let [[i-in i-out r] (merge-collection f indexed-input indexed-output next-patch)]
+                     [i-in i-out (conj chunks r)]))
+                 [index/empty-index index/empty-index []]
                  trace))))
+
+(def ^{:doc "Alias of `trace-reduce` (historical name)."}
+  *trace-reduce trace-reduce)
+
+(defn trace-reduce-loop
+  "Same semantics as `trace-reduce`, expressed with `loop`/`recur` (constant stack depth)."
+  [f trace]
+  (loop [indexed-input index/empty-index
+         indexed-output index/empty-index
+         chunks []
+         remaining trace]
+    (if (empty? remaining)
+      (vec chunks)
+      (let [[i-in i-out r] (merge-collection f indexed-input indexed-output (first remaining))]
+        (recur i-in i-out (conj chunks r) (rest remaining))))))
 
 (defn trace-count [trace]
   (trace-reduce
@@ -138,12 +125,12 @@
            (when-not (pos? m0)
              (throw (ex-info (str label " needs positive multiplicity") {:v v0 :m m0})))
            [[(reduce (fn [acc [v m]]
-                        (if (pos? m)
-                          (pick acc v)
-                          (throw (ex-info (str label " needs positive multiplicity")
-                                          {:v v :m m}))))
-                      v0
-                      rest-rows)
+                       (if (pos? m)
+                         (pick acc v)
+                         (throw (ex-info (str label " needs positive multiplicity")
+                                         {:v v :m m}))))
+                     v0
+                     rest-rows)
              1]]))))
    trace))
 

@@ -1,3 +1,5 @@
 {:paths ["."]
  :aliases {:differential-v3 {:main-opts ["-m" "differential-v3"]}
-           :differential-v5 {:main-opts ["-m" "differential-v5"]}}}
+           :differential-v5 {:main-opts ["-m" "differential-v5"]}
+           :differential-dataflow-v1-test
+           {:main-opts ["-m" "differential-dataflow.differential-dataflow-v1-test"]}}}
