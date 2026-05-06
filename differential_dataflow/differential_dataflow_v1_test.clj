@@ -64,6 +64,34 @@
     (is (= [[[:apple "$7"] 1]] (second out)))
     (is (= [[[:lemon "$1"] 1]] (nth out 2)))))
 
+(deftest trace-distinct-rejects-nonpositive-consolidated-multiplicity
+  ;; clojure.test no longer exposes thrown-with-msg? on Clojure 1.12+
+  (let [msg (try (d/trace-distinct [[[[:only 1] -1]]]) nil
+                 (catch Exception e (.getMessage e)))]
+    (is (some? msg))
+    (is (re-find #"distinct needs positive multiplicity" msg))))
+
+(deftest trace-count-on-demo-traces
+  ;; Per-key multiset cardinality at each step (sum of value-row multiplicities).
+  (is (= [[[[:apple 3] 1] [[:banana 1] 1]] [] [[[:lemon 1] 1]]]
+         (d/trace-count trace-a)))
+  (is (= [[[[:apple 2] 1] [[:kiwi 1] 1]]
+           []
+           [[[:kiwi 1] -1] [[:kiwi 3] 1] [[:lemon 3] 1]]]
+         (d/trace-count trace-b))))
+
+(deftest trace-min-max-incremental-deltas
+  ;; Second timestep emits no rows when extremum is unchanged (here min stays 1).
+  (is (= [[[[:k 1] 1]] []]
+         (d/trace-min [[[[:k 1] 2] [[:k 5] 1]] [[[:k 3] 1]]])))
+  ;; Max rises from 10 → 20: retract old aggregate, publish new.
+  (is (= [[[[:a 10] 1]] [[[:a 10] -1] [[:a 20] 1]]]
+         (d/trace-max [[[[:a 10] 1]] [[[:a 20] 1]]]))))
+
+(deftest trace-join-same-key-single-step
+  (is (= [[[[:k [1 2]] 1]]]
+         (d/trace-join [[[[:k 1] 1]]] [[[[:k 2] 1]]]))))
+
 (deftest star-trace-reduce-agrees-with-trace-reduce
   ;; `*trace-reduce` is defined as `trace-reduce`.
   (let [count-f (fn [vals] [[(reduce #(+ %1 (second %2)) 0 vals) 1]])]
