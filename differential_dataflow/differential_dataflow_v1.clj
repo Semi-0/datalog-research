@@ -76,69 +76,82 @@
                  (rest keys-seq)))))))
 
 
-(defn trace-reduce [f trace]
+(defn trace-patch-step
+  "Binary step for folding over timesteps: `(partial trace-patch-step f)` matches ordinary
+  `reduce` shape `[state patch] → next-state`. `state` is
+  `[indexed-input indexed-output chunks]`; `f` is still the unary per-key aggregator passed to
+  `merge-collection`."
+  [f [indexed-input indexed-output chunks] patch]
+  (let [[i-in i-out r] (merge-collection f indexed-input indexed-output patch)]
+    [i-in i-out (conj chunks r)]))
+
+(defn trace-reduce
+  "Fold `trace` with `(partial trace-patch-step f)`; see also `trace-patch-step`."
+  [f trace]
   (vec
-   (peek (reduce (fn [[indexed-input indexed-output chunks] next-patch]
-                   (let [[i-in i-out r] (merge-collection f indexed-input indexed-output next-patch)]
-                     [i-in i-out (conj chunks r)]))
-                 [index/empty-index index/empty-index []]
-                 trace))))
+   (peek (reduce (partial trace-patch-step f)
+                  [index/empty-index index/empty-index []]
+                  trace))))
 
 (def ^{:doc "Alias of `trace-reduce` (historical name)."}
   *trace-reduce trace-reduce)
 
-(defn- make-count-aggregator
-  "Returns per-key `f` for `trace-reduce`: sum raw multiplicities → published row `[[total 1]]`."
-  []
-  (fn [vals]
-    [[(reduce #(+ %1 (second %2)) 0 vals) 1]]))
+(defn trace-reduce-rows
+  "Per-key aggregate like ordinary `reduce`: fold multiset rows `[datum mult]` with `(rf acc row)`,
+  starting at `init`, then publish a single row `[[result 1]]` for that key."
+  [init rf trace]
+  (trace-reduce (fn [vals] [[(reduce rf init vals) 1]]) trace))
 
 (defn trace-count [trace]
-  (trace-reduce (make-count-aggregator) trace))
-
-(defn- make-sum-aggregator
-  "Returns per-key `f` for `trace-reduce`: Σ(value × multiplicity) → published row `[[sum 1]]`."
-  []
-  (fn [vals]
-    [[(reduce #(+ %1 (* (first %2) (second %2))) 0 vals) 1]]))
+  (trace-reduce-rows 0 (fn [acc [_ m]] (+ acc m)) trace))
 
 (defn trace-sum [trace]
-  (trace-reduce (make-sum-aggregator) trace))
+  (trace-reduce-rows 0 (fn [acc [v m]] (+ acc (* v m))) trace))
 
-(defn- make-extremum-aggregator
-  "Returns the `f` given to `trace-reduce`: collapse each key's value multiset to one min/max row.
-  `pick` is binary compare-and-replace (e.g. min / max). `label` tags multiplicity errors."
-  [label pick]
-  (fn [value-bag]
-    (let [xs (multiset-consolidate value-bag)]
-      (if (empty? xs)
-        []
-        (let [[[v0 m0] & rest-rows] xs]
-          (when-not (pos? m0)
-            (throw (ex-info (str label " needs positive multiplicity") {:v v0 :m m0})))
-          [[(reduce (fn [acc [v m]]
-                      (if (pos? m)
-                        (pick acc v)
-                        (throw (ex-info (str label " needs positive multiplicity")
-                                        {:v v :m m}))))
-                    v0
-                    rest-rows)
-            1]])))))
+(defn- trace-via-consolidated-rows
+  "`emit` receives `(multiset-consolidate vals)` for each key’s bag `vals`."
+  [emit trace]
+  (trace-reduce (fn [vals] (emit (multiset-consolidate vals))) trace))
+
+(defn trace-reduce-rows-consolidated
+  "Like `trace-reduce-rows`, but folds **after** `multiset-consolidate` on the value bag.
+  Use `(fn [acc [datum mult]] …)`; `init` may be `nil` so the first row can seed (see `trace-min`)."
+  [init rf trace]
+  (trace-via-consolidated-rows
+    (fn [xs]
+      (if (empty? xs) [] [[(reduce rf init xs) 1]]))
+    trace))
 
 (defn trace-min [trace]
-  (trace-reduce (make-extremum-aggregator "min" (fn [acc v] (if (< v acc) v acc))) trace))
+  (trace-reduce-rows-consolidated
+    nil
+    (fn [acc [v m]]
+      (when-not (pos? m)
+        (throw (ex-info "min needs positive multiplicity" {:v v :m m})))
+      (if (nil? acc) v (if (< v acc) v acc)))
+    trace))
 
 (defn trace-max [trace]
-  (trace-reduce (make-extremum-aggregator "max" (fn [acc v] (if (> v acc) v acc))) trace))
+  (trace-reduce-rows-consolidated
+    nil
+    (fn [acc [v m]]
+      (when-not (pos? m)
+        (throw (ex-info "max needs positive multiplicity" {:v v :m m})))
+      (if (nil? acc) v (if (> v acc) v acc)))
+    trace))
 
 (defn trace-distinct [trace]
-  (trace-reduce
-   (fn [value-bag]
-     (let [xs (multiset-consolidate value-bag)]
-       (doseq [[_ m] xs :when (<= m 0)]
-         (throw (ex-info "distinct needs positive multiplicity" {:m m})))
-       (mapv (fn [[v _]] [v 1]) xs)))
-   trace))
+  (trace-via-consolidated-rows
+    (fn [xs]
+      (if (empty? xs)
+        []
+        (reduce (fn [acc [v m]]
+                  (if (pos? m)
+                    (conj acc [v 1])
+                    (throw (ex-info "distinct needs positive multiplicity" {:m m}))))
+                []
+                xs)))
+    trace))
 
 (defn trace-iterate [_ _]
   (throw (ex-info "trace-iterate not implemented" {})))

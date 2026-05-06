@@ -93,8 +93,8 @@
          (d/trace-join [[[[:k 1] 1]]] [[[[:k 2] 1]]]))))
 
 (deftest star-trace-reduce-agrees-with-trace-reduce
-  ;; `*trace-reduce` is defined as `trace-reduce`.
-  (let [count-f (fn [vals] [[(reduce #(+ %1 (second %2)) 0 vals) 1]])]
+  ;; Same reducer shape as `trace-count` via `trace-reduce-rows` + unary adapter for `trace-reduce`.
+  (let [count-f (fn [vals] [[(reduce (fn [acc [_ m]] (+ acc m)) 0 vals) 1]])]
     (is (= (d/trace-reduce count-f trace-a) (d/*trace-reduce count-f trace-a)))
     (is (= (d/trace-reduce count-f trace-b) (d/*trace-reduce count-f trace-b)))))
 
