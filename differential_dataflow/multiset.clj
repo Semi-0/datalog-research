@@ -32,7 +32,7 @@
                                  by-datum)]
       (vec (sort nonzero-pairs)))))
 
-(defn multiset-subtract-ms
-  "Multiset difference: treat each vector as [[v m] ...], merge with sign."
+(defn multiset-difference
+  "Multiset difference (minuend a minus subtrahend b): vectors of [[datum mult] ...]."
   [a b]
   (multiset-consolidate (multiset-append a (multiset-negate b))))

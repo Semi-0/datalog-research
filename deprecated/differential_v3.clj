@@ -1,4 +1,4 @@
-(ns differential-v3
+(ns deprecated.differential-v3
   "Minimal v3 (versions + frontiers) from Materialize “Differential from scratch”.
   Collections are [[value w] ...] with integer multiplicity. Messages carry
   explicit versions; frontier v means no further batches at versions < v.")

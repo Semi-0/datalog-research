@@ -47,13 +47,3 @@
   [multiset-rows]
   (into #{} (map (fn [[[k _v] _m]] k)) multiset-rows))
 
-(defn merge-value-rows-at
-  "Append each `[value mult]` under the single logical `key`."
-  [index key value-mult-rows]
-  (reduce (fn [idx [v m]] (add-at idx key v m)) index value-mult-rows))
-
-(defn merge-collection
-  "Fold multiset rows into `index`; return `[next-index keys-seen]`."
-  [index multiset-rows]
-  [(merge-keyed-multiset-rows index multiset-rows)
-   (key-set multiset-rows)])

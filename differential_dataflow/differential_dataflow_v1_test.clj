@@ -64,17 +64,9 @@
     (is (= [[[:apple "$7"] 1]] (second out)))
     (is (= [[[:lemon "$1"] 1]] (nth out 2)))))
 
-(deftest trace-reduce-loop-agrees-with-reduce
-  (let [f (fn [value-bag]
-            (let [n (reduce (fn [acc [_v m]] (+ acc (long m))) 0 value-bag)]
-              [[n 1]]))]
-    (is (= (d/trace-reduce f trace-a) (d/trace-reduce-loop f trace-a)))))
-
 (deftest star-trace-reduce-agrees-with-trace-reduce
-  ;; `*trace-reduce` uses `merge-collection` + explicit loop; must match `trace-reduce`.
-  (let [count-f (fn [value-bag]
-                  (let [n (reduce (fn [acc [_v m]] (+ acc (long m))) 0 value-bag)]
-                    [[n 1]]))]
+  ;; `*trace-reduce` is defined as `trace-reduce`.
+  (let [count-f (fn [vals] [[(reduce #(+ %1 (second %2)) 0 vals) 1]])]
     (is (= (d/trace-reduce count-f trace-a) (d/*trace-reduce count-f trace-a)))
     (is (= (d/trace-reduce count-f trace-b) (d/*trace-reduce count-f trace-b)))))
 

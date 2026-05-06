@@ -1,4 +1,4 @@
-(ns differential-v5
+(ns deprecated.differential-v5
   "Minimal v5: product partial order on version vectors, antichain frontiers,
   GLB (meet) of frontiers, integrate ∑(Δ_u | u≤v). Verifies Materialize v5
   couch/distinct merge correction."
@@ -136,7 +136,7 @@
                (sort-by first (integrate-upto diffs v))))))))
 
 (defn -main [& _]
-  (let [{:keys [fail error pass test]} (t/run-tests 'differential-v5)]
+  (let [{:keys [fail error pass test]} (t/run-tests 'deprecated.differential-v5)]
     (println "differential-v5 tests:" pass "pass," fail "fail," error "error")
     (when (or (pos? fail) (pos? error))
       (System/exit 1))))

@@ -5,7 +5,7 @@
   (:require [differential-dataflow.index :as index]
             [differential-dataflow.multiset
              :refer [multiset-append multiset-consolidate multiset-filter multiset-map
-                     multiset-negate multiset-subtract-ms]]))
+                     multiset-negate multiset-difference]]))
 
 (defn trace-map [f trace]
   (mapv (partial multiset-map f) trace))
@@ -62,7 +62,7 @@
               curr-item       (get *indexed-input curr-key [])
               prev            (get *indexed-output curr-key [])
               curr            (f curr-item)
-              delta           (multiset-subtract-ms curr prev)
+              delta           (multiset-difference curr prev)
               new-accumulated (reduce (fn [acc [value multiplicity]] 
                                         (conj acc [[curr-key value] multiplicity])) 
                                       accumulated
@@ -87,58 +87,49 @@
 (def ^{:doc "Alias of `trace-reduce` (historical name)."}
   *trace-reduce trace-reduce)
 
-(defn trace-reduce-loop
-  "Same semantics as `trace-reduce`, expressed with `loop`/`recur` (constant stack depth)."
-  [f trace]
-  (loop [indexed-input index/empty-index
-         indexed-output index/empty-index
-         chunks []
-         remaining trace]
-    (if (empty? remaining)
-      (vec chunks)
-      (let [[i-in i-out r] (merge-collection f indexed-input indexed-output (first remaining))]
-        (recur i-in i-out (conj chunks r) (rest remaining))))))
+(defn- make-count-aggregator
+  "Returns per-key `f` for `trace-reduce`: sum raw multiplicities → published row `[[total 1]]`."
+  []
+  (fn [vals]
+    [[(reduce #(+ %1 (second %2)) 0 vals) 1]]))
 
 (defn trace-count [trace]
-  (trace-reduce
-   (fn [value-bag]
-     (let [n (reduce (fn [acc [_v m]] (+ acc (long m))) 0 value-bag)]
-       [[n 1]]))
-   trace))
+  (trace-reduce (make-count-aggregator) trace))
+
+(defn- make-sum-aggregator
+  "Returns per-key `f` for `trace-reduce`: Σ(value × multiplicity) → published row `[[sum 1]]`."
+  []
+  (fn [vals]
+    [[(reduce #(+ %1 (* (first %2) (second %2))) 0 vals) 1]]))
 
 (defn trace-sum [trace]
-  (trace-reduce
-   (fn [value-bag]
-     (let [n (reduce (fn [acc [v m]] (+ acc (* (long v) (long m)))) 0 value-bag)]
-       [[n 1]]))
-   trace))
+  (trace-reduce (make-sum-aggregator) trace))
 
-(defn- reduce-extreme-by-key
-  "`pick` combines accumulator and next value (e.g. min / max). `label` is for errors."
-  [label pick trace]
-  (trace-reduce
-   (fn [value-bag]
-     (let [xs (multiset-consolidate value-bag)]
-       (if (empty? xs)
-         []
-         (let [[[v0 m0] & rest-rows] xs]
-           (when-not (pos? m0)
-             (throw (ex-info (str label " needs positive multiplicity") {:v v0 :m m0})))
-           [[(reduce (fn [acc [v m]]
-                       (if (pos? m)
-                         (pick acc v)
-                         (throw (ex-info (str label " needs positive multiplicity")
-                                         {:v v :m m}))))
-                     v0
-                     rest-rows)
-             1]]))))
-   trace))
+(defn- make-extremum-aggregator
+  "Returns the `f` given to `trace-reduce`: collapse each key's value multiset to one min/max row.
+  `pick` is binary compare-and-replace (e.g. min / max). `label` tags multiplicity errors."
+  [label pick]
+  (fn [value-bag]
+    (let [xs (multiset-consolidate value-bag)]
+      (if (empty? xs)
+        []
+        (let [[[v0 m0] & rest-rows] xs]
+          (when-not (pos? m0)
+            (throw (ex-info (str label " needs positive multiplicity") {:v v0 :m m0})))
+          [[(reduce (fn [acc [v m]]
+                      (if (pos? m)
+                        (pick acc v)
+                        (throw (ex-info (str label " needs positive multiplicity")
+                                        {:v v :m m}))))
+                    v0
+                    rest-rows)
+            1]])))))
 
 (defn trace-min [trace]
-  (reduce-extreme-by-key "min" (fn [acc v] (if (< v acc) v acc)) trace))
+  (trace-reduce (make-extremum-aggregator "min" (fn [acc v] (if (< v acc) v acc))) trace))
 
 (defn trace-max [trace]
-  (reduce-extreme-by-key "max" (fn [acc v] (if (> v acc) v acc)) trace))
+  (trace-reduce (make-extremum-aggregator "max" (fn [acc v] (if (> v acc) v acc))) trace))
 
 (defn trace-distinct [trace]
   (trace-reduce
