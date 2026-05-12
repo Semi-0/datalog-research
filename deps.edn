@@ -4,4 +4,11 @@
  :aliases {:differential-v3 {:main-opts ["-m" "deprecated.differential-v3"]}
            :differential-v5 {:main-opts ["-m" "deprecated.differential-v5"]}
            :differential-dataflow-v1-test
-           {:main-opts ["-m" "differential-dataflow.differential-dataflow-v1-test"]}}}
+           {:extra-paths ["test"]
+            :main-opts ["-m" "differential-dataflow.differential-dataflow-v1-test"]}
+           :multiset-test
+           {:extra-paths ["test"]
+            :main-opts ["-m" "differential-dataflow.multiset-test"]}
+           :graph-test
+           {:extra-paths ["test"]
+            :main-opts ["-m" "differential-dataflow.graph-test"]}}}

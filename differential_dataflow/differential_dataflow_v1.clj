@@ -3,28 +3,26 @@
   Each multiset row is `[[key value] multiplicity]`; nesting rules → `differential-dataflow.multiset`.
   Key → bag-of-values lives in `differential-dataflow.index`."
   (:require [differential-dataflow.index :as index]
-            [differential-dataflow.multiset
-             :refer [multiset-append multiset-consolidate multiset-filter multiset-map
-                     multiset-negate multiset-difference]]))
+            [differential-dataflow.multiset :as ms]))
 
 (defn trace-map [f trace]
-  (mapv (partial multiset-map f) trace))
+  (mapv (partial ms/map f) trace))
 
 (defn trace-filter [pred trace]
-  (mapv (partial multiset-filter pred) trace))
+  (mapv (partial ms/filter pred) trace))
 
 (defn trace-negate [trace]
-  (mapv multiset-negate trace))
+  (mapv ms/negate trace))
 
 (defn- pad-trace [trace len]
   (vec (take len (concat trace (repeat [])))))
 
 (defn trace-append [trace-a trace-b]
   (let [len (max (count trace-a) (count trace-b))]
-    (mapv multiset-append (pad-trace trace-a len) (pad-trace trace-b len))))
+    (mapv ms/append (pad-trace trace-a len) (pad-trace trace-b len))))
 
 (defn trace-consolidate [trace]
-  (mapv multiset-consolidate trace))
+  (mapv ms/consolidate trace))
 
 (defn trace-join [trace-a trace-b]
   (let [len (max (count trace-a) (count trace-b))
@@ -38,7 +36,7 @@
                           idx-a* (index/merge-deltas idx-a delta-a)
                           part-b (index/join-cartesian idx-a* delta-b)
                           idx-b* (index/merge-deltas idx-b delta-b)
-                          row (multiset-consolidate (multiset-append part-a part-b))]
+                          row (ms/consolidate (ms/append part-a part-b))]
                       [[idx-a* idx-b*] (conj rows row)]))
                   [[index/empty-index index/empty-index] []]
                   (range len))))))
@@ -62,7 +60,7 @@
               curr-item       (get *indexed-input curr-key [])
               prev            (get *indexed-output curr-key [])
               curr            (f curr-item)
-              delta           (multiset-difference curr prev)
+              delta           (ms/difference curr prev)
               new-accumulated (reduce (fn [acc [value multiplicity]] 
                                         (conj acc [[curr-key value] multiplicity])) 
                                       accumulated
@@ -109,12 +107,12 @@
   (trace-reduce-rows 0 (fn [acc [v m]] (+ acc (* v m))) trace))
 
 (defn- trace-via-consolidated-rows
-  "`emit` receives `(multiset-consolidate vals)` for each key’s bag `vals`."
+  "`emit` receives `(ms/consolidate vals)` for each key’s bag `vals`."
   [emit trace]
-  (trace-reduce (fn [vals] (emit (multiset-consolidate vals))) trace))
+  (trace-reduce (fn [vals] (emit (ms/consolidate vals))) trace))
 
 (defn trace-reduce-rows-consolidated
-  "Like `trace-reduce-rows`, but folds **after** `multiset-consolidate` on the value bag.
+  "Like `trace-reduce-rows`, but folds **after** `ms/consolidate` on the value bag.
   Use `(fn [acc [datum mult]] …)`; `init` may be `nil` so the first row can seed (see `trace-min`)."
   [init rf trace]
   (trace-via-consolidated-rows

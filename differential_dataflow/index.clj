@@ -1,8 +1,7 @@
 (ns differential-dataflow.index
   "Index: map from key → multiset of `[value multiplicity]` rows (per-key bags).
   Used by trace join/reduce to group keyed multiset rows."
-  (:require [differential-dataflow.multiset
-             :refer [multiset-append multiset-consolidate]]))
+  (:require [differential-dataflow.multiset :as ms]))
 
 (def empty-index
   "Empty index (no keys)."
@@ -11,17 +10,17 @@
 (defn add-at
   "Add one `[value mult]` under `key`."
   [index key value mult]
-  (assoc index key (multiset-append (get index key []) [[value mult]])))
+  (assoc index key (ms/append (get index key []) [[value mult]])))
 
 (defn merge-deltas
-  "Merge `delta` into `index`: same keys get `multiset-append` on their bags."
+  "Merge `delta` into `index`: same keys get `ms/append` on their bags."
   [index delta]
-  (merge-with multiset-append index delta))
+  (merge-with ms/append index delta))
 
 (defn compact-keys
   "Consolidate each listed key's bag (merge duplicate values, drop zeros)."
   [index keys]
-  (reduce (fn [idx k] (assoc idx k (multiset-consolidate (get idx k [])))) index keys))
+  (reduce (fn [idx k] (assoc idx k (ms/consolidate (get idx k [])))) index keys))
 
 (defn join-cartesian
   "For keys in both maps, emit `[[key [v1 v2]] (* m1 m2)]` for every pair of entries."
