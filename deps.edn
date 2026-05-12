@@ -11,4 +11,7 @@
             :main-opts ["-m" "differential-dataflow.multiset-test"]}
            :graph-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "differential-dataflow.graph-test"]}}}
+            :main-opts ["-m" "differential-dataflow.graph-test"]}
+           :stream-ops-test
+           {:extra-paths ["test"]
+            :main-opts ["-m" "differential-dataflow.stream-ops-test"]}}}

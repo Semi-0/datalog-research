@@ -1,4 +1,4 @@
-(ns differential-dataflow.differential-dataflow-v1
+(ns deprecated.differential-dataflow-v1
   "Keyed difference trace: one multiset per timestep (Python `DifferenceSequence`).
   Each multiset row is `[[key value] multiplicity]`; nesting rules → `differential-dataflow.multiset`.
   Key → bag-of-values lives in `differential-dataflow.index`."

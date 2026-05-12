@@ -1,7 +1,7 @@
 (ns differential-dataflow.differential-dataflow-v1-test
   "Examples aligned with the Python `__main__` Collection / DifferenceSequence demo."
   (:require [clojure.test :refer [deftest is testing]]
-            [differential-dataflow.differential-dataflow-v1 :as d]))
+            [deprecated.differential-dataflow-v1 :as d]))
 
 ;;; Python:
 ;;; a = Collection([(("apple", "$5"), 3), (("banana", "$2"), 1)])
