@@ -1,5 +1,4 @@
 (ns differential-dataflow.graph
-  (:refer-clojure :exclude [map filter concat reduce count])
   (:require [clojure.core :as c]
             [differential-dataflow.multiset :as ms]
             [differential-dataflow.index :as index]
@@ -8,16 +7,16 @@
 ;;; ---------------------------------------------------------------------------
 ;;; Core (buffer-explicit building blocks)
 
-(defn- map-op [f buf]
+(defn map-op [f buf]
   (s/pipe (ms/map f) buf))
 
-(defn- filter-op [pred buf]
+(defn filter-op [pred buf]
   (s/pipe (ms/filter pred) buf))
 
-(defn- negate-op [buf]
+(defn negate-op [buf]
   (s/pipe ms/negate buf))
 
-(defn- concat-op [a b buf]
+(defn concat-op [a b buf]
   ((s/pipe (fn [[x y]]
              (ms/append x y))
            buf)
@@ -41,7 +40,7 @@
       (index/compact-keys idx-b' keys-b)]
      rows]))
 
-(defn- join-op [a b buf]
+(defn join-op [a b buf]
   ((s/scan [index/empty-index index/empty-index]
            delta-join
            buf)
@@ -70,7 +69,7 @@
       (index/compact-keys output-index' key-vec)]
      result]))
 
-(defn- reduce-op [f buf]
+(defn reduce-op [f buf]
   (s/scan [index/empty-index index/empty-index]
           (partial reduce-step f)
           buf))
@@ -86,59 +85,5 @@
     [[(sum-multiplicities rows) 1]]
     []))
 
-(defn- count-op [buf]
+(defn count-op [buf]
   (reduce-op count-fn buf))
-
-;;; ---------------------------------------------------------------------------
-;;; Public: default buffer sizes + curried operators
-
-(def default-bufs
-  {:default 8
-   :unary   1
-   :join    16
-   :reduce  16})
-
-(defn buf
-  "Buffer size for keyword `k` (`:default`, `:unary`, `:join`, `:reduce`).
-   Unknown keys fall back to `:default`."
-  [k]
-  (get default-bufs k (:default default-bufs)))
-
-(defn map
-  ([f] (map f (buf :unary)))
-  ([f buf-sz]
-   (map-op f buf-sz)))
-
-(defn filter
-  ([pred] (filter pred (buf :unary)))
-  ([pred buf-sz]
-   (filter-op pred buf-sz)))
-
-(def negate
-  "Channel op `(fn [ch-in] ch-out)` with unary buffer size."
-  (negate-op (buf :unary)))
-
-(defn concat
-  ([a b] (concat a b (buf :default)))
-  ([a b buf-sz]
-   (concat-op a b buf-sz)))
-
-(defn join
-  ([a b] (join a b (buf :join)))
-  ([a b buf-sz]
-   (join-op a b buf-sz)))
-
-(defn reduce
-  "Returns `(fn [ch-in] ch-out)` keyed multiset reducer; `f` maps per-key bag rows
-  to multiset rows (see tests). Pipe like `((reduce f) in)` or `((reduce f buf) in)`."
-  ([f] (reduce f (buf :reduce)))
-  ([f buf-sz]
-   (reduce-op f buf-sz)))
-
-(defn count
-  "Keyed multiset cardinality on each step: sums multiplicities per key in the bag
-  `[[v mult] …]` (values ignored), emits delta rows vs last output — like Python `CountOperator`.
-  Returns `(fn [ch-in] ch-out)`; pipe like `((count))` or `((count buf))`."
-  ([] (count-op (buf :reduce)))
-  ([buf-sz]
-   (count-op buf-sz)))

@@ -1,7 +1,7 @@
 (ns differential-dataflow.graph-test
   (:require [clojure.test :refer [deftest is]]
             [clojure.core.async :as a]
-            [differential-dataflow.graph :as g]
+            [differential-dataflow.graph.interface :as g]
             [differential-dataflow.multiset :as ms]))
 
 (defn- drain-close!
