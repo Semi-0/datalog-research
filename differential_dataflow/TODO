@@ -1,0 +1,91 @@
+# Differential dataflow — frontier & stream integration
+
+Reference: Materialize "Differential from scratch" (v3 scalar time → v5 product order + antichains).
+Existing code: `deprecated/differential_v3.clj`, `deprecated/differential_v5.clj`, `deprecated/differential_dataflow/graph/{frontier,stream,runtime}.clj`, `async_graph.clj`.
+
+---
+
+## Phase 1 — `frontier.clj` (pure partial order)
+
+- [ ] Scalar time (`Long`): `leq?`, `lub` (= max), `glb` (= min for two scalars)
+- [ ] `frontier-leq-version?` — frontier allows version v (scalar: `f <= v`)
+- [ ] `frontier-leq?` — F ≤ G for output/input monotonicity checks
+- [ ] Port/adapt tests from `deprecated/differential_v5.clj` (degenerate integer case)
+- [ ] (Later) Product order on vectors: `v-leq?`, `minimal-antichain`, `glb-frontiers`
+- [ ] (Later) `FrontierOrder` protocol if we need custom version types
+
+---
+
+## Phase 2 — Wire format & edge legality
+
+- [ ] Standardize channel messages: `[:data t batch]` and `[:frontier f]`
+- [ ] Align `async_graph/send!` checks with `frontier.clj` (no regression, no data behind frontier)
+- [ ] Decide: timestamp on every batch vs edge-only enforcement (prefer tagged messages + version in operators)
+
+---
+
+## Phase 3 — `stream_ops.clj` (tag-aware plumbing)
+
+- [ ] `on-data` — wrap `pipe`: transform `:data` only, forward `:frontier` unchanged (article unary-linear)
+- [ ] `scan-versioned` (or extend `scan`) — step sees tag + payload; state can hold operator frontier
+- [ ] Do **not** put GLB/antichain logic here — keep in `frontier.clj`
+- [ ] (Later) merge/sort helper for out-of-order concat (v3 `merge-msgs` shape), not plain `zip`
+
+---
+
+## Phase 4 — Unary operators (`graph.clj` / interface)
+
+- [ ] `map-op`, `filter-op`, `negate-op`: pass through frontiers; data at same `t`
+- [ ] Test: map with interleaved `:data` / `:frontier` messages
+
+---
+
+## Phase 5 — `concat`
+
+- [ ] Physically merge two tagged streams (`merge-msgs` or async equivalent)
+- [ ] Output frontier = GLB of both input frontiers when both are known (v3 comment)
+
+---
+
+## Phase 6 — `join` (main tension)
+
+**Correctness (done):** `delta-join` + index state — incremental multiset join.
+
+**Frontier layer (todo):**
+
+- [ ] Thread `t` into join step (tagged batches or `[t batch]` pairs)
+- [ ] Track per-input frontiers; output frontier = `glb(F_a, F_b)` when both known
+- [ ] Legality: reject or buffer deltas behind an input frontier
+- [ ] (Later) Compact index when frontier advances (drop history below closed times)
+- [ ] Spike test: batches at times 0,2,1 + frontiers 1 then 3 — output frontier only when both inputs advance
+
+---
+
+## Phase 7 — `reduce` / `count`
+
+- [ ] Extend `reduce-step` scan state with input/output frontier (or side atoms — pick one style)
+- [ ] Keep delta semantics: `next consolidated bag − previous output per key` (tests already cover this)
+- [ ] On frontier advance: mark keys complete; (later) GC `input-index` entries below frontier
+
+---
+
+## Phase 8 — `iterate` (not in graph yet)
+
+- [ ] Feedback edge must strictly advance frontier each round
+- [ ] Output frontier = careful meet of external input + loop progress
+- [ ] Expect to need antichain / vector times for nested scopes
+
+---
+
+## Design decisions (resolve before deep join work)
+
+- [ ] **Tagged messages + version in `scan`** vs **parallel `@frontier` atoms** (deprecated runtime) — default: tagged + version in scan
+- [ ] Scalar `Long` first; promote to antichain when multi-source / iterate needs it
+
+---
+
+## Explicitly defer
+
+- Full time-keyed traces `(key, time, diff)` until scalar join+frontier path works
+- Operator scheduler / Timely-style runtime (deprecated `graph/runtime.clj`) until channel graph is stable
+- Rewriting `delta-join` math — frontier is orthogonal until compaction is required
