@@ -89,3 +89,4 @@ Existing code: `deprecated/differential_v3.clj`, `deprecated/differential_v5.clj
 - Full time-keyed traces `(key, time, diff)` until scalar join+frontier path works
 - Operator scheduler / Timely-style runtime (deprecated `graph/runtime.clj`) until channel graph is stable
 - Rewriting `delta-join` math — frontier is orthogonal until compaction is required
+

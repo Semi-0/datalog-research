@@ -81,13 +81,29 @@
               announcement)))
 
 (defn- merge-frontier-set
-  "New antichain announcement: remove old corners strictly below a new one, then union."
-  [existed announcement]
-  (if (frontier-advanced-by? existed announcement)
+  "New antichain announcement: remove old corners strictly below a new one, then union.
+  Assumes `current` is normalized."
+  [current announcement]
+  (if (frontier-advanced-by? current announcement)
     (let [closed? (fn [f] (some #(version:< f %) announcement))
-          stripped (set (remove closed? existed))]
+          stripped (set (remove closed? current))]
       (normalize-frontier (into stripped announcement)))
-    existed))
+    current))
+
+(defn- merge-single-version
+  "Advance with corner `v`. Assumes `current` is normalized."
+  [current v]
+  (cond
+    (some #(version:< % v) current)
+    (normalize-frontier
+     (into (set (remove #(version:< % v) current)) #{v}))
+
+    (or (some #(version:< v %) current)
+        (some #(version:<= % v) current))
+    current
+
+    :else
+    (normalize-frontier (conj current v))))
 
 (defn close-epoch-frontier
   "Treat [e] as an outer epoch closure marker.
@@ -102,23 +118,24 @@
      (conj (set (filter keep? existed))
            target))))
 
-(defn frontier-merge
-  "Combine current frontier `existed` with announcement `new`.
-
-  - `new` is a version vector: drop old corners below `new`, or append if incomparable.
-  - `new` is an antichain set: drop any old corner strictly below a new one, union, normalize.
-  - Otherwise: reject and return `existed`."
-  [existed new]
-  (let [F (set existed)]
+(defn- frontier-merge*
+  "Combine `current` with `announcement`. Assumes `current` is already normalized."
+  [current announcement]
+  (let [F (set current)]
     (cond
-      (epoch-close? new)
-      (close-epoch-frontier F new)
+      (epoch-close? announcement)
+      (close-epoch-frontier F announcement)
 
-      (version? new)
-      (merge-frontier-set F #{new})
+      (version? announcement)
+      (merge-single-version F announcement)
 
-      (frontier? new)
-      (merge-frontier-set F new)
+      (frontier? announcement)
+      (merge-frontier-set F announcement)
 
       :else
       F)))
+
+(defn frontier-merge
+  "Combine current frontier with `announcement` (normalizes `current` first)."
+  [current announcement]
+  (frontier-merge* (normalize-frontier current) announcement))
