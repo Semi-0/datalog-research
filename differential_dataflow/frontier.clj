@@ -139,3 +139,24 @@
   "Combine current frontier with `announcement` (normalizes `current` first)."
   [current announcement]
   (frontier-merge* (normalize-frontier current) announcement))
+
+(defn version-lowest-upper-bound [[a b] [c d]]
+  [(max a c) (max b d)])
+
+(defn normalize-frontier [versions]
+  (let [vs (vec (set versions))]
+    (set
+     (for [v vs
+           :when (not-any? #(version:< % v) vs)]
+       v))))
+
+(defn frontier-upper-union [F G]
+  (normalize-frontier (concat F G)))
+
+(defn frontier-upper-intersection [F G]
+  (normalize-frontier
+   (for [f F
+         g G]
+     (version-lowest-upper-bound f g))))
+
+(def frontier-meet frontier-upper-union)
