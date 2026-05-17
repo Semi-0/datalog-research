@@ -218,6 +218,7 @@
            body-mult (a/mult body-out)
            feedback-source (a/chan buf)
            egress-source (a/chan buf)]
+       (a/>!! feedback-in [:frontier #{[0 0]}])
        (a/tap body-mult feedback-source)
        (a/tap body-mult egress-source)
        (s/pipe-to! ((feedback 1 buf) feedback-source) feedback-in)

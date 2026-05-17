@@ -17,4 +17,7 @@
             :main-opts ["-m" "differential-dataflow.stream-ops-test"]}
            :frontier-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "differential-dataflow.frontier-test"]}}}
+            :main-opts ["-m" "differential-dataflow.frontier-test"]}
+           :differential-leapfrog-test
+           {:extra-paths ["test"]
+            :main-opts ["-m" "differential-leapfrog-test"]}}}
