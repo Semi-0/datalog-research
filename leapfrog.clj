@@ -121,6 +121,39 @@
 (defn active-states [states var]
   (filter #(= (current-var %) var) states))
 
+(defn validate-join-order
+  "Return nil when `join-vars` can drive leapfrog on `relations`, else an error map."
+  [relations join-vars]
+  (let [rel-vars (mapv :vars relations)]
+    (loop [depths (vec (repeat (count relations) 0))
+           remaining join-vars]
+      (cond
+        (empty? remaining) nil
+        :else
+        (let [var (first remaining)
+              active (vec (keep-indexed
+                            (fn [i d]
+                              (when (and (< d (count (rel-vars i)))
+                                         (= var (nth (rel-vars i) d)))
+                                i))
+                            depths))]
+          (if (empty? active)
+            {:var var :join-vars join-vars :relation-vars rel-vars}
+            (recur (reduce (fn [ds i] (update ds i inc)) depths active)
+                   (rest remaining))))))))
+
+(defn invalid-join-order-ex
+  ([relations join-vars]
+   (invalid-join-order-ex relations join-vars nil))
+  ([relations join-vars rule]
+   (let [detail (validate-join-order relations join-vars)]
+     (ex-info
+      "no relation active for join variable — :join-vars order is incompatible with body :vars"
+      (cond-> {:join-vars join-vars
+               :relation-vars (mapv :vars relations)
+               :var (:var detail)}
+        rule (assoc :rule rule))))))
+
 ;; ------------------------------------------------------------
 ;; Snapshot / restore
 ;; ------------------------------------------------------------
@@ -223,45 +256,30 @@
                        active       (vec (active-states states var))
                        active-iters (mapv :iter active)]
 
-                   (when (empty? active-iters)
-                     (throw
-                      (ex-info "no active relation for variable"
-                               {:var var})))
+                   (do
+                     (if (empty? active-iters)
+                       nil ; no active relation — failed branch (backtrack)
+                       (loop []
+                         (let [value (leapfrog-key! active-iters)]
+                           (when (some? value)
+                             (let [before-child (snapshot-states states)
+                                   env*         (assoc env var value)]
 
-                   (loop []
-                     (let [value (leapfrog-key! active-iters)]
-                       (when (some? value)
-                         (let [before-child (snapshot-states states)
-                               env*         (assoc env var value)]
+                               (if (empty? rest-vars)
+                                 (emit! env*)
+                                 (do
+                                   ;; Commit var = value.
+                                   (doseq [it active-iters]
+                                     (iter-open! it))
+                                   (search! rest-vars env*)
+                                   (doseq [it active-iters]
+                                     (iter-up! it))))
 
-                           (if (empty? rest-vars)
-                             (emit! env*)
-                             (do
-                               ;; Commit var = value.
-                               ;; Example: R(x y) opens from x into R_x(y).
-                               (doseq [it active-iters]
-                                 (iter-open! it))
-
-                               ;; Search deeper variables.
-                               (search! rest-vars env*)
-
-                               ;; Undo the open.
-                               (doseq [it active-iters]
-                                 (iter-up! it))))
-
-                           ;; Restore all cursors because deeper search may
-                           ;; have moved iterators that were opened earlier.
-                           ;;
-                           ;; Example: T(x z) skips y, but z-search mutates it
-                           ;; while we are enumerating y.
-                           (restore-states! before-child)
-
-                           ;; Try next value for current variable.
-                           (advance-one! active-iters)
-                           (recur)))))
-
-                   ;; Leave this recursive frame exactly as we entered it.
-                   (restore-states! entry-snap))))]
+                               (restore-states! before-child)
+                               (advance-one! active-iters)
+                               (recur))))))
+                     ;; Leave this recursive frame exactly as we entered it.
+                     (restore-states! entry-snap)))))]
 
        (search! vars {})
        @results))))
@@ -285,6 +303,8 @@
         body                 (:body rule)
         join-vars            (body-vars body)
         relations            (mapv #(relation-from-atom sources %) body)
+        _                    (when (validate-join-order relations join-vars)
+                               (throw (invalid-join-order-ex relations join-vars rule)))
         joined-tuples        (lftj relations join-vars :tuples)]
     {head-pred
      (set (map #(project-tuple join-vars head-vars %) joined-tuples))}))

@@ -120,12 +120,17 @@
 (defn- relation-from-source [source {[pred vars] :atom}]
   (lf/make-relation pred vars (trie/nonzero-tuples (source-trie source pred))))
 
+(defn- assert-valid-join! [rels join-vars ctx]
+  (when (lf/validate-join-order rels join-vars)
+    (throw (lf/invalid-join-order-ex rels join-vars ctx))))
+
 (defn weighted-lftj
   "Join positive atoms with LFTJ and multiply source tuple weights."
   [sources body]
   (let [atoms (mapv atom-form body)
         join-vars (body-vars atoms)
-        rels (mapv #(relation-from-source %1 %2) sources atoms)]
+        rels (mapv #(relation-from-source %1 %2) sources atoms)
+        _ (assert-valid-join! rels join-vars {:body body :atoms atoms})]
     (for [tuple (lf/lftj rels join-vars :tuples)
           :let [env (zipmap join-vars tuple)
                 weight (reduce
@@ -155,7 +160,8 @@
         join-vars (body-vars pos)
         rels (mapv (fn [{[pred vars] :atom}]
                      (lf/make-relation pred vars (support db pred)))
-                   pos)]
+                   pos)
+        _ (assert-valid-join! rels join-vars {:body body :positive pos})]
     (for [tuple (lf/lftj rels join-vars :tuples)
           :let [env (zipmap join-vars tuple)]
           :when (every? (fn [{[pred vars] :atom}]
