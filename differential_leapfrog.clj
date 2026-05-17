@@ -233,26 +233,31 @@
     (reduce (partial flush-rule-version rules) [state []] closed)))
 
 (defn- iterative-rule-operator [old-db rules]
-  (vc/stateful
-   {:facts (db->tries old-db)
-    :exact {}
-    :initial {}
-    :todo #{}
-    :out-frontier nil}
-   {:data (fn [state version rows]
-            (let [delta (rows->db rows)
-                  top (f/version-truncate version)]
-              [(cond-> (-> state
-                           (update-in [:exact version] add-db delta)
-                           (update :todo conj version))
-                 (= 0 (inner-step version)) (update-in [:initial top] add-db delta))
-               []]))
-    :frontier (fn [{:keys [out-frontier] :as state} frontier]
-                (let [[state' messages] (flush-rule-versions state frontier rules)
-                      [out frontier-messages] (vc/emit-frontier out-frontier frontier)]
-                  [(assoc state' :out-frontier out)
-                   (into messages frontier-messages)]))}
-   16))
+  (letfn [(step [state msg]
+            (case (first msg)
+              :data (let [delta (rows->db (vc/rows msg))
+                          top (f/version-truncate (vc/version msg))]
+                      (cond-> (-> state
+                                  (update-in [:exact (vc/version msg)] add-db delta)
+                                  (update :todo conj (vc/version msg)))
+                        (= 0 (inner-step (vc/version msg))) (update-in [:initial top] add-db delta)))
+              :frontier (let [[state' _messages] (flush-rule-versions state (vc/frontier-value msg) rules)]
+                          (first (vc/advance-frontier state' (vc/frontier-value msg))))
+              state))
+          (emit [old-state _state msg]
+            (case (first msg)
+              :frontier (let [[state' messages] (flush-rule-versions old-state (vc/frontier-value msg) rules)]
+                          (into messages (second (vc/advance-frontier state' (vc/frontier-value msg)))))
+              []))]
+    (vc/unary-operator
+     {:facts (db->tries old-db)
+      :exact {}
+      :initial {}
+      :todo #{}
+      :out-frontier nil}
+     step
+     emit
+     16)))
 
 (defn- drain-versioned-output [out]
   (loop [change {}]

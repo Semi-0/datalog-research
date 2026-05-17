@@ -9,71 +9,82 @@
 (defn frontier [frontier]
   (s/frontier-msg frontier))
 
-(defn emit [& messages]
-  (vec (remove nil? messages)))
+(defn data? [msg]
+  (= :data (first msg)))
 
-(defn as-frontier [x]
+(defn frontier? [msg]
+  (= :frontier (first msg)))
+
+(defn version [[_ version _rows]]
+  version)
+
+(defn rows [[_ _version rows]]
+  rows)
+
+(defn frontier-value [[_ frontier]]
+  frontier)
+
+(defn on-data [msg f default]
+  (if (data? msg) (f (version msg) (rows msg)) default))
+
+(defn on-frontier [msg f default]
+  (if (frontier? msg) (f (frontier-value msg)) default))
+
+(defn normalize-frontier [x]
   (cond
     (set? x) (f/frontier x)
     (and (vector? x) (every? number? x)) (f/frontier [x])
     (sequential? x) (f/frontier x)
     :else (f/frontier [x])))
 
-(defn emit-frontier [out-frontier candidate]
-  (if (or (nil? out-frontier) (f/frontier-lt? out-frontier candidate))
-    [candidate [(frontier candidate)]]
-    [out-frontier []]))
+(defn advance-frontier
+  "Advance `:out-frontier` to `candidate` when it strictly increases.
+  Returns `[state messages]`."
+  [state candidate]
+  (let [candidate (normalize-frontier candidate)
+        out-frontier (:out-frontier state)]
+    (if (or (nil? out-frontier) (f/frontier-lt? out-frontier candidate))
+      [(assoc state :out-frontier candidate) [(frontier candidate)]]
+      [state []])))
 
-(defn stateful [init {:keys [data frontier else]} buf]
-  (s/scan-emit
-   init
-   (fn [state msg]
-     (case (first msg)
-       :data (let [[_ version rows] msg]
-               (data state version rows))
-       :frontier (let [[_ F] msg]
-                   (frontier state (as-frontier F)))
-       (if else
-         (else state msg)
-         [state []])))
-   buf))
+(defn frontier-step [state candidate]
+  (let [[state' messages] (advance-frontier state candidate)]
+    {:state state' :messages messages}))
 
-(defn unary [data-step frontier-step buf]
-  (stateful
-   {:out-frontier nil}
-   {:data (fn [state version rows]
-            [state (data-step version rows)])
-    :frontier (fn [{:keys [out-frontier] :as state} F]
-                (let [[out messages] (emit-frontier out-frontier (frontier-step F))]
-                  [(assoc state :out-frontier out) messages]))
-    :else (fn [state msg] [state [msg]])}
-   buf))
+(defn advance-binary-frontier
+  "Record one input frontier. Once both inputs are known, emit the meet:
+  `output-frontier = meet(input-a-frontier, input-b-frontier)`."
+  [state side frontier]
+  (let [frontiers (assoc (:frontiers state) side (normalize-frontier frontier))
+        state' (assoc state :frontiers frontiers)]
+    (if (every? some? (vals frontiers))
+      (advance-frontier state' (f/frontier-meet (:a frontiers) (:b frontiers)))
+      [state' []])))
 
-(defn binary-frontier [state side F]
-  (let [frontiers (assoc (:frontiers state) side F)
-        candidate (when (every? some? (vals frontiers))
-                    (f/frontier-meet (:a frontiers) (:b frontiers)))
-        [out messages] (if candidate
-                         (emit-frontier (:out-frontier state) candidate)
-                         [(:out-frontier state) []])]
-    [(assoc state :frontiers frontiers :out-frontier out) messages]))
+(defn binary-frontier-step [state side frontier]
+  (let [[state' messages] (advance-binary-frontier state side frontier)]
+    {:state state' :messages messages}))
 
-(defn binary [a-ch b-ch init {:keys [data frontier else]} buf]
-  (let [merged (s/merge-tagged [[:a a-ch] [:b b-ch]] buf)]
-    ((s/scan-emit
-      (merge {:frontiers {:a nil :b nil}
-              :out-frontier nil}
-             init)
-      (fn [state [side msg]]
-        (case (first msg)
-          :data (let [[_ version rows] msg]
-                  (data state side version rows))
-          :frontier (let [[_ F] msg]
-                      (if frontier
-                        (frontier state side (as-frontier F))
-                        (binary-frontier state side (as-frontier F))))
-          (if else
-            (else state side msg)
-            [state []])))
-      buf)
-     merged)))
+(defn unary-operator
+  ([init step emit] (unary-operator init step emit 8))
+  ([init step emit buf]
+   (s/scan-emit
+    init
+    (fn [state msg]
+      (let [state' (step state msg)]
+        [state' (emit state state' msg)]))
+    buf)))
+
+(defn binary-operator
+  ([a-ch b-ch init step emit] (binary-operator a-ch b-ch init step emit 8))
+  ([a-ch b-ch init step emit buf]
+   (let [merged (s/merge-tagged [[:a a-ch] [:b b-ch]] buf)]
+     ((s/scan-emit
+       (merge {:frontiers {:a nil :b nil}
+               :out-frontier nil}
+              init)
+       (fn [state [side msg]]
+         (let [state' (step state side msg)]
+           [state' (emit state state' side msg)]))
+       buf)
+      merged))))

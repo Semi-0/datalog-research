@@ -108,42 +108,77 @@
     ch ([v] v)
     (a/timeout 50) ::none))
 
-(deftest versioned-core-stateful-dispatches-by-message-kind
+(deftest versioned-core-unary-operator-steps-before-emitting
   (let [in (a/chan 10)
-        out ((vc/stateful
-              nil
-              {:data (fn [state v rows] [state [[:d v rows]]])
-               :frontier (fn [state F] [state [[:f F]]])
-               :else (fn [state _msg] [state [:unknown]])}
+        out ((vc/unary-operator
+              []
+              (fn [state msg] (conj state msg))
+              (fn [old-state new-state msg]
+                [[:old old-state] [:new new-state] [:msg msg]])
               10)
              in)]
     (a/>!! in [:data 1 [:x]])
-    (is (= [:d 1 [:x]] (a/<!! out)))
-    (a/>!! in [:frontier #{1}])
-    (is (= [:f #{1}] (a/<!! out)))
-    (a/>!! in [:other])
-    (is (= :unknown (a/<!! out)))
+    (is (= [:old []] (a/<!! out)))
+    (is (= [:new [[:data 1 [:x]]]] (a/<!! out)))
+    (is (= [:msg [:data 1 [:x]]] (a/<!! out)))
     (a/close! in)
     (is (nil? (a/<!! out)))))
 
-(deftest versioned-core-emit-frontier-only-on-advance
-  (let [[frontier messages] (vc/emit-frontier nil #{1})
-        [frontier' messages'] (vc/emit-frontier frontier #{1})]
-    (is (= #{1} frontier))
+(deftest versioned-core-binary-operator-passes-side-to-step-and-emit
+  (let [a-ch (a/chan 10)
+        b-ch (a/chan 10)
+        out (vc/binary-operator
+             a-ch b-ch {:seen []}
+             (fn [state side msg] (update state :seen conj [side msg]))
+             (fn [old-state new-state side msg]
+               [[:side side] [:old (:seen old-state)] [:new (:seen new-state)] [:msg msg]])
+             10)]
+    (a/>!! b-ch [:data 2 [:b]])
+    (is (= [:side :b] (a/<!! out)))
+    (is (= [:old []] (a/<!! out)))
+    (is (= [:new [[:b [:data 2 [:b]]]]] (a/<!! out)))
+    (is (= [:msg [:data 2 [:b]]] (a/<!! out)))
+    (a/close! a-ch)
+    (a/close! b-ch)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-core-message-branch-helpers
+  (is (= [:data 3 [:x]]
+         (vc/on-data [:data 3 [:x]]
+                     (fn [version rows] [:data version rows])
+                     :miss)))
+  (is (= :miss (vc/on-data [:frontier #{1}] (fn [_ _] :hit) :miss)))
+  (is (= [:frontier #{1}]
+         (vc/on-frontier [:frontier #{1}]
+                         (fn [frontier] [:frontier frontier])
+                         :miss)))
+  (is (= :miss (vc/on-frontier [:data 3 [:x]] (fn [_] :hit) :miss))))
+
+(deftest versioned-core-advance-frontier-only-on-advance
+  (let [[state messages] (vc/advance-frontier {:out-frontier nil} #{1})
+        [state' messages'] (vc/advance-frontier state #{1})]
+    (is (= #{1} (:out-frontier state)))
     (is (= [[:frontier #{1}]] messages))
-    (is (= #{1} frontier'))
+    (is (= #{1} (:out-frontier state')))
     (is (= [] messages'))))
 
 (deftest versioned-core-binary-waits-for-both-frontiers
+  (let [[state messages] (vc/advance-binary-frontier {:frontiers {:a nil :b nil}
+                                                      :out-frontier nil}
+                                                     :b #{1})
+        [state' messages'] (vc/advance-binary-frontier state :a #{2})]
+    (is (= [] messages))
+    (is (= #{1} (get-in state [:frontiers :b])))
+    (is (= [:frontier #{2}] (first messages')))
+    (is (= #{2} (:out-frontier state')))))
+
+(deftest versioned-concat-binary-frontier-order-does-not-matter
   (let [a-ch (a/chan 10)
         b-ch (a/chan 10)
-        out (vc/binary a-ch b-ch {}
-                       {:data (fn [state _side v rows]
-                                [state [(vc/data v rows)]])}
-                       10)]
-    (a/>!! a-ch [:frontier #{2}])
-    (is (= ::none (poll!! out)))
+        out (vg/concat a-ch b-ch 10)]
     (a/>!! b-ch [:frontier #{1}])
+    (is (= ::none (poll!! out)))
+    (a/>!! a-ch [:frontier #{2}])
     (is (= [:frontier #{2}] (a/<!! out)))
     (a/close! a-ch)
     (a/close! b-ch)

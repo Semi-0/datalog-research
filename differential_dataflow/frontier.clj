@@ -107,23 +107,6 @@
   [F step]
   (frontier-map #(version-apply-step % step) F))
 
-(def default-frontier-algebra
-  {:version-lte? version-lte?
-   :version-lt? version-lt?
-   :version-lub version-lub
-   :version-extend version-extend
-   :version-truncate version-truncate
-   :version-apply-step version-apply-step
-   :frontier frontier
-   :frontier-map frontier-map
-   :frontier-extend frontier-extend
-   :frontier-truncate frontier-truncate
-   :frontier-apply-step frontier-apply-step
-   :frontier-lte-version? frontier-lte-version?
-   :frontier-lte? frontier-lte?
-   :frontier-lt? frontier-lt?
-   :frontier-meet frontier-meet})
-
 (defn make-version
   [timestamp iteration]
   [timestamp iteration])

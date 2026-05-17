@@ -31,10 +31,16 @@
 (defn concat
   ([a-ch b-ch] (concat a-ch b-ch default-buf))
   ([a-ch b-ch buf]
-   (vc/binary a-ch b-ch {}
-              {:data (fn [state _side version rows]
-                       [state [(vc/data version rows)]])}
-              buf)))
+   (letfn [(step [state _side msg]
+             (case (first msg)
+               :frontier (:state (vc/binary-frontier-step state _side (vc/frontier-value msg)))
+               state))
+           (emit [old-state _state side msg]
+             (case (first msg)
+               :data [(vc/data (vc/version msg) (vc/rows msg))]
+               :frontier (:messages (vc/binary-frontier-step old-state side (vc/frontier-value msg)))
+               []))]
+     (vc/binary-operator a-ch b-ch {} step emit buf))))
 
 (defn- add-row [trace version [[k v] mult]]
   (update-in trace [k version] (fnil conj []) [v mult]))
@@ -75,19 +81,24 @@
 (defn join
   ([a-ch b-ch] (join a-ch b-ch reduce-buf))
   ([a-ch b-ch buf]
-   (vc/binary
-    a-ch b-ch {:a {} :b {}}
-    {:data (fn [state side version rows]
-             (let [rows (ms/consolidate rows)
-                   left? (= side :a)
-                   own (if left? :a :b)
-                   other (if left? :b :a)
-                   results (join-delta version rows (get state other) left?)]
-               [(update state own add-rows version rows)
-                (result-messages results)]))}
-    buf)))
+   (letfn [(step [state side msg]
+             (case (first msg)
+               :data (let [rows (ms/consolidate (vc/rows msg))]
+                       (update state side add-rows (vc/version msg) rows))
+               :frontier (:state (vc/binary-frontier-step state side (vc/frontier-value msg)))
+               state))
+           (emit [old-state _state side msg]
+             (case (first msg)
+               :data (let [rows (ms/consolidate (vc/rows msg))
+                           left? (= side :a)
+                           other (if left? :b :a)]
+                       (result-messages
+                        (join-delta (vc/version msg) rows (get old-state other) left?)))
+               :frontier (:messages (vc/binary-frontier-step old-state side (vc/frontier-value msg)))
+               []))]
+     (vc/binary-operator a-ch b-ch {:a {} :b {}} step emit buf))))
 
-(defn- add-input [state version rows]
+(defn- remember-input [state version rows]
   (let [trace (add-rows (:input state) version rows)
         todo (c/reduce
               (fn [todo k]
@@ -98,42 +109,53 @@
               (index/key-set rows))]
     (assoc state :input trace :todo todo)))
 
-(defn- reduce-delta [f input output version ks]
+(defn- output-delta-at [f state version]
   (into []
         (c/mapcat
          (fn [k]
-           (let [curr (reconstruct input k version)
-                 prev (reconstruct output k version)]
+           (let [curr (reconstruct (:input state) k version)
+                 prev (reconstruct (:output state) k version)]
              (c/map (fn [[v m]] [[k v] m])
                     (ms/difference (ms/consolidate (f curr))
                                    (ms/consolidate prev)))))
-         ks)))
+         (get-in state [:todo version]))))
 
-(defn- flush-version [f [state messages] version]
-  (let [rows (reduce-delta f (:input state) (:output state) version (get-in state [:todo version]))
-        state' (-> state
-                   (update :output add-rows version rows)
-                   (update :todo dissoc version))]
-    [state'
-     (cond-> messages
-       (seq rows) (conj (vc/data version (ms/consolidate rows))))]))
+(defn- remember-emitted-output-at [f state version]
+  (let [rows (ms/consolidate (output-delta-at f state version))]
+    (cond-> (update state :todo dissoc version)
+      (seq rows) (update :output add-rows version rows))))
 
-(defn- flush-closed [state frontier f]
-  (let [closed (sort (remove #(f/frontier-lte-version? frontier %) (keys (:todo state))))]
-    (c/reduce (partial flush-version f) [state []] closed)))
+(defn- closed-versions [state frontier]
+  (sort (remove #(f/frontier-lte-version? frontier %) (keys (:todo state)))))
+
+(defn- remember-emitted-output [state frontier f]
+  (c/reduce (partial remember-emitted-output-at f) state (closed-versions state frontier)))
+
+(defn- emit-closed-versions [state frontier f]
+  (for [version (closed-versions state frontier)
+        :let [rows (ms/consolidate (output-delta-at f state version))]
+        :when (seq rows)]
+    (vc/data version rows)))
+
+(defn- advance-reduce-frontier [state frontier]
+  (vc/frontier-step state frontier))
 
 (defn reduce
   ([f] (reduce f reduce-buf))
   ([f buf]
-   (vc/stateful
-    {:input {} :output {} :todo {} :out-frontier nil}
-    {:data (fn [state version rows]
-             [(add-input state version (ms/consolidate rows)) []])
-     :frontier (fn [{:keys [out-frontier] :as state} frontier]
-                 (let [[state' messages] (flush-closed state frontier f)
-                       [out messages'] (vc/emit-frontier out-frontier frontier)]
-                   [(assoc state' :out-frontier out) (into messages messages')]))}
-    buf)))
+   (letfn [(step [state msg]
+             (case (first msg)
+               :data (remember-input state (vc/version msg) (ms/consolidate (vc/rows msg)))
+               :frontier (:state (advance-reduce-frontier
+                                   (remember-emitted-output state (vc/frontier-value msg) f)
+                                   (vc/frontier-value msg)))
+               state))
+           (emit [old-state _state msg]
+             (case (first msg)
+               :frontier (into (vec (emit-closed-versions old-state (vc/frontier-value msg) f))
+                               (:messages (advance-reduce-frontier old-state (vc/frontier-value msg))))
+               []))]
+     (vc/unary-operator {:input {} :output {} :todo {} :out-frontier nil} step emit buf))))
 
 (defn- sum-multiplicities [rows]
   (c/reduce (fn [acc [_ m]] (+ acc (long m))) 0 rows))
@@ -146,23 +168,41 @@
 (defn ingress
   ([] (ingress default-buf))
   ([buf]
-   (vc/unary
-    (fn [version rows]
-      (let [inner (f/version-extend version)]
-        [(vc/data inner rows)
-         (vc/data (f/version-apply-step inner 1) (ms/negate rows))]))
-    f/frontier-extend
-    buf)))
+   (letfn [(step [state msg]
+             (case (first msg)
+               :frontier (:state (vc/frontier-step state (f/frontier-extend (vc/frontier-value msg))))
+               state))
+           (emit [old-state _state msg]
+             (case (first msg)
+               :data (let [inner (f/version-extend (vc/version msg))
+                           rows (vc/rows msg)]
+                       [(vc/data inner rows)
+                        (vc/data (f/version-apply-step inner 1) (ms/negate rows))])
+               :frontier (:messages (vc/frontier-step old-state (f/frontier-extend (vc/frontier-value msg))))
+               []))]
+     (vc/unary-operator {:out-frontier nil} step emit buf))))
 
 (defn egress
   ([] (egress default-buf))
   ([buf]
-   (vc/unary
-    (fn [version rows] [(vc/data (f/version-truncate version) rows)])
-    f/frontier-truncate
-    buf)))
+   (letfn [(step [state msg]
+             (case (first msg)
+               :frontier (:state (vc/frontier-step state (f/frontier-truncate (vc/frontier-value msg))))
+               state))
+           (emit [old-state _state msg]
+             (case (first msg)
+               :data [(vc/data (f/version-truncate (vc/version msg)) (vc/rows msg))]
+               :frontier (:messages (vc/frontier-step old-state (f/frontier-truncate (vc/frontier-value msg))))
+               []))]
+     (vc/unary-operator {:out-frontier nil} step emit buf))))
 
-(defn- feedback-frontier [state frontier step]
+(defn- advance-data-version [version step]
+  (f/version-apply-step version step))
+
+(defn- close-empty-loop? [empty top]
+  (> (c/count (get empty top)) 3))
+
+(defn- candidate-feedback-frontier [state frontier step]
   (c/reduce
    (fn [{:keys [in-flight empty candidate rejected] :as acc} elem]
      (let [top (f/version-truncate elem)
@@ -173,40 +213,46 @@
                (update :candidate conj elem)
                (assoc-in [:in-flight top] (set/difference flights closed))))
          (let [empty' (update empty top (fnil conj #{}) elem)]
-           (if (<= (c/count (get empty' top)) 3)
-             (-> acc (assoc :empty empty') (update :candidate conj elem))
+           (if (close-empty-loop? empty' top)
              (-> acc
                  (assoc :empty (dissoc empty' top))
                  (assoc :in-flight (dissoc in-flight top))
-                 (update :rejected conj elem)))))))
+                 (update :rejected conj elem))
+             (-> acc (assoc :empty empty') (update :candidate conj elem)))))))
    (assoc state :candidate [] :rejected [])
    (f/frontier-apply-step frontier step)))
 
 (defn- advance-feedback [state frontier step]
-  (let [state' (feedback-frontier state frontier step)
+  (let [state' (candidate-feedback-frontier state frontier step)
         extra (for [r (:rejected state') top (keys (:in-flight state'))]
                 (f/version-lub r (f/version-extend top)))]
     [(dissoc state' :candidate :rejected)
      (f/frontier (c/concat (:candidate state') extra))]))
 
+(defn- track-in-flight [state version step]
+  (let [version' (advance-data-version version step)
+        top (f/version-truncate version')]
+    (-> state
+        (update-in [:in-flight top] (fnil conj #{}) version')
+        (update :empty #(if (contains? % top) % (assoc % top #{}))))))
+
 (defn feedback
   ([] (feedback 1 default-buf))
   ([step] (feedback step default-buf))
   ([step buf]
-   (vc/stateful
-    {:out-frontier nil :in-flight {} :empty {}}
-    {:data (fn [state version rows]
-             (let [version' (f/version-apply-step version step)
-                   top (f/version-truncate version')]
-               [(-> state
-                    (update-in [:in-flight top] (fnil conj #{}) version')
-                    (update :empty #(if (contains? % top) % (assoc % top #{}))))
-                [(vc/data version' rows)]]))
-     :frontier (fn [{:keys [out-frontier] :as state} frontier]
-                 (let [[state' candidate] (advance-feedback state frontier step)
-                       [out messages] (vc/emit-frontier out-frontier candidate)]
-                   [(assoc state' :out-frontier out) messages]))}
-    buf)))
+   (letfn [(step-state [state msg]
+             (case (first msg)
+               :data (track-in-flight state (vc/version msg) step)
+               :frontier (let [[state' candidate] (advance-feedback state (vc/frontier-value msg) step)]
+                           (:state (vc/frontier-step state' candidate)))
+               state))
+           (emit [old-state _state msg]
+             (case (first msg)
+               :data [(vc/data (advance-data-version (vc/version msg) step) (vc/rows msg))]
+               :frontier (let [[_ candidate] (advance-feedback old-state (vc/frontier-value msg) step)]
+                           (:messages (vc/frontier-step old-state candidate)))
+               []))]
+     (vc/unary-operator {:out-frontier nil :in-flight {} :empty {}} step-state emit buf))))
 
 (defn iterate
   ([f] (iterate f default-buf))
@@ -218,6 +264,7 @@
            body-mult (a/mult body-out)
            feedback-source (a/chan buf)
            egress-source (a/chan buf)]
+       ;; The loop starts with no feedback data but with an open inner frontier.
        (a/>!! feedback-in [:frontier #{[0 0]}])
        (a/tap body-mult feedback-source)
        (a/tap body-mult egress-source)
