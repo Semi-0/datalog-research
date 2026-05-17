@@ -34,6 +34,44 @@
     (a/close! b-ch)
     (is (nil? (a/<!! z)))))
 
+(deftest scan-emit-can-emit-zero-or-many-messages
+  (let [in (a/chan 10)
+        out ((s/scan-emit
+              0
+              (fn [acc x]
+                [(+ acc x)
+                 (when (pos? x)
+                   [acc (+ acc x)])]))
+             in)]
+    (a/>!! in 2)
+    (is (= 0 (a/<!! out)))
+    (is (= 2 (a/<!! out)))
+    (a/>!! in -1)
+    (is (= ::none (a/alt!! out ([v] v) (a/timeout 50) ::none)))
+    (a/close! in)
+    (is (nil? (a/<!! out)))))
+
+(deftest merge-tagged-identifies-source-channel
+  (let [a-ch (a/chan 10)
+        b-ch (a/chan 10)
+        out (s/merge-tagged [[:a a-ch] [:b b-ch]] 10)]
+    (a/>!! a-ch :x)
+    (is (= [:a :x] (a/<!! out)))
+    (a/>!! b-ch :y)
+    (is (= [:b :y] (a/<!! out)))
+    (a/close! a-ch)
+    (a/close! b-ch)
+    (is (nil? (a/<!! out)))))
+
+(deftest pipe-to-copies-and-closes-destination
+  (let [source (a/chan 10)
+        dest (a/chan 10)]
+    (s/pipe-to! source dest)
+    (a/>!! source :x)
+    (is (= :x (a/<!! dest)))
+    (a/close! source)
+    (is (nil? (a/<!! dest)))))
+
 (defn -main [& _]
   (let [{:keys [fail error pass]} (clojure.test/run-tests 'differential-dataflow.stream-ops-test)]
     (println "stream-ops-test:" pass "pass," fail "fail," error "error")

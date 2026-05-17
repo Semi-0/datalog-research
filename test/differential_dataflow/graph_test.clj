@@ -2,7 +2,10 @@
   (:require [clojure.test :refer [deftest is]]
             [clojure.core.async :as a]
             [differential-dataflow.graph.interface :as g]
-            [differential-dataflow.multiset :as ms]))
+            [differential-dataflow.multiset :as ms]
+            [differential-dataflow.stream-ops :as s]
+            [differential-dataflow.versioned-core :as vc]
+            [differential-dataflow.versioned-graph :as vg]))
 
 (defn- drain-close!
   "Close `in-ch` after optional puts; read one batch from `out-ch` (blocking)."
@@ -99,6 +102,171 @@
     (a/>!! c [[[:x :a] 1]])
     (is (= [[[:x 1] 1]] (a/<!! out)))
     (is (nil? (drain-close! out c)))))
+
+(defn- poll!! [ch]
+  (a/alt!!
+    ch ([v] v)
+    (a/timeout 50) ::none))
+
+(deftest versioned-core-stateful-dispatches-by-message-kind
+  (let [in (a/chan 10)
+        out ((vc/stateful
+              nil
+              {:data (fn [state v rows] [state [[:d v rows]]])
+               :frontier (fn [state F] [state [[:f F]]])
+               :else (fn [state _msg] [state [:unknown]])}
+              10)
+             in)]
+    (a/>!! in [:data 1 [:x]])
+    (is (= [:d 1 [:x]] (a/<!! out)))
+    (a/>!! in [:frontier #{1}])
+    (is (= [:f #{1}] (a/<!! out)))
+    (a/>!! in [:other])
+    (is (= :unknown (a/<!! out)))
+    (a/close! in)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-core-emit-frontier-only-on-advance
+  (let [[frontier messages] (vc/emit-frontier nil #{1})
+        [frontier' messages'] (vc/emit-frontier frontier #{1})]
+    (is (= #{1} frontier))
+    (is (= [[:frontier #{1}]] messages))
+    (is (= #{1} frontier'))
+    (is (= [] messages'))))
+
+(deftest versioned-core-binary-waits-for-both-frontiers
+  (let [a-ch (a/chan 10)
+        b-ch (a/chan 10)
+        out (vc/binary a-ch b-ch {}
+                       {:data (fn [state _side v rows]
+                                [state [(vc/data v rows)]])}
+                       10)]
+    (a/>!! a-ch [:frontier #{2}])
+    (is (= ::none (poll!! out)))
+    (a/>!! b-ch [:frontier #{1}])
+    (is (= [:frontier #{2}] (a/<!! out)))
+    (a/close! a-ch)
+    (a/close! b-ch)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-map-transforms-data-and-forwards-frontier
+  (let [in (a/chan 10)
+        out ((vg/map inc) in)]
+    (a/>!! in [:data 0 [[1 2] [3 4]]])
+    (is (= [:data 0 [[2 2] [4 4]]] (a/<!! out)))
+    (a/>!! in [:frontier #{1}])
+    (is (= [:frontier #{1}] (a/<!! out)))
+    (is (nil? (drain-close! out in)))))
+
+(deftest versioned-concat-meets-input-frontiers
+  (let [a-ch (a/chan 10)
+        b-ch (a/chan 10)
+        out (vg/concat a-ch b-ch 10)]
+    (a/>!! a-ch [:frontier #{2}])
+    (is (= ::none (poll!! out)))
+    (a/>!! b-ch [:frontier #{1}])
+    (is (= [:frontier #{2}] (a/<!! out)))
+    (a/close! a-ch)
+    (a/close! b-ch)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-join-uses-version-lub
+  (let [a-ch (a/chan 10)
+        b-ch (a/chan 10)
+        out (vg/join a-ch b-ch 10)]
+    (a/>!! a-ch [:data 0 [[[:k :left] 2]]])
+    (is (= ::none (poll!! out)))
+    (a/>!! b-ch [:data 2 [[[:k :right] 3]]])
+    (is (= [:data 2 [[[:k [:left :right]] 6]]] (a/<!! out)))
+    (a/close! a-ch)
+    (a/close! b-ch)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-count-waits-until-frontier-closes-version
+  (let [in (a/chan 10)
+        out ((vg/count) in)]
+    (a/>!! in [:data 0 [[[:x :a] 2] [[:x :b] 1]]])
+    (is (= ::none (poll!! out)))
+    (a/>!! in [:frontier #{1}])
+    (is (= [:data 0 [[[:x 3] 1]]] (a/<!! out)))
+    (is (= [:frontier #{1}] (a/<!! out)))
+    (a/close! in)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-count-emits-zero-after-retraction
+  (let [in (a/chan 10)
+        out ((vg/count) in)]
+    (a/>!! in [:data 0 [[[:x :a] 2]]])
+    (a/>!! in [:frontier #{1}])
+    (is (= [:data 0 [[[:x 2] 1]]] (a/<!! out)))
+    (is (= [:frontier #{1}] (a/<!! out)))
+    (a/>!! in [:data 1 [[[:x :a] -2]]])
+    (a/>!! in [:frontier #{2}])
+    (is (= #{[[:x 2] -1] [[:x 0] 1]}
+           (set (nth (a/<!! out) 2))))
+    (is (= [:frontier #{2}] (a/<!! out)))
+    (a/close! in)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-ingress-enters-nested-scope
+  (let [in (a/chan 10)
+        out ((vg/ingress) in)]
+    (a/>!! in [:data 0 [[[:x 1] 2]]])
+    (is (= [:data [0 0] [[[:x 1] 2]]] (a/<!! out)))
+    (is (= [:data [0 1] [[[:x 1] -2]]] (a/<!! out)))
+    (a/>!! in [:frontier #{1}])
+    (is (= [:frontier #{[1 0]}] (a/<!! out)))
+    (a/close! in)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-egress-leaves-nested-scope
+  (let [in (a/chan 10)
+        out ((vg/egress) in)]
+    (a/>!! in [:data [0 2] [[[:x 1] 1]]])
+    (is (= [:data 0 [[[:x 1] 1]]] (a/<!! out)))
+    (a/>!! in [:frontier #{[1 3]}])
+    (is (= [:frontier #{1}] (a/<!! out)))
+    (a/close! in)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-feedback-advances-data-and-frontier
+  (let [in (a/chan 10)
+        out ((vg/feedback) in)]
+    (a/>!! in [:data [0 0] [[[:x 1] 1]]])
+    (is (= [:data [0 1] [[[:x 1] 1]]] (a/<!! out)))
+    (a/>!! in [:frontier #{[0 1]}])
+    (is (= [:frontier #{[0 2]}] (a/<!! out)))
+    (a/close! in)
+    (is (nil? (a/<!! out)))))
+
+(deftest versioned-feedback-closes-empty-iteration-frontier
+  (let [in (a/chan 10)
+        out ((vg/feedback) in)]
+    (doseq [frontier [#{[0 0]} #{[0 1]} #{[0 2]} #{[0 3]}]]
+      (a/>!! in [:frontier frontier]))
+    (is (= [:frontier #{[0 1]}] (a/<!! out)))
+    (is (= [:frontier #{[0 2]}] (a/<!! out)))
+    (is (= [:frontier #{[0 3]}] (a/<!! out)))
+    (is (= [:frontier #{}] (a/<!! out)))
+    (a/close! in)
+    (is (nil? (a/<!! out)))))
+
+(defn- first-iteration-only [in]
+  ((s/scan-emit
+    nil
+    (fn [state [tag version _rows :as msg]]
+      [state
+       (case tag
+         :data (if (zero? (peek version)) [msg] [])
+         :frontier [msg]
+         [])]))
+   in))
+
+(deftest versioned-iterate-emits-egressed-deltas
+  (let [in (a/chan 10)
+        out ((vg/iterate first-iteration-only) in)]
+    (a/>!! in [:data 0 [[[:x 1] 1]]])
+    (is (= [:data 0 [[[:x 1] 1]]] (a/<!! out)))))
 
 (defn -main [& _]
   (let [{:keys [fail error pass]} (clojure.test/run-tests 'differential-dataflow.graph-test)]

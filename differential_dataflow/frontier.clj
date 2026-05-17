@@ -1,5 +1,129 @@
 (ns differential-dataflow.frontier)
 
+(defn version-lte?
+  "Partial-order comparison for scalar or tuple/vector versions."
+  [a b]
+  (cond
+    (and (number? a) (number? b))
+    (clojure.core/<= a b)
+
+    (and (vector? a) (vector? b) (= (count a) (count b)))
+    (every? true? (map clojure.core/<= a b))
+
+    :else
+    (throw (ex-info "versions must both be numbers or same-length vectors"
+                    {:a a :b b}))))
+
+(defn version-lt?
+  [a b]
+  (and (version-lte? a b) (not (version-lte? b a))))
+
+(defn version-eq?
+  [a b]
+  (and (version-lte? a b) (version-lte? b a)))
+
+(defn version-lub
+  "Least upper bound for scalar or tuple/vector versions."
+  [a b]
+  (cond
+    (and (number? a) (number? b))
+    (max a b)
+
+    (and (vector? a) (vector? b) (= (count a) (count b)))
+    (mapv max a b)
+
+    :else
+    (throw (ex-info "versions must both be numbers or same-length vectors"
+                    {:a a :b b}))))
+
+(defn version-extend
+  "Enter a nested scope by appending an iteration coordinate."
+  [v]
+  (if (vector? v)
+    (conj v 0)
+    [v 0]))
+
+(defn version-truncate
+  "Leave a nested scope by removing the final coordinate."
+  [v]
+  (cond
+    (not (vector? v)) v
+    (= 2 (count v)) (first v)
+    :else (pop v)))
+
+(defn version-apply-step
+  "Advance the final coordinate by `step`."
+  [v step]
+  (if (vector? v)
+    (update v (dec (count v)) + step)
+    (+ v step)))
+
+(defn frontier
+  "Normalize `versions` into a minimal antichain."
+  [versions]
+  (let [vs (vec (set versions))]
+    (set
+     (for [v vs
+           :when (not-any? #(version-lt? % v) vs)]
+       v))))
+
+(defn frontier-lte-version?
+  "True iff some frontier element is less than or equal to version `v`."
+  [F v]
+  (boolean (some #(version-lte? % v) F)))
+
+(defn frontier-lte?
+  "Antichain order used by differential/timely frontiers: F <= G when every
+  element in G is covered by some element in F."
+  [F G]
+  (every? #(frontier-lte-version? F %) G))
+
+(defn frontier-lt?
+  [F G]
+  (and (frontier-lte? F G) (not (frontier-lte? G F))))
+
+(defn frontier-meet
+  "Meet/frontier intersection: pairwise version LUB followed by antichain
+  minimization. For scalar frontiers this is max."
+  [F G]
+  (frontier
+   (for [f F
+         g G]
+     (version-lub f g))))
+
+(defn frontier-map
+  [f F]
+  (frontier (map f F)))
+
+(defn frontier-extend
+  [F]
+  (frontier-map version-extend F))
+
+(defn frontier-truncate
+  [F]
+  (frontier-map version-truncate F))
+
+(defn frontier-apply-step
+  [F step]
+  (frontier-map #(version-apply-step % step) F))
+
+(def default-frontier-algebra
+  {:version-lte? version-lte?
+   :version-lt? version-lt?
+   :version-lub version-lub
+   :version-extend version-extend
+   :version-truncate version-truncate
+   :version-apply-step version-apply-step
+   :frontier frontier
+   :frontier-map frontier-map
+   :frontier-extend frontier-extend
+   :frontier-truncate frontier-truncate
+   :frontier-apply-step frontier-apply-step
+   :frontier-lte-version? frontier-lte-version?
+   :frontier-lte? frontier-lte?
+   :frontier-lt? frontier-lt?
+   :frontier-meet frontier-meet})
+
 (defn make-version
   [timestamp iteration]
   [timestamp iteration])
@@ -36,11 +160,11 @@
   (fn [a b]
     (contains? allowed (compare-versions a b))))
 
-(def version:<= (version-comparator #{:below :equal}))
-(def version:<  (version-comparator #{:below}))
-(def version:>= (version-comparator #{:above :equal}))
-(def version:>  (version-comparator #{:above}))
-(def version:=  (version-comparator #{:equal}))
+(def version:<= version-lte?)
+(def version:<  version-lt?)
+(def version:>= (fn [a b] (version-lte? b a)))
+(def version:>  (fn [a b] (version-lt? b a)))
+(def version:=  version-eq?)
 (def version:incomparable? (version-comparator #{:incomparable}))
 
 (defn- distinct-version-pairs
@@ -69,9 +193,7 @@
 (defn normalize-frontier
   "Drop any version strictly dominated by another in the collection."
   [versions]
-  (let [vs (vec (set versions))]
-    (set (for [v vs :when (not (some #(version:< % v) vs))]
-           v))))
+  (frontier versions))
 
 (defn frontier-advanced-by?
   [current announcement]
@@ -141,22 +263,13 @@
   (frontier-merge* (normalize-frontier current) announcement))
 
 (defn version-lowest-upper-bound [[a b] [c d]]
-  [(max a c) (max b d)])
+  (version-lub [a b] [c d]))
 
 (defn normalize-frontier [versions]
-  (let [vs (vec (set versions))]
-    (set
-     (for [v vs
-           :when (not-any? #(version:< % v) vs)]
-       v))))
+  (frontier versions))
 
 (defn frontier-upper-union [F G]
   (normalize-frontier (concat F G)))
 
 (defn frontier-upper-intersection [F G]
-  (normalize-frontier
-   (for [f F
-         g G]
-     (version-lowest-upper-bound f g))))
-
-(def frontier-meet frontier-upper-union)
+  (frontier-meet F G))
