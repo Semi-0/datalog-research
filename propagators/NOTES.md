@@ -2,6 +2,16 @@
 
 Experimental architecture: **graph** = wiring only; **env** = runtime state and behavior per node id.
 
+;; experiments of propagator system which decouples network declaration from network evaluation
+
+;; 4 core function of propagators
+;; 1. networked semantics DONE
+;; 2. fixpoint evaluation DONE
+;; 3. partial information partialy
+;; 4. dependence tracking nah
+
+
+
 ## Roles
 
 | Store | Holds |

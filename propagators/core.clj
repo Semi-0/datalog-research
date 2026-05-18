@@ -2,14 +2,8 @@
   (:require [propagators.cell :refer [->Cell cell-snapshot]]
             [propagators.cell-merge :refer [cell-merge cell-strongest cell-updated? handle-contradiction]]
             [propagators.cell-value :refer [contradiction?]]
-            [propagators.graph :refer [node-inputs node-outputs]]))
-
-;; experiments of propagator system which decouples network declaration from network evaluation
-;; 4 core function of propagators
-;; 1. networked semantics DONE
-;; 2. fixpoint evaluation DONE
-;; 3. partial information partialy
-;; 4. dependence tracking nah
+            [propagators.graph :refer [node-inputs node-outputs]]
+            [differential-dataflow.graph.interface :as g]))
 
 (def empty-tasks [])
 
@@ -26,7 +20,7 @@
         [next-tasks updated-env])
       [empty-tasks updated-env])))
 ;; is and os could be a multiset
-;; [node message]
+;; [][node message]]
 (defn eval-cells [diffs env graph]
   (loop [ds diffs
          tasks []
@@ -35,7 +29,7 @@
       [tasks e]
       (let [[node message] (first ds)
             [poped new-e] (eval-cell node message e graph)]
-        (recur (rest ds) (concat tasks poped) new-e)))))
+        (recur (rest ds) (concat poped tasks) new-e)))))
 
 (declare run-tasks)
 
@@ -47,9 +41,14 @@
         f (:f (get env (:id current)))
         env-diffs (f inputs outputs)
         [poped new-env] (eval-cells env-diffs env graph)]
-    (run-tasks (concat poped tasks) [graph new-env])))
+    [(concat poped tasks) [graph new-env]]))
 
+;; we can even backtrack
 (defn run-tasks [tasks [graph env]]
+  (loop [ts tasks
+         g graph 
+         e env]
   (if (empty? tasks) ;;fixpoint?
     [graph env]
-    (eval-propagator (first tasks) (rest tasks) graph env)))
+    (let [[*t [*g *e]] (eval-propagator (first ts) (rest ts) g e)]
+      (recur *t *g *e)))))
