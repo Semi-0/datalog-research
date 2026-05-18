@@ -36,6 +36,16 @@
   [x]
   (= :complete (kind x)))
 
+(defn unusable?
+  "True for `nothing` or `contradiction`."
+  [x]
+  (or (nothing? x) (contradiction? x)))
+
+(defn any-unusable-values?
+  "True if any `CellValue` in `values` is `nothing` or `contradiction`."
+  [& values]
+  (boolean (some unusable? values)))
+
 (defn value-payload
   "For partial / complete values, returns `v`; otherwise `nil`."
   [x]

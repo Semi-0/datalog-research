@@ -19,6 +19,8 @@ Experimental architecture: **graph** = wiring only; **env** = runtime state and 
 | `graph` | `id → Node` (`:inputs` / `:outputs` as id sets) |
 | `env` | `id → Cell` or `id → Propagator` (`:f`) |
 
+**Ids:** `java.util.UUID` v7 via `propagators.ids` (`new-node-id` / `new-node-id-secure`). Sortable, unique without a coordinator. `construct-cell` / `construct-propagator` allocate ids when omitted.
+
 Evaluator: `propagators.core` (`run-tasks` → `eval-propagator` → `eval-cells` → `eval-cell`).
 
 ## Assumptions
