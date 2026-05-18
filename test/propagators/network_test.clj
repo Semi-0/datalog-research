@@ -4,6 +4,7 @@
             [propagators.cell :refer [->Cell cell?]]
             [propagators.cell-value :refer [cell-value-equal? partial]]
             [propagators.core :refer [run-tasks]]
+            [propagators.task-queue :as tq]
             [propagators.graph :refer [get-node node]]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :refer [construct-cell p:id]]
@@ -40,7 +41,7 @@
 (defn- run-from
   [[graph env] prop-id]
   (let [pn (prop-node graph prop-id)
-        [g e] (run-tasks #{pn} [graph env])]
+        [g e] (run-tasks (tq/enqueue tq/empty-queue pn) [graph env])]
     [g e]))
 
 (defn- dump-net
