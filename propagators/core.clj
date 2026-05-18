@@ -20,7 +20,7 @@
         [next-tasks updated-env])
       [empty-tasks updated-env])))
 ;; is and os could be a multiset
-;; [][node message]]
+;; [[node message]]
 (defn eval-cells [diffs env graph]
   (loop [ds diffs
          tasks []
@@ -30,8 +30,6 @@
       (let [[node message] (first ds)
             [poped new-e] (eval-cell node message e graph)]
         (recur (rest ds) (concat poped tasks) new-e)))))
-
-(declare run-tasks)
 
 (defn eval-propagator [current tasks graph env]
   (let [input-nodes (node-inputs graph current)
