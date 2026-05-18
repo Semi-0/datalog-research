@@ -34,5 +34,5 @@
   (fn [tasks _node env] [tasks env]))
 
 (defmethod handle-contradiction :default
-  [_node env]
-  env)
+  [tasks _node env]
+  [tasks env])

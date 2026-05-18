@@ -1,11 +1,11 @@
 (ns propagators.core
-  (:require [propagators.cell :refer [->Cell cell-snapshot]]
+  (:require [clojure.set :as set]
+            [propagators.cell :refer [->Cell cell-snapshot]]
             [propagators.cell-merge :refer [cell-merge cell-strongest cell-updated? handle-contradiction]]
             [propagators.cell-value :refer [contradiction?]]
-            [propagators.graph :refer [node-inputs node-outputs]]
-            [differential-dataflow.graph.interface :as g]))
+            [propagators.graph :refer [node-inputs node-outputs]]))
 
-(def empty-tasks [])
+(def empty-tasks #{})
 
 (defn eval-cell [node update env graph]
   (let [id (:id node)
@@ -13,7 +13,7 @@
         content-update (cell-merge content update)
         strongest-update (cell-strongest content-update)
         updated-env (assoc env id (->Cell content-update strongest-update))
-        next-tasks (vec (node-outputs graph node))]
+        next-tasks (node-outputs graph node)]
     (if (cell-updated? strongest-update strongest)
       (if (contradiction? strongest-update) 
         (handle-contradiction next-tasks node updated-env)
@@ -23,13 +23,13 @@
 ;; [[node message]]
 (defn eval-cells [diffs env graph]
   (loop [ds diffs
-         tasks []
+         tasks #{}
          e env]
     (if (empty? ds)
       [tasks e]
       (let [[node message] (first ds)
             [poped new-e] (eval-cell node message e graph)]
-        (recur (rest ds) (concat poped tasks) new-e)))))
+        (recur (rest ds) (set/union tasks poped) new-e)))))
 
 (defn eval-propagator [current tasks graph env]
   (let [input-nodes (node-inputs graph current)
@@ -39,14 +39,16 @@
         f (:f (get env (:id current)))
         env-diffs (f inputs outputs)
         [poped new-env] (eval-cells env-diffs env graph)]
-    [(concat poped tasks) [graph new-env]]))
+    [(set/union poped tasks) [graph new-env]]))
 
 ;; we can even backtrack
 (defn run-tasks [tasks [graph env]]
-  (loop [ts tasks
-         g graph 
+  (loop [ts (set tasks)
+         g graph
          e env]
-  (if (empty? tasks) ;;fixpoint?
-    [graph env]
-    (let [[*t [*g *e]] (eval-propagator (first ts) (rest ts) g e)]
-      (recur *t *g *e)))))
+    (if (empty? ts) ;; fixpoint?
+      [g e]
+      (let [current (first ts)
+            remaining (disj ts current)
+            [*t [*g *e]] (eval-propagator current remaining g e)]
+        (recur *t *g *e)))))

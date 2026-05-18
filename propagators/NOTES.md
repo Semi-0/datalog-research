@@ -40,7 +40,7 @@ Evaluator: `propagators.core` (`run-tasks` → `eval-propagator` → `eval-cells
 ## Minor implementation notes
 
 - **Port order** — `node-inputs` / `node-outputs` return sets; snapshot order is undefined. Use commutative `f` or fix port ordering later.
-- **`eval-cells` tasks** — accumulates with `concat` (vector + lazy seq); fine for small queues.
+- **Task queue** — set of propagator `Node`s (`set/union`, `disj` in `run-tasks`); same node is not scheduled twice. `(set tasks)` at `run-tasks` entry accepts vectors too.
 - **Bootstrap** — no built-in initial task queue or default cells; caller supplies `env`, seeds tasks, injects first cell messages.
 - **Tests** — none yet under `propagators/`.
 
