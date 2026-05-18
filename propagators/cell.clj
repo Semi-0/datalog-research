@@ -18,7 +18,7 @@
    (->Cell content strongest)))
 
 (defn cell-snapshot
-  "`(cell-snapshot env)` returns `node-id → [node cell]` for each input id."
+  "`(cell-snapshot env)` returns `node → [node cell]` for each input node."
   [env]
   (fn [node]
     [node (get env (:id node))]))
