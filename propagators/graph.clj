@@ -1,37 +1,47 @@
 (ns propagators.graph
-  "Immutable directed graph: `adj` is `node → #{successor}`.
+  "Immutable directed graph: a map of nodes.
 
-  Nodes may be keywords, numbers, `propagators.cell/Cell`, etc. Bulk build:
-  `edges->graph`.")
+  A node is `id` + `inputs` (predecessor ids) + `outputs` (successor ids).
 
-(defrecord Graph [adj])
+  Build with `node` + `add-node`, or `edges->graph` from `[from to]` pairs.")
 
-(defn graph? [x]
-  (instance? Graph x))
+(defrecord Node [id inputs outputs])
 
-(defn empty-graph []
-  (->Graph {}))
+(defn node?
+  [x]
+  (instance? Node x))
 
-(defn edges->graph
-  "`edges` is a sequence of `[from to]`. Returns a persistent `Graph`."
-  [edges]
-  (->Graph
-    (persistent!
-      (reduce (fn [m [from to]]
-                (assoc! m from (conj (or (get m from) #{}) to)))
-              (transient {})
-              edges))))
+(defn node
+  "Create a node. `inputs` / `outputs` are sets (or seqs) of node ids."
+  [id inputs outputs]
+  (->Node id (set inputs) (set outputs)))
 
-(defn add-edge [^Graph g from to]
-  (->Graph (update (:adj g) from (fnil conj #{}) to)))
+(defn- blank-node [id]
+  (node id #{} #{}))
 
-(defn neighbors
-  "Outgoing neighbors of `node`."
-  [^Graph g node]
-  (get (:adj g) node #{}))
+(defn- ensure-node [nodes id]
+  (if (contains? nodes id)
+    nodes
+    (assoc nodes id (blank-node id))))
 
-(def out neighbors)
+(defn graph?
+  "True for a graph map `id → Node`."
+  [x]
+  (map? x))
 
-(defn nodes [^Graph g]
-  (let [a (:adj g)]
-    (into (set (keys a)) (mapcat identity (vals a)))))
+(defn get-node
+  "Look up a node by id in `graph`."
+  [graph id]
+  (or (get graph id)
+      (throw (ex-info "unknown node" {:id id :known (keys graph)}))))
+
+(defn node-inputs
+  "Resolve `node`'s `:inputs` ids to predecessor `Node` records in `graph`."
+  [graph ^Node node]
+  (into #{} (map #(get-node graph %) (:inputs node))))
+
+(defn node-outputs
+  "Resolve `node`'s `:outputs` ids to successor `Node` records in `graph`."
+  [graph ^Node node]
+  (into #{} (map #(get-node graph %) (:outputs node))))
+
