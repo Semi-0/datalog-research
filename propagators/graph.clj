@@ -45,3 +45,12 @@
   [graph ^Node node]
   (into #{} (map #(get-node graph %) (:outputs node))))
 
+(defn link-edge
+  "Add directed edge `from-id` → `to-id`. Both nodes must exist in `graph`."
+  [graph from-id to-id]
+  (let [from (get-node graph from-id)
+        to (get-node graph to-id)]
+    (-> graph
+        (assoc from-id (node (:id from) (:inputs from) (conj (:outputs from) to-id)))
+        (assoc to-id (node (:id to) (conj (:inputs to) from-id) (:outputs to))))))
+

@@ -24,4 +24,7 @@
             :main-opts ["-m" "differential-leapfrog-test"]}
            :leapfrog-pure-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "leapfrog-pure-test"]}}}
+            :main-opts ["-m" "leapfrog-pure-test"]}
+           :propagators-test
+           {:extra-paths ["test"]
+            :main-opts ["-m" "propagators.network-test"]}}}
