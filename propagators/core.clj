@@ -15,8 +15,8 @@
         updated-env (assoc env id (->Cell content-update strongest-update))
         next-tasks (vec (node-outputs graph node))]
     (if (cell-updated? strongest-update strongest)
-      (if (contradiction? strongest-update)
-        [next-tasks (handle-contradiction node updated-env)]
+      (if (contradiction? strongest-update) 
+        (handle-contradiction next-tasks node updated-env)
         [next-tasks updated-env])
       [empty-tasks updated-env])))
 ;; is and os could be a multiset

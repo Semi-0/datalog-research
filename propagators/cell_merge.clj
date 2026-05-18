@@ -28,8 +28,10 @@
   [x]
   x)
 
-(defmulti handle-contradiction
-  (fn [_node env] env))
+;; in contradiction because we freeze the entire runtime
+;; so we can simulate different possibilities to handle it
+(defmulti handle-contradiction 
+  (fn [tasks _node env] [tasks env]))
 
 (defmethod handle-contradiction :default
   [_node env]
