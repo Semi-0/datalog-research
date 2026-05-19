@@ -1,22 +1,17 @@
 (ns propagators.cells.diff
-  "Boundary diff: emit cell messages only when :strongest changed."
-  (:require [propagators.cells.merge :refer [cell-updated?]]))
-
-(defn- make-message [node message]
-  [node message])
+  (:require [propagators.cells.cell :as cell]
+            [propagators.cells.snapshot :refer [snap-cell snap-id]]
+            [propagators.cells.value :as value]
+            [propagators.message :refer [message]]))
 
 (defn diff-cell [receiver sender]
-  (let [[node-before before-cell] receiver
-        [node-after after-cell] sender
-        before-val (:strongest before-cell)
-        after-val (:strongest after-cell)]
-    (when-not (= (:id node-before) (:id node-after))
+  (let [before-val (cell/cell-strongest (snap-cell receiver))
+        after-val (cell/cell-strongest (snap-cell sender))]
+    (when-not (= (snap-id receiver) (snap-id sender))
       (throw (ex-info "receiver/sender node mismatch"
-                      {:before (:id node-before) :after (:id node-after)})))
-    (when (cell-updated? after-val before-val)
-      ;; we make in the node before 
-      ;; so node in the simulation is isolated from the outside one
-      (make-message node-before after-val))))
+                      {:before (snap-id receiver) :after (snap-id sender)})))
+    (when (value/cell-updated? after-val before-val)
+      (message (snap-id receiver) after-val))))
 
 (defn diff-cells [receivers senders]
   (when (not= (count receivers) (count senders))

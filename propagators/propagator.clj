@@ -1,12 +1,10 @@
-(ns propagators.propagator
-  "Propagator: `id` plus `activate` function.")
+(ns propagators.propagator)
 
-(defrecord Propagator [f])
+(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
 
-(defn propagator?
-  [x]
-  (instance? Propagator x))
-
-(defn make-propagator
-  [f]
-  (->Propagator  f))
+(defn prop? [x] (tagged? x :prop))
+(defn prop [f] [:prop f])
+(defn prop-f [p] (nth p 1))
+(def make-propagator prop)
+(defn propagator? [x] (prop? x))
+(def ->Propagator prop)

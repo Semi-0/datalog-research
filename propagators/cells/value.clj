@@ -1,52 +1,37 @@
 (ns propagators.cells.value
-  "Four-value cell lattice: nothing, contradiction, partial, complete."
+  "CellValue lattice — `[:cell-value kind payload]`."
   (:refer-clojure :exclude [partial]))
 
-(defrecord CellValue [kind value])
+(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
 
-(defn cell-value?
-  [x]
-  (instance? CellValue x))
+(defn cell-value? [x] (tagged? x :cell-value))
+(defn cell-value [kind payload] [:cell-value kind payload])
+(def ->CellValue cell-value)
 
-(def nothing (->CellValue :nothing nil))
-(def contradiction (->CellValue :contradiction nil))
+(def nothing (cell-value :nothing nil))
+(def contradiction (cell-value :contradiction nil))
+(defn partial [v] (cell-value :partial v))
+(defn complete [v] (cell-value :complete v))
 
-(defn partial [v]
-  (->CellValue :partial v))
+(defn cv-kind [cv] (nth cv 1))
+(defn cv-payload [cv] (nth cv 2))
+(defn nothing? [x] (and (cell-value? x) (= :nothing (cv-kind x))))
+(defn contradiction? [x] (and (cell-value? x) (= :contradiction (cv-kind x))))
+(defn partial? [x] (and (cell-value? x) (= :partial (cv-kind x))))
+(defn complete? [x] (and (cell-value? x) (= :complete (cv-kind x))))
+(defn unusable? [x] (or (nothing? x) (contradiction? x)))
+(defn any-unusable-values? [& values] (boolean (some unusable? values)))
+(defn value-payload [x] (when (or (partial? x) (complete? x)) (cv-payload x)))
+(defn cell-value-equal? [a b] (= a b))
 
-(defn complete [v]
-  (->CellValue :complete v))
+(defn cell-merge
+  [content update]
+  (cond
+    (nothing? content) update
+    (nothing? update) content
+    (contradiction? content) contradiction
+    (contradiction? update) contradiction
+    (cell-value-equal? content update) content
+    :else contradiction))
 
-(defn- kind [x]
-  (when (cell-value? x) (:kind x)))
-
-(defn nothing? [x]
-  (= :nothing (kind x)))
-
-(defn contradiction? [x]
-  (= :contradiction (kind x)))
-
-(defn partial? [x]
-  (= :partial (kind x)))
-
-(defn complete? [x]
-  (= :complete (kind x)))
-
-(defn unusable?
-  "True for `nothing` or `contradiction`."
-  [x]
-  (or (nothing? x) (contradiction? x)))
-
-(defn any-unusable-values?
-  "True if any `CellValue` in `values` is `nothing` or `contradiction`."
-  [& values]
-  (boolean (some unusable? values)))
-
-(defn value-payload
-  "For partial / complete values, returns `v`; otherwise `nil`."
-  [x]
-  (when (or (partial? x) (complete? x))
-    (:value x)))
-
-(defn cell-value-equal? [a b]
-  (= a b))
+(defn cell-updated? [new old] (not (cell-value-equal? new old)))

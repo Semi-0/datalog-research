@@ -1,79 +1,116 @@
 (ns propagators.network
-  "Network constructors: cells and propagators."
-  (:require [as-messages :as h]
-            [propagators.cells.value :refer [any-unusable-values?]]
-            [propagators.closure :refer [compound-activate]]
-            [propagators.graph :refer [node blank-node empty-graph graph?]]
+  (:require [as-messages :refer [as-messages strongest-from-snapshot]]
+            [propagators.cells.cell :as cell]
+            [propagators.cells.value :as value]
+            [propagators.graph :as graph]
             [propagators.ids :refer [new-node-id]]
-            [propagators.propagator :refer [make-propagator]]
-            [propagators.cells :as c]))
+            [propagators.propagator :as prop]))
+
+(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
+
+(defn net? [x] (tagged? x :net))
+(defn net [graph env] [:net graph env])
+(def empty-net (net {} {}))
+(def empty-network empty-net)
+(defn network? [x] (net? x))
+
+(defn net-graph [n] (nth n 1))
+(defn net-env [n] (nth n 2))
+(defn net-with-graph [n graph] (net graph (net-env n)))
+(defn net-with-env [n env] (net (net-graph n) env))
+
+(defn as-net
+  "Coerce `[:net g e]` or legacy `[g e]` to network."
+  [x]
+  (if (net? x) x (net (first x) (second x))))
 
 (def empty-env {})
+(defn env? [x] (map? x))
+(defn env-get [env id] (get env id))
+(defn assoc-env [env id entry] (assoc env id entry))
 
-(def env? map?)
+(defn assoc-net-node [n id node]
+  (net-with-graph n (graph/assoc-graph (net-graph n) id node)))
 
-(def empty-network [empty-graph empty-env])
+(defn assoc-net-cell [n id c]
+  (net-with-env n (assoc-env (net-env n) id c)))
 
-(defn network? [x]
-  (and (vector? x)
-       (= (count x) 2)
-       (graph? (first x))
-       (env? (second x))))
+(defn assoc-net-prop [n id p]
+  (net-with-env n (assoc-env (net-env n) id p)))
 
-;; propagator needs unified interface
-;; Both `construct-propagator` and `compound-propagator` share:
-;;   (activate inputs outputs) -> installer
-;;   installer = (fn [[graph env]] -> [prop-id [graph env]])
+(defn- wire-propagator-edges [g prop-id inputs outputs]
+  (let [ins (set inputs)
+        outs (set outputs)]
+    (reduce (fn [g' in-id] (graph/link-edge g' in-id prop-id))
+            (reduce (fn [g' out-id] (graph/link-edge g' prop-id out-id))
+                    g
+                    outs)
+            ins)))
+
+(defn update-net-cell
+  "Apply `message` (CellValue) to cell at `id`; returns updated net."
+  [n id msg]
+  (let [e (net-env n)
+        cur (env-get e id)
+        content' (value/cell-merge (cell/cell-content cur) msg)
+        strongest' (cell/cell-strongest content')]
+    (assoc-net-cell n id (cell/cell content' strongest'))))
 
 (defn construct-cell
-  "Install a cell. No args: fresh `java.util.UUID` v7 id. One arg: use given `id`."
   ([]
    (construct-cell (new-node-id)))
   ([id]
-   (fn [[graph env]]
-     ;; we should also install a cell in the graph!
-     [id [(assoc graph id (blank-node id)) (h/cell-slot id env)]]))
-  ([[graph env] id  [content strongest]]
-   [id [(assoc graph id (blank-node id)) (assoc env id (c/->Cell content strongest))]]))
+   (fn [arg]
+     (let [net (as-net arg)
+           n (-> net
+                 (assoc-net-node id (graph/blank-node id))
+                 (assoc-net-cell id (cell/cell value/nothing value/nothing)))]
+       [id n])))
+  ([id content strongest]
+   (fn [arg]
+     (let [net (as-net arg)
+           n (-> net
+                 (assoc-net-node id (graph/blank-node id))
+                 (assoc-net-cell id (cell/cell content strongest)))]
+       [id n]))))
+
+(defn install-net
+  "Run installer `f` (`f` takes a net, returns `[id net']`). Returns the new net."
+  [n f]
+  (second (f n)))
+
+(defn seed-net-cell
+  "Install or update cell `id` on `n`. With content/strongest, seeds that cell value."
+  ([n id]
+   (install-net n (construct-cell id)))
+  ([n id content strongest]
+   (install-net n (construct-cell id content strongest))))
 
 (defn construct-propagator
-  "Install propagator with `activate`. Wires input cells → propagator → output cells.
-  `(construct-propagator f inputs outputs)` → installer."
   ([activate inputs outputs]
    (construct-propagator (new-node-id) activate inputs outputs))
   ([id activate inputs outputs]
-   (fn [[graph env]]
-     (let [ins (set inputs)
+   (fn [arg]
+     (let [net (as-net arg)
+           ins (set inputs)
            outs (set outputs)
-           graph (-> graph
-                     (assoc id (node id ins outs))
-                     (h/wire-propagator-edges id ins outs))]
-       [id [graph (assoc env id (make-propagator activate))]]))))
+           g (net-graph net)
+           g' (-> g
+                  (graph/assoc-graph id (graph/node id ins outs))
+                  (wire-propagator-edges id ins outs))
+           n (-> net
+                 (net-with-graph g')
+                 (assoc-net-prop id (prop/prop activate)))]
+       [id n]))))
 
 (defn primitive-propagator
-  "`(primitive-propagator f)` → installer `(fn [args] …)` where
-  `args` = `[in1 … out]`. `f` receives strongest `CellValue`s from inputs."
   [f]
   (fn [args]
     (let [inputs (vec (butlast args))
           output (last args)
           wrapped-f (fn [input-snapshots output-snapshots]
-                      (let [in-vals (mapv h/strongest-from-snapshot input-snapshots)]
-                        (if (any-unusable-values? in-vals)
+                      (let [in-vals (mapv strongest-from-snapshot input-snapshots)]
+                        (if (value/any-unusable-values? in-vals)
                           []
-                          (h/as-messages output-snapshots [(apply f in-vals)]))))]
+                          (as-messages output-snapshots [(apply f in-vals)]))))]
       (construct-propagator wrapped-f inputs [output]))))
-
-;; the diff algorithm would large influence the performance of overall network
-;; or the accuracy
-;; subnet 
-;; a easier compound propagator would be directly build the network between cell
-;; but like this we got recursions and hot reloadings
-(defn compound-propagator
-  "Install compound propagator. `closure-cell` holds `[f [graph env]]` in `:strongest`.
-  `(compound-propagator closure-cell inputs outputs)` → installer (same as `construct-propagator`)."
-  [closure-cell inputs outputs]
-  (construct-propagator (compound-activate closure-cell)
-                        (into [closure-cell] inputs)
-                        outputs))
-

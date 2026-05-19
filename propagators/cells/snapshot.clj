@@ -1,16 +1,28 @@
 (ns propagators.cells.snapshot
-  "Cell snapshots and wake helpers for compound / boundary wiring."
-  (:require [propagators.cells.cell :as cell]
-            [propagators.graph :refer [get-node node-outputs]]))
+  (:require [propagators.graph :refer [get-node node-id node-outputs]]))
+
+(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
+
+(defn snap? [x] (tagged? x :snap))
+(defn snap [node-id cell] [:snap node-id cell])
+(defn snap-id [s] (nth s 1))
+(defn snap-cell [s] (nth s 2))
+
+(defn cell-snapshot [env]
+  (fn [node]
+    (snap (node-id node) (get env (node-id node)))))
 
 (defn pop-inputs [snapshots graph]
-  (mapcat (fn [[node _]] (node-outputs graph (get-node graph (:id node))))
+  (mapcat (fn [s]
+            (let [n (get-node graph (snap-id s))]
+              (node-outputs graph n)))
           snapshots))
 
-(defn take-cells [nodes [_ env]]
-  (map (fn [node] ((cell/cell-snapshot env) node)) nodes))
+(defn take-cells [node-ids env graph]
+  (let [snap-fn (cell-snapshot env)]
+    (map (fn [id] (snap-fn (get-node graph id))) node-ids)))
 
 (defn snapshot-for-id [node-id snapshots]
-  (some (fn [[node :as snap]]
-          (when (= node-id (:id node)) snap))
+  (some (fn [s]
+          (when (= node-id (snap-id s)) s))
         snapshots))

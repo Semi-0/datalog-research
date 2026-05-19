@@ -1,5 +1,6 @@
 (ns propagators.helpers.task-queue
-  "Immutable FIFO propagator task queue. Dedupes by `(:id node)`; first schedule wins order.")
+  "Immutable FIFO propagator task queue. Dedupes by node id; first schedule wins order."
+  (:require [propagators.graph :refer [node-id]]))
 
 (def empty-queue
   {:task-queue/seen #{}
@@ -22,7 +23,7 @@
 (defn enqueue
   "Enqueue `node` if its `:id` is not already scheduled. Returns new queue."
   [q node]
-  (let [id (:id node)]
+  (let [id (node-id node)]
     (if (contains? (seen-set q) id)
       q
       {:task-queue/seen (conj (seen-set q) id)
@@ -50,6 +51,6 @@
   [q]
   (when (seq (fifo q))
     (let [node (first (fifo q))
-          id (:id node)]
+          id (node-id node)]
       [node {:task-queue/seen (disj (seen-set q) id)
              :task-queue/q (vec (rest (fifo q)))}])))

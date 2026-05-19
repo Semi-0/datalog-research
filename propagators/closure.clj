@@ -1,29 +1,38 @@
 (ns propagators.closure
-  "Stored network closure: `[f [graph env]]` in a cell, activated at compound boundary."
-  (:require [propagators.cells.diff :refer [diff-cells]]
-            [propagators.cells.snapshot :refer [pop-inputs snapshot-for-id take-cells]]
-            [propagators.cells.value :refer [value-payload]]
-            [propagators.core :refer [run-tasks]]))
+  (:require [propagators.cells.cell :as cell]
+            [propagators.cells.diff :refer [diff-cells]]
+            [propagators.cells.snapshot :refer [pop-inputs snap-cell snap-id snapshot-for-id take-cells]]
+            [propagators.cells.value :as value]
+            [propagators.core :refer [run-tasks]]
+            [propagators.network :refer [construct-propagator net-env net-graph]]))
 
-(defn apply-network-closure [[f [graph env]] input-snapshots output-snapshots]
-  (f [graph env] input-snapshots output-snapshots))
+(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
 
-(defn closure-payload [[_ cell]]
-  (value-payload (:strongest cell)))
+(defn closure? [x] (tagged? x :closure))
+(defn closure [f n] [:closure f n])
+(defn closure-f [c] (nth c 1))
+(defn closure-net [c] (nth c 2))
 
-;; maybe we should simply feeds in a inputs and outputs pointer 
-;; and a env(network) for the propagaor
-;; and network inside just look it up
-;; problem is we do not have native bi-directional binding
-;; without we have a compound propagator like this first
-;; so we have to return the message rather than set the environment
+(defn apply-network-closure [[f inner-net] input-snapshots output-snapshots]
+  (f inner-net input-snapshots output-snapshots))
+
+(defn closure-payload [snap]
+  (value/value-payload (cell/cell-strongest (snap-cell snap))))
+
 (defn compound-activate [closure-cell]
   (fn [input-snapshots output-snapshots]
     (let [closure-snap (snapshot-for-id closure-cell input-snapshots)
           closure (closure-payload closure-snap)
-          arg-snaps (remove #(= closure-cell (:id (first %))) input-snapshots)
-          [graph env] (apply-network-closure closure arg-snaps output-snapshots)
-          network (run-tasks (pop-inputs arg-snaps graph) [graph env])]
+          arg-snaps (remove #(= closure-cell (snap-id %)) input-snapshots)
+          net (apply-network-closure closure arg-snaps output-snapshots)
+          net' (run-tasks (pop-inputs arg-snaps (net-graph net)) net)]
       (diff-cells output-snapshots
-                  (take-cells (mapv first output-snapshots) network)))))
+                  (take-cells (mapv snap-id output-snapshots)
+                              (net-env net')
+                              (net-graph net'))))))
 
+(defn compound-propagator
+  [closure-cell inputs outputs]
+  (construct-propagator (compound-activate closure-cell)
+                        (into [closure-cell] inputs)
+                        outputs))
