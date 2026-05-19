@@ -4,7 +4,7 @@
             [propagators.cells.cell :as cell]
             [propagators.cells.value :refer [cell-value-equal? complete partial]]
             [propagators.closure :refer [compound-propagator]]
-            [propagators.compile :refer [cell-ref compile-net net-let prop-ref]]
+            [propagators.compile :refer [cell-ref compile-net prop-ref]]
             [propagators.core :refer [run-tasks]]
             [propagators.graph :refer [get-node node-input-ids node-output-ids]]
             [propagators.helpers.task-queue :as tq]
@@ -33,6 +33,9 @@
   (let [node (get-node (net/net-graph n) prop-id)]
     (run-tasks (tq/enqueue tq/empty-queue node) n)))
 
+(defn- run-compound-chain [n prop-ids]
+  (reduce run-prop n prop-ids))
+
 (defn- dump-net [n]
   (let [graph (net/net-graph n)
         env (net/net-env n)]
@@ -59,45 +62,63 @@
   (let [[prop-id n'] ((compound-propagator closure-id inputs outputs) n)]
     [prop-id n']))
 
-(defn- three-cell-line [c0 c1 c2 k0 k1]
-  (net-let net/empty-net
-    [[_c0 c0]
-     [_c1 c1]
-     [_c2 c2]
-     [_k0 k0]
-     [_k1 k1]]))
+(defn- build-stdlib-compound-chain-n
+  "n cells, (n-1) bi-sync compounds; each compound boundary is [ci cj] / [ci cj]."
+  [chain-len]
+  (when (< chain-len 2)
+    (throw (ex-info "chain-len must be >= 2" {:chain-len chain-len})))
+  (let [cells (vec (repeatedly chain-len new-node-id))
+        closures (vec (repeatedly (dec chain-len) new-node-id))
+        cv (complete bi-sync-closure)
+        n (reduce (fn [net id] (second ((construct-cell id) net)))
+                  net/empty-net
+                  (into cells closures))
+        n (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv)) n closures)
+        [n props] (reduce
+                   (fn [[n props] i]
+                     (let [left (cells i)
+                           right (cells (inc i))
+                           k (closures i)
+                           [p n'] (install-compound n k [left right] [left right])]
+                       [n' (conj props p)]))
+                   [n []]
+                   (range (dec chain-len)))]
+    {:net n :cells cells :props props}))
 
 (defn- build-stdlib-compound-chain []
-  (let [c0 (new-node-id)
-        c1 (new-node-id)
-        c2 (new-node-id)
-        k0 (new-node-id)
-        k1 (new-node-id)
-        cv (complete bi-sync-closure)
-        n (-> (three-cell-line c0 c1 c2 k0 k1)
-              (net/assoc-net-cell k0 (cell/cell cv cv))
-              (net/assoc-net-cell k1 (cell/cell cv cv)))
-        [p01 n] (install-compound n k0 [c0 c1] [c0 c1])
-        [p12 n] (install-compound n k1 [c1 c2] [c1 c2])]
-    {:net n :cells {:c0 c0 :c1 c1 :c2 c2} :props [p01 p12]}))
+  (build-stdlib-compound-chain-n 3))
+
+(defn- build-stdlib-compound-chain-n-with-inject
+  [chain-len inject-idx]
+  (when-not (<= 0 inject-idx (dec chain-len))
+    (throw (ex-info "inject-idx out of range" {:chain-len chain-len :inject-idx inject-idx})))
+  (let [{:keys [net cells props]} (build-stdlib-compound-chain-n chain-len)
+        mid (nth cells inject-idx)
+        e (new-node-id)
+        n (second ((construct-cell e) net))
+        [e->mid n] ((p:id [e mid]) n)]
+    {:net n
+     :cells cells
+     :inject-idx inject-idx
+     :mid mid
+     :e e
+     :e->mid e->mid
+     :props props}))
 
 (defn- build-stdlib-compound-abc-with-inject []
-  "Chain a <-> b <-> c (compounds k0, k1) plus injector cell e --p:id--> b."
-  (let [a (new-node-id)
-        b (new-node-id)
-        c (new-node-id)
-        e (new-node-id)
-        k0 (new-node-id)
-        k1 (new-node-id)
-        cv (complete bi-sync-closure)
-        n (-> (three-cell-line a b c k0 k1)
-              (net/assoc-net-cell k0 (cell/cell cv cv))
-              (net/assoc-net-cell k1 (cell/cell cv cv)))
-        n (second ((construct-cell e) n))
-        [e->b n] ((p:id [e b]) n)
-        [p01 n] (install-compound n k0 [a b] [a b])
-        [p12 n] (install-compound n k1 [b c] [b c])]
-    {:net n :cells {:a a :b b :c c :e e} :props {:e->b e->b :p01 p01 :p12 p12}}))
+  (let [{:keys [net cells mid e e->mid props inject-idx]}
+        (build-stdlib-compound-chain-n-with-inject 3 1)
+        [a b c] cells]
+    {:net net
+     :cells {:a a :b b :c c :e e}
+     :props {:e->b e->mid :chain props :inject-idx inject-idx :mid mid}}))
+
+(defn- assert-compound-chain-from-head [chain-len seed-val]
+  (let [{:keys [net cells props]} (build-stdlib-compound-chain-n chain-len)
+        expected (partial seed-val)
+        n (-> net (seed-cell (first cells) seed-val) (run-compound-chain props))]
+    (doseq [[i c] (map-indexed vector cells)]
+      (expect-strongest n c expected (str "cell " i " chain-len " chain-len)))))
 
 ;; --- tests ---
 
@@ -118,7 +139,7 @@
 (deftest stdlib-bi-sync-closure-compound-single
   (testing "compound with bi-sync-closure; seed c0, run once"
     (let [{:keys [net cells props]} (build-stdlib-compound-chain)
-          {:keys [c0 c1]} cells
+          [c0 c1] cells
           expected (partial 7)
           n (-> net (seed-cell c0 7) (run-prop (first props)))]
       (expect-strongest n c1 expected "c1 after compound")
@@ -127,7 +148,7 @@
 (deftest stdlib-bi-sync-closure-compound-chain
   (testing "two bi-sync-closure compounds: c0 -> c1 -> c2"
     (let [{:keys [net cells props]} (build-stdlib-compound-chain)
-          {:keys [c0 c1 c2]} cells
+          [c0 c1 c2] cells
           [p01 p12] props
           expected (partial 99)
           n (-> net (seed-cell c0 99) (run-prop p01))]
@@ -171,4 +192,25 @@
           n (-> net (seed-cell e 55) (run-prop e->b))]
       (expect-strongest n b expected "b from e")
       (expect-strongest n c expected "c from b (downstream compound)")
-      (expect-strongest n a expected "a from b (upstream compound — currently fails)"))))
+      (expect-strongest n a expected "a from b (upstream compound)"))))
+
+(deftest stdlib-bi-sync-closure-compound-chain-4
+  (testing "4 cells, 3 bi-sync compounds; seed head, run all props"
+    (assert-compound-chain-from-head 4 11)))
+
+(deftest stdlib-bi-sync-closure-compound-chain-10
+  (testing "10 cells, 9 bi-sync compounds; seed head, run all props"
+    (assert-compound-chain-from-head 10 42)))
+
+(deftest compound-bi-sync-chain-10-inject-middle
+  (testing "10-cell chain; e -p:id-> c5; seed e; run e->mid once — all cells updated"
+    (let [chain-len 10
+          inject-idx (quot chain-len 2)
+          {:keys [net cells mid e e->mid]} (build-stdlib-compound-chain-n-with-inject
+                                            chain-len inject-idx)
+          expected (partial 77)
+          n (-> net (seed-cell e 77) (run-prop e->mid))]
+      (is (= 5 inject-idx) "middle index for len 10")
+      (expect-strongest n mid expected "middle from e")
+      (doseq [[i c] (map-indexed vector cells)]
+        (expect-strongest n c expected (str "cell " i " after mid inject"))))))

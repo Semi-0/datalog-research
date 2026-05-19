@@ -205,10 +205,74 @@ Evaluator: `propagators.core` (`run-tasks` → `eval-propagator` → `eval-cells
 - `compile-net` **compound** form — MIT-style expansion into parent `graph`/`env` (not runtime inner `run-tasks`)
 - Port of full MIT primitive library (`c:add`, `switch`, etc.)
 
+## Bi-sync compounds: symmetric boundaries (constraint wiring)
+
+`stdlib/bi-sync-closure` runs inner `bi-sync` (`p:id` both ways). The closure comment says **input and output should be the same** — treat the compound as a **constraint** on a set of cells, not a directed pipe.
+
+### Correct install shape
+
+```clojure
+;; constraint: a and b stay in sync
+(install-compound n k [a b] [a b])
+
+;; wrong for bi-sync: b is only an output of k — k is NOT scheduled when b updates
+(install-compound n k [a] [b])
+```
+
+`wire-propagator-edges` links each input cell → propagator and propagator → each output cell. When a cell is in **both** sets, an update to that cell enqueues the propagator via `node-outputs` (`eval-cell` in `core.clj`).
+
+### Scheduling asymmetry (why inject-at-middle failed with directional compounds)
+
+Chain `a <-> b <-> c` with compounds `k0` on `[a,b]` and `k1` on `[b,c]`:
+
+| Event | What runs |
+|-------|-----------|
+| Seed / inject updates `b` | `k1` (b is input **and** output of k1) |
+| Same event, directional `k0: [a]→[b]` | **k0 does not run** — b is only an output of k0 |
+
+So `e -p:id-> b` updated `c` downstream but left `a` at `nothing` until we switched to `[a b] / [a b]`. Test `compound-bi-sync-chain-inject-e-to-b` encodes the expectation that **all** chain cells update after one inject + `run-prop`.
+
+### Chain tests (`test/propagators_network_test.clj`)
+
+| Test | What it checks |
+|------|----------------|
+| `stdlib-bi-sync-closure-compound-single` | One compound, seed head |
+| `stdlib-bi-sync-closure-compound-chain` | 3 cells, run compounds in order from head |
+| `stdlib-bi-sync-closure-compound-chain-4` / `-10` | Parameterized head-driven chain |
+| `compound-bi-sync-chain-inject-e-to-b` | 3-cell chain, inject middle, one `run-prop` |
+| `compound-bi-sync-chain-10-inject-middle` | 10 cells, inject `c5`, all cells get value |
+
+Builders: `build-stdlib-compound-chain-n`, `build-stdlib-compound-chain-n-with-inject`. No `boundary-inject` test fake — failures expose real scheduling / closure behavior.
+
+### Open issue: snapshot order in `bi-sync`
+
+`stdlib/bi-sync` uses `(first input-snapshots)` and `(second output-snapshots)`. Port ids on `graph` nodes are **sets** — order is undefined. Symmetric wiring fixed scheduling; pairing by position may still bite on larger nets. Prefer matching snapshots **by cell id** later.
+
+## Benchmarks (`propagators_chain_bench.clj`)
+
+Prototype-scale timings (one JVM, median of several iters; propagation excludes build):
+
+| Cells | Compounds | Build (approx) | Head: seed c0, run each compound | Middle: inject c⌊n/2⌋, one `run-prop` |
+|------:|----------:|----------------:|-----------------------------------:|----------------------------------------:|
+| 10 | 9 | ~3 ms | ~5 ms | ~2 ms |
+| 100 | 99 | ~1 ms | ~52 ms | ~10 ms |
+| 1000 | 999 | ~27 ms | ~84 ms | ~45 ms |
+| 10000 | 9999 | ~137 ms | ~944 ms (1 iter) | ~338 ms |
+
+Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the task queue once and is faster at scale. Bench auto-reduces iters for large `n` and skips head when `n > 5000` (override with `:skip-head? false`).
+
+```bash
+clj -M:propagators-bench           # default: 10, 100
+clj -M:propagators-bench 1000 10000
+```
+
+**Verdict:** fine for **experiments and prototypes** — not tuned for production (variance, no dependence tracking, stub contradiction).
+
 ## Commands
 
 ```bash
-clj -M:propagators-test    # network tests (sync chain, bi-sync)
+clj -M:propagators-test    # network tests (sync chain, bi-sync, compound chains)
+clj -M:propagators-bench  # chain propagation timings (optional lengths as args)
 clj -M:test               # all suites including propagators-network-test
 ```
 
@@ -218,8 +282,9 @@ clj -M:test               # all suites including propagators-network-test
 propagators/compile.clj   — quoted DSL → {:graph :env :cells :props}
 propagators/network.clj   — construct-cell, construct-propagator, primitive-propagator, compound-propagator
 propagators/closure.clj   — apply-network-closure, closure-payload, compound-activate
-propagators/stdlib.clj    — p:id
+propagators/stdlib.clj    — p:id, bi-sync, bi-sync-closure
 propagators/cells/diff.clj — diff-cell, diff-cells
+propagators_chain_bench.clj — chain-len propagation benchmark (-m propagators-chain-bench)
 propagators/cells/snapshot.clj — pop-inputs, take-cells, snapshot-for-id
 propagators/core.clj      — run-tasks, eval-propagator, eval-cells, eval-cell
 as_messages.clj           — make-message, as-messages, wire-propagator-edges, cell-slot

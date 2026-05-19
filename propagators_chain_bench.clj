@@ -1,0 +1,162 @@
+(ns propagators-chain-bench
+  "Benchmark compound bi-sync chain propagation.
+  Usage: clj -M:propagators-bench [chain-lens...]
+  Default chain lengths: 10 100"
+  (:refer-clojure :exclude [partial])
+  (:require [propagators.cells.cell :as cell]
+            [propagators.cells.value :refer [cell-value-equal? complete partial]]
+            [propagators.closure :refer [compound-propagator]]
+            [propagators.core :refer [run-tasks]]
+            [propagators.graph :refer [get-node]]
+            [propagators.helpers.task-queue :as tq]
+            [propagators.ids :refer [new-node-id]]
+            [propagators.network :as net :refer [construct-cell]]
+            [propagators.stdlib :refer [bi-sync-closure p:id]]))
+
+;; --- network builders (same wiring as propagators-network-test) ---
+
+(defn- install-compound [n closure-id inputs outputs]
+  (let [[prop-id n'] ((compound-propagator closure-id inputs outputs) n)]
+    [prop-id n']))
+
+(defn build-chain [chain-len]
+  (let [cells (vec (repeatedly chain-len new-node-id))
+        closures (vec (repeatedly (dec chain-len) new-node-id))
+        cv (complete bi-sync-closure)
+        n (reduce (fn [net id] (second ((construct-cell id) net)))
+                  net/empty-net
+                  (into cells closures))
+        n (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv)) n closures)
+        [n props] (reduce
+                   (fn [[n props] i]
+                     (let [left (cells i)
+                           right (cells (inc i))
+                           k (closures i)
+                           [p n'] (install-compound n k [left right] [left right])]
+                       [n' (conj props p)]))
+                   [n []]
+                   (range (dec chain-len)))]
+    {:net n :cells cells :props props}))
+
+(defn build-chain-with-inject [chain-len inject-idx]
+  (let [{:keys [net cells props]} (build-chain chain-len)
+        mid (nth cells inject-idx)
+        e (new-node-id)
+        n (second ((construct-cell e) net))
+        [e->mid n] ((p:id [e mid]) n)]
+    {:net n :cells cells :props props :mid mid :e e :e->mid e->mid :inject-idx inject-idx}))
+
+(defn- seed-cell [n cell-id value]
+  (let [cv (partial value)]
+    (net/assoc-net-cell n cell-id (cell/cell cv cv))))
+
+(defn- run-prop [n prop-id]
+  (let [node (get-node (net/net-graph n) prop-id)]
+    (run-tasks (tq/enqueue tq/empty-queue node) n)))
+
+(defn- run-compound-chain [n prop-ids]
+  (reduce run-prop n prop-ids))
+
+(defn- strongest [env cell-id]
+  (cell/cell-strongest (net/env-get env cell-id)))
+
+(defn- all-cells-have? [n cells expected]
+  (every? #(cell-value-equal? expected (strongest (net/net-env n) %)) cells))
+
+(defn- time-ns [thunk]
+  (let [t0 (System/nanoTime)
+        v (thunk)
+        t1 (System/nanoTime)]
+    {:result v :ns (- t1 t0)}))
+
+(defn- mean [xs] (/ (reduce + 0 xs) (count xs)))
+
+(defn- median [xs]
+  (let [sorted (vec (sort xs))
+        n (count sorted)]
+    (nth sorted (quot n 2))))
+
+(defn- bench-iters
+  [label warmup iters thunk]
+  (dotimes [_ warmup] (thunk))
+  (let [samples (vec (repeatedly iters #(time-ns thunk)))]
+    {:label label
+     :iters iters
+     :mean-ms (/ (mean (map :ns samples)) 1e6)
+     :median-ms (/ (median (map :ns samples)) 1e6)
+     :min-ms (/ (apply min (map :ns samples)) 1e6)
+     :max-ms (/ (apply max (map :ns samples)) 1e6)
+     :last-result (:result (last samples))}))
+
+(defn- fmt-ms [x]
+  (String/format java.util.Locale/US "%.3f" (to-array [(double x)])))
+
+(defn- print-row [{:keys [label iters mean-ms median-ms min-ms max-ms]}]
+  (println (str label
+                "  iters=" iters
+                "  mean=" (fmt-ms mean-ms) " ms"
+                "  median=" (fmt-ms median-ms) " ms"
+                "  min=" (fmt-ms min-ms) " ms"
+                "  max=" (fmt-ms max-ms) " ms")))
+
+(defn- default-bench-opts [chain-len]
+  (cond
+    (<= chain-len 100) {:warmup 3 :iters 20}
+    (<= chain-len 1000) {:warmup 2 :iters 5}
+    :else {:warmup 1 :iters 3}))
+
+(defn bench-chain-len
+  [chain-len opts]
+  (let [{:keys [warmup iters seed-val skip-head?]
+         :or {seed-val 42}}
+        (merge (default-bench-opts chain-len) opts)]
+  (println (str "\n=== chain-len " chain-len " (cells=" chain-len
+                ", compounds=" (dec chain-len) ") ==="))
+  (let [expected (partial seed-val)
+        build-t (time-ns #(build-chain chain-len))
+        {:keys [net cells props]} (:result build-t)
+        inject-idx (quot chain-len 2)
+        inject-build-t (time-ns #(build-chain-with-inject chain-len inject-idx))
+        inject-net (:result inject-build-t)
+        head-bench (when-not skip-head?
+                     (bench-iters
+                      "propagate-from-head (seed c0, run each compound)"
+                      warmup iters
+                      (fn []
+                        (-> net
+                            (seed-cell (first cells) seed-val)
+                            (run-compound-chain props)))))
+        inject-bench (bench-iters
+                      (str "propagate-from-middle (inject c" inject-idx ", one run-prop)")
+                      warmup iters
+                      (fn []
+                        (let [{:keys [net e e->mid]} inject-net]
+                          (-> net
+                              (seed-cell e seed-val)
+                              (run-prop e->mid)))))
+        head-ok (when head-bench
+                  (all-cells-have? (:last-result head-bench) cells expected))
+        inject-ok (all-cells-have? (:last-result inject-bench) (:cells inject-net) expected)]
+    (println (str "build chain: " (fmt-ms (/ (:ns build-t) 1e6)) " ms"))
+    (println (str "build chain+inject: " (fmt-ms (/ (:ns inject-build-t) 1e6)) " ms"))
+    (if head-bench
+      (print-row head-bench)
+      (println "propagate-from-head: skipped (use :skip-head? false to enable)"))
+    (print-row inject-bench)
+    (when head-bench (println (str "head propagation ok: " head-ok)))
+    (println (str "middle inject propagation ok: " inject-ok))
+    {:chain-len chain-len
+     :build-ms (/ (:ns build-t) 1e6)
+     :head head-bench
+     :inject inject-bench
+     :head-ok head-ok
+     :inject-ok inject-ok})))
+
+(defn -main [& args]
+  (let [lens (if (seq args)
+               (map #(Long/parseLong %) args)
+               [10 100])]
+    (println "propagators compound bi-sync chain benchmark")
+    (println "JVM warmup per scenario included; timings exclude network build.")
+    (doseq [n lens]
+      (bench-chain-len n (when (> n 5000) {:skip-head? true})))))

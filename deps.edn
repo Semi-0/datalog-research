@@ -37,4 +37,6 @@
             :main-opts ["-m" "run-tests" "leapfrog-pure-test"]}
            :propagators-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "propagators-network-test"]}}}
+            :main-opts ["-m" "run-tests" "propagators-network-test"]}
+           :propagators-bench
+           {:main-opts ["-m" "propagators-chain-bench"]}}}
