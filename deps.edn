@@ -7,6 +7,13 @@
            :test
            {:extra-paths ["test"]
             :main-opts ["-m" "run-tests"]}
+           :bench
+           {:main-opts ["-m" "bench-compare"]}
+           :bench-verify
+           {:main-opts ["-m" "bench-compare" "verify"]}
+           :bench-test
+           {:extra-paths ["test"]
+            :main-opts ["-m" "run-tests" "bench-compare-test"]}
            :differential-dataflow-v1-test
            {:extra-paths ["test"]
             :main-opts ["-m" "run-tests" "differential-dataflow-v1-test"]}

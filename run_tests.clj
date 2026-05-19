@@ -5,7 +5,8 @@
   (:require [clojure.test :refer [run-tests]]))
 
 (def all-test-namespaces
-  '[propagators-network-test
+  '[bench-compare-test
+    propagators-network-test
     leapfrog-pure-test
     differential-leapfrog-test
     differential-dataflow-frontier-test

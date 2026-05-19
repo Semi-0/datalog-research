@@ -377,7 +377,7 @@
 ;; Per-step logs: add {:trace? true} to the opts map (4th arg).
 ;; Example:
   ;; (lftj [R S T] [:x :y :z] :bindings {:trace? true})
-(println (lftj [R S T] [:x :y :z]))
+;; REPL demo: (println (lftj [R S T] [:x :y :z]))
 
 (def edge-facts
   {:edge #{[1 2]
@@ -394,4 +394,4 @@
 (def datalog-demo
   (semi-naive edge-facts path-rules))
 
-(println (sort (:path datalog-demo)))
+;; REPL demo: (println (sort (:path datalog-demo)))
