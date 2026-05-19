@@ -4,6 +4,9 @@ Experimental architecture: **graph** = wiring only; **env** = runtime state and 
 
 ;; experiments of propagator system which decouples network declaration from network evaluation
 
+PROBLEM CRITICAL: UNIFT THE INTERFACE OF DATASTRUCTURE
+now some using record some use vector
+
 ;; 4 core function of propagators
 ;; 1. networked semantics DONE
 ;; 2. fixpoint evaluation DONE

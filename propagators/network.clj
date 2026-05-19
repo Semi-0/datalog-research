@@ -3,9 +3,22 @@
   (:require [as-messages :as h]
             [propagators.cells.value :refer [any-unusable-values?]]
             [propagators.closure :refer [compound-activate]]
-            [propagators.graph :refer [node]]
+            [propagators.graph :refer [node blank-node empty-graph graph?]]
             [propagators.ids :refer [new-node-id]]
-            [propagators.propagator :refer [make-propagator]]))
+            [propagators.propagator :refer [make-propagator]]
+            [propagators.cells :as c]))
+
+(def empty-env {})
+
+(def env? map?)
+
+(def empty-network [empty-graph empty-env])
+
+(defn network? [x]
+  (and (vector? x)
+       (= (count x) 2)
+       (graph? (first x))
+       (env? (second x))))
 
 ;; propagator needs unified interface
 ;; Both `construct-propagator` and `compound-propagator` share:
@@ -18,7 +31,10 @@
    (construct-cell (new-node-id)))
   ([id]
    (fn [[graph env]]
-     [id [graph (h/cell-slot id env)]])))
+     ;; we should also install a cell in the graph!
+     [id [(assoc graph id (blank-node id)) (h/cell-slot id env)]]))
+  ([[graph env] id  [content strongest]]
+   [id [(assoc graph id (blank-node id)) (assoc env id (c/->Cell content strongest))]]))
 
 (defn construct-propagator
   "Install propagator with `activate`. Wires input cells → propagator → output cells.
@@ -50,6 +66,9 @@
 
 ;; the diff algorithm would large influence the performance of overall network
 ;; or the accuracy
+;; subnet 
+;; a easier compound propagator would be directly build the network between cell
+;; but like this we got recursions and hot reloadings
 (defn compound-propagator
   "Install compound propagator. `closure-cell` holds `[f [graph env]]` in `:strongest`.
   `(compound-propagator closure-cell inputs outputs)` → installer (same as `construct-propagator`)."
@@ -57,3 +76,4 @@
   (construct-propagator (compound-activate closure-cell)
                         (into [closure-cell] inputs)
                         outputs))
+

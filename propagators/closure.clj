@@ -5,8 +5,8 @@
             [propagators.cells.value :refer [value-payload]]
             [propagators.core :refer [run-tasks]]))
 
-(defn apply-network-closure [[f [graph env]] arg-snapshots]
-  (f graph env arg-snapshots))
+(defn apply-network-closure [[f [graph env]] input-snapshots output-snapshots]
+  (f [graph env] input-snapshots output-snapshots))
 
 (defn closure-payload [[_ cell]]
   (value-payload (:strongest cell)))
@@ -22,7 +22,8 @@
     (let [closure-snap (snapshot-for-id closure-cell input-snapshots)
           closure (closure-payload closure-snap)
           arg-snaps (remove #(= closure-cell (:id (first %))) input-snapshots)
-          [graph env] (apply-network-closure closure (concat arg-snaps output-snapshots))
-          network (run-tasks (pop-inputs input-snapshots graph) [graph env])]
+          [graph env] (apply-network-closure closure arg-snaps output-snapshots)
+          network (run-tasks (pop-inputs arg-snaps graph) [graph env])]
       (diff-cells output-snapshots
                   (take-cells (mapv first output-snapshots) network)))))
+

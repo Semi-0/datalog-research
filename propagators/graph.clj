@@ -16,13 +16,15 @@
   [id inputs outputs]
   (->Node id (set inputs) (set outputs)))
 
-(defn- blank-node [id]
+(defn blank-node [id]
   (node id #{} #{}))
 
 (defn- ensure-node [nodes id]
   (if (contains? nodes id)
     nodes
     (assoc nodes id (blank-node id))))
+
+(def empty-graph {})
 
 (defn graph?
   "True for a graph map `id → Node`."
