@@ -1,9 +1,8 @@
-(ns propagators.cell-merge
+(ns propagators.cells.merge
   "Merge and update logic for `CellValue`s."
-  (:require [propagators.cell-value :as v]))
+  (:require [propagators.cells.value :as v]))
 
-(defn cell-equal?
-  [a b]
+(defn cell-equal? [a b]
   (v/cell-value-equal? a b))
 
 (defn cell-merge
@@ -17,20 +16,15 @@
     (cell-equal? content update) content
     :else v/contradiction))
 
-;; backward-compatible alias
 (def generic-merge cell-merge)
 
-(defn cell-updated?
-  [new old]
+(defn cell-updated? [new old]
   (not (cell-equal? new old)))
 
-(defn cell-strongest
-  [x]
+(defn cell-strongest [x]
   x)
 
-;; in contradiction because we freeze the entire runtime
-;; so we can simulate different possibilities to handle it
-(defmulti handle-contradiction 
+(defmulti handle-contradiction
   (fn [tasks _node env] [tasks env]))
 
 (defmethod handle-contradiction :default

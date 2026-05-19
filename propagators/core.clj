@@ -1,9 +1,9 @@
 (ns propagators.core
-  (:require [propagators.cell :refer [->Cell cell-snapshot]]
-            [propagators.cell-merge :refer [cell-merge cell-strongest cell-updated? handle-contradiction]]
-            [propagators.cell-value :refer [contradiction?]]
+  (:require [propagators.cells :refer [->Cell cell-snapshot]]
+            [propagators.cells.merge :refer [cell-merge cell-strongest cell-updated? handle-contradiction]]
+            [propagators.cells.value :refer [contradiction?]]
             [propagators.graph :refer [node-inputs node-outputs]]
-            [propagators.task-queue :as tq]))
+            [propagators.helpers.task-queue :as tq]))
 
 (defn eval-cell [node update env graph]
   (let [id (:id node)
@@ -18,8 +18,7 @@
         (handle-contradiction next-tasks node updated-env)
         [next-tasks updated-env])
       [tq/empty-queue updated-env])))
-;; is and os could be a multiset
-;; [[node message]]
+
 (defn eval-cells [diffs env graph]
   (loop [ds diffs
          tasks tq/empty-queue
@@ -40,7 +39,6 @@
         [poped new-env] (eval-cells env-diffs env graph)]
     [(tq/merge-queues tasks poped) [graph new-env]]))
 
-;; we can even backtrack
 (defn run-tasks [tasks [graph env]]
   (loop [ts (tq/into-queue tasks)
          g graph

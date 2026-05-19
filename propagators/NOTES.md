@@ -42,11 +42,14 @@ Evaluator: `propagators.core` (`run-tasks` → `eval-propagator` → `eval-cells
 ## Minor implementation notes
 
 - **Port order** — `node-inputs` / `node-outputs` return sets; snapshot order is undefined. Use commutative `f` or fix port ordering later.
-- **Task queue** — immutable FIFO via `propagators.task-queue` (dedupe by node `:id`, deterministic order). `run-tasks` accepts a queue, set, or seq.
+- **Task queue** — immutable FIFO via `propagators.helpers.task-queue` (dedupe by node `:id`, deterministic order). `run-tasks` accepts a queue, set, or seq.
 - **Bootstrap** — no built-in initial task queue or default cells; caller supplies `env`, seeds tasks, injects first cell messages.
-- **Tests** — none yet under `propagators/`.
+- **Layout** — top: `compile`, `core`, `network`, `propagator`, `graph`, `ids`; `cells/` (cell, value, merge); `helpers/` (task-queue, network wiring).
+- **Network compile** — `propagators.compile/compile-net` lowers quoted `let` / `do` / `(p:id in out)` into `{:graph :env :cells :props}`; evaluation unchanged (`run-tasks`).
+- **Tests** — `test/propagators/network_test.clj` via `clj -M:propagators-test`.
 
 ## Not in scope (yet)
 
+- Eval based core allow us to backtrack with the evaluator and also contradiction handling, but we will expand on that later
 - Dependence tracking
 - Real `cell-strongest` / contradiction policies beyond stub

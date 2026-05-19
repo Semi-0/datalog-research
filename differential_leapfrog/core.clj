@@ -1,4 +1,4 @@
-(ns differential-leapfrog
+(ns differential-leapfrog.core
   (:require [clojure.core.async :as a]
             [differential-dataflow.frontier :as f]
             [differential-dataflow.versioned-core :as vc]

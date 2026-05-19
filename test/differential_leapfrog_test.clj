@@ -1,6 +1,6 @@
 (ns differential-leapfrog-test
   (:require [clojure.test :refer [deftest is testing]]
-            [differential-leapfrog :as d]
+            [differential-leapfrog.core :as d]
             [differential-leapfrog.trie :as trie]
             [leapfrog :as lf]))
 

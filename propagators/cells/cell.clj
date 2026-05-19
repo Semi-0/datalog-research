@@ -1,21 +1,16 @@
-(ns propagators.cell
-  "Propagator cell: multiset `content` plus `strongest` cell value.
-
-  Value lattice: `propagators.cell-value`
-  Merge / update: `propagators.cell-merge`"
+(ns propagators.cells.cell
+  "Propagator cell record and snapshot."
   (:refer-clojure :exclude [partial])
-  (:require [propagators.cell-merge :as merge]
-            [propagators.cell-value :as value]))
+  (:require [propagators.cells.merge :as merge]
+            [propagators.cells.value :as value]))
 
 (defrecord Cell [content strongest])
 
-(defn cell?
-  [x]
+(defn cell? [x]
   (instance? Cell x))
 
-(defn make-cell
-  ([content strongest]
-   (->Cell content strongest)))
+(defn make-cell [content strongest]
+  (->Cell content strongest))
 
 (defn cell-snapshot
   "`(cell-snapshot env)` returns `node → [node cell]` for each input node."
@@ -35,6 +30,8 @@
 (def partial? value/partial?)
 (def complete? value/complete?)
 (def value-payload value/value-payload)
+(def cell-value-equal? value/cell-value-equal?)
+(def any-unusable-values? value/any-unusable-values?)
 
 ;; --- re-exports: cell merge ---
 (def cell-equal? merge/cell-equal?)

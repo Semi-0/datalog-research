@@ -1,13 +1,12 @@
-(ns propagators.network.helpers
-  (:require [propagators.cell :refer [->Cell nothing]]
+(ns propagators.helpers.network
+  "Wiring and message helpers for building propagator networks."
+  (:require [propagators.cells :refer [->Cell nothing]]
             [propagators.graph :refer [link-edge]]))
 
-(defn cell-slot
-  [id env]
+(defn cell-slot [id env]
   (assoc env id (->Cell nothing nothing)))
 
-(defn make-message
-  [node message]
+(defn make-message [node message]
   [node message])
 
 (defn strongest-from-snapshot

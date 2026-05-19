@@ -1,4 +1,4 @@
-(ns propagators.cell-value
+(ns propagators.cells.value
   "Four-value cell lattice: nothing, contradiction, partial, complete."
   (:refer-clojure :exclude [partial]))
 
@@ -20,20 +20,16 @@
 (defn- kind [x]
   (when (cell-value? x) (:kind x)))
 
-(defn nothing?
-  [x]
+(defn nothing? [x]
   (= :nothing (kind x)))
 
-(defn contradiction?
-  [x]
+(defn contradiction? [x]
   (= :contradiction (kind x)))
 
-(defn partial?
-  [x]
+(defn partial? [x]
   (= :partial (kind x)))
 
-(defn complete?
-  [x]
+(defn complete? [x]
   (= :complete (kind x)))
 
 (defn unusable?
@@ -52,6 +48,5 @@
   (when (or (partial? x) (complete? x))
     (:value x)))
 
-(defn cell-value-equal?
-  [a b]
+(defn cell-value-equal? [a b]
   (= a b))

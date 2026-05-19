@@ -1,8 +1,10 @@
 (ns propagators.network
-  "Network shape + primitive sync propagator. Constructors and helpers live in sibling ns."
-  (:require [propagators.graph :refer [graph?]]
-            [propagators.network.constructors :as constructors]
-            [propagators.network.helpers :as helpers]))
+  "Network shape, constructors, and built-in propagators."
+  (:require [propagators.cells.value :refer [any-unusable-values?]]
+            [propagators.graph :refer [graph? node]]
+            [propagators.helpers.network :as h]
+            [propagators.ids :refer [new-node-id]]
+            [propagators.propagator :refer [make-propagator]]))
 
 ;; --- network ---
 
@@ -13,17 +15,51 @@
         (graph? (first x))
         (map? (second x)))))
 
-;; --- re-exports: constructors ---
+;; --- constructors ---
 
-(def construct-cell constructors/construct-cell)
-(def construct-propagator constructors/construct-propagator)
-(def primitive-propagator constructors/primitive-propagator)
+(defn construct-cell
+  "Install a cell. No args: fresh `java.util.UUID` v7 id. One arg: use given `id`."
+  ([]
+   (construct-cell (new-node-id)))
+  ([id]
+   (fn [[graph env]]
+     [id [graph (h/cell-slot id env)]])))
 
-;; --- re-exports: helpers (for callers building custom propagators) ---
+(defn construct-propagator
+  "Install propagator with `f`. Wires input cells → propagator → output cells in `graph`."
+  ([f inputs outputs]
+   (construct-propagator (new-node-id) f inputs outputs))
+  ([id f inputs outputs]
+   (fn [[graph env]]
+     (let [ins (set inputs)
+           outs (set outputs)
+           graph (-> graph
+                     (assoc id (node id ins outs))
+                     (h/wire-propagator-edges id ins outs))]
+       [id [graph (assoc env id (make-propagator f))]])))
+  ([f]
+   (fn [inputs outputs]
+     (construct-propagator f inputs outputs))))
 
-(def make-message helpers/make-message)
-(def strongest-from-snapshot helpers/strongest-from-snapshot)
-(def as-message helpers/as-message)
+(defn primitive-propagator
+  "`(primitive-propagator f)` → installer `(fn [args] …)` where
+  `args` = `[in1 … out]`. `f` receives strongest `CellValue`s from inputs."
+  [f]
+  (fn [args]
+    (let [inputs (vec (butlast args))
+          output (last args)
+          wrapped-f (fn [in-snaps out-snaps]
+                      (let [in-vals (mapv h/strongest-from-snapshot in-snaps)]
+                        (if (any-unusable-values? in-vals)
+                          []
+                          (h/as-message out-snaps [(apply f in-vals)]))))]
+      (construct-propagator wrapped-f inputs [output]))))
+
+;; --- re-exports: helpers (for custom propagators) ---
+
+(def make-message h/make-message)
+(def strongest-from-snapshot h/strongest-from-snapshot)
+(def as-message h/as-message)
 
 ;; --- built-in propagator ---
 

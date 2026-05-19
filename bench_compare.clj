@@ -2,7 +2,7 @@
 (ns bench-compare
   (:require [clojure.java.io :as io]))
 
-(load-file (.getCanonicalPath (io/file "leapfrog.clj")))
+(load-file (.getCanonicalPath (io/file "leapfrog/leapfrog.clj")))
 
 (in-ns 'leapfrog)
 

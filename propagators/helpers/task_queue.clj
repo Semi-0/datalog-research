@@ -1,12 +1,11 @@
-(ns propagators.task-queue
+(ns propagators.helpers.task-queue
   "Immutable FIFO propagator task queue. Dedupes by `(:id node)`; first schedule wins order.")
 
 (def empty-queue
   {:task-queue/seen #{}
    :task-queue/q []})
 
-(defn task-queue?
-  [x]
+(defn task-queue? [x]
   (and (map? x)
        (contains? x :task-queue/seen)
        (contains? x :task-queue/q)))
@@ -17,8 +16,7 @@
 (defn- fifo [q]
   (:task-queue/q q))
 
-(defn queue-empty?
-  [q]
+(defn queue-empty? [q]
   (clojure.core/empty? (fifo q)))
 
 (defn enqueue
@@ -30,8 +28,7 @@
       {:task-queue/seen (conj (seen-set q) id)
        :task-queue/q (conj (fifo q) node)})))
 
-(defn enqueue-all
-  [q nodes]
+(defn enqueue-all [q nodes]
   (reduce enqueue q nodes))
 
 (defn merge-queues
