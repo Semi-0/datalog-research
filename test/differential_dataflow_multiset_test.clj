@@ -1,4 +1,4 @@
-(ns differential-dataflow.multiset-test
+(ns differential-dataflow-multiset-test
   (:require [clojure.test :refer [deftest is testing]]
             [differential-dataflow.multiset :as ms]))
 
@@ -46,8 +46,3 @@
 
 (deftest minimum-rejects-nonpositive-multiplicity
   (is (thrown? Exception (ms/minimum [[[:x 1] -1]]))))
-
-(defn -main [& _]
-  (let [{:keys [fail error pass]} (clojure.test/run-tests 'differential-dataflow.multiset-test)]
-    (println "multiset-test:" pass "pass," fail "fail," error "error")
-    (when (or (pos? fail) (pos? error)) (System/exit 1))))

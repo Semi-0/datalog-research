@@ -1,4 +1,4 @@
-(ns differential-dataflow.stream-ops-test
+(ns differential-dataflow-stream-ops-test
   (:require [clojure.test :refer [deftest is]]
             [clojure.core.async :as a]
             [differential-dataflow.stream-ops :as s]))
@@ -71,8 +71,3 @@
     (is (= :x (a/<!! dest)))
     (a/close! source)
     (is (nil? (a/<!! dest)))))
-
-(defn -main [& _]
-  (let [{:keys [fail error pass]} (clojure.test/run-tests 'differential-dataflow.stream-ops-test)]
-    (println "stream-ops-test:" pass "pass," fail "fail," error "error")
-    (when (or (pos? fail) (pos? error)) (System/exit 1))))

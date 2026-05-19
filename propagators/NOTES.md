@@ -46,7 +46,7 @@ Evaluator: `propagators.core` (`run-tasks` → `eval-propagator` → `eval-cells
 - **Bootstrap** — no built-in initial task queue or default cells; caller supplies `env`, seeds tasks, injects first cell messages.
 - **Layout** — top: `compile`, `core`, `network`, `propagator`, `graph`, `ids`; `cells/` (cell, value, merge); `helpers/` (task-queue, network wiring).
 - **Network compile** — `propagators.compile/compile-net` lowers quoted `let` / `do` / `(p:id in out)` into `{:graph :env :cells :props}`; evaluation unchanged (`run-tasks`).
-- **Tests** — `test/propagators/network_test.clj` via `clj -M:propagators-test`.
+- **Tests** — flat under `test/`; all suites via `clj -M:test`, or `clj -M:propagators-test` for one suite.
 
 ## Not in scope (yet)
 

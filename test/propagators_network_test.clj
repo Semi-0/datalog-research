@@ -1,4 +1,4 @@
-(ns propagators.network-test
+(ns propagators-network-test
   (:refer-clojure :exclude [partial])
   (:require [clojure.test :refer [deftest is]]
             [propagators.cells :refer [->Cell cell?]]
@@ -102,8 +102,3 @@
     (let [[g e] (run-from [g e] p12)]
       (is (cell-value-equal? expected (strongest e c2))
           (str "c2 after p12 " (dump-net g e))))))
-
-(defn -main [& _]
-  (let [{:keys [fail error pass]} (clojure.test/run-tests 'propagators.network-test)]
-    (println "propagators.network-test:" pass "pass," fail "fail," error "error")
-    (when (or (pos? fail) (pos? error)) (System/exit 1))))

@@ -127,8 +127,3 @@
                                    :aggregate {:op :count :group-var :x}}]
                                  #{:p})
                    {:seed {[1] 1}}))))
-
-(defn -main [& _]
-  (let [{:keys [fail error pass]} (clojure.test/run-tests 'differential-leapfrog-test)]
-    (println "differential-leapfrog-test:" pass "pass," fail "fail," error "error")
-    (when (or (pos? fail) (pos? error)) (System/exit 1))))

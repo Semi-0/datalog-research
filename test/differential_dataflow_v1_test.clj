@@ -1,4 +1,4 @@
-(ns differential-dataflow.differential-dataflow-v1-test
+(ns differential-dataflow-v1-test
   "Examples aligned with the Python `__main__` Collection / DifferenceSequence demo."
   (:require [clojure.test :refer [deftest is testing]]
             [deprecated.differential-dataflow-v1 :as d]))
@@ -105,8 +105,3 @@
         mx (d/trace-max trace-d)]
     (is (= [[[:apple 3] 1] [[:banana 2] 1] [[:coconut 3] 1]] (first mn)))
     (is (= [[[:apple 11] 1] [[:banana 2] 1] [[:coconut 3] 1]] (first mx)))))
-
-(defn -main [& _]
-  (let [{:keys [fail error pass]} (clojure.test/run-tests 'differential-dataflow.differential-dataflow-v1-test)]
-    (println "differential-dataflow-v1-test:" pass "pass," fail "fail," error "error")
-    (when (or (pos? fail) (pos? error)) (System/exit 1))))

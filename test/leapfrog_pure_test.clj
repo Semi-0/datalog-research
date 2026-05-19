@@ -36,8 +36,3 @@
         facts {:edge edges}]
     (is (= (lf/semi-naive facts lf/path-rules)
            (pure/semi-naive facts pure/path-rules)))))
-
-(defn -main [& _]
-  (let [{:keys [fail error pass]} (clojure.test/run-tests 'leapfrog-pure-test)]
-    (println "leapfrog-pure-test:" pass "pass," fail "fail," error "error")
-    (when (or (pos? fail) (pos? error)) (System/exit 1))))

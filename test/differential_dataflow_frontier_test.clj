@@ -1,4 +1,4 @@
-(ns differential-dataflow.frontier-test
+(ns differential-dataflow-frontier-test
   (:require [clojure.test :refer [deftest is]]
             [differential-dataflow.frontier :as f]))
 
@@ -51,8 +51,3 @@
   (is (= #{[1 0]} (f/frontier-extend #{1})))
   (is (= #{1} (f/frontier-truncate #{[1 2]})))
   (is (= #{[1 3]} (f/frontier-apply-step #{[1 1]} 2))))
-
-(defn -main [& _]
-  (let [{:keys [fail error pass]} (clojure.test/run-tests 'differential-dataflow.frontier-test)]
-    (println "frontier-test:" pass "pass," fail "fail," error "error")
-    (when (or (pos? fail) (pos? error)) (System/exit 1))))

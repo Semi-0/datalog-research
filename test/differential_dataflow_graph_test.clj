@@ -1,4 +1,4 @@
-(ns differential-dataflow.graph-test
+(ns differential-dataflow-graph-test
   (:require [clojure.test :refer [deftest is]]
             [clojure.core.async :as a]
             [differential-dataflow.graph.interface :as g]
@@ -302,8 +302,3 @@
         out ((vg/iterate first-iteration-only) in)]
     (a/>!! in [:data 0 [[[:x 1] 1]]])
     (is (= [:data 0 [[[:x 1] 1]]] (a/<!! out)))))
-
-(defn -main [& _]
-  (let [{:keys [fail error pass]} (clojure.test/run-tests 'differential-dataflow.graph-test)]
-    (println "graph-test:" pass "pass," fail "fail," error "error")
-    (when (or (pos? fail) (pos? error)) (System/exit 1))))
