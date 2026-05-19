@@ -19,6 +19,7 @@
         [next-tasks updated-env])
       [tq/empty-queue updated-env])))
 
+;; maybe this could be a generic dispatcher for lazied cell as well?
 (defn eval-cells [diffs env graph]
   (loop [ds diffs
          tasks tq/empty-queue

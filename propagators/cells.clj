@@ -1,7 +1,9 @@
 (ns propagators.cells
   "Cell API barrel: re-exports from `propagators.cells.*`."
   (:refer-clojure :exclude [partial])
-  (:require [propagators.cells.cell :as cell]))
+  (:require [propagators.cells.cell :as cell]
+            [propagators.cells.diff :as diff]
+            [propagators.cells.snapshot :as snapshot]))
 
 (def ->Cell cell/->Cell)
 (def cell? cell/cell?)
@@ -28,3 +30,10 @@
 (def cell-updated? cell/cell-updated?)
 (def cell-strongest cell/cell-strongest)
 (def handle-contradiction cell/handle-contradiction)
+
+(def diff-cell diff/diff-cell)
+(def diff-cells diff/diff-cells)
+
+(def pop-inputs snapshot/pop-inputs)
+(def take-cells snapshot/take-cells)
+(def snapshot-for-id snapshot/snapshot-for-id)

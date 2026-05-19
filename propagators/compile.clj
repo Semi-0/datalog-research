@@ -5,9 +5,8 @@
   (:require [clojure.core.match :refer [match]]
             [propagators.graph :refer [node]]
             [propagators.ids :refer [new-node-id]]
-            [propagators.network :refer [construct-cell primitive-propagator]]))
-
-(def ^:private p:id (primitive-propagator (fn [x] x)))
+            [propagators.network :refer [construct-cell]]
+            [propagators.stdlib :refer [p:id]]))
 
 (def default-installers {'p:id p:id})
 
