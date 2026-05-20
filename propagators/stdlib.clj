@@ -1,25 +1,24 @@
 (ns propagators.stdlib
   (:refer-clojure :exclude [partial])
   (:require [propagators.cells.cell :as cell]
-            [propagators.cells.snapshot :refer [snap-cell snap-id]]
             [propagators.compile :refer [net-let]]
             [propagators.network :as net]
-            [propagators.network :refer [primitive-propagator]]))
+            [propagators.graph :as g]))
 
-(def p:id (primitive-propagator (fn [x] x)))
+(def p:id (net/primitive-propagator (fn [x] x)))
 
-;; input and output should be the same
+;; Boundary input/output nodes are the same constraint cells (typically two).
 (defn bi-sync
-  [n input-snapshots output-snapshots]
-  (let [in-snap (first input-snapshots)
-        out-snap (second input-snapshots)
-        input-id (snap-id in-snap)
-        output-id (snap-id out-snap)
-        in-cell (snap-cell in-snap)
-        out-cell (snap-cell out-snap)]
-    (net-let n
-      [[a input-id (cell/cell-content in-cell) (cell/cell-strongest in-cell)]
-       [b output-id (cell/cell-content out-cell) (cell/cell-strongest out-cell)]]
+  [closure-struct input-nodes _output-nodes network]
+  (let [inner-net (nth closure-struct 2)
+        [n-a n-b] (vec input-nodes)
+        a-id (g/node-id n-a)
+        b-id (g/node-id n-b)
+        a-cell (net/network-lookup-cell network n-a)
+        b-cell (net/network-lookup-cell network n-b)]
+    (net-let inner-net
+      [[a a-id (cell/cell-content a-cell) (cell/cell-strongest a-cell)]
+       [b b-id (cell/cell-content b-cell) (cell/cell-strongest b-cell)]]
       (p:id a b)
       (p:id b a))))
 

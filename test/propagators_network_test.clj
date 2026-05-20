@@ -58,28 +58,32 @@
 
 ;; --- runtime network builders (net-let) ---
 
-(defn- install-compound [n closure-id inputs outputs]
-  (let [[prop-id n'] ((compound-propagator closure-id inputs outputs) n)]
+(defn- install-compound [n closure-in closure-out inputs outputs]
+  (let [[prop-id n'] ((compound-propagator closure-in closure-out inputs outputs) n)]
     [prop-id n']))
 
 (defn- build-stdlib-compound-chain-n
-  "n cells, (n-1) bi-sync compounds; each compound boundary is [ci cj] / [ci cj]."
+  "n cells, (n-1) bi-sync compounds; boundary [ci cj] in/out; closure-in + closure-out per hop."
   [chain-len]
   (when (< chain-len 2)
     (throw (ex-info "chain-len must be >= 2" {:chain-len chain-len})))
   (let [cells (vec (repeatedly chain-len new-node-id))
-        closures (vec (repeatedly (dec chain-len) new-node-id))
+        closures-in (vec (repeatedly (dec chain-len) new-node-id))
+        closures-out (vec (repeatedly (dec chain-len) new-node-id))
         cv (complete bi-sync-closure)
         n (reduce (fn [net id] (second ((construct-cell id) net)))
                   net/empty-net
-                  (into cells closures))
-        n (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv)) n closures)
+                  (into cells (concat closures-in closures-out)))
+        n (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv))
+                  n
+                  (concat closures-in closures-out))
         [n props] (reduce
                    (fn [[n props] i]
                      (let [left (cells i)
                            right (cells (inc i))
-                           k (closures i)
-                           [p n'] (install-compound n k [left right] [left right])]
+                           k-in (closures-in i)
+                           k-out (closures-out i)
+                           [p n'] (install-compound n k-in k-out [left right] [left right])]
                        [n' (conj props p)]))
                    [n []]
                    (range (dec chain-len)))]

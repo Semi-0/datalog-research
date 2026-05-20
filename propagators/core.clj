@@ -37,12 +37,11 @@
 
 (defn eval-propagator [current tasks n]
   (let [g (net/net-graph n)
-        e (net/net-env n)
-        snap (cell-snapshot e)
-        inputs (map snap (graph/node-inputs g current))
-        outputs (map snap (graph/node-outputs g current))
+        e (net/net-env n) 
+        inputs  (graph/node-inputs g current)
+        outputs (graph/node-outputs g current)
         f (prop/prop-f (net/env-get e (graph/node-id current)))
-        messages (f inputs outputs)
+        messages (f inputs outputs n)
         [poped new-net] (eval-cells messages n)]
     [(tq/merge-queues tasks poped) new-net]))
 

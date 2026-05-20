@@ -38,6 +38,28 @@
 (defn assoc-net-prop [n id p]
   (net-with-env n (assoc-env (net-env n) id p)))
 
+(defn- network-node-id
+  "Coerce propagator graph `[:node id …]` or bare cell/propagator `id` to env key."
+  [id-or-node]
+  (if (graph/node? id-or-node)
+    (graph/node-id id-or-node)
+    id-or-node))
+
+(defn network-env-lookup
+  "Env entry for cell or propagator at `id-or-node` (uuid or `[:node …]`)."
+  [network id-or-node]
+  (env-get (net-env network) (network-node-id id-or-node)))
+
+(defn network-cell-strongest [network id-or-node]
+  (cell/cell-strongest (network-env-lookup network id-or-node)))
+
+(defn network-cell-content [network id-or-node]
+  (cell/cell-content (network-env-lookup network id-or-node)))
+
+(def network-lookup-cell network-env-lookup)
+
+(def network-lookup-propagator network-env-lookup)
+
 (defn- wire-propagator-edges [g prop-id inputs outputs]
   (let [ins (set inputs)
         outs (set outputs)]
@@ -108,9 +130,10 @@
   (fn [args]
     (let [inputs (vec (butlast args))
           output (last args)
-          wrapped-f (fn [input-snapshots output-snapshots]
-                      (let [in-vals (mapv strongest-from-snapshot input-snapshots)]
+          wrapped-f (fn [input-nodes output-nodes network] 
+                      (let [input-cells (mapv (partial network-env-lookup network) input-nodes) 
+                            in-vals (mapv cell/cell-strongest input-cells)]
                         (if (value/any-unusable-values? in-vals)
                           []
-                          (as-messages output-snapshots [(apply f in-vals)]))))]
+                          (as-messages output-nodes [(apply f in-vals)]))))]
       (construct-propagator wrapped-f inputs [output]))))

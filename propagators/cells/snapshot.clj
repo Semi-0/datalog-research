@@ -12,11 +12,12 @@
   (fn [node]
     (snap (node-id node) (get env (node-id node)))))
 
-(defn pop-inputs [snapshots graph]
-  (mapcat (fn [s]
-            (let [n (get-node graph (snap-id s))]
-              (node-outputs graph n)))
-          snapshots))
+(defn pop-inputs [nodes graph]
+  (mapcat (fn [n]
+            (let [id (node-id n)]
+              (when (contains? graph id)
+                (node-outputs graph (get-node graph id)))))
+          nodes))
 
 (defn take-cells [node-ids env graph]
   (let [snap-fn (cell-snapshot env)]
