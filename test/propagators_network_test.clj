@@ -1,6 +1,7 @@
 (ns propagators-network-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.cell :as cell]
+            [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.closure :refer [compound-propagator]]
             [propagators.compile :refer [cell-ref compile-net prop-ref]]
@@ -22,7 +23,7 @@
     (f {:net (net-of-ctx ctx) :ctx ctx})))
 
 (defn- strongest [env cell-id]
-  (cell/cell-strongest (net/env-get env cell-id)))
+  (merge/cell-strongest (net/env-get env cell-id)))
 
 (defn- seed-cell [n cell-id v]
   (net/assoc-net-cell n cell-id (cell/cell v v)))
@@ -45,7 +46,7 @@
      :env (into {}
                 (map (fn [[id v]]
                        [id (cond
-                             (cell/cell? v) {:kind :cell :strongest (cell/cell-strongest v)}
+                             (cell/cell? v) {:kind :cell :strongest (merge/cell-strongest v)}
                              (prop? v) {:kind :propagator}
                              :else {:kind :unknown})])
                      env))}))

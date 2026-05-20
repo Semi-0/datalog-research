@@ -1,5 +1,6 @@
 (ns propagators.closure
   (:require [propagators.cells.cell :as cell]
+            [propagators.cells.merge :as merge]
             [propagators.cells.diff :refer [diff-cells]]
             [propagators.cells.snapshot :refer [pop-inputs snap-cell snap-id snapshot-for-id take-cells]]
             [propagators.cells.value :as value]
@@ -20,7 +21,7 @@
   (f inner-net input-nodes output-nodes external-network))
 
 (defn closure-payload [snap]
-  (value/value-payload (cell/cell-strongest (snap-cell snap))))
+  (value/value-payload (merge/cell-strongest (snap-cell snap))))
 
 (defn- boundary-nodes [closure-cell-id nodes]
   (remove #(= closure-cell-id (g/node-id %)) nodes))

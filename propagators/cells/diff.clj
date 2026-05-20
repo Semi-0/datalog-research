@@ -1,5 +1,5 @@
 (ns propagators.cells.diff
-  (:require [propagators.cells.value :as value]
+  (:require [propagators.cells.merge :as merge]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.graph :as g]))
@@ -10,7 +10,7 @@
   (fn [node]
     (let [strongest-from (net/network-cell-strongest network-from node)
           strongest-to   (net/network-cell-strongest network-to node)]
-      (when (value/cell-updated? strongest-from strongest-to)
+      (when (merge/cell-updated? strongest-from strongest-to)
         (message (g/node-id node) strongest-from)))))
 
 (defn diff-cells [nodes network-from network-to]

@@ -12,15 +12,3 @@
 (defn any-unusable-values? [& values] (boolean (some unusable? values)))
 (defn value-payload [x] (when-not (unusable? x) x))
 (defn cell-value-equal? [a b] (= a b))
-
-(defn cell-merge
-  [content update]
-  (cond
-    (nothing? content) update
-    (nothing? update) content
-    (contradiction? content) contradiction
-    (contradiction? update) contradiction
-    (= content update) content
-    :else contradiction))
-
-(defn cell-updated? [new old] (not (= new old)))

@@ -3,6 +3,7 @@
   Usage: clj -M:propagators-bench [chain-lens...]
   Default chain lengths: 10 100"
   (:require [propagators.cells.cell :as cell]
+            [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.closure :refer [compound-propagator]]
             [propagators.core :refer [run-tasks]]
@@ -56,7 +57,7 @@
   (reduce run-prop n prop-ids))
 
 (defn- strongest [env cell-id]
-  (cell/cell-strongest (net/env-get env cell-id)))
+  (merge/cell-strongest (net/env-get env cell-id)))
 
 (defn- all-cells-have? [n cells expected]
   (every? #(cell-value-equal? expected (strongest (net/net-env n) %)) cells))

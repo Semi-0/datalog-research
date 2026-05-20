@@ -1,11 +1,11 @@
 (ns as-messages
-  (:require [propagators.cells.cell :as cell]
+  (:require [propagators.cells.merge :as merge]
             [propagators.cells.snapshot :refer [snap-cell snap-id]]
             [propagators.message :refer [message]]
             [propagators.graph :as g]))
 
 (defn strongest-from-snapshot [snap]
-  (cell/cell-strongest (snap-cell snap)))
+  (merge/cell-strongest (snap-cell snap)))
 
 (defn as-messages [output-nodes vals]
   (let [ids (mapv g/node-id output-nodes)]

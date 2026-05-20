@@ -1,7 +1,6 @@
 (ns propagators.core
   (:require [propagators.cells.cell :as cell]
-            [propagators.cells.merge :refer [handle-contradiction]]
-            [propagators.cells.snapshot :refer [cell-snapshot]]
+            [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
@@ -12,14 +11,14 @@
 (defn eval-cell [node msg n]
   (let [id (graph/node-id node)
         old (net/env-get (net/net-env n) id)
-        old-strongest (cell/cell-strongest old)
-        content' (value/cell-merge (cell/cell-content old) (message-value msg))
-        strongest' (cell/cell-strongest content')
+        old-strongest (merge/cell-strongest old)
+        content' (merge/cell-merge (cell/cell-content old) (message-value msg))
+        strongest' (merge/cell-strongest content')
         n' (net/assoc-net-cell n id (cell/cell content' strongest'))
         next-tasks (tq/enqueue-all tq/empty-queue (graph/node-outputs (net/net-graph n') node))]
-    (if (value/cell-updated? strongest' old-strongest)
+    (if (merge/cell-updated? strongest' old-strongest)
       (if (value/contradiction? strongest')
-        (let [[tasks env] (handle-contradiction next-tasks node (net/net-env n'))]
+        (let [[tasks env] (merge/handle-contradiction next-tasks node (net/net-env n'))]
           [tasks (net/net-with-env n' env)])
         [next-tasks n'])
       [tq/empty-queue n'])))

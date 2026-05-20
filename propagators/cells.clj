@@ -18,11 +18,11 @@
 (def cell-value-equal? value/cell-value-equal?)
 (def any-unusable-values? value/any-unusable-values?)
 
-(def cell-equal? value/cell-value-equal?)
-(def generic-merge value/cell-merge)
-(def cell-merge value/cell-merge)
-(def cell-updated? value/cell-updated?)
-(def cell-strongest cell/cell-strongest)
+(def cell-equal? merge/cell-equal?)
+(def generic-merge merge/generic-merge)
+(def cell-merge merge/cell-merge)
+(def cell-updated? merge/cell-updated?)
+(def cell-strongest merge/cell-strongest)
 (def handle-contradiction merge/handle-contradiction)
 
 (def diff-cell diff/diff-cell)

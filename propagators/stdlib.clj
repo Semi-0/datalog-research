@@ -1,5 +1,6 @@
 (ns propagators.stdlib
   (:require [propagators.cells.cell :as cell]
+            [propagators.cells.merge :as merge]
             [propagators.compile :refer [net-let]]
             [propagators.network :as net]
             [propagators.graph :as g]))
@@ -16,8 +17,8 @@
         a-cell (net/network-lookup-cell network n-a)
         b-cell (net/network-lookup-cell network n-b)]
     (net-let inner-net
-      [[a a-id (cell/cell-content a-cell) (cell/cell-strongest a-cell)]
-       [b b-id (cell/cell-content b-cell) (cell/cell-strongest b-cell)]]
+      [[a a-id (cell/cell-content a-cell) (merge/cell-strongest a-cell)]
+       [b b-id (cell/cell-content b-cell) (merge/cell-strongest b-cell)]]
       (p:id a b)
       (p:id b a))))
 
