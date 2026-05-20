@@ -2,9 +2,8 @@
   "Benchmark compound bi-sync chain propagation.
   Usage: clj -M:propagators-bench [chain-lens...]
   Default chain lengths: 10 100"
-  (:refer-clojure :exclude [partial])
   (:require [propagators.cells.cell :as cell]
-            [propagators.cells.value :refer [cell-value-equal? complete partial]]
+            [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.closure :refer [compound-propagator]]
             [propagators.core :refer [run-tasks]]
             [propagators.graph :refer [get-node]]
@@ -22,7 +21,7 @@
 (defn build-chain [chain-len]
   (let [cells (vec (repeatedly chain-len new-node-id))
         closures (vec (repeatedly (dec chain-len) new-node-id))
-        cv (complete bi-sync-closure)
+        cv bi-sync-closure
         n (reduce (fn [net id] (second ((construct-cell id) net)))
                   net/empty-net
                   (into cells closures))
@@ -46,9 +45,8 @@
         [e->mid n] ((p:id [e mid]) n)]
     {:net n :cells cells :props props :mid mid :e e :e->mid e->mid :inject-idx inject-idx}))
 
-(defn- seed-cell [n cell-id value]
-  (let [cv (partial value)]
-    (net/assoc-net-cell n cell-id (cell/cell cv cv))))
+(defn- seed-cell [n cell-id v]
+  (net/assoc-net-cell n cell-id (cell/cell v v)))
 
 (defn- run-prop [n prop-id]
   (let [node (get-node (net/net-graph n) prop-id)]
@@ -112,7 +110,7 @@
         (merge (default-bench-opts chain-len) opts)]
   (println (str "\n=== chain-len " chain-len " (cells=" chain-len
                 ", compounds=" (dec chain-len) ") ==="))
-  (let [expected (partial seed-val)
+  (let [expected seed-val
         build-t (time-ns #(build-chain chain-len))
         {:keys [net cells props]} (:result build-t)
         inject-idx (quot chain-len 2)

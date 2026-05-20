@@ -10,15 +10,10 @@
 (def cell-snapshot cells/cell-snapshot)
 
 ;; Cell value
-(def ->CellValue cells/->CellValue)
 (def nothing cells/nothing)
 (def contradiction cells/contradiction)
-(def partial cells/partial)
-(def complete cells/complete)
 (def nothing? cells/nothing?)
 (def contradiction? cells/contradiction?)
-(def partial? cells/partial?)
-(def complete? cells/complete?)
 (def value-payload cells/value-payload)
 
 ;; Cell merge

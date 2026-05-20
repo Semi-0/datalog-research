@@ -142,7 +142,7 @@ Output: same `{:graph :env :cells :props}` you would build by hand — **evaluat
 
 | Topic | MIT-style | This repo |
 |-------|-----------|-----------|
-| Cell merge | Generic merge procedures | `cell-merge` + `CellValue` lattice (`nothing` / `partial` / `complete` / `contradiction`) |
+| Cell merge | Generic merge procedures | `cell-merge` on plain payloads + `[:nothing]` / `[:contradiction]` sentinels |
 | Scheduling | Alert propagators when cells change | FIFO task queue of **propagator** `Node`s (`run-tasks`) |
 | Propagator body | Often mutates neighbor cells | Pure `f` → diffs → `eval-cells` |
 | Network storage | Monolithic network object | `graph` + `env` |

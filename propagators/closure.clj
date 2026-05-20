@@ -41,7 +41,7 @@
               net' (run-tasks (pop-inputs boundary-in (net-graph net)) net)
               closure-struct' (closure cf net')]
           (into (diff-cells boundary-out net' network)
-                [(m/message closure-out-id (value/complete closure-struct'))]))))))
+                [(m/message closure-out-id closure-struct')]))))))
 
 (defn compound-propagator
   [closure-in closure-out inputs outputs]

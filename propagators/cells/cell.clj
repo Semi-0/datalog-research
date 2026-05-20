@@ -1,5 +1,4 @@
-(ns propagators.cells.cell
-  (:require [propagators.cells.value :as value]))
+(ns propagators.cells.cell)
 
 (defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
 
@@ -10,9 +9,6 @@
 
 (defn cell-content [c] (nth c 1))
 (defn cell-strongest
-  "Strongest slot of a `[:cell ...]`, or the cell-value itself."
+  "Strongest slot of a `[:cell ...]`, or the content itself."
   [x]
-  (cond
-    (cell? x) (nth x 2)
-    (value/cell-value? x) x
-    :else x))
+  (if (cell? x) (nth x 2) x))

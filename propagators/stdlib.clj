@@ -1,5 +1,4 @@
 (ns propagators.stdlib
-  (:refer-clojure :exclude [partial])
   (:require [propagators.cells.cell :as cell]
             [propagators.compile :refer [net-let]]
             [propagators.network :as net]

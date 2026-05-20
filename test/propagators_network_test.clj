@@ -1,8 +1,7 @@
 (ns propagators-network-test
-  (:refer-clojure :exclude [partial])
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.cell :as cell]
-            [propagators.cells.value :refer [cell-value-equal? complete partial]]
+            [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.closure :refer [compound-propagator]]
             [propagators.compile :refer [cell-ref compile-net prop-ref]]
             [propagators.core :refer [run-tasks]]
@@ -25,9 +24,8 @@
 (defn- strongest [env cell-id]
   (cell/cell-strongest (net/env-get env cell-id)))
 
-(defn- seed-cell [n cell-id value]
-  (let [cv (partial value)]
-    (net/assoc-net-cell n cell-id (cell/cell cv cv))))
+(defn- seed-cell [n cell-id v]
+  (net/assoc-net-cell n cell-id (cell/cell v v)))
 
 (defn- run-prop [n prop-id]
   (let [node (get-node (net/net-graph n) prop-id)]
@@ -70,7 +68,7 @@
   (let [cells (vec (repeatedly chain-len new-node-id))
         closures-in (vec (repeatedly (dec chain-len) new-node-id))
         closures-out (vec (repeatedly (dec chain-len) new-node-id))
-        cv (complete bi-sync-closure)
+        cv bi-sync-closure
         n (reduce (fn [net id] (second ((construct-cell id) net)))
                   net/empty-net
                   (into cells (concat closures-in closures-out)))
@@ -119,7 +117,7 @@
 
 (defn- assert-compound-chain-from-head [chain-len seed-val]
   (let [{:keys [net cells props]} (build-stdlib-compound-chain-n chain-len)
-        expected (partial seed-val)
+        expected seed-val
         n (-> net (seed-cell (first cells) seed-val) (run-compound-chain props))]
     (doseq [[i c] (map-indexed vector cells)]
       (expect-strongest n c expected (str "cell " i " chain-len " chain-len)))))
@@ -132,7 +130,7 @@
        (do (p:id c0 c1)
            (p:id c1 c2)))
     (fn [{:keys [net ctx]}]
-      (let [expected (partial 42)
+      (let [expected 42
             n (-> net
                   (seed-cell (cell-ref ctx 'c0) 42)
                   (run-prop (prop-ref ctx 0)))]
@@ -144,7 +142,7 @@
   (testing "compound with bi-sync-closure; seed c0, run once"
     (let [{:keys [net cells props]} (build-stdlib-compound-chain)
           [c0 c1] cells
-          expected (partial 7)
+          expected 7
           n (-> net (seed-cell c0 7) (run-prop (first props)))]
       (expect-strongest n c1 expected "c1 after compound")
       (expect-strongest n c0 expected "c0 after compound (bi-sync)"))))
@@ -154,7 +152,7 @@
     (let [{:keys [net cells props]} (build-stdlib-compound-chain)
           [c0 c1 c2] cells
           [p01 p12] props
-          expected (partial 99)
+          expected 99
           n (-> net (seed-cell c0 99) (run-prop p01))]
       (expect-strongest n c1 expected "c1 after first compound")
       (let [n (run-prop n p12)]
@@ -166,7 +164,7 @@
        (do (p:id cA cB)
            (p:id cB cA)))
     (fn [{:keys [net ctx]}]
-      (let [seed (partial 1)
+      (let [seed 1
             n (-> net (seed-cell (cell-ref ctx 'cA) 1) (run-prop (prop-ref ctx 0)))]
         (expect-strongest n (cell-ref ctx 'cB) seed "cB after pAB")
         (expect-strongest n (cell-ref ctx 'cA) seed "cA unchanged")))))
@@ -179,7 +177,7 @@
            (p:id c1 c2)
            (p:id c2 c1)))
     (fn [{:keys [net ctx]}]
-      (let [expected (partial 99)
+      (let [expected 99
             n (-> net
                   (seed-cell (cell-ref ctx 'c0) 99)
                   (run-prop (prop-ref ctx 0)))]
@@ -192,7 +190,7 @@
     (let [{:keys [net cells props]} (build-stdlib-compound-abc-with-inject)
           {:keys [a b c e]} cells
           e->b (:e->b props)
-          expected (partial 55)
+          expected 55
           n (-> net (seed-cell e 55) (run-prop e->b))]
       (expect-strongest n b expected "b from e")
       (expect-strongest n c expected "c from b (downstream compound)")
@@ -212,7 +210,7 @@
           inject-idx (quot chain-len 2)
           {:keys [net cells mid e e->mid]} (build-stdlib-compound-chain-n-with-inject
                                             chain-len inject-idx)
-          expected (partial 77)
+          expected 77
           n (-> net (seed-cell e 77) (run-prop e->mid))]
       (is (= 5 inject-idx) "middle index for len 10")
       (expect-strongest n mid expected "middle from e")

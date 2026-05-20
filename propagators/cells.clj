@@ -1,5 +1,4 @@
 (ns propagators.cells
-  (:refer-clojure :exclude [partial])
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.diff :as diff]
             [propagators.cells.merge :as merge]
@@ -11,16 +10,10 @@
 (def make-cell cell/cell)
 (def cell-snapshot snapshot/cell-snapshot)
 
-(def ->CellValue value/cell-value)
-(def cell-value? value/cell-value?)
 (def nothing value/nothing)
 (def contradiction value/contradiction)
-(def partial value/partial)
-(def complete value/complete)
 (def nothing? value/nothing?)
 (def contradiction? value/contradiction?)
-(def partial? value/partial?)
-(def complete? value/complete?)
 (def value-payload value/value-payload)
 (def cell-value-equal? value/cell-value-equal?)
 (def any-unusable-values? value/any-unusable-values?)
