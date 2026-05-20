@@ -2,6 +2,10 @@
 
 Experimental architecture: **graph** = wiring only; **env** = runtime state and behavior per node id.
 
+TODO: COMPOUND DATA FOR CELL MERGE
+COMPILER CAN BE MUCH SIMPLER
+SIMPLIFY COMPOUND PROPAGATOR API
+
 ;; experiments of propagator system which decouples network declaration from network evaluation
 
 PROBLEM CRITICAL: UNIFT THE INTERFACE OF DATASTRUCTURE
