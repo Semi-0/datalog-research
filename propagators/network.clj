@@ -39,23 +39,16 @@
 (defn assoc-net-prop [n id p]
   (net-with-env n (assoc-env (net-env n) id p)))
 
-(defn- network-node-id
-  "Coerce propagator graph `[:node id …]` or bare cell/propagator `id` to env key."
-  [id-or-node]
-  (if (graph/node? id-or-node)
-    (graph/node-id id-or-node)
-    id-or-node))
-
 (defn network-env-lookup
-  "Env entry for cell or propagator at `id-or-node` (uuid or `[:node …]`)."
-  [network id-or-node]
-  (env-get (net-env network) (network-node-id id-or-node)))
+  "Env entry for cell or propagator at `node-id` token `[:node-id …]`."
+  [network node-id]
+  (env-get (net-env network) (graph/node-id node-id)))
 
-(defn network-cell-strongest [network id-or-node]
-  (cell/cell-strongest (network-env-lookup network id-or-node)))
+(defn network-cell-strongest [network node-id]
+  (cell/cell-strongest (network-env-lookup network node-id)))
 
-(defn network-cell-content [network id-or-node]
-  (cell/cell-content (network-env-lookup network id-or-node)))
+(defn network-cell-content [network node-id]
+  (cell/cell-content (network-env-lookup network node-id)))
 
 (def network-lookup-cell network-env-lookup)
 
@@ -86,14 +79,14 @@
    (fn [arg]
      (let [net (as-net arg)
            n (-> net
-                 (assoc-net-node id (graph/blank-node id))
+                 (assoc-net-node id (graph/blank-node))
                  (assoc-net-cell id (cell/cell value/nothing value/nothing)))]
        [id n])))
   ([id content strongest]
    (fn [arg]
      (let [net (as-net arg)
            n (-> net
-                 (assoc-net-node id (graph/blank-node id))
+                 (assoc-net-node id (graph/blank-node))
                  (assoc-net-cell id (cell/cell content strongest)))]
        [id n]))))
 
@@ -119,7 +112,7 @@
            outs (set outputs)
            g (net-graph net)
            g' (-> g
-                  (graph/assoc-graph id (graph/node id ins outs))
+                  (graph/assoc-graph id (graph/node ins outs))
                   (wire-propagator-edges id ins outs))
            n (-> net
                  (net-with-graph g')

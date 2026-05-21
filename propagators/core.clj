@@ -8,20 +8,20 @@
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
-(defn eval-cell [node msg n]
-  (let [id (graph/node-id node)
-        old (net/env-get (net/net-env n) id)
+(defn eval-cell [id msg n]
+  (let [old (net/env-get (net/net-env n) id)
         old-strongest (merge/strongest-value old n)
         content' (merge/cell-merge (cell/cell-content old) (message-value msg) n)
         strongest' (merge/strongest-value content' n)
         n' (net/assoc-net-cell n id (cell/cell content' strongest'))
-        next-tasks (tq/enqueue-all tq/empty-queue (graph/node-outputs (net/net-graph n') node))]
+        node (graph/get-node (net/net-graph n') id)
+        next-tasks (tq/enqueue-all tq/empty-queue (graph/node-output-ids node))]
     (if (merge/cell-updated? strongest' old-strongest n)
       (if (value/contradiction? strongest')
-        (let [[tasks env] (merge/handle-contradiction next-tasks node (net/net-env n'))]
+        (let [[tasks env] (merge/handle-contradiction next-tasks id (net/net-env n'))]
           [tasks (net/net-with-env n' env)])
         [next-tasks n'])
-      [tq/empty-queue n'])))
+      [tq/empty-queue n])))
 
 (defn eval-cells [messages n]
   (loop [ms messages
@@ -30,16 +30,16 @@
     (if (empty? ms)
       [tasks n']
       (let [msg (first ms)
-            node (graph/get-node (net/net-graph n') (message-id msg))
-            [poped new-n] (eval-cell node msg n')]
+            [poped new-n] (eval-cell (message-id msg) msg n')]
         (recur (rest ms) (tq/merge-queues tasks poped) new-n)))))
 
-(defn eval-propagator [current tasks n]
+(defn eval-propagator [current-id tasks n]
   (let [g (net/net-graph n)
-        e (net/net-env n) 
-        inputs  (graph/node-inputs g current)
-        outputs (graph/node-outputs g current)
-        f (prop/prop-f (net/env-get e (graph/node-id current)))
+        e (net/net-env n)
+        current-node (graph/get-node g current-id)
+        inputs (graph/node-input-ids current-node)
+        outputs (graph/node-output-ids current-node)
+        f (prop/prop-f (net/env-get e current-id))
         messages (f inputs outputs n)
         [poped new-net] (eval-cells messages n)]
     [(tq/merge-queues tasks poped) new-net]))
@@ -49,6 +49,6 @@
          n' n]
     (if (tq/queue-empty? ts)
       n'
-      (let [[current remaining] (tq/pop-task ts)
-            [*t *n] (eval-propagator current remaining n')]
+      (let [[current-id remaining] (tq/pop-task ts)
+            [*t *n] (eval-propagator current-id remaining n')]
         (recur *t *n)))))

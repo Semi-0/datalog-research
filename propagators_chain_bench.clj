@@ -7,7 +7,6 @@
             [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.closure :refer [compound-propagator]]
             [propagators.core :refer [run-tasks]]
-            [propagators.graph :refer [get-node]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net :refer [construct-cell]]
@@ -57,8 +56,7 @@
   (net/assoc-net-cell n cell-id (cell/cell v v)))
 
 (defn- run-prop [n prop-id]
-  (let [node (get-node (net/net-graph n) prop-id)]
-    (run-tasks (tq/enqueue tq/empty-queue node) n)))
+  (run-tasks (tq/enqueue tq/empty-queue prop-id) n))
 
 (defn- run-compound-chain [n prop-ids]
   (reduce run-prop n prop-ids))

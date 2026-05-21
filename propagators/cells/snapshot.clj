@@ -1,5 +1,5 @@
 (ns propagators.cells.snapshot
-  (:require [propagators.graph :refer [get-node node-id node-outputs]]))
+  (:require [propagators.graph :refer [get-node node-output-ids]]))
 
 (defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
 
@@ -9,19 +9,18 @@
 (defn snap-cell [s] (nth s 2))
 
 (defn cell-snapshot [env]
-  (fn [node]
-    (snap (node-id node) (get env (node-id node)))))
+  (fn [node-id]
+    (snap node-id (get env node-id))))
 
-(defn pop-inputs [nodes graph]
-  (mapcat (fn [n]
-            (let [id (node-id n)]
-              (when (contains? graph id)
-                (node-outputs graph (get-node graph id)))))
-          nodes))
+(defn pop-inputs [node-ids graph]
+  (mapcat (fn [id]
+            (when (contains? graph id)
+              (node-output-ids (get-node graph id))))
+          node-ids))
 
-(defn take-cells [node-ids env graph]
+(defn take-cells [node-ids env _graph]
   (let [snap-fn (cell-snapshot env)]
-    (map (fn [id] (snap-fn (get-node graph id))) node-ids)))
+    (mapv snap-fn node-ids)))
 
 (defn snapshot-for-id [node-id snapshots]
   (some (fn [s]

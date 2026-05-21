@@ -23,7 +23,7 @@
   (value/value-payload (cell/cell-strongest (snap-cell snap))))
 
 (defn- boundary-nodes [closure-cell-id nodes]
-  (remove #(= closure-cell-id (g/node-id %)) nodes))
+  (remove #(= closure-cell-id %) nodes))
 
 (defn compound-activate [closure-in-id closure-out-id]
   (fn [input-nodes output-nodes network]

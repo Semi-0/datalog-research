@@ -7,8 +7,8 @@
 (defn strongest-from-snapshot [snap]
   (cell/cell-strongest (snap-cell snap)))
 
-(defn as-messages [output-nodes vals]
-  (let [ids (mapv g/node-id output-nodes)]
+(defn as-messages [output-node-ids vals]
+  (let [ids (mapv g/node-id output-node-ids)]
     (when (not= (count ids) (count vals))
       (throw (ex-info "output count mismatch"
                       {:outputs (count ids) :results (count vals)})))

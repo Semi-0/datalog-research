@@ -1,6 +1,6 @@
 (ns propagators.helpers.task-queue
-  "Immutable FIFO propagator task queue. Dedupes by node id; first schedule wins order."
-  (:require [propagators.graph :refer [node-id]]))
+  "Immutable FIFO propagator task queue. Dedupes by node-id token; first schedule wins order."
+  (:require [propagators.ids :refer [node-id?]]))
 
 (def empty-queue
   {:task-queue/seen #{}
@@ -21,24 +21,25 @@
   (clojure.core/empty? (fifo q)))
 
 (defn enqueue
-  "Enqueue `node` if its `:id` is not already scheduled. Returns new queue."
-  [q node]
-  (let [id (node-id node)]
-    (if (contains? (seen-set q) id)
-      q
-      {:task-queue/seen (conj (seen-set q) id)
-       :task-queue/q (conj (fifo q) node)})))
+  "Enqueue `node-id` if not already scheduled. Returns new queue."
+  [q node-id]
+  (when-not (node-id? node-id)
+    (throw (ex-info "expected node-id token" {:node-id node-id})))
+  (if (contains? (seen-set q) node-id)
+    q
+    {:task-queue/seen (conj (seen-set q) node-id)
+     :task-queue/q (conj (fifo q) node-id)}))
 
-(defn enqueue-all [q nodes]
-  (reduce enqueue q nodes))
+(defn enqueue-all [q node-ids]
+  (reduce enqueue q node-ids))
 
 (defn merge-queues
-  "Enqueue every node from `b` into `a` (FIFO order preserved; `a` drains first)."
+  "Enqueue every node-id from `b` into `a` (FIFO order preserved; `a` drains first)."
   [a b]
   (enqueue-all a (fifo b)))
 
 (defn into-queue
-  "Coerce `x` to a task queue: queue map, set, or seq of nodes."
+  "Coerce `x` to a task queue: queue map, set, or seq of node-id tokens."
   [x]
   (cond
     (task-queue? x) x
@@ -47,10 +48,9 @@
     :else (throw (ex-info "not a task queue" {:value x}))))
 
 (defn pop-task
-  "Returns `[node queue']` or `nil` when empty."
+  "Returns `[node-id queue']` or `nil` when empty."
   [q]
   (when (seq (fifo q))
-    (let [node (first (fifo q))
-          id (node-id node)]
-      [node {:task-queue/seen (disj (seen-set q) id)
-             :task-queue/q (vec (rest (fifo q)))}])))
+    (let [node-id (first (fifo q))]
+      [node-id {:task-queue/seen (disj (seen-set q) node-id)
+                :task-queue/q (vec (rest (fifo q)))}])))
