@@ -10,7 +10,7 @@
   (fn [node]
     (let [strongest-from (net/network-cell-strongest network-from node)
           strongest-to   (net/network-cell-strongest network-to node)]
-      (when (merge/cell-updated? strongest-from strongest-to)
+      (when (merge/cell-updated? strongest-from strongest-to network-from)
         (message (g/node-id node) strongest-from)))))
 
 (defn diff-cells [nodes network-from network-to]

@@ -11,12 +11,12 @@
 (defn eval-cell [node msg n]
   (let [id (graph/node-id node)
         old (net/env-get (net/net-env n) id)
-        old-strongest (merge/cell-strongest old)
-        content' (merge/cell-merge (cell/cell-content old) (message-value msg))
-        strongest' (merge/cell-strongest content')
+        old-strongest (merge/strongest-value old n)
+        content' (merge/cell-merge (cell/cell-content old) (message-value msg) n)
+        strongest' (merge/strongest-value content' n)
         n' (net/assoc-net-cell n id (cell/cell content' strongest'))
         next-tasks (tq/enqueue-all tq/empty-queue (graph/node-outputs (net/net-graph n') node))]
-    (if (merge/cell-updated? strongest' old-strongest)
+    (if (merge/cell-updated? strongest' old-strongest n)
       (if (value/contradiction? strongest')
         (let [[tasks env] (merge/handle-contradiction next-tasks node (net/net-env n'))]
           [tasks (net/net-with-env n' env)])

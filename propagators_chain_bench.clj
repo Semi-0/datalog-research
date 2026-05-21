@@ -15,28 +15,35 @@
 
 ;; --- network builders (same wiring as propagators-network-test) ---
 
-(defn- install-compound [n closure-id inputs outputs]
-  (let [[prop-id n'] ((compound-propagator closure-id inputs outputs) n)]
+(defn- install-compound [n closure-in-id closure-out-id inputs outputs]
+  (let [[prop-id n'] ((compound-propagator closure-in-id closure-out-id inputs outputs) n)]
     [prop-id n']))
 
 (defn build-chain [chain-len]
   (let [cells (vec (repeatedly chain-len new-node-id))
-        closures (vec (repeatedly (dec chain-len) new-node-id))
+        closures-in (vec (repeatedly (dec chain-len) new-node-id))
+        closures-out (vec (repeatedly (dec chain-len) new-node-id))
         cv bi-sync-closure
+        ;; build the closure in cell into the network
         n (reduce (fn [net id] (second ((construct-cell id) net)))
                   net/empty-net
-                  (into cells closures))
-        n (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv)) n closures)
-        [n props] (reduce
+                  (into cells closures-in)) 
+        ;; build the closures-out
+        n1 (reduce (fn [net id] (second ((construct-cell id) net)))
+                  n
+                  (into cells closures-out))
+        n2 (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv)) n1 closures-in)
+        [final-n props] (reduce
                    (fn [[n props] i]
                      (let [left (cells i)
                            right (cells (inc i))
-                           k (closures i)
-                           [p n'] (install-compound n k [left right] [left right])]
+                           k-i (closures-in i)
+                           k-o (closures-out i)
+                           [p n'] (install-compound n k-i k-o [left right] [left right])]
                        [n' (conj props p)]))
-                   [n []]
+                   [n2 []]
                    (range (dec chain-len)))]
-    {:net n :cells cells :props props}))
+    {:net final-n :cells cells :props props}))
 
 (defn build-chain-with-inject [chain-len inject-idx]
   (let [{:keys [net cells props]} (build-chain chain-len)
@@ -57,7 +64,7 @@
   (reduce run-prop n prop-ids))
 
 (defn- strongest [env cell-id]
-  (merge/cell-strongest (net/env-get env cell-id)))
+  (cell/cell-strongest (net/env-get env cell-id)))
 
 (defn- all-cells-have? [n cells expected]
   (every? #(cell-value-equal? expected (strongest (net/net-env n) %)) cells))

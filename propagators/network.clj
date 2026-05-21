@@ -52,7 +52,7 @@
   (env-get (net-env network) (network-node-id id-or-node)))
 
 (defn network-cell-strongest [network id-or-node]
-  (merge/cell-strongest (network-env-lookup network id-or-node)))
+  (cell/cell-strongest (network-env-lookup network id-or-node)))
 
 (defn network-cell-content [network id-or-node]
   (cell/cell-content (network-env-lookup network id-or-node)))
@@ -75,8 +75,8 @@
   [n id msg]
   (let [e (net-env n)
         cur (env-get e id)
-        content' (merge/cell-merge (cell/cell-content cur) msg)
-        strongest' (merge/cell-strongest content')]
+        content' (merge/cell-merge (cell/cell-content cur) msg n)
+        strongest' (merge/strongest-value content' n)]
     (assoc-net-cell n id (cell/cell content' strongest'))))
 
 (defn construct-cell
@@ -133,7 +133,7 @@
           output (last args)
           wrapped-f (fn [input-nodes output-nodes network] 
                       (let [input-cells (mapv (partial network-env-lookup network) input-nodes) 
-                            in-vals (mapv merge/cell-strongest input-cells)]
+                            in-vals (mapv cell/cell-strongest input-cells)]
                         (if (value/any-unusable-values? in-vals)
                           []
                           (as-messages output-nodes [(apply f in-vals)]))))]

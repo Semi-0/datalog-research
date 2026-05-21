@@ -5,14 +5,18 @@
 
 (def cell-equal? value/cell-value-equal?)
 
-(defn cell-updated? [new old]
+(defmulti cell-updated?
+  (fn [_new _old _network] :default))
+
+(defmethod cell-updated? :default
+  [new old _network]
   (not (cell-equal? new old)))
 
 (defmulti cell-merge
-  (fn [_content _update] :default))
+  (fn [_content _update _network] :default))
 
 (defmethod cell-merge :default
-  [content update]
+  [content update _network]
   (cond
     (value/nothing? content) update
     (value/nothing? update) content
@@ -23,15 +27,15 @@
 
 (def generic-merge cell-merge)
 
-(defmulti cell-strongest
-  (fn [x] (if (cell/cell? x) :cell :content)))
+(defmulti strongest-value
+  (fn [x _network] (if (cell/cell? x) :cell :content)))
 
-(defmethod cell-strongest :cell
-  [c]
+(defmethod strongest-value :cell
+  [c _network]
   (nth c 2))
 
-(defmethod cell-strongest :content
-  [x]
+(defmethod strongest-value :content
+  [x _network]
   x)
 
 (defmulti handle-contradiction

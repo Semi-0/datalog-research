@@ -23,7 +23,7 @@
     (f {:net (net-of-ctx ctx) :ctx ctx})))
 
 (defn- strongest [env cell-id]
-  (merge/cell-strongest (net/env-get env cell-id)))
+  (cell/cell-strongest (net/env-get env cell-id)))
 
 (defn- seed-cell [n cell-id v]
   (net/assoc-net-cell n cell-id (cell/cell v v)))
@@ -46,7 +46,7 @@
      :env (into {}
                 (map (fn [[id v]]
                        [id (cond
-                             (cell/cell? v) {:kind :cell :strongest (merge/cell-strongest v)}
+                             (cell/cell? v) {:kind :cell :strongest (cell/cell-strongest v)}
                              (prop? v) {:kind :propagator}
                              :else {:kind :unknown})])
                      env))}))

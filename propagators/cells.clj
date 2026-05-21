@@ -22,7 +22,7 @@
 (def generic-merge merge/generic-merge)
 (def cell-merge merge/cell-merge)
 (def cell-updated? merge/cell-updated?)
-(def cell-strongest merge/cell-strongest)
+(def cell-strongest merge/strongest-value)
 (def handle-contradiction merge/handle-contradiction)
 
 (def diff-cell diff/diff-cell)
