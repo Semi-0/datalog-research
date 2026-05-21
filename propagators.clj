@@ -1,28 +1,31 @@
 (ns propagators
-  "Propagator namespace: re-exports cells, graph, and related modules."
-  (:require [propagators.cells :as cells]
+  "Propagator namespace: re-exports graph and cell primitives from leaf modules."
+  (:require [propagators.cells.cell :as cell]
+            [propagators.cells.merge :as merge]
+            [propagators.cells.snapshot :as snapshot]
+            [propagators.cells.value :as value]
             [propagators.graph :as graph]
             [propagators.propagator :as propagator]))
 
 ;; Cell
-(def make-cell cells/make-cell)
-(def cell? cells/cell?)
-(def cell-snapshot cells/cell-snapshot)
+(def make-cell cell/cell)
+(def cell? cell/cell?)
+(def cell-snapshot snapshot/cell-snapshot)
 
 ;; Cell value
-(def nothing cells/nothing)
-(def contradiction cells/contradiction)
-(def nothing? cells/nothing?)
-(def contradiction? cells/contradiction?)
-(def value-payload cells/value-payload)
+(def nothing value/nothing)
+(def contradiction value/contradiction)
+(def nothing? value/nothing?)
+(def contradiction? value/contradiction?)
+(def value-payload value/value-payload)
 
 ;; Cell merge
-(def cell-merge cells/cell-merge)
-(def generic-merge cells/generic-merge)
-(def cell-strongest cells/cell-strongest)
-(def cell-equal? cells/cell-equal?)
-(def cell-updated? cells/cell-updated?)
-(def handle-contradiction cells/handle-contradiction)
+(def cell-merge merge/cell-merge)
+(def generic-merge merge/generic-merge)
+(def cell-strongest merge/strongest-value)
+(def cell-equal? merge/cell-equal?)
+(def cell-updated? merge/cell-updated?)
+(def handle-contradiction merge/handle-contradiction)
 
 ;; Propagator
 (def ->Propagator propagator/->Propagator)

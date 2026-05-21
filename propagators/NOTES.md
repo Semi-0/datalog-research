@@ -293,6 +293,6 @@ propagators/cells/snapshot.clj — pop-inputs, take-cells, snapshot-for-id
 propagators/core.clj      — run-tasks, eval-propagator, eval-cells, eval-cell
 as_messages.clj           — make-message, as-messages, wire-propagator-edges, cell-slot
 propagators/graph.clj     — Node, link-edge
-propagators/cells/        — Cell, CellValue, merge
+propagators/cells/        — **deprecated** barrel (`cells.clj`); use `cells/cell`, `cells/merge`, `cells/value`, …
 test/propagators_network_test.clj
 ```
