@@ -7,7 +7,6 @@
             [propagators.network :refer [assoc-net-cell net-graph
                                          network-cell-strongest network-cell-content construct-cell]]
             [propagators.graph :as g]
-            [propagators.message :as m]
             [propagators.ids :as id]
             [propagators.stdlib :as stdlib]
             ))
@@ -21,14 +20,9 @@
 (defn closure-net [c] (nth c 2))
 
 (defn closure-boundary
-  "Optional persisted avatar map: {:ins :outs :in-avatars :out-avatars :f}."
+  "Optional avatar map on a closure value: {:ins :outs :in-avatars :out-avatars :f}."
   [c]
   (when (< 3 (count c)) (nth c 3)))
-
-(defn closure-with-boundary [f net boundary]
-  (if boundary
-    [:closure f net boundary]
-    [:closure f net]))
 
 (defn apply-network-closure [[f inner-net] input-nodes output-nodes external-network]
   (f inner-net input-nodes output-nodes external-network))
@@ -42,12 +36,6 @@
 (defn- payload->closure [cv]
   (when-let [p (value/value-payload cv)]
     (when (closure? p) p)))
-
-(defn- boundary-cache-hit? [cf ins outs cached]
-  (and cached
-       (= cf (:f cached))
-       (= (vec ins) (vec (:ins cached)))
-       (= (vec outs) (vec (:outs cached)))))
 
 (defn create-boundary-cells
   [link-fn]
@@ -70,62 +58,34 @@
 (def create-boundary-outputs (create-boundary-cells stdlib/nothing-out-link))
 (def create-boundary-inputs (create-boundary-cells stdlib/nothing-in-link))
 
-(defn- refresh-boundaries
-  "Sync avatar strongest/content from real cells (reuse existing avatar ids)."
-  [net ins outs in-avatars out-avatars]
-  (reduce (fn [n [real avatar]]
-            (assoc-net-cell n avatar
-                            (cell/cell (network-cell-content net real)
-                                       (network-cell-strongest net real))))
-          (reduce (fn [n [real avatar]]
-                    (assoc-net-cell n avatar
-                                    (cell/cell (network-cell-content net real)
-                                               (network-cell-strongest net real))))
-                  net
-                  (map vector ins in-avatars))
-          (map vector outs out-avatars)))
-
 (defn- ensure-boundaries
-  "Strategy A: reuse avatar topology from closure-out when (f, ins, outs) unchanged."
-  [network ins outs cf closure-out-id]
-  (let [cached (some-> (network-cell-strongest network closure-out-id)
-                       payload->closure
-                       closure-boundary)]
-    (if (boundary-cache-hit? cf ins outs cached)
-      {:cache-hit? true
-       :boundary-inputs (:in-avatars cached)
-       :boundary-outputs (:out-avatars cached)
-       :net (refresh-boundaries network ins outs (:in-avatars cached) (:out-avatars cached))
-       :boundary cached}
-      (let [[boundary-outputs net*] (create-boundary-outputs network outs)
-            [boundary-inputs net**] (create-boundary-inputs net* ins)]
-        {:cache-hit? false
-         :boundary-inputs boundary-inputs
-         :boundary-outputs boundary-outputs
-         :net net**
-         :boundary {:ins ins :outs outs
-                    :in-avatars boundary-inputs :out-avatars boundary-outputs
-                    :f cf}}))))
+  "Create avatar cells for `ins` / `outs` and link them to real boundary cells."
+  [network ins outs cf]
+  (let [[boundary-outputs net*] (create-boundary-outputs network outs)
+        [boundary-inputs net**] (create-boundary-inputs net* ins)]
+    {:boundary-inputs boundary-inputs
+     :boundary-outputs boundary-outputs
+     :net net**
+     :boundary {:ins ins :outs outs
+                :in-avatars boundary-inputs :out-avatars boundary-outputs
+                :f cf}}))
 
-(defn compound-activate [closure-in-id closure-out-id]
+(defn compound-activate
+  "Compound propagator body. `closure-in-id` holds `[:closure f net]`; boundary cells are the other ports."
+  [closure-in-id]
   (fn [input-ids output-ids network]
     (let [closure-cv (network-cell-strongest network closure-in-id)
           closure-payload (value/value-payload closure-cv)
           ins (boundary-nodes closure-in-id input-ids)
-          outs (boundary-nodes closure-out-id output-ids)
+          outs (vec output-ids)
           in-vals (mapv #(network-cell-strongest network %) ins)]
       (if (or (value/unusable? closure-cv)
               (value/any-unusable-values? in-vals)
               (nil? closure-payload))
         []
-        (let [cf (closure-f closure-payload)
-              {:keys [cache-hit? boundary-inputs boundary-outputs net boundary]}
-              (ensure-boundaries network ins outs cf closure-out-id)
-              net' (if cache-hit?
-                     net
-                     (apply-network-closure closure-payload
-                                            boundary-inputs boundary-outputs net))
-              net'' (run-tasks (pop-inputs boundary-inputs (net-graph net')) net')
-              closure-struct' (closure-with-boundary cf net'' boundary)]
-          (into (diff-cells boundary-outputs outs net'' network)
-                [(m/message closure-out-id closure-struct')]))))))
+        (let [{:keys [boundary-inputs boundary-outputs net]}
+              (ensure-boundaries network ins outs (closure-f closure-payload))
+              net' (apply-network-closure closure-payload
+                                          boundary-inputs boundary-outputs net)
+              net'' (run-tasks (pop-inputs boundary-inputs (net-graph net')) net')]
+          (vec (diff-cells boundary-outputs outs net'' network)))))))

@@ -39,4 +39,6 @@
            {:extra-paths ["test"]
             :main-opts ["-m" "run-tests" "propagators-network-test"]}
            :propagators-bench
-           {:main-opts ["-m" "propagators-chain-bench"]}}}
+           {:main-opts ["-m" "propagators-chain-bench"]}
+           :propagators-profile
+           {:main-opts ["-m" "propagators-compound-profile"]}}}

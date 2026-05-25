@@ -19,14 +19,13 @@
   (let [cells (vec (repeatedly 2 new-node-id))
         [c0 c1] cells
         k-in (new-node-id)
-        k-out (new-node-id)
         cv bi-sync-closure
         n (reduce (fn [net id] (second ((construct-cell id) net)))
                   net/empty-net
-                  (into cells [k-in k-out]))
+                  (into cells [k-in]))
         n (net/assoc-net-cell n k-in (cell/cell cv cv))
-        [compound-prop n'] ((compound-propagator k-in k-out [c0 c1] [c0 c1]) n)]
-    {:net n' :c0 c0 :c1 c1 :k-in k-in :k-out k-out :compound-prop compound-prop}))
+        [compound-prop n'] ((compound-propagator k-in [c0 c1] [c0 c1]) n)]
+    {:net n' :c0 c0 :c1 c1 :k-in k-in :compound-prop compound-prop}))
 
 (defn- run-prop [n prop-id]
   (run-tasks (tq/enqueue tq/empty-queue prop-id) n))
@@ -34,9 +33,9 @@
 (defn- net-before-inner-run-tasks
   "Same wiring as `compound-activate` through `apply-network-closure`, before `run-tasks`."
   [seed-val]
-  (let [{:keys [net c0 c1 k-in k-out compound-prop]} (build-single-bi-sync-compound)
+  (let [{:keys [net c0 c1 k-in compound-prop]} (build-single-bi-sync-compound)
         ins (boundary-nodes k-in (into [k-in] [c0 c1]))
-        outs (boundary-nodes k-out (into [k-out] [c0 c1]))
+        outs [c0 c1]
         n-seed (net/assoc-net-cell net c0 (cell/cell seed-val seed-val))
         [boundary-outputs n*] (closure/create-boundary-outputs n-seed outs)
         [boundary-inputs n**] (closure/create-boundary-inputs n* ins)
@@ -86,15 +85,13 @@
             (is (false? exhausted?))
             (is (< steps 40) (str "finished in " steps " steps"))))))))
 
-(deftest compound-boundary-cache-reuse-on-second-activate
-  (testing "Strategy A: second activate should not allocate a full boundary again"
-    (let [{:keys [net c0 compound-prop]} (build-single-bi-sync-compound)
+(deftest compound-second-activate-still-propagates
+  (testing "second run-prop still updates when boundary inputs unchanged"
+    (let [{:keys [net c0 c1 compound-prop]} (build-single-bi-sync-compound)
           n1 (-> net (net/assoc-net-cell c0 (cell/cell 7 7)) (run-prop compound-prop))
-          delta-first (count (net/net-graph n1))
-          n2 (run-prop n1 compound-prop)
-          delta-second (- (count (net/net-graph n2)) delta-first)]
-      (is (< delta-second 6)
-          (str "graph growth on cache hit should be small, was +" delta-second)))))
+          n2 (run-prop n1 compound-prop)]
+      (is (= 7 (cell/cell-strongest (net/env-get (net/net-env n2) c0))))
+      (is (= 7 (cell/cell-strongest (net/env-get (net/net-env n2) c1)))))))
 
 (deftest compound-activate-inner-seed-uses-avatars-not-real-ins
   (testing "the fix is which node-ids compound-activate passes to pop-inputs (avatars, not ins)"

@@ -140,9 +140,10 @@
 (defn compound-propagator
   "Install a compound propagator wired like any other propagator.
 
+  `closure-in` holds the closure spec; `inputs` / `outputs` are the real boundary cells.
   Activation logic lives in `propagators.closure/compound-activate`."
-  [closure-in closure-out inputs outputs]
+  [closure-in inputs outputs]
   (let [activate (requiring-resolve 'propagators.closure/compound-activate)]
-    (construct-propagator (activate closure-in closure-out)
+    (construct-propagator (activate closure-in)
                           (into [closure-in] inputs)
-                          (into [closure-out] outputs))))
+                          outputs)))

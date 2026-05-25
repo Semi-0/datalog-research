@@ -1,8 +1,11 @@
 (ns propagators-network-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.cell :as cell]
+            [propagators.cells.diff :as diff]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
+            [propagators.graph :as graph]
+            [propagators.message :as m]
             [propagators.network :refer [compound-propagator]]
             [propagators.compile :refer [cell-ref compile-net prop-ref]]
             [propagators.core :refer [run-tasks]]
@@ -56,32 +59,30 @@
 
 ;; --- runtime network builders (net-let) ---
 
-(defn- install-compound [n closure-in closure-out inputs outputs]
-  (let [[prop-id n'] ((compound-propagator closure-in closure-out inputs outputs) n)]
+(defn- install-compound [n closure-in inputs outputs]
+  (let [[prop-id n'] ((compound-propagator closure-in inputs outputs) n)]
     [prop-id n']))
 
 (defn- build-stdlib-compound-chain-n
-  "n cells, (n-1) bi-sync compounds; boundary [ci cj] in/out; closure-in + closure-out per hop."
+  "n cells, (n-1) bi-sync compounds; boundary [ci cj] in/out; closure-in per hop."
   [chain-len]
   (when (< chain-len 2)
     (throw (ex-info "chain-len must be >= 2" {:chain-len chain-len})))
   (let [cells (vec (repeatedly chain-len new-node-id))
         closures-in (vec (repeatedly (dec chain-len) new-node-id))
-        closures-out (vec (repeatedly (dec chain-len) new-node-id))
         cv bi-sync-closure
         n (reduce (fn [net id] (second ((construct-cell id) net)))
                   net/empty-net
-                  (into cells (concat closures-in closures-out)))
+                  (into cells closures-in))
         n (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv))
                   n
-                  (concat closures-in closures-out))
+                  closures-in)
         [n props] (reduce
                    (fn [[n props] i]
                      (let [left (cells i)
                            right (cells (inc i))
                            k-in (closures-in i)
-                           k-out (closures-out i)
-                           [p n'] (install-compound n k-in k-out [left right] [left right])]
+                           [p n'] (install-compound n k-in [left right] [left right])]
                        [n' (conj props p)]))
                    [n []]
                    (range (dec chain-len)))]
@@ -184,6 +185,70 @@
         (expect-strongest n (cell-ref ctx 'c1) expected "c1 after p01")
         (let [n (run-prop n (prop-ref ctx 2))]
           (expect-strongest n (cell-ref ctx 'c2) expected "c2 after p12"))))))
+
+(deftest verify-diff-cells-messages-target-real-cells
+  (testing "stdlib compound chain (same builder as inject tests): diff-cells → real left/right only; 0–2 msgs; real cells have downstream props"
+    (let [chain-len 10
+          inject-idx (quot chain-len 2)
+          {:keys [net cells props mid e e->mid]}
+          (build-stdlib-compound-chain-n-with-inject chain-len inject-idx)
+          real-cells (set cells)
+          props-set (set props)
+          diff-log (atom [])
+          orig-diff diff/diff-cells
+          recording-diff
+          (fn [avatars reals network-from network-to]
+            (let [msgs (vec (orig-diff avatars reals network-from network-to))]
+              (swap! diff-log conj {:avatar-pairs (map vector avatars reals)
+                                    :targets (mapv m/message-id msgs)
+                                    :count (count msgs)})
+              msgs))
+          out-edges
+          (fn [n id]
+            (graph/node-output-ids (graph/get-node (net/net-graph n) id)))]
+      ;; --- static graph (test builder wiring) ---
+      (doseq [c real-cells]
+        (let [outs (out-edges net c)]
+          (is (pos? (count outs))
+              (str "real cell " c " must have downstream edges, got " outs))
+          (is (boolean (some #(or (contains? props-set %)
+                                   (= % e->mid))
+                            outs))
+              (str "real cell downstream must include a compound or inject prop: " outs))))
+      (doseq [c real-cells]
+        (is (pos? (count (out-edges net c)))
+            (str "real boundary cell keeps downstream edges: " c)))
+      ;; --- run middle inject (compound-bi-sync-chain-10-inject-middle) ---
+      (with-redefs [diff/diff-cells recording-diff]
+        (let [expected 77
+              n (-> net (seed-cell e expected) (run-prop e->mid))
+              log @diff-log
+              total-msgs (reduce + 0 (map :count log))
+              counts (frequencies (map :count log))
+              avatar-ids (set (mapcat (fn [{:keys [avatar-pairs]}]
+                                         (map first avatar-pairs))
+                                       log))
+              bad-targets
+              (filter (fn [t]
+                        (or (not (contains? real-cells t))
+                            (contains? avatar-ids t)))
+                      (mapcat :targets log))]
+          (is (pos? (count log)) "diff-cells should run during propagation")
+          (is (every? #(<= 0 % 2) (map :count log))
+              (str "each diff-cells call emits 0–2 messages, frequencies: " counts))
+          (is (empty? bad-targets)
+              (str "every diff message target must be a real boundary cell, not an avatar; bad: "
+                   (vec bad-targets)))
+          (is (pos? total-msgs)
+              (str "cascade should produce at least one diff message, total=" total-msgs))
+          (doseq [[i c] (map-indexed vector cells)]
+            (expect-strongest n c expected (str "cell " i " after mid inject")))
+          ;; print empirical summary for inspection
+          (println "\n=== diff-cells verification (chain-len=10, inject mid) ===")
+          (println "  diff-cells invocations:" (count log))
+          (println "  messages per call (count -> #calls):" counts)
+          (println "  total diff messages:" total-msgs)
+          (println "  sample targets (first 5 calls):" (vec (take 5 (map :targets log)))))))))
 
 (deftest compound-bi-sync-chain-inject-e-to-b
   (testing "a <-> b <-> c; e -p:id-> b; seed e; run e->b — expect a, b, c all updated"

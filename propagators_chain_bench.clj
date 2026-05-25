@@ -14,34 +14,27 @@
 
 ;; --- network builders (same wiring as propagators-network-test) ---
 
-(defn- install-compound [n closure-in-id closure-out-id inputs outputs]
-  (let [[prop-id n'] ((compound-propagator closure-in-id closure-out-id inputs outputs) n)]
+(defn- install-compound [n closure-in-id inputs outputs]
+  (let [[prop-id n'] ((compound-propagator closure-in-id inputs outputs) n)]
     [prop-id n']))
 
 (defn build-chain [chain-len]
   (let [cells (vec (repeatedly chain-len new-node-id))
         closures-in (vec (repeatedly (dec chain-len) new-node-id))
-        closures-out (vec (repeatedly (dec chain-len) new-node-id))
         cv bi-sync-closure
-        ;; build the closure in cell into the network
         n (reduce (fn [net id] (second ((construct-cell id) net)))
                   net/empty-net
-                  (into cells closures-in)) 
-        ;; build the closures-out
-        n1 (reduce (fn [net id] (second ((construct-cell id) net)))
-                  n
-                  (into cells closures-out))
-        n2 (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv)) n1 closures-in)
+                  (into cells closures-in))
+        n2 (reduce #(net/assoc-net-cell %1 %2 (cell/cell cv cv)) n closures-in)
         [final-n props] (reduce
-                   (fn [[n props] i]
-                     (let [left (cells i)
-                           right (cells (inc i))
-                           k-i (closures-in i)
-                           k-o (closures-out i)
-                           [p n'] (install-compound n k-i k-o [left right] [left right])]
-                       [n' (conj props p)]))
-                   [n2 []]
-                   (range (dec chain-len)))]
+                         (fn [[n props] i]
+                           (let [left (cells i)
+                                 right (cells (inc i))
+                                 k-i (closures-in i)
+                                 [p n'] (install-compound n k-i [left right] [left right])]
+                             [n' (conj props p)]))
+                         [n2 []]
+                         (range (dec chain-len)))]
     {:net final-n :cells cells :props props}))
 
 (defn build-chain-with-inject [chain-len inject-idx]
@@ -113,7 +106,7 @@
   (bench-iters label warmup iters thunk))
 
 (defn- bench-head-cold-warm
-  "First iter builds boundaries; later iters hit Strategy A cache on closure-out."
+  "First vs last iter on repeated head-driven compound chain runs."
   [warmup iters net cells props seed-val]
   (let [samples (atom [])]
     (dotimes [_ warmup]
@@ -129,7 +122,7 @@
           (println "  first-iter (cold boundaries)")
           (println (str "    " (fmt-ms (/ elapsed 1e6)) " ms")))
         (when (= i (dec iters))
-          (println "  last-iter (warm boundary cache)")
+          (println "  last-iter")
           (println (str "    " (fmt-ms (/ elapsed 1e6)) " ms")))))
     (let [xs (drop warmup @samples)
           cold (first xs)
@@ -161,8 +154,7 @@
                               (run-prop e->mid)))))
         inject-ok (all-cells-have? (:last-result inject-bench) (:cells inject-net) expected)]
     (println (str "\n=== chain-len " chain-len " (cells=" chain-len
-                  ", compounds=" (dec chain-len)
-                  ", Strategy A boundary cache) ==="))
+                  ", compounds=" (dec chain-len) ") ==="))
     (println (str "build chain: " (fmt-ms (/ (:ns build-t) 1e6)) " ms"))
     (println (str "build chain+inject: " (fmt-ms (/ (:ns inject-build-t) 1e6)) " ms"))
     (when head-cw
@@ -180,7 +172,7 @@
                (map #(Long/parseLong %) args)
                [10 100])]
     (println "propagators compound bi-sync chain benchmark")
-    (println "Strategy A: reuse boundary avatars from closure-out when (f, ins, outs) match.")
+    (println "Compound: closure-in + boundary cells only (no closure-out port).")
     (println "Head reports first vs last iter; middle uses full bench-iters median.")
     (doseq [n lens]
       (bench-chain-len n (when (> n 5000) {:skip-head? true})))))

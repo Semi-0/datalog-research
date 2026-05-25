@@ -57,7 +57,7 @@ installer = (fn [[graph env]]  →  [prop-id [graph env]])
 | Constructor | Arguments | `activate` |
 |-------------|-----------|------------|
 | `construct-propagator` | `f`, `inputs`, `outputs` | Plain fn: `(fn [in-snaps out-snaps] → [[node msg] …])` |
-| `compound-propagator` | `closure-cell`, `inputs`, `outputs` | Built by `compound-activate` (see below) |
+| `compound-propagator` | `closure-in`, `inputs`, `outputs` | Built by `compound-activate` (see below) |
 
 `primitive-propagator` is the compile-time wrapper: variadic node-id installer → `construct-propagator`.
 
@@ -69,7 +69,7 @@ installer = (fn [[graph env]]  →  [prop-id [graph env]])
 - `compile-net` / `run-net-let` spread id vectors with `(apply inst-fn ids)` (not `(inst-fn ids)` — a single vector arg would be treated as one port).
 - `primitive-propagator` skips activation if any input is `nothing` / `contradiction` (`any-unusable-values?`).
 - `p:id` — identity on one input → one output (wired sync / bi-sync tests).
-- `p:nothing` — topology-only boundary link: `construct-propagator` with no-op activate (`[]`). Wires avatar ↔ real; values cross via `refresh-boundaries` + `diff-cells`, not via the link propagator body. Helpers: `nothing-in-link`, `nothing-out-link` in `stdlib.clj`.
+- `p:nothing` — topology-only boundary link: `construct-propagator` with no-op activate (`[]`). Wires avatar ↔ real for graph topology only; values cross via `diff-cells`, not via the link propagator body. Helpers: `nothing-in-link`, `nothing-out-link` in `stdlib.clj`.
 
 ### Compound propagator — MIT vs ours
 
@@ -85,20 +85,20 @@ boundary: parent cells c0, c1  =  those exact cells
 **This repo (`compound-propagator`):** experimental **runtime enclosure**, not MIT expansion.
 
 1. **`closure-cell`** — holds `[:closure inner-f inner-net]` in strongest (e.g. `bi-sync-closure`).
-2. **Install** — `compound-propagator` takes `closure-in`, `closure-out`, `inputs`, `outputs` (real parent cells + closure ports). Wired like any propagator; boundary cells should usually appear in **both** input and output lists for bi-sync constraints.
+2. **Install** — `compound-propagator` takes `closure-in`, `inputs`, `outputs` (closure spec cell + real boundary cells). Wired like any propagator; boundary cells should usually appear in **both** input and output lists for bi-sync constraints.
 3. **On activation** (`compound-activate` in `closure.clj`):
-   - Strip closure ports: `ins` / `outs` = `boundary-nodes` (remove `closure-in-id` / `closure-out-id` from port lists).
-   - **`ensure-boundaries` (Strategy A)** — read optional boundary cache from `closure-out` (`[:closure f net boundary]`). On cache hit `(f, ins, outs)` match: reuse avatar ids, `refresh-boundaries` only; skip `apply-network-closure`. On miss: **`create-boundary-outputs`** / **`create-boundary-inputs`** (clone cells, link avatar ↔ real via `p:nothing`), then wire inner `f`.
-   - **`apply-network-closure`** (cache miss only) — run inner `f` (e.g. `bi-sync`) on **avatar** id lists in the shared parent `graph`/`env`.
+   - `ins` = boundary cells from inputs (strip `closure-in-id`); `outs` = `output-ids` (real boundaries only).
+   - **`ensure-boundaries`** — **`create-boundary-outputs`** / **`create-boundary-inputs`** (clone avatars, link avatar ↔ real via `p:nothing`).
+   - **`apply-network-closure`** — run inner `f` (e.g. `bi-sync`) on **avatar** id lists in the shared parent `graph`/`env`.
    - **`run-tasks (pop-inputs boundary-inputs …)`** — inner fixpoint seeded from **input avatars**, not real parent cells (see scheduling note below).
-   - **`diff-cells`** — avatar strongest vs real `outs` → messages on real boundaries. Update `closure-out` with `[:closure f net'' boundary]` (persist frame for next activation).
+   - **`diff-cells`** — avatar strongest vs real `outs` → messages on real boundaries only (no `closure-out` port).
 4. Messages target **real** boundary ids so inner avatar/prop ids do not leak to the parent scheduler.
 
 ```
 Parent graph                         On activation (copy of graph/env grows)
 ────────────                         ─────────────────────────────────────
 real c0, c1 ◄──► compound k          avatars c0*, c1* + boundary link + inner bi-sync
-closure-in/out on k                  pop-inputs [c0*, c1*] → inner props only
+closure-in on k (spec only)          pop-inputs [c0*, c1*] → inner props only
                                      diff avatars → messages on real c0, c1
 ```
 
@@ -117,7 +117,7 @@ Real boundary cells remain wired as **inputs** to the compound propagator in the
 
 ## Two-stage compound strategy (runtime inspect + MIT compile)
 
-Long-running **self-reflective** systems need both: **mutable closure-as-data** (`closure-in` hot reload) and **fast steady propagation** without paying avatar + inner `run-tasks` on every hop. Pure MIT expansion alone is a poor fit for hot reload (expanded inner props are baked into the parent graph; changing `closure-in` requires patch/uninstall). Pure runtime avatars alone are correct but ~2×+ slower than snapshot-era inner-net on long chains.
+Long-running **self-reflective** systems need both: **mutable closure-as-data** (`closure-in` hot reload) and **fast steady propagation** without paying avatar + inner `run-tasks` on every hop. Pure MIT expansion alone is a poor fit for hot reload (expanded inner props are baked into the parent graph; changing `closure-in` requires patch/uninstall). Pure runtime avatars alone were ~2×+ slower than snapshot-era inner-net on long chains **before** dropping the `closure-out` bookkeeping message; middle inject @ 1000 is now ~31 ms (see benchmarks).
 
 **Plan: keep both tiers**, same propagator language, two lowerings.
 
@@ -125,17 +125,17 @@ Long-running **self-reflective** systems need both: **mutable closure-as-data** 
 
 | Piece | Location | Role |
 |-------|----------|------|
-| Install | `network.clj` / `compound-propagator` | Wired like any propagator; `closure-in` / `closure-out` ports |
-| Activate | `closure.clj` / `compound-activate` | Avatars, Strategy A cache on `closure-out`, inner `run-tasks`, `diff-cells` |
-| Closure payload | `closure-in` strongest | `[:closure f net]` or `[:closure f net boundary]` — **source of truth** for hot reload |
+| Install | `network.clj` / `compound-propagator` | Wired like any propagator; `closure-in` + boundary cells |
+| Activate | `closure.clj` / `compound-activate` | Avatars, inner `run-tasks`, `diff-cells` |
+| Closure payload | `closure-in` strongest | `[:closure f net]` (e.g. `bi-sync-closure`) — **source of truth** for hot reload |
 
 **Use when:**
 
 - REPL, experiments, meta-level reflection (walk `graph`/`env`, swap closure body).
 - Closure body or inner `net` changes often.
-- Inspecting explicit boundaries (`boundary` map: `:ins`, `:outs`, `:in-avatars`, `:out-avatars`).
+- Inspecting closure spec on `closure-in` (boundary avatars are ephemeral per activation).
 
-**Costs:** extra cells/links per boundary; `refresh-boundaries` on cache hit; inner fixpoint on parent graph (isolated only by avatar `pop-inputs` seed).
+**Costs:** extra cells/links per boundary per activation; inner fixpoint on parent graph (isolated only by avatar `pop-inputs` seed).
 
 **Not lexical scope:** parent `c0` ≠ avatar `c0*`; frame + indirection, not “same binding as caller.”
 
@@ -183,7 +183,7 @@ Commit `37d3a6f`: `compound-activate` used **snapshots** and inner fixpoint on *
 | Model | Lexical identity | Hot `closure-in` | Long-run perf |
 |-------|------------------|------------------|---------------|
 | MIT expansion | **Best** (same cells) | Needs patch layer | **Best** when stable |
-| Runtime + avatars (stage 1) | Frame indirection | **Best** (data on cell) | Moderate; Strategy A helps |
+| Runtime + avatars (stage 1) | Frame indirection | **Best** (data on cell) | Fast middle inject after dropping `closure-out` message |
 | Snapshot `inner-net` | Split graphs, same ids | Good | **Fastest** runtime compound in bench; different API |
 
 **Verdict for this repo:** implement stage 2 as an explicit **promote** from stage 1; keep stage 1 as the reflective default. See `test/propagators_compound_diagnosis_test.clj` for scheduling invariants stage 1 must preserve.
@@ -348,36 +348,38 @@ Prototype-scale timings (one JVM; **propagation excludes network build**; median
 
 ### Historical baselines (different `compound-activate` — not apples-to-apples)
 
-| Era | Git (approx) | Head @ 1000 (median) | Notes |
-|-----|----------------|----------------------|-------|
+| Era | Git (approx) | Middle inject @ 1000 (median) | Notes |
+|-----|----------------|-------------------------------|-------|
 | Snapshot compound | `37d3a6f` | ~43 ms | `input-snapshots` / `output-snapshots`; no avatars |
 | Network, no avatars | `9e9bdc7^` | ~421 ms | `pop-inputs` on real boundary cells; can re-enter compound |
-| Old NOTES table (~84 ms) | `37d3a6f` | ~84 ms (recorded) | Same snapshot era as first row — **not** “pre-avatar network” |
+| Avatars + `closure-out` message | `47c650b` … pre-2026-05 | ~700–900 ms | Strategy A cache + `eval-cell` on `closure-out` each activation |
+| **Current** (no `closure-out`) | this commit | **~31 ms** | `closure-in` only; `diff-cells` messages only |
 
-Avatar fix adds ~2× over network-no-avatar on the same bench harness (~421 ms → ~850 ms), not exponential. The ~10× gap vs the old NOTES row is mostly **snapshot → network**, not avatars alone.
+Avatar wiring fixed scheduling (~421 ms vs re-entrant loop). The old ~800 ms middle-inject cost was dominated by messaging `[:closure f net'' boundary]` to **`closure-out`** every activation (no downstream edges, but full `eval-cell` + large closure payload). Removing that port and message is ~**25×** faster on middle inject @ 1000 while tests still pass.
 
-### Strategy A boundary cache + topology-only `p:nothing` (current bench)
+### Current bench (`propagators_chain_bench.clj`)
 
-`clj -M:propagators-bench` reports **head** cold vs warm (first vs last iter on same chain): cold = create avatars + `bi-sync` wire; warm = Strategy A cache hit on `closure-out` (refresh + skip re-wire). **Middle** = inject at `c⌊n/2⌋`, one `run-prop`, full iters median.
+Install: `(compound-propagator k-in [left right] [left right])` — no `closure-out` cell. Each activation creates fresh avatars (no cross-activation boundary cache).
 
-Example head cold → warm (2026-05, one JVM):
+`clj -M:propagators-bench` — propagation time excludes network build; median after warmup. **Head** = seed `c0`, run each compound once in order. **Middle** = inject `e -p:id-> c⌊n/2⌋`, one `run-prop` on `e→mid`.
 
-| chain-len | cold (first iter) | warm (last iter) |
-|----------:|------------------:|-----------------:|
-| 10 | ~2.3 ms | ~1.2 ms |
-| 100 | ~16 ms | ~12 ms |
-| 1000 | ~791 ms | ~741–796 ms (noise) |
+Recorded 2026-05-25 (one JVM):
 
-Strategy A helps most on short chains; at 1000 cells inner `run-tasks` + `bi-sync` dominate. `p:nothing` is the noop `construct-propagator` link (formerly documented as `p:nothing-b`).
+| chain-len | build chain | build + inject | head 1st → last iter | middle inject (median) |
+|----------:|------------:|---------------:|---------------------:|-------------------------:|
+| 10 | 14 ms | 0.4 ms | 2.9 → 1.2 ms | 0.73 ms |
+| 100 | 1.0 ms | 0.8 ms | 11.6 → 6.2 ms | 4.4 ms |
+| 1000 | 4.4 ms | 3.6 ms | 57 → 48 ms | **31 ms** |
 
-Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the outer task queue once. Bench auto-reduces iters for large `n`.
+Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the outer task queue once. Bench auto-reduces iters for large `n` (5 iters @ 1000).
 
 ```bash
-clj -M:propagators-bench           # default: 10, 100
-clj -M:propagators-bench 1000 10000
+clj -M:propagators-bench              # default: 10, 100
+clj -M:propagators-bench 10 100 1000
+clj -M:propagators-profile propagate 1000   # optional phase breakdown
 ```
 
-**Verdict:** fine for **experiments and prototypes** — not tuned for production (variance, no dependence tracking, stub contradiction).
+**Verdict:** fine for **experiments and prototypes** — middle inject @ 1000 is now prototype-fast; still no dependence tracking, stub contradiction. Cross-activation boundary reuse removed with `closure-out` (specialized propagator later if needed).
 
 ## Commands
 
@@ -385,6 +387,7 @@ clj -M:propagators-bench 1000 10000
 clj -M:propagators-test                      # network tests (sync, bi-sync, compound chains)
 clj -M:test propagators-compound-diagnosis-test  # compound inner-scheduling proof tests only
 clj -M:propagators-bench [10 100 1000 ...]    # chain propagation timings
+clj -M:propagators-profile [len]            # optional compound phase profile
 clj -M:test                                   # all suites
 ```
 
