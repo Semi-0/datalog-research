@@ -1,23 +1,21 @@
 (ns propagators.stdlib
   (:require [propagators.cells.cell :as cell]
             [propagators.compile :refer [net-let]]
-            [propagators.network :as net]))
+            [propagators.network :as net]
+            [propagators.cells.value :as val]))
 
 (def p:id (net/primitive-propagator (fn [x] x)))
+(def p:nothing (net/primitive-propagator (fn [x] val/nothing)))
 
 ;; Boundary input/output nodes are the same constraint cells (typically two).
+;; Cross-sync: each input boundary feeds the opposite output (avatar) port via `p:id`.
 (defn bi-sync
-  [closure-struct input-nodes _output-nodes network]
-  (let [inner-net (nth closure-struct 2)
-        [n-a n-b] (vec input-nodes)
-        a-id n-a
-        b-id n-b
-        a-cell (net/network-lookup-cell network n-a)
-        b-cell (net/network-lookup-cell network n-b)]
-    (net-let inner-net
-      [[a a-id (cell/cell-content a-cell) (cell/cell-strongest a-cell)]
-       [b b-id (cell/cell-content b-cell) (cell/cell-strongest b-cell)]]
-      (p:id a b)
-      (p:id b a))))
+  [_closure-struct input-nodes output-nodes network]
+  (let [[n-a n-b] (vec input-nodes)
+        [out-a out-b] (vec output-nodes)]
+    (reduce (fn [n [from to]]
+              (second ((p:id [from to]) n)))
+            network
+            [[n-a out-b] [n-b out-a]])))
 
 (def bi-sync-closure [bi-sync net/empty-net])

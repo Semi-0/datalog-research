@@ -4,9 +4,12 @@
             [propagators.cells.snapshot :refer [pop-inputs snap-cell snap-id snapshot-for-id take-cells]]
             [propagators.cells.value :as value]
             [propagators.core :refer [run-tasks]]
-            [propagators.network :refer [construct-propagator net-graph network-cell-strongest]]
+            [propagators.network :refer [construct-propagator net-graph network-cell-strongest network-cell-content construct-cell]]
             [propagators.graph :as g]
-            [propagators.message :as m]))
+            [propagators.message :as m]
+            [propagators.ids :as id]
+            [propagators.stdlib :as stdlib]
+            ))
 
 (defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
 
@@ -23,24 +26,52 @@
   (value/value-payload (cell/cell-strongest (snap-cell snap))))
 
 (defn- boundary-nodes [closure-cell-id nodes]
-  (remove #(= closure-cell-id %) nodes))
+  (vec (remove #(= closure-cell-id %) nodes)))
+
+
+(defn create-boundary-cells
+  [make-boundary]
+  (fn [net ids] 
+    (let [ids (vec ids)]
+    (loop [ids-to-do ids
+           processed-net net
+           avatar-ids []]
+      (if (empty? ids-to-do)
+        [(vec avatar-ids) processed-net]
+        (let [head (first ids-to-do)
+              [id* net*] ((construct-cell
+                           (id/new-node-id)
+                           (network-cell-strongest net head)
+                           (network-cell-content net head))
+                          processed-net)
+              [_ net**] ((make-boundary [head id*]) net*)]
+          (recur (rest ids-to-do) net** (conj avatar-ids id*))))))))
+
+(def create-boundary-outputs (create-boundary-cells (fn [[real avatar]] (stdlib/p:nothing [avatar real]))))
+(def create-boundary-inputs (create-boundary-cells (fn [[real avatar]] (stdlib/p:nothing [real avatar]))))
+
 
 (defn compound-activate [closure-in-id closure-out-id]
-  (fn [input-nodes output-nodes network]
+  (fn [input-ids output-ids network]
     (let [closure-cv (network-cell-strongest network closure-in-id)
           closure-payload (value/value-payload closure-cv)
-          boundary-in (boundary-nodes closure-in-id input-nodes)
-          boundary-out (boundary-nodes closure-out-id output-nodes)
-          in-vals (mapv #(network-cell-strongest network %) boundary-in)]
+          ins (boundary-nodes closure-in-id input-ids)
+          outs (boundary-nodes closure-out-id output-ids)
+          ;; we copy the output cell with new id in the env of network
+          ;; then connect the network with p:nothing to maintain topology coherency
+          [boundary-outputs net*] (create-boundary-outputs network outs)
+          [boundary-inputs net*] (create-boundary-inputs net* ins)
+          in-vals (mapv #(network-cell-strongest net* %) ins)]
       (if (or (value/unusable? closure-cv)
               (value/any-unusable-values? in-vals)
               (nil? closure-payload))
         []
         (let [cf (closure-f closure-payload)
-              net (apply-network-closure closure-payload boundary-in boundary-out network)
-              net' (run-tasks (pop-inputs boundary-in (net-graph net)) net)
-              closure-struct' (closure cf net')]
-          (into (diff-cells boundary-out net' network)
+              net' (apply-network-closure closure-payload boundary-inputs boundary-outputs net*)
+              net'' (run-tasks (pop-inputs boundary-inputs (net-graph net')) net')
+              ;; pop inputs would create the inputs inself
+              closure-struct' (closure cf net'')]
+          (into (diff-cells boundary-outputs outs net'' network)
                 [(m/message closure-out-id closure-struct')]))))))
 
 (defn compound-propagator
