@@ -346,29 +346,93 @@ Builders: `build-stdlib-compound-chain-n`, `build-stdlib-compound-chain-n-with-i
 
 Prototype-scale timings (one JVM; **propagation excludes network build**; median of several iters after warmup). Each `chain-len` runs **two** boundary modes (see below). Scenarios: **head** = seed `c0`, run each compound propagator once; **middle** = inject `e -p:id-> c⌊n/2⌋`, single `run-prop` on `e→mid`.
 
-### Historical baselines (different `compound-activate` — not apples-to-apples)
+### How we experiment
 
-| Era | Git (approx) | Middle inject @ 1000 (median) | Notes |
-|-----|----------------|-------------------------------|-------|
-| Snapshot compound | `37d3a6f` | ~43 ms | `input-snapshots` / `output-snapshots`; no avatars |
-| Network, no avatars | `9e9bdc7^` | ~421 ms | `pop-inputs` on real boundary cells; can re-enter compound |
-| Avatars + `closure-out` message | `47c650b` … pre-2026-05 | ~700–900 ms | Strategy A cache + `eval-cell` on `closure-out` each activation |
-| **Current** (no `closure-out`) | this commit | **~31 ms** | `closure-in` only; `diff-cells` messages only |
+Same harness throughout: `propagators_chain_bench.clj` (`clj -M:propagators-bench [lengths…]`). One JVM; **propagation time excludes network build** unless a row says “build”; medians after warmup (fewer iters at large `n`).
 
-Avatar wiring fixed scheduling (~421 ms vs re-entrant loop). The old ~800 ms middle-inject cost was dominated by messaging `[:closure f net'' boundary]` to **`closure-out`** every activation (no downstream edges, but full `eval-cell` + large closure payload). Removing that port and message is ~**25×** faster on middle inject @ 1000 while tests still pass.
+| Scenario | What we measure |
+|----------|-----------------|
+| **Head** | Seed `c0`, run each compound propagator once in order (`n-1` separate `run-prop` calls). |
+| **Middle** | Build chain + inject cell `e` at `c⌊n/2⌋`, single `run-prop` on `e→mid` (one outer drain; nested inner fixpoints per compound). |
 
-### Current bench (`propagators_chain_bench.clj`)
+Each era below changed **`compound-activate`** (snapshots → parent `network` → avatars → boundary cache → drop `closure-out`). Tables are **archived from `propagators/NOTES.md` at the listed commit** — do not re-run to compare; implementations differ.
 
-Install: `(compound-propagator k-in [left right] [left right])` — no `closure-out` cell. Each activation creates fresh avatars (no cross-activation boundary cache).
+### At-a-glance: middle inject (median)
 
-`clj -M:propagators-bench` — propagation time excludes network build; median after warmup. **Head** = seed `c0`, run each compound once in order. **Middle** = inject `e -p:id-> c⌊n/2⌋`, one `run-prop` on `e→mid`.
+| Era | Git | `compound-activate` change | @ 10 | @ 100 | @ 1000 |
+|-----|-----|----------------------------|-----:|------:|-------:|
+| 1. Cell snapshots | `37d3a6f` | `input-snapshots` / `output-snapshots`; inner `inner-net` | ~2 ms | ~10 ms | **~45 ms** |
+| 2. Network, no avatars | `9e9bdc7^` | `pop-inputs` on **real** boundary cells (re-entrant; hang at scale) | — | — | **~421 ms** (recorded @ 1000 only) |
+| 3. Boundary avatars | `6ef2be6` | clone + `p:nothing` links; `pop-inputs` on avatars | ~0.9 ms | ~10.6 ms | **~811 ms** |
+| 4. Link mode A/B | `a05b1e1` | bench `*boundary-link*` `:nothing` vs `:nothing-b` | ~0.8 / ~0.7 | ~10.8 / ~10.3 | **~785 / ~762** |
+| 5. Strategy A cache | `47c650b`, `3d4259f` | `closure-out` holds `[:closure f net boundary]`; refresh avatars | (see cold/warm head) | | **~700–900** head/middle |
+| 6. **Current** | `6fd6bf2` | no `closure-out`; `diff-cells` messages only | **~0.73 ms** | **~4.4 ms** | **~31 ms** |
 
-Recorded 2026-05-25 (one JVM):
+Era 2 fixed scheduling vs hang but stayed ~2× slower than snapshots. Era 3–5 added avatar + `closure-out` bookkeeping → ~800 ms @ 1000. Era 6 removed the per-activation `closure-out` message (~**25×** vs era 5 on middle inject @ 1000).
+
+### Era 1 — Cell snapshots (`37d3a6f`, 2026-05-20)
+
+`compound-activate` on snapshots; inner fixpoint on **`inner-net`** from closure (not parent graph). No avatars, no `closure-in` / `closure-out`.
+
+| chain-len | build (approx) | head (median) | middle inject (median) |
+|----------:|---------------:|--------------:|-------------------------:|
+| 10 | ~3 ms | ~5 ms | ~2 ms |
+| 100 | ~1 ms | ~52 ms | ~10 ms |
+| 1000 | ~27 ms | ~84 ms | **~45 ms** |
+| 10000 | ~137 ms | ~944 ms (1 iter) | ~338 ms |
+
+Fast and correct for that API; not comparable to today’s network-threaded `bi-sync` on the parent `graph`.
+
+### Era 2 — Parent network, no avatars (`9e9bdc7^`)
+
+`bi-sync` mutates parent `network`; inner `pop-inputs` seeded from **real** boundary cells → compound re-scheduled (hang / `StackOverflowError` at scale). Bench recorded **middle inject @ 1000 ≈ 421 ms** only (diagnosis run; no full chain table in NOTES).
+
+### Era 3 — Boundary avatars (`6ef2be6`, 2026-05-25)
+
+`create-boundary-inputs` / `outputs`, `pop-inputs` on avatars; `closure-in` + `closure-out`; update `closure-out` after inner run.
+
+| chain-len | build | head (median) | middle inject (median) |
+|----------:|------:|--------------:|-------------------------:|
+| 10 | ~1.7 ms | ~1.9 ms | ~0.9 ms |
+| 100 | ~1.2 ms | ~15.6 ms | ~10.6 ms |
+| 1000 | ~18 ms | ~897 ms | **~811 ms** |
+
+The “before avatars” table in the same commit reused **era 1 snapshot numbers** (~84 ms head @ 1000) — that was **not** era 2 network-without-avatars; the ~10× gap vs era 1 is mostly **snapshot → network**, not avatars alone.
+
+### Era 4 — Boundary link: `p:nothing` vs `p:nothing-b` (`a05b1e1`)
+
+Dual-mode bench via `propagators.closure/*boundary-link*`. Same avatar compound as era 3.
+
+| chain-len | head `:nothing` | head `:nothing-b` | middle `:nothing` | middle `:nothing-b` |
+|----------:|----------------:|------------------:|------------------:|--------------------:|
+| 10 | ~1.8 ms | ~1.1 ms | ~0.8 ms | ~0.7 ms |
+| 100 | ~14.9 ms | ~12.5 ms | ~10.8 ms | ~10.3 ms |
+| 1000 | ~853 ms | ~832 ms | **~785 ms** | **~762 ms** |
+
+Link body was a small fraction of total; inner `bi-sync` + `run-tasks` dominated.
+
+### Era 5 — Strategy A boundary cache (`47c650b`, `3d4259f`)
+
+`ensure-boundaries` reads cached `boundary` from `closure-out` on warm head runs; still wrote `[:closure f net'' boundary]` to **`closure-out`** every activation. `p:nothing` became topology-only noop link (old `:nothing-b`).
+
+**Head cold → warm** (first vs last iter on same built chain):
+
+| chain-len | cold (1st) | warm (last) |
+|----------:|-----------:|------------:|
+| 10 | ~2.3 ms | ~1.2 ms |
+| 100 | ~16 ms | ~12 ms |
+| 1000 | ~791 ms | ~741–796 ms (noise) |
+
+Cache helps short head chains; @ 1000 inner fixpoint still dominates. Middle inject medians match era 4 (~**785–811 ms** @ 1000). Profiling: most compound time was `eval-cell` on **`closure-out`** despite no downstream edges.
+
+### Era 6 — Current: no `closure-out` (`6fd6bf2`, 2026-05-25)
+
+Install: `(compound-propagator k-in [left right] [left right])`. Fresh avatars each activation; return value = `diff-cells` messages only.
 
 | chain-len | build chain | build + inject | head 1st → last iter | middle inject (median) |
 |----------:|------------:|---------------:|---------------------:|-------------------------:|
-| 10 | 14 ms | 0.4 ms | 2.9 → 1.2 ms | 0.73 ms |
-| 100 | 1.0 ms | 0.8 ms | 11.6 → 6.2 ms | 4.4 ms |
+| 10 | 14 ms | 0.4 ms | 2.9 → 1.2 ms | **0.73 ms** |
+| 100 | 1.0 ms | 0.8 ms | 11.6 → 6.2 ms | **4.4 ms** |
 | 1000 | 4.4 ms | 3.6 ms | 57 → 48 ms | **31 ms** |
 
 Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the outer task queue once. Bench auto-reduces iters for large `n` (5 iters @ 1000).
