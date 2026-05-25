@@ -4,7 +4,8 @@
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.cell :as cell]
             [propagators.cells.snapshot :refer [pop-inputs]]
-            [propagators.closure :as closure :refer [compound-propagator]]
+            [propagators.closure :as closure]
+            [propagators.network :refer [compound-propagator]]
             [propagators.core :as core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -26,6 +27,9 @@
         n (net/assoc-net-cell n k-in (cell/cell cv cv))
         [compound-prop n'] ((compound-propagator k-in k-out [c0 c1] [c0 c1]) n)]
     {:net n' :c0 c0 :c1 c1 :k-in k-in :k-out k-out :compound-prop compound-prop}))
+
+(defn- run-prop [n prop-id]
+  (run-tasks (tq/enqueue tq/empty-queue prop-id) n))
 
 (defn- net-before-inner-run-tasks
   "Same wiring as `compound-activate` through `apply-network-closure`, before `run-tasks`."
@@ -81,6 +85,16 @@
           (let [{:keys [exhausted? steps]} @state]
             (is (false? exhausted?))
             (is (< steps 40) (str "finished in " steps " steps"))))))))
+
+(deftest compound-boundary-cache-reuse-on-second-activate
+  (testing "Strategy A: second activate should not allocate a full boundary again"
+    (let [{:keys [net c0 compound-prop]} (build-single-bi-sync-compound)
+          n1 (-> net (net/assoc-net-cell c0 (cell/cell 7 7)) (run-prop compound-prop))
+          delta-first (count (net/net-graph n1))
+          n2 (run-prop n1 compound-prop)
+          delta-second (- (count (net/net-graph n2)) delta-first)]
+      (is (< delta-second 6)
+          (str "graph growth on cache hit should be small, was +" delta-second)))))
 
 (deftest compound-activate-inner-seed-uses-avatars-not-real-ins
   (testing "the fix is which node-ids compound-activate passes to pop-inputs (avatars, not ins)"

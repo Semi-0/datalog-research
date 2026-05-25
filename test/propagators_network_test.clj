@@ -3,7 +3,7 @@
             [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
-            [propagators.closure :refer [compound-propagator]]
+            [propagators.network :refer [compound-propagator]]
             [propagators.compile :refer [cell-ref compile-net prop-ref]]
             [propagators.core :refer [run-tasks]]
             [propagators.graph :refer [node-input-ids node-output-ids]]

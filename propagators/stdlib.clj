@@ -5,10 +5,18 @@
             [propagators.cells.value :as val]))
 
 (def p:id (net/primitive-propagator (fn [x] x)))
-(def p:nothing (net/primitive-propagator (fn [x] val/nothing)))
+;; Topology-only link: wires ports without merge/messages when the propagator runs.
+(def p:nothing (fn [a b] (net/construct-propagator (fn [_inputs _outputs _network] []) [a] [b])))
 
-;; Topology-only boundary link: no messages when the propagator runs.
-(def p:nothing-b (fn [a b] (net/construct-propagator (fn [_inputs _outputs _network] []) [a] [b])))
+(defn nothing-out-link
+  "Boundary topology: avatar → real (compound output side)."
+  [net real avatar]
+  (second ((p:nothing avatar real) net)))
+
+(defn nothing-in-link
+  "Boundary topology: real → avatar (compound input side)."
+  [net real avatar]
+  (second ((p:nothing real avatar) net)))
 
 ;; Boundary input/output nodes are the same constraint cells (typically two).
 ;; Cross-sync: each input boundary feeds the opposite output (avatar) port via `p:id`.

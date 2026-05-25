@@ -136,3 +136,13 @@
                           []
                           (as-messages output-nodes [(apply f in-vals)]))))]
       (construct-propagator wrapped-f inputs [output]))))
+
+(defn compound-propagator
+  "Install a compound propagator wired like any other propagator.
+
+  Activation logic lives in `propagators.closure/compound-activate`."
+  [closure-in closure-out inputs outputs]
+  (let [activate (requiring-resolve 'propagators.closure/compound-activate)]
+    (construct-propagator (activate closure-in closure-out)
+                          (into [closure-in] inputs)
+                          (into [closure-out] outputs))))
