@@ -28,6 +28,14 @@
 (defn- boundary-nodes [closure-cell-id nodes]
   (vec (remove #(= closure-cell-id %) nodes)))
 
+;; :nothing    — primitive p:nothing (merge nothing into output when link runs)
+;; :nothing-b  — topology-only link via construct-propagator + no-op activate
+(def ^:dynamic *boundary-link* :nothing)
+
+(defn- install-boundary-link [from to]
+  (case *boundary-link*
+    :nothing-b (stdlib/p:nothing-b from to)
+    (stdlib/p:nothing from to)))
 
 (defn create-boundary-cells
   [make-boundary]
@@ -47,8 +55,8 @@
               [_ net**] ((make-boundary head id*) net*)]
           (recur (rest ids-to-do) net** (conj avatar-ids id*))))))))
 
-(def create-boundary-outputs (create-boundary-cells (fn [real avatar] (stdlib/p:nothing avatar real))))
-(def create-boundary-inputs (create-boundary-cells (fn [real avatar] (stdlib/p:nothing real avatar))))
+(def create-boundary-outputs (create-boundary-cells (fn [real avatar] (install-boundary-link avatar real))))
+(def create-boundary-inputs (create-boundary-cells (fn [real avatar] (install-boundary-link real avatar))))
 
 
 (defn compound-activate [closure-in-id closure-out-id]

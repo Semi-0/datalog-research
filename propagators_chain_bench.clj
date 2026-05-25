@@ -5,7 +5,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
-            [propagators.closure :refer [compound-propagator]]
+            [propagators.closure :as closure :refer [compound-propagator *boundary-link*]]
             [propagators.core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -109,58 +109,67 @@
     (<= chain-len 1000) {:warmup 2 :iters 5}
     :else {:warmup 1 :iters 3}))
 
+(defn- bench-boundary-mode
+  [chain-len {:keys [warmup iters seed-val skip-head? boundary-link]
+              :or {seed-val 42}}]
+  (binding [*boundary-link* boundary-link]
+    (println (str "\n--- boundary link: " boundary-link " ---"))
+    (let [build-t (time-ns #(build-chain chain-len))
+          {:keys [net cells props]} (:result build-t)
+          inject-idx (quot chain-len 2)
+          inject-build-t (time-ns #(build-chain-with-inject chain-len inject-idx))
+          inject-net (:result inject-build-t)
+          expected seed-val
+          head-bench (when-not skip-head?
+                       (bench-iters
+                        "propagate-from-head (seed c0, run each compound)"
+                        warmup iters
+                        (fn []
+                          (-> net
+                              (seed-cell (first cells) seed-val)
+                              (run-compound-chain props)))))
+          inject-bench (bench-iters
+                        (str "propagate-from-middle (inject c" inject-idx ", one run-prop)")
+                        warmup iters
+                        (fn []
+                          (let [{:keys [net e e->mid]} inject-net]
+                            (-> net
+                                (seed-cell e seed-val)
+                                (run-prop e->mid)))))
+          head-ok (when head-bench
+                    (all-cells-have? (:last-result head-bench) cells expected))
+          inject-ok (all-cells-have? (:last-result inject-bench) (:cells inject-net) expected)]
+      (println (str "build chain: " (fmt-ms (/ (:ns build-t) 1e6)) " ms"))
+      (println (str "build chain+inject: " (fmt-ms (/ (:ns inject-build-t) 1e6)) " ms"))
+      (if head-bench
+        (print-row head-bench)
+        (println "propagate-from-head: skipped (use :skip-head? false to enable)"))
+      (print-row inject-bench)
+      (when head-bench (println (str "head propagation ok: " head-ok)))
+      (println (str "middle inject propagation ok: " inject-ok))
+      {:boundary-link boundary-link
+       :build-ms (/ (:ns build-t) 1e6)
+       :head head-bench
+       :inject inject-bench
+       :head-ok head-ok
+       :inject-ok inject-ok})))
+
 (defn bench-chain-len
   [chain-len opts]
-  (let [{:keys [warmup iters seed-val skip-head?]
-         :or {seed-val 42}}
-        (merge (default-bench-opts chain-len) opts)]
-  (println (str "\n=== chain-len " chain-len " (cells=" chain-len
-                ", compounds=" (dec chain-len) ") ==="))
-  (let [expected seed-val
-        build-t (time-ns #(build-chain chain-len))
-        {:keys [net cells props]} (:result build-t)
-        inject-idx (quot chain-len 2)
-        inject-build-t (time-ns #(build-chain-with-inject chain-len inject-idx))
-        inject-net (:result inject-build-t)
-        head-bench (when-not skip-head?
-                     (bench-iters
-                      "propagate-from-head (seed c0, run each compound)"
-                      warmup iters
-                      (fn []
-                        (-> net
-                            (seed-cell (first cells) seed-val)
-                            (run-compound-chain props)))))
-        inject-bench (bench-iters
-                      (str "propagate-from-middle (inject c" inject-idx ", one run-prop)")
-                      warmup iters
-                      (fn []
-                        (let [{:keys [net e e->mid]} inject-net]
-                          (-> net
-                              (seed-cell e seed-val)
-                              (run-prop e->mid)))))
-        head-ok (when head-bench
-                  (all-cells-have? (:last-result head-bench) cells expected))
-        inject-ok (all-cells-have? (:last-result inject-bench) (:cells inject-net) expected)]
-    (println (str "build chain: " (fmt-ms (/ (:ns build-t) 1e6)) " ms"))
-    (println (str "build chain+inject: " (fmt-ms (/ (:ns inject-build-t) 1e6)) " ms"))
-    (if head-bench
-      (print-row head-bench)
-      (println "propagate-from-head: skipped (use :skip-head? false to enable)"))
-    (print-row inject-bench)
-    (when head-bench (println (str "head propagation ok: " head-ok)))
-    (println (str "middle inject propagation ok: " inject-ok))
-    {:chain-len chain-len
-     :build-ms (/ (:ns build-t) 1e6)
-     :head head-bench
-     :inject inject-bench
-     :head-ok head-ok
-     :inject-ok inject-ok})))
+  (let [opts (merge (default-bench-opts chain-len) opts)]
+    (println (str "\n=== chain-len " chain-len " (cells=" chain-len
+                  ", compounds=" (dec chain-len) ") ==="))
+    (into {}
+          (map (fn [mode]
+                 [mode (bench-boundary-mode chain-len (assoc opts :boundary-link mode))])
+               [:nothing :nothing-b]))))
 
 (defn -main [& args]
   (let [lens (if (seq args)
                (map #(Long/parseLong %) args)
                [10 100])]
     (println "propagators compound bi-sync chain benchmark")
+    (println "Compares boundary avatar links: p:nothing vs p:nothing-b (topology-only).")
     (println "JVM warmup per scenario included; timings exclude network build.")
     (doseq [n lens]
       (bench-chain-len n (when (> n 5000) {:skip-head? true})))))

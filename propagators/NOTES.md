@@ -69,7 +69,8 @@ installer = (fn [[graph env]]  →  [prop-id [graph env]])
 - `compile-net` / `run-net-let` spread id vectors with `(apply inst-fn ids)` (not `(inst-fn ids)` — a single vector arg would be treated as one port).
 - `primitive-propagator` skips activation if any input is `nothing` / `contradiction` (`any-unusable-values?`).
 - `p:id` — identity on one input → one output (wired sync / bi-sync tests).
-- `p:nothing` — writes `nothing` to the output (boundary avatar ↔ real links in compounds).
+- `p:nothing` — writes `nothing` to the output when the link propagator runs (boundary avatar ↔ real).
+- `p:nothing-b` — `construct-propagator` with a **no-op** activate (`[]`); wires `[from]` → `[to]` without merge work. Select with `(binding [propagators.closure/*boundary-link* :nothing-b] …)`.
 
 ### Compound propagator — MIT vs ours
 
@@ -88,8 +89,8 @@ boundary: parent cells c0, c1  =  those exact cells
 2. **Install** — `compound-propagator` takes `closure-in`, `closure-out`, `inputs`, `outputs` (real parent cells + closure ports). Wired like any propagator; boundary cells should usually appear in **both** input and output lists for bi-sync constraints.
 3. **On activation** (`compound-activate` in `closure.clj`):
    - Strip closure ports: `ins` / `outs` = `boundary-nodes` (remove `closure-in-id` / `closure-out-id` from port lists).
-   - **`create-boundary-outputs`** — for each real output cell, clone strongest/content into a fresh **avatar** cell; link `p:nothing avatar real` (topology only).
-   - **`create-boundary-inputs`** — for each real input cell, clone into an input **avatar**; link `p:nothing real avatar`.
+   - **`create-boundary-outputs`** — for each real output cell, clone strongest/content into a fresh **avatar** cell; link avatar ↔ real (default `p:nothing`, or `p:nothing-b` for topology-only).
+   - **`create-boundary-inputs`** — for each real input cell, clone into an input **avatar**; link real ↔ avatar (same link mode via `*boundary-link*`).
    - **`apply-network-closure`** — run inner `f` (e.g. `bi-sync`) on **avatar** id lists, mutating the shared `graph`/`env` copy passed in.
    - **`run-tasks (pop-inputs boundary-inputs …)`** — inner fixpoint seeded from **input avatars**, not from real parent cells (see scheduling note below).
    - **`diff-cells`** — compare avatar strongest vs real `outs`; emit messages on real boundary cells. Update `closure-out` with `[:closure f net'']` after inner run.
@@ -98,7 +99,7 @@ boundary: parent cells c0, c1  =  those exact cells
 ```
 Parent graph                         On activation (copy of graph/env grows)
 ────────────                         ─────────────────────────────────────
-real c0, c1 ◄──► compound k          avatars c0*, c1* + p:nothing + inner bi-sync
+real c0, c1 ◄──► compound k          avatars c0*, c1* + boundary link + inner bi-sync
 closure-in/out on k                  pop-inputs [c0*, c1*] → inner props only
                                      diff avatars → messages on real c0, c1
 ```
@@ -272,32 +273,38 @@ Builders: `build-stdlib-compound-chain-n`, `build-stdlib-compound-chain-n-with-i
 
 ## Benchmarks (`propagators_chain_bench.clj`)
 
-Prototype-scale timings (one JVM; **propagation excludes network build**; median of several iters after warmup). Same scenarios in both tables: **head** = seed `c0`, run each compound propagator once; **middle** = inject `e -p:id-> c⌊n/2⌋`, single `run-prop` on `e→mid`.
+Prototype-scale timings (one JVM; **propagation excludes network build**; median of several iters after warmup). Each `chain-len` runs **two** boundary modes (see below). Scenarios: **head** = seed `c0`, run each compound propagator once; **middle** = inject `e -p:id-> c⌊n/2⌋`, single `run-prop` on `e→mid`.
 
-### Before boundary avatars (symmetric `[a b]/[a b]` wiring, no avatar fix)
+### Historical baselines (different `compound-activate` — not apples-to-apples)
 
-Recorded when inner `pop-inputs` still used real boundary cells (compound tests hung or overflowed at scale):
+| Era | Git (approx) | Head @ 1000 (median) | Notes |
+|-----|----------------|----------------------|-------|
+| Snapshot compound | `37d3a6f` | ~43 ms | `input-snapshots` / `output-snapshots`; no avatars |
+| Network, no avatars | `9e9bdc7^` | ~421 ms | `pop-inputs` on real boundary cells; can re-enter compound |
+| Old NOTES table (~84 ms) | `37d3a6f` | ~84 ms (recorded) | Same snapshot era as first row — **not** “pre-avatar network” |
 
-| Cells | Compounds | Build (approx) | Head: run each compound | Middle: one `run-prop` |
-|------:|----------:|----------------:|------------------------:|-----------------------:|
-| 10 | 9 | ~3 ms | ~5 ms | ~2 ms |
-| 100 | 99 | ~1 ms | ~52 ms | ~10 ms |
-| 1000 | 999 | ~27 ms | ~84 ms | ~45 ms |
-| 10000 | 9999 | ~137 ms | ~944 ms (1 iter) | ~338 ms |
+Avatar fix adds ~2× over network-no-avatar on the same bench harness (~421 ms → ~850 ms), not exponential. The ~10× gap vs the old NOTES row is mostly **snapshot → network**, not avatars alone.
 
-Head-driven path was fast when it terminated, but **incorrect at fixpoint** (re-scheduled the enclosing compound). Not comparable for correctness work.
+### Boundary avatars: `p:nothing` vs `p:nothing-b` (current bench)
 
-### After boundary avatars (`create-boundary-inputs` / `outputs`, `pop-inputs` on avatars)
+`clj -M:propagators-bench` runs both modes per chain length via `propagators.closure/*boundary-link*`:
 
-Current `main` (2026-05-25, `clj -M:propagators-bench` on this repo):
+| Link | Implementation | When link runs |
+|------|----------------|----------------|
+| `:nothing` (default) | `primitive-propagator` → merge `nothing` into output | `eval-propagator` + `eval-cells` |
+| `:nothing-b` | `construct-propagator` with `fn [_ _ _] []` | Topology only; no cell updates |
 
-| Cells | Compounds | Build | Head (median) | Middle (median) |
-|------:|----------:|------:|--------------:|----------------:|
-| 10 | 9 | ~1.7 ms | ~1.9 ms | ~0.9 ms |
-| 100 | 99 | ~1.2 ms | ~15.6 ms | ~10.6 ms |
-| 1000 | 999 | ~18 ms | ~897 ms | ~811 ms |
+Propagation medians (2026-05-25, this repo):
 
-Each compound activation now copies boundary cells, wires `p:nothing`, runs a full inner `run-tasks`, then diffs back — **~10× slower at 1000 cells** than the pre-avatar head path, but **terminates with correct bi-sync propagation** (bench checks all cells). Middle inject remains one outer `run-prop` but still triggers nested inner fixpoints through compounds.
+| Cells | `p:nothing` head | `p:nothing-b` head | `p:nothing` middle | `p:nothing-b` middle |
+|------:|-----------------:|-------------------:|-------------------:|---------------------:|
+| 10 | ~1.8 ms | ~1.1 ms | ~0.8 ms | ~0.7 ms |
+| 100 | ~14.9 ms | ~12.5 ms | ~10.8 ms | ~10.3 ms |
+| 1000 | ~853 ms | ~832 ms | ~785 ms | ~762 ms |
+
+`p:nothing-b` is modestly faster (~0–15% here): most time is inner `bi-sync` + `run-tasks` over avatars, not the boundary link propagator body. Build is cheaper with `p:nothing-b` (no primitive wrapper per link). Both modes pass correctness checks (`head propagation ok` / `middle inject propagation ok`).
+
+Default production wiring remains `*boundary-link* :nothing`. Use `:nothing-b` when the link exists only to connect graph ports and values cross via `diff-cells` after the inner run.
 
 Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the outer task queue once. Bench auto-reduces iters for large `n` and skips head when `n > 5000` (override with `:skip-head? false`).
 
@@ -323,7 +330,7 @@ clj -M:test                                   # all suites
 propagators/compile.clj   — quoted DSL → {:graph :env :cells :props}
 propagators/network.clj   — construct-cell, construct-propagator, primitive-propagator, compound-propagator
 propagators/closure.clj   — compound-activate, create-boundary-inputs/outputs, apply-network-closure
-propagators/stdlib.clj    — p:id, p:nothing, bi-sync, bi-sync-closure
+propagators/stdlib.clj    — p:id, p:nothing, p:nothing-b, bi-sync, bi-sync-closure
 propagators/datastructures/compound_data.clj — experimental p:cons / p:car / p:cdr (WIP)
 propagators/cells/diff.clj — diff-cell, diff-cells
 propagators_chain_bench.clj — chain-len propagation benchmark (-m propagators-chain-bench)
