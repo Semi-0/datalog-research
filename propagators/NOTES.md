@@ -59,14 +59,17 @@ installer = (fn [[graph env]]  →  [prop-id [graph env]])
 | `construct-propagator` | `f`, `inputs`, `outputs` | Plain fn: `(fn [in-snaps out-snaps] → [[node msg] …])` |
 | `compound-propagator` | `closure-cell`, `inputs`, `outputs` | Built by `compound-activate` (see below) |
 
-`primitive-propagator` is the compile-time wrapper: `(fn [cell-ids…] (construct-propagator wrapped-f inputs [out]))`.
+`primitive-propagator` is the compile-time wrapper: variadic node-id installer → `construct-propagator`.
 
 ### Primitive propagator (`p:id`, etc.)
 
 - MIT: propagator reads neighbors, **adds** to output cells.
 - Here: `f` is **pure** on snapshots; returns **diffs** `[[node CellValue] …]`; `eval-cells` merges into `env`.
-- `primitive-propagator` applies `f` to **strongest** input values; skips activation if any input is `nothing` / `contradiction` (`any-unusable-values?`).
+- **Installer API (variadic):** `((p:id c-in c-out) net)` or `(net/install-net net (apply p:id [c-in c-out]))`. All but the last node-id are **inputs**; the last is the **output**. `f` receives input strongest values as `(apply f in-vals)`.
+- `compile-net` / `run-net-let` spread id vectors with `(apply inst-fn ids)` (not `(inst-fn ids)` — a single vector arg would be treated as one port).
+- `primitive-propagator` skips activation if any input is `nothing` / `contradiction` (`any-unusable-values?`).
 - `p:id` — identity on one input → one output (wired sync / bi-sync tests).
+- `p:nothing` — writes `nothing` to the output (boundary avatar ↔ real links in compounds).
 
 ### Compound propagator — MIT vs ours
 
@@ -81,18 +84,33 @@ boundary: parent cells c0, c1  =  those exact cells
 
 **This repo (`compound-propagator`):** experimental **runtime enclosure**, not MIT expansion.
 
-1. **`closure-cell`** — holds `[inner-f [inner-graph inner-env]]` in `:strongest`.
-2. On activation (not at install):
-   - `apply-network-closure` — call `inner-f` with boundary snapshots.
-   - `run-tasks` — fixpoint on a **private** `[graph env]` (parent `env` untouched).
-   - `diff-cells` — diff outer boundary snapshots before/after; emit `[[node-before msg] …]` only if `:strongest` changed.
-3. Messages use **outer** boundary node ids (`node-before`) so inner topology does not leak.
+1. **`closure-cell`** — holds `[:closure inner-f inner-net]` in strongest (e.g. `bi-sync-closure`).
+2. **Install** — `compound-propagator` takes `closure-in`, `closure-out`, `inputs`, `outputs` (real parent cells + closure ports). Wired like any propagator; boundary cells should usually appear in **both** input and output lists for bi-sync constraints.
+3. **On activation** (`compound-activate` in `closure.clj`):
+   - Strip closure ports: `ins` / `outs` = `boundary-nodes` (remove `closure-in-id` / `closure-out-id` from port lists).
+   - **`create-boundary-outputs`** — for each real output cell, clone strongest/content into a fresh **avatar** cell; link `p:nothing avatar real` (topology only).
+   - **`create-boundary-inputs`** — for each real input cell, clone into an input **avatar**; link `p:nothing real avatar`.
+   - **`apply-network-closure`** — run inner `f` (e.g. `bi-sync`) on **avatar** id lists, mutating the shared `graph`/`env` copy passed in.
+   - **`run-tasks (pop-inputs boundary-inputs …)`** — inner fixpoint seeded from **input avatars**, not from real parent cells (see scheduling note below).
+   - **`diff-cells`** — compare avatar strongest vs real `outs`; emit messages on real boundary cells. Update `closure-out` with `[:closure f net'']` after inner run.
+4. Messages target **real** boundary ids so inner avatar/prop ids do not leak to the parent scheduler.
 
 ```
-Our compound (activation time)       Parent              Inner (simulated)
-────────────────────────────         ──────              ─────────────────
-closure-cell ──► run inner run-tasks  output ◄── diff    private graph/env
+Parent graph                         On activation (copy of graph/env grows)
+────────────                         ─────────────────────────────────────
+real c0, c1 ◄──► compound k          avatars c0*, c1* + p:nothing + inner bi-sync
+closure-in/out on k                  pop-inputs [c0*, c1*] → inner props only
+                                     diff avatars → messages on real c0, c1
 ```
+
+### Inner scheduling: why avatars exist
+
+Real boundary cells remain wired as **inputs** to the compound propagator in the parent `graph`. If inner `run-tasks` used `pop-inputs` on those real ids, the task queue would include the **compound itself** → `compound-activate` re-entered `run-tasks` without bound (hang / `StackOverflowError`). **Fix:** seed inner work from `boundary-inputs` (avatars only linked via `p:nothing` + inner closure). Proof tests: `test/propagators_compound_diagnosis_test.clj` (`clj -M:test propagators-compound-diagnosis-test`).
+
+| `pop-inputs` on | Schedules compound? | Use for inner `run-tasks`? |
+|-----------------|---------------------|----------------------------|
+| `boundary-inputs` (avatars) | No | **Yes** |
+| `ins` (real cells) | Yes (parent edge) | **No** — causes re-entry loop |
 
 **Closer to MIT:** `compile-net` — quoted `(let … (do (p:id …)))` **installs** into one `{:graph :env}` (flat network growth). That matches “generate the network outside.”
 
@@ -254,16 +272,34 @@ Builders: `build-stdlib-compound-chain-n`, `build-stdlib-compound-chain-n-with-i
 
 ## Benchmarks (`propagators_chain_bench.clj`)
 
-Prototype-scale timings (one JVM, median of several iters; propagation excludes build):
+Prototype-scale timings (one JVM; **propagation excludes network build**; median of several iters after warmup). Same scenarios in both tables: **head** = seed `c0`, run each compound propagator once; **middle** = inject `e -p:id-> c⌊n/2⌋`, single `run-prop` on `e→mid`.
 
-| Cells | Compounds | Build (approx) | Head: seed c0, run each compound | Middle: inject c⌊n/2⌋, one `run-prop` |
-|------:|----------:|----------------:|-----------------------------------:|----------------------------------------:|
+### Before boundary avatars (symmetric `[a b]/[a b]` wiring, no avatar fix)
+
+Recorded when inner `pop-inputs` still used real boundary cells (compound tests hung or overflowed at scale):
+
+| Cells | Compounds | Build (approx) | Head: run each compound | Middle: one `run-prop` |
+|------:|----------:|----------------:|------------------------:|-----------------------:|
 | 10 | 9 | ~3 ms | ~5 ms | ~2 ms |
 | 100 | 99 | ~1 ms | ~52 ms | ~10 ms |
 | 1000 | 999 | ~27 ms | ~84 ms | ~45 ms |
 | 10000 | 9999 | ~137 ms | ~944 ms (1 iter) | ~338 ms |
 
-Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the task queue once and is faster at scale. Bench auto-reduces iters for large `n` and skips head when `n > 5000` (override with `:skip-head? false`).
+Head-driven path was fast when it terminated, but **incorrect at fixpoint** (re-scheduled the enclosing compound). Not comparable for correctness work.
+
+### After boundary avatars (`create-boundary-inputs` / `outputs`, `pop-inputs` on avatars)
+
+Current `main` (2026-05-25, `clj -M:propagators-bench` on this repo):
+
+| Cells | Compounds | Build | Head (median) | Middle (median) |
+|------:|----------:|------:|--------------:|----------------:|
+| 10 | 9 | ~1.7 ms | ~1.9 ms | ~0.9 ms |
+| 100 | 99 | ~1.2 ms | ~15.6 ms | ~10.6 ms |
+| 1000 | 999 | ~18 ms | ~897 ms | ~811 ms |
+
+Each compound activation now copies boundary cells, wires `p:nothing`, runs a full inner `run-tasks`, then diffs back — **~10× slower at 1000 cells** than the pre-avatar head path, but **terminates with correct bi-sync propagation** (bench checks all cells). Middle inject remains one outer `run-prop` but still triggers nested inner fixpoints through compounds.
+
+Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the outer task queue once. Bench auto-reduces iters for large `n` and skips head when `n > 5000` (override with `:skip-head? false`).
 
 ```bash
 clj -M:propagators-bench           # default: 10, 100
@@ -275,9 +311,10 @@ clj -M:propagators-bench 1000 10000
 ## Commands
 
 ```bash
-clj -M:propagators-test    # network tests (sync chain, bi-sync, compound chains)
-clj -M:propagators-bench  # chain propagation timings (optional lengths as args)
-clj -M:test               # all suites including propagators-network-test
+clj -M:propagators-test                      # network tests (sync, bi-sync, compound chains)
+clj -M:test propagators-compound-diagnosis-test  # compound inner-scheduling proof tests only
+clj -M:propagators-bench [10 100 1000 ...]    # chain propagation timings
+clj -M:test                                   # all suites
 ```
 
 ## File map (propagator stack)
@@ -285,8 +322,9 @@ clj -M:test               # all suites including propagators-network-test
 ```
 propagators/compile.clj   — quoted DSL → {:graph :env :cells :props}
 propagators/network.clj   — construct-cell, construct-propagator, primitive-propagator, compound-propagator
-propagators/closure.clj   — apply-network-closure, closure-payload, compound-activate
-propagators/stdlib.clj    — p:id, bi-sync, bi-sync-closure
+propagators/closure.clj   — compound-activate, create-boundary-inputs/outputs, apply-network-closure
+propagators/stdlib.clj    — p:id, p:nothing, bi-sync, bi-sync-closure
+propagators/datastructures/compound_data.clj — experimental p:cons / p:car / p:cdr (WIP)
 propagators/cells/diff.clj — diff-cell, diff-cells
 propagators_chain_bench.clj — chain-len propagation benchmark (-m propagators-chain-bench)
 propagators/cells/snapshot.clj — pop-inputs, take-cells, snapshot-for-id
@@ -294,5 +332,7 @@ propagators/core.clj      — run-tasks, eval-propagator, eval-cells, eval-cell
 as_messages.clj           — make-message, as-messages, wire-propagator-edges, cell-slot
 propagators/graph.clj     — Node, link-edge
 propagators/cells/        — **deprecated** barrel (`cells.clj`); use `cells/cell`, `cells/merge`, `cells/value`, …
-test/propagators_network_test.clj
+test/propagators_network_test.clj — integration tests (compile + compound chains)
+test/propagators_compound_diagnosis_test.clj — avatar vs real `pop-inputs` scheduling proofs
+debug_compound_stuck.clj  — optional REPL script to trace inner `run-tasks` (not in CI)
 ```
