@@ -359,16 +359,29 @@ Each era below changed **`compound-activate`** (snapshots → parent `network` �
 
 ### At-a-glance: middle inject (median)
 
-| Era | Git | `compound-activate` change | @ 10 | @ 100 | @ 1000 |
-|-----|-----|----------------------------|-----:|------:|-------:|
-| 1. Cell snapshots | `37d3a6f` | `input-snapshots` / `output-snapshots`; inner `inner-net` | ~2 ms | ~10 ms | **~45 ms** |
-| 2. Network, no avatars | `9e9bdc7^` | `pop-inputs` on **real** boundary cells (re-entrant; hang at scale) | — | — | **~421 ms** (recorded @ 1000 only) |
-| 3. Boundary avatars | `6ef2be6` | clone + `p:nothing` links; `pop-inputs` on avatars | ~0.9 ms | ~10.6 ms | **~811 ms** |
-| 4. Link mode A/B | `a05b1e1` | bench `*boundary-link*` `:nothing` vs `:nothing-b` | ~0.8 / ~0.7 | ~10.8 / ~10.3 | **~785 / ~762** |
-| 5. Strategy A cache | `47c650b`, `3d4259f` | `closure-out` holds `[:closure f net boundary]`; refresh avatars | (see cold/warm head) | | **~700–900** head/middle |
-| 6. **Current** | `6fd6bf2` | no `closure-out`; `diff-cells` messages only | **~0.73 ms** | **~4.4 ms** | **~31 ms** |
+| Era | Git | `compound-activate` change | @ 10 | @ 100 | @ 1000 | @ 10000 (middle) |
+|-----|-----|----------------------------|-----:|------:|-------:|-----------------:|
+| 1. Cell snapshots | `37d3a6f` | `input-snapshots` / `output-snapshots`; inner `inner-net` | ~2 ms | ~10 ms | **~45 ms** | **~338 ms** |
+| 2. Network, no avatars | `9e9bdc7^` | `pop-inputs` on **real** boundary cells (re-entrant; hang at scale) | — | — | **~421 ms** (recorded @ 1000 only) | — |
+| 3. Boundary avatars | `6ef2be6` | clone + `p:nothing` links; `pop-inputs` on avatars | ~0.9 ms | ~10.6 ms | **~811 ms** | (not recorded) |
+| 4. Link mode A/B | `a05b1e1` | bench `*boundary-link*` `:nothing` vs `:nothing-b` | ~0.8 / ~0.7 | ~10.8 / ~10.3 | **~785 / ~762** | (not recorded) |
+| 5. Strategy A cache | `47c650b`, `3d4259f` | `closure-out` holds `[:closure f net boundary]`; refresh avatars | (see cold/warm head) | | **~700–900** head/middle | (not recorded) |
+| 6. **Current** | `6fd6bf2` | no `closure-out`; `diff-cells` messages only | **~0.73 ms** | **~4.4 ms** | **~31 ms** | **~382 ms** |
 
 Era 2 fixed scheduling vs hang but stayed ~2× slower than snapshots. Era 3–5 added avatar + `closure-out` bookkeeping → ~800 ms @ 1000. Era 6 removed the per-activation `closure-out` message (~**25×** vs era 5 on middle inject @ 1000).
+
+**Era 6 vs era 1 (snapshots) — middle inject:**
+
+| chain-len | era 1 | era 6 | era 6 / era 1 |
+|----------:|------:|------:|--------------:|
+| 10 | ~2 ms | ~0.73 ms | **~2.7× faster** |
+| 100 | ~10 ms | ~4.4 ms | **~2.3× faster** |
+| 1000 | ~45 ms | ~31 ms | **~1.4× faster** |
+| 10000 | ~338 ms | ~382 ms | ~same (within noise) |
+
+So **yes: era 6 is significantly faster than era 1 for every recorded length strictly below 10000**, especially @ 10 and 100. The dramatic gap is vs **eras 3–5** (~800 ms → ~31 ms @ 1000). At **10000**, middle inject **catches up** to snapshot-era cost (~linear O(n) work per inject); era 6 **head** is still faster (~641 ms vs ~944 ms, 1 iter).
+
+**Why @ 10000 middle (~380 ms) is not “slow vs @ 1000 (~31 ms)”:** one outer `run-prop` still activates **O(n)** compounds; ~10× chain length → ~12× time (31 ms → 382 ms). That is separate from “era 6 vs era 1”: snapshots were already cheap at huge `n` for middle inject; avatars + parent `network` hurt eras 3–5, and dropping `closure-out` fixed that without beating snapshots at 10000 middle.
 
 ### Era 1 — Cell snapshots (`37d3a6f`, 2026-05-20)
 
@@ -434,12 +447,15 @@ Install: `(compound-propagator k-in [left right] [left right])`. Fresh avatars e
 | 10 | 14 ms | 0.4 ms | 2.9 → 1.2 ms | **0.73 ms** |
 | 100 | 1.0 ms | 0.8 ms | 11.6 → 6.2 ms | **4.4 ms** |
 | 1000 | 4.4 ms | 3.6 ms | 57 → 48 ms | **31 ms** |
+| 10000 | 52 ms | 64 ms | **641 ms** (1 iter) | **382 ms** |
 
-Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the outer task queue once. Bench auto-reduces iters for large `n` (5 iters @ 1000).
+Recorded 2026-05-25 (`clj -M:propagators-bench 1000 10000`, one JVM). @ 1000 re-check: head 69.6 → 58.1 ms, middle median 31.9 ms (matches earlier era-6 row). @ 10000: head uses **1 iter, 0 warmup** (`default-head-opts` — same idea as era 1’s single head sample); cold = warm when `iters=1`. Middle: 3 iters, median 382 ms (mean 382 ms).
+
+Head-driven propagation runs `n-1` separate `run-prop` calls; middle inject drains the outer task queue once. Bench auto-reduces iters for large `n` (5 iters @ 1000 middle, 3 @ 10000 middle).
 
 ```bash
 clj -M:propagators-bench              # default: 10, 100
-clj -M:propagators-bench 10 100 1000
+clj -M:propagators-bench 10 100 1000 10000
 clj -M:propagators-profile propagate 1000   # optional phase breakdown
 ```
 

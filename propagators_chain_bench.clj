@@ -102,6 +102,12 @@
     (<= chain-len 1000) {:warmup 2 :iters 5}
     :else {:warmup 1 :iters 3}))
 
+(defn- default-head-opts [chain-len]
+  "Head runs n-1 sequential run-prop calls; use fewer iters at large n."
+  (if (> chain-len 5000)
+    {:warmup 0 :iters 1}
+    (default-bench-opts chain-len)))
+
 (defn- bench-one-propagation [label warmup iters thunk]
   (bench-iters label warmup iters thunk))
 
@@ -132,10 +138,12 @@
        :all-ms (map #(/ % 1e6) xs)})))
 
 (defn bench-chain-len
-  [chain-len opts]
-  (let [{:keys [warmup iters seed-val skip-head?]
+  [chain-len & [opts]]
+  (let [opts (or opts {})
+        {:keys [warmup iters seed-val skip-head?]
          :or {seed-val 42}}
         (merge (default-bench-opts chain-len) opts)
+        head-opts (merge (default-head-opts chain-len) (select-keys opts [:warmup :iters]))
         build-t (time-ns #(build-chain chain-len))
         {:keys [net cells props]} (:result build-t)
         inject-idx (quot chain-len 2)
@@ -143,7 +151,8 @@
         inject-net (:result inject-build-t)
         expected seed-val
         head-cw (when-not skip-head?
-                  (bench-head-cold-warm warmup iters net cells props seed-val))
+                  (bench-head-cold-warm (:warmup head-opts) (:iters head-opts)
+                                        net cells props seed-val))
         inject-bench (bench-one-propagation
                       (str "propagate-from-middle (inject c" inject-idx ", one run-prop)")
                       warmup iters
@@ -173,6 +182,6 @@
                [10 100])]
     (println "propagators compound bi-sync chain benchmark")
     (println "Compound: closure-in + boundary cells only (no closure-out port).")
-    (println "Head reports first vs last iter; middle uses full bench-iters median.")
+    (println "Head reports first vs last iter (1 iter @ n>5000); middle uses full bench-iters median.")
     (doseq [n lens]
-      (bench-chain-len n (when (> n 5000) {:skip-head? true})))))
+      (bench-chain-len n))))
