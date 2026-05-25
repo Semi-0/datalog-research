@@ -44,11 +44,11 @@
                            (network-cell-strongest net head)
                            (network-cell-content net head))
                           processed-net)
-              [_ net**] ((make-boundary [head id*]) net*)]
+              [_ net**] ((make-boundary head id*) net*)]
           (recur (rest ids-to-do) net** (conj avatar-ids id*))))))))
 
-(def create-boundary-outputs (create-boundary-cells (fn [[real avatar]] (stdlib/p:nothing [avatar real]))))
-(def create-boundary-inputs (create-boundary-cells (fn [[real avatar]] (stdlib/p:nothing [real avatar]))))
+(def create-boundary-outputs (create-boundary-cells (fn [real avatar] (stdlib/p:nothing avatar real))))
+(def create-boundary-inputs (create-boundary-cells (fn [real avatar] (stdlib/p:nothing real avatar))))
 
 
 (defn compound-activate [closure-in-id closure-out-id]

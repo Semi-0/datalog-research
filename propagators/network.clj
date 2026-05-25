@@ -120,12 +120,17 @@
        [id n]))))
 
 (defn primitive-propagator
+  "Installer for a primitive propagator. Call with node-id tokens (variadic):
+  all but the last are inputs, the last is the output cell.
+
+  Example: `((p:id c-in c-out) net)` or `(net/install-net net (p:id c-in c-out))`."
   [f]
-  (fn [args]
-    (let [inputs (vec (butlast args))
-          output (last args)
-          wrapped-f (fn [input-nodes output-nodes network] 
-                      (let [input-cells (mapv (partial network-env-lookup network) input-nodes) 
+  (fn [& node-ids]
+    (let [nodes (vec node-ids)
+          inputs (vec (butlast nodes))
+          output (last nodes)
+          wrapped-f (fn [input-nodes output-nodes network]
+                      (let [input-cells (mapv (partial network-env-lookup network) input-nodes)
                             in-vals (mapv cell/cell-strongest input-cells)]
                         (if (value/any-unusable-values? in-vals)
                           []

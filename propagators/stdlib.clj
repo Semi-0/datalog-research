@@ -14,7 +14,7 @@
   (let [[n-a n-b] (vec input-nodes)
         [out-a out-b] (vec output-nodes)]
     (reduce (fn [n [from to]]
-              (second ((p:id [from to]) n)))
+              (second ((p:id from to) n)))
             network
             [[n-a out-b] [n-b out-a]])))
 

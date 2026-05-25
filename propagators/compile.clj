@@ -24,8 +24,9 @@
       (throw (ex-info "unbound cell" {:sym sym :known (keys cells)}))))
 
 (defn- lookup-inst [sym {:keys [installers]}]
-  (or (get installers sym)
-      (throw (ex-info "unknown installer" {:inst sym :known (keys installers)}))))
+  (let [v (or (get installers sym)
+              (throw (ex-info "unknown installer" {:inst sym :known (keys installers)})))]
+    (if (var? v) @v v)))
 
 (defn- binding-pairs [bindings]
   (if (and (seq bindings) (vector? (first bindings)))
@@ -82,7 +83,7 @@
              ids (mapv #(get cells %) arg-syms)
              inst-fn (or (get installers inst)
                          (throw (ex-info "unknown installer" {:inst inst})))]
-         (net/install-net n (inst-fn ids))))
+         (net/install-net n (apply inst-fn ids))))
      n'
      prop-forms)))
 
@@ -113,7 +114,7 @@
     (prop-apply? exp ctx)
     (let [[inst & arg-syms] exp
           ids (mapv #(lookup-cell % ctx) arg-syms)
-          [pid n'] (((lookup-inst inst ctx) ids) (net-of-ctx ctx))
+          [pid n'] ((apply (lookup-inst inst ctx) ids) (net-of-ctx ctx))
           ctx' (ctx-of-net ctx n')]
       (-> ctx' (update :props conj pid)))
 

@@ -98,7 +98,7 @@
         mid (nth cells inject-idx)
         e (new-node-id)
         n (second ((construct-cell e) net))
-        [e->mid n] ((p:id [e mid]) n)]
+        [e->mid n] ((p:id e mid) n)]
     {:net n
      :cells cells
      :inject-idx inject-idx
