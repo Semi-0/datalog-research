@@ -1,0 +1,1 @@
+okay how about this, we seperate the compound propagator with closure out as a special compound propagator(closure out is mostly for next step recursion, but we dont need this for now) for normal compound propagator it simply run the closure without output that then we benchmark against that? see how much we might win

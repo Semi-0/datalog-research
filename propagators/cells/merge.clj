@@ -3,6 +3,15 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]))
 
+(defn- compound-data?*
+  "Lazy resolve avoids load cycle: merge → compound_data → network → merge."
+  [x]
+  (boolean
+   (when x
+     (try
+       ((requiring-resolve 'propagators.datastructures.compound_data/compound-data?) x)
+       (catch Exception _ false)))))
+
 (def cell-equal? value/cell-value-equal?)
 
 (defmulti cell-updated?
@@ -13,7 +22,35 @@
   (not (cell-equal? new old)))
 
 (defmulti cell-merge
-  (fn [_content _update _network] :default))
+  (fn [content update _network]
+    (if (compound-data?* update)
+      :compound-data
+      :default)))
+
+;; we have 2 option to run the network
+;; either we can run the network inside the cell-merge
+;; or cell strongest
+;; i think its better in cell-merge
+;; because then we are merge networks together
+
+;; so we would have 2 condition
+;; 1. is content is already an existing network
+;; so we can see that the updates
+;; simply run the network 
+;; with updates
+;; or we dont have existing network
+;; then we expands the upate into a network
+;; or maybe we shall treat the compound propagator as partial information?
+;; it could be either head or tail?
+
+;; nevertheless we should expand a internal network in here 
+;; and with a translation dict for the avatar network
+;; so we can express
+;; Placeholder: compound pair merge delegates to default until implemented.
+(defmethod cell-merge :compound-data
+  [content update network]
+  ((get-method cell-merge :default) content update network))
+
 
 (defmethod cell-merge :default
   [content update _network]

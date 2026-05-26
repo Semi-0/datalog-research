@@ -1,12 +1,10 @@
 (ns propagators.closure
-  (:require [propagators.cells.cell :as cell]
-            [propagators.cells.diff :refer [diff-cells]]
-            [propagators.cells.snapshot :refer [pop-inputs snap-cell snap-id snapshot-for-id take-cells]]
+  (:require [propagators.cells.diff :refer [diff-cells]]
+            [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.cells.value :as value]
             [propagators.core :refer [run-tasks]]
-            [propagators.network :refer [assoc-net-cell net-graph
+            [propagators.network :refer [net-graph
                                          network-cell-strongest network-cell-content construct-cell]]
-            [propagators.graph :as g]
             [propagators.ids :as id]
             [propagators.stdlib :as stdlib]
             ))
@@ -27,15 +25,8 @@
 (defn apply-network-closure [[f inner-net] input-nodes output-nodes external-network]
   (f inner-net input-nodes output-nodes external-network))
 
-(defn closure-payload [snap]
-  (value/value-payload (cell/cell-strongest (snap-cell snap))))
-
 (defn- boundary-nodes [closure-cell-id nodes]
   (vec (remove #(= closure-cell-id %) nodes)))
-
-(defn- payload->closure [cv]
-  (when-let [p (value/value-payload cv)]
-    (when (closure? p) p)))
 
 (defn create-boundary-cells
   [link-fn]
@@ -58,18 +49,6 @@
 (def create-boundary-outputs (create-boundary-cells stdlib/nothing-out-link))
 (def create-boundary-inputs (create-boundary-cells stdlib/nothing-in-link))
 
-(defn- ensure-boundaries
-  "Create avatar cells for `ins` / `outs` and link them to real boundary cells."
-  [network ins outs cf]
-  (let [[boundary-outputs net*] (create-boundary-outputs network outs)
-        [boundary-inputs net**] (create-boundary-inputs net* ins)]
-    {:boundary-inputs boundary-inputs
-     :boundary-outputs boundary-outputs
-     :net net**
-     :boundary {:ins ins :outs outs
-                :in-avatars boundary-inputs :out-avatars boundary-outputs
-                :f cf}}))
-
 (defn compound-activate
   "Compound propagator body. `closure-in-id` holds `[:closure f net]`; boundary cells are the other ports."
   [closure-in-id]
@@ -83,9 +62,9 @@
               (value/any-unusable-values? in-vals)
               (nil? closure-payload))
         []
-        (let [{:keys [boundary-inputs boundary-outputs net]}
-              (ensure-boundaries network ins outs (closure-f closure-payload))
+        (let [[boundary-outputs net*] (create-boundary-outputs network outs)
+              [boundary-inputs net**] (create-boundary-inputs net* ins)
               net' (apply-network-closure closure-payload
-                                          boundary-inputs boundary-outputs net)
+                                          boundary-inputs boundary-outputs net**)
               net'' (run-tasks (pop-inputs boundary-inputs (net-graph net')) net')]
-          (vec (diff-cells boundary-outputs outs net'' network)))))))
+          (diff-cells boundary-outputs outs net'' network))))))
