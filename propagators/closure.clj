@@ -6,12 +6,10 @@
             [propagators.network :refer [net-graph
                                          network-cell-strongest network-cell-content construct-cell]]
             [propagators.ids :as id]
-            [propagators.stdlib :as stdlib]
-            ))
+            [propagators.helpers.tagged :refer [tagged?]]
+            [propagators.stdlib :as stdlib]))
 
-(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
-
-(defn closure? [x] (tagged? x :closure))
+(def closure? (tagged? :closure))
 ;; [:closure f net] or [:closure f net boundary-cache-map]
 (defn closure [f n] [:closure f n])
 (defn closure-f [c] (nth c 1))

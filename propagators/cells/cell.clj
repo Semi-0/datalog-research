@@ -1,8 +1,7 @@
-(ns propagators.cells.cell)
+(ns propagators.cells.cell
+  (:require [propagators.helpers.tagged :refer [tagged?]]))
 
-(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
-
-(defn cell? [x] (tagged? x :cell))
+(def cell? (tagged? :cell))
 (defn cell [content strongest] [:cell content strongest])
 (def ->Cell cell)
 (def make-cell cell)

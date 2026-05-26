@@ -3,11 +3,10 @@
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.graph :as graph]
+            [propagators.helpers.tagged :refer [tagged?]]
             [propagators.ids :refer [new-node-id]]))
 
-(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
-
-(defn net? [x] (tagged? x :net))
+(def net? (tagged? :net))
 (defn net [graph env] [:net graph env])
 (def empty-net (net {} {}))
 (def empty-network empty-net)

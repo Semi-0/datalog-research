@@ -1,10 +1,9 @@
 (ns propagators.graph
   "Immutable directed graph: `[:node-id …] → [:node inputs outputs]`."
-  (:require [propagators.ids :as ids]))
+  (:require [propagators.helpers.tagged :refer [tagged?]]
+            [propagators.ids :as ids]))
 
-(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
-
-(defn node? [x] (tagged? x :node))
+(def node? (tagged? :node))
 (defn node [inputs outputs] [:node (set inputs) (set outputs)])
 (defn blank-node [] (node #{} #{}))
 (def empty-graph {})

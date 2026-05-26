@@ -1,13 +1,12 @@
 (ns propagators.cells.value
-  "Cell contents: plain payloads, with `nothing` and `contradiction` sentinels.")
-
-(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
+  "Cell contents: plain payloads, with `nothing` and `contradiction` sentinels."
+  (:require [propagators.helpers.tagged :refer [tagged?]]))
 
 (def nothing [:nothing])
 (def contradiction [:contradiction])
 
-(defn nothing? [x] (= nothing x))
-(defn contradiction? [x] (= contradiction x))
+(def nothing? (tagged? :nothing))
+(def contradiction? (tagged? :contradiction))
 (defn unusable? [x] (or (nothing? x) (contradiction? x)))
 (defn any-unusable-values? [& values] (boolean (some unusable? values)))
 (defn value-payload [x] (when-not (unusable? x) x))

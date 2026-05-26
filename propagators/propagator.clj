@@ -4,15 +4,14 @@
             [propagators.cells.value :as value]
             [propagators.graph :as graph]
             [propagators.ids :refer [new-node-id]]
+            [propagators.helpers.tagged :refer [tagged?]]
             [propagators.network :refer [as-net
                                          assoc-net-prop
                                          net-graph
                                          net-with-graph
                                          network-env-lookup]]))
 
-(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
-
-(defn prop? [x] (tagged? x :prop))
+(def prop? (tagged? :prop))
 (defn prop [f] [:prop f])
 (defn prop-f [p] (nth p 1))
 (def make-propagator prop)

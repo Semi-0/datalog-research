@@ -1,10 +1,9 @@
 (ns propagators.ids
   "Sortable, decentralized node ids (RFC-9562 UUID v7)."
-  (:require [clj-uuid :as uuid]))
+  (:require [clj-uuid :as uuid]
+            [propagators.helpers.tagged :refer [tagged?]]))
 
-(defn- tagged? [x tag] (and (vector? x) (= tag (first x))))
-
-(defn node-id? [x] (tagged? x :node-id))
+(def node-id? (tagged? :node-id))
 
 (defn unwrap-node-id
   "UUID from `[:node-id uuid]`."
