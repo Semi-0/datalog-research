@@ -3,7 +3,7 @@
             [propagators.cells.diff :refer [diff-internal-output-cells]]
             [propagators.cells.value :as value]
             [propagators.network :refer [network-cell-strongest
-                                         clear-dict inner-ids-in inner-ids-out]]
+                                         inner-ids-in inner-ids-out]]
             [propagators.helpers.tagged :refer [tagged?]]
             ))
 
@@ -40,9 +40,9 @@
               (value/any-unusable-values? in-vals)
               (nil? closure-payload))
         []
-        (let [net* (-> network
-                       (create-boundary-outputs outs)
-                       (create-boundary-inputs ins))
-              net' (apply-network-closure closure-payload net*)
-              net'' (boundary/run-internal-network ins net')]
-          (diff-internal-output-cells net'' network outs))))))
+        (-> network
+            (create-boundary-outputs outs)
+            (create-boundary-inputs ins)
+            (#(apply-network-closure closure-payload %))
+            (#(boundary/run-internal-network ins %))
+            (diff-internal-output-cells network outs))))))

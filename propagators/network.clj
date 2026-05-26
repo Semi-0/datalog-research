@@ -17,7 +17,10 @@
 
 (defn net-graph [n] (nth n 1))
 (defn net-env [n] (nth n 2))
-(defn net-dict [n] (nth n 3))
+(defn net-dict [n]
+  (if (< (count n) 4)
+    empty-dict
+    (nth n 3)))
 (defn net-with-graph [n graph] (net graph (net-env n) (net-dict n)))
 (defn net-with-env [n env] (net (net-graph n) env (net-dict n)))
 (defn net-with-dict [n dict] (net (net-graph n) (net-env n) dict))
