@@ -1,5 +1,6 @@
 (ns propagators.datastructures.compound_data
   (:require [propagators.network :as net]
+            [propagators.propagator :as prop]
             [propagators.cells.cell :as cell]
             [clojure.core.match :refer [match]]
             [propagators.ids :as id]))
@@ -62,10 +63,10 @@
 
 ;; so we just sent the cell?
 (def p:cons
-  (net/primitive-propagator
+  (prop/primitive-propagator
     (fn [head-val rest-val]
       {:head head-val
        :rest rest-val})))
      
-(def p:car (net/primitive-propagator (fn [dict] (cell/cell-strongest (:head dict)))))
-(def p:cdr (net/primitive-propagator (fn [dict] (cell/cell-strongest (:rest dict)))))
+(def p:car (prop/primitive-propagator (fn [dict] (cell/cell-strongest (:head dict)))))
+(def p:cdr (prop/primitive-propagator (fn [dict] (cell/cell-strongest (:rest dict)))))

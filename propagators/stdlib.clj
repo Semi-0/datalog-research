@@ -2,11 +2,12 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.compile :refer [net-let]]
             [propagators.network :as net]
+            [propagators.propagator :as prop]
             [propagators.cells.value :as val]))
 
-(def p:id (net/primitive-propagator (fn [x] x)))
+(def p:id (prop/primitive-propagator (fn [x] x)))
 ;; Topology-only link: wires ports without merge/messages when the propagator runs.
-(def p:nothing (fn [a b] (net/construct-propagator (fn [_inputs _outputs _network] []) [a] [b])))
+(def p:nothing (fn [a b] (prop/construct-propagator (fn [_inputs _outputs _network] []) [a] [b])))
 
 (defn nothing-out-link
   "Boundary topology: avatar → real (compound output side)."

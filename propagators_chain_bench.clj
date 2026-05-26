@@ -5,7 +5,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
-            [propagators.network :refer [compound-propagator]]
+            [propagators.propagator :refer [compound-propagator]]
             [propagators.core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]

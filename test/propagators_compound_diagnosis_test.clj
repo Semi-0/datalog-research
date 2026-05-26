@@ -5,7 +5,7 @@
             [propagators.cells.cell :as cell]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.closure :as closure]
-            [propagators.network :refer [compound-propagator]]
+            [propagators.propagator :refer [compound-propagator]]
             [propagators.core :as core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]

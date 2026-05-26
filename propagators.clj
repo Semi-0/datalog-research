@@ -31,6 +31,9 @@
 (def ->Propagator propagator/->Propagator)
 (def make-propagator propagator/make-propagator)
 (def propagator? propagator/propagator?)
+(def construct-propagator propagator/construct-propagator)
+(def primitive-propagator propagator/primitive-propagator)
+(def compound-propagator propagator/compound-propagator)
 
 ;; Graph
 (def graph? graph/graph?)

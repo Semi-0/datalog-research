@@ -6,7 +6,7 @@
             [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.graph :as graph]
             [propagators.message :as m]
-            [propagators.network :refer [compound-propagator]]
+            [propagators.propagator :refer [compound-propagator]]
             [propagators.compile :refer [cell-ref compile-net prop-ref]]
             [propagators.core :refer [run-tasks]]
             [propagators.graph :refer [node-input-ids node-output-ids]]

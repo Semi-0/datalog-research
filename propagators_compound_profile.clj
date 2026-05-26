@@ -14,8 +14,8 @@
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.message :as m :refer [message-value]]
-            [propagators.network :as net :refer [construct-cell construct-propagator]]
-            [propagators.propagator :as prop :refer [prop?]]
+            [propagators.network :as net :refer [construct-cell]]
+            [propagators.propagator :as prop :refer [construct-propagator prop?]]
             [propagators.stdlib :refer [bi-sync-closure p:id]]))
 
 (defn- ms [ns] (/ (double ns) 1e6))
@@ -116,7 +116,7 @@
           (vec (profile-timed-diff-cells boundary-outputs outs net'' network)))))))
 
 (defn- profile-compound-propagator [closure-in inputs outputs]
-  (construct-propagator (profile-compound-activate closure-in)
+  (prop/construct-propagator (profile-compound-activate closure-in)
                         (into [closure-in] inputs)
                         outputs))
 
