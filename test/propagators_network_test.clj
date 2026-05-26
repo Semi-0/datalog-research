@@ -2,18 +2,15 @@
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.cell :as cell]
             [propagators.cells.diff :as diff]
-            [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
-            [propagators.graph :as graph]
+            [propagators.graph :as graph :refer [node-input-ids node-output-ids]]
             [propagators.message :as m]
-            [propagators.propagator :refer [compound-propagator]]
+            [propagators.propagator :refer [compound-propagator prop?]]
             [propagators.compile :refer [cell-ref compile-net prop-ref]]
             [propagators.core :refer [run-tasks]]
-            [propagators.graph :refer [node-input-ids node-output-ids]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net :refer [construct-cell]]
-            [propagators.propagator :refer [prop?]]
             [propagators.stdlib :refer [bi-sync-closure p:id]]))
 
 ;; --- harness ---
@@ -190,16 +187,18 @@
   (testing "stdlib compound chain (same builder as inject tests): diff-cells → real left/right only; 0–2 msgs; real cells have downstream props"
     (let [chain-len 10
           inject-idx (quot chain-len 2)
-          {:keys [net cells props mid e e->mid]}
+          {:keys [net cells props e e->mid]}
           (build-stdlib-compound-chain-n-with-inject chain-len inject-idx)
           real-cells (set cells)
           props-set (set props)
           diff-log (atom [])
-          orig-diff diff/diff-cells
+          orig-diff diff/diff-internal-output-cells
           recording-diff
-          (fn [avatars reals network-from network-to]
-            (let [msgs (vec (orig-diff avatars reals network-from network-to))]
-              (swap! diff-log conj {:avatar-pairs (map vector avatars reals)
+          (fn [network-from network-to external-outputs]
+            (let [msgs (vec (orig-diff network-from network-to external-outputs))
+                  avatar-outs (vals (:avatars-out (net/net-dict-or-empty network-from)))]
+              (swap! diff-log conj {:external-outputs (vec external-outputs)
+                                    :avatar-outs (vec avatar-outs)
                                     :targets (mapv m/message-id msgs)
                                     :count (count msgs)})
               msgs))
@@ -219,15 +218,13 @@
         (is (pos? (count (out-edges net c)))
             (str "real boundary cell keeps downstream edges: " c)))
       ;; --- run middle inject (compound-bi-sync-chain-10-inject-middle) ---
-      (with-redefs [diff/diff-cells recording-diff]
+      (with-redefs [diff/diff-internal-output-cells recording-diff]
         (let [expected 77
               n (-> net (seed-cell e expected) (run-prop e->mid))
               log @diff-log
               total-msgs (reduce + 0 (map :count log))
               counts (frequencies (map :count log))
-              avatar-ids (set (mapcat (fn [{:keys [avatar-pairs]}]
-                                         (map first avatar-pairs))
-                                       log))
+              avatar-ids (set (mapcat :avatar-outs log))
               bad-targets
               (filter (fn [t]
                         (or (not (contains? real-cells t))
@@ -235,7 +232,7 @@
                       (mapcat :targets log))]
           (is (pos? (count log)) "diff-cells should run during propagation")
           (is (every? #(<= 0 % 2) (map :count log))
-              (str "each diff-cells call emits 0–2 messages, frequencies: " counts))
+              (str "each diff call emits 0–2 messages, frequencies: " counts))
           (is (empty? bad-targets)
               (str "every diff message target must be a real boundary cell, not an avatar; bad: "
                    (vec bad-targets)))

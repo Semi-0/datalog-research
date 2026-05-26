@@ -1,13 +1,11 @@
 (ns propagators.closure
-  (:require [propagators.cells.diff :refer [diff-cells]]
-            [propagators.cells.snapshot :refer [pop-inputs]]
+  (:require [propagators.boundary :as boundary]
+            [propagators.cells.diff :refer [diff-internal-output-cells]]
             [propagators.cells.value :as value]
-            [propagators.core :refer [run-tasks]]
-            [propagators.network :refer [net-graph
-                                         network-cell-strongest network-cell-content construct-cell]]
-            [propagators.ids :as id]
+            [propagators.network :refer [network-cell-strongest
+                                         clear-dict inner-ids-in inner-ids-out]]
             [propagators.helpers.tagged :refer [tagged?]]
-            [propagators.stdlib :as stdlib]))
+            ))
 
 (def closure? (tagged? :closure))
 ;; [:closure f net] or [:closure f net boundary-cache-map]
@@ -20,32 +18,14 @@
   [c]
   (when (< 3 (count c)) (nth c 3)))
 
-(defn apply-network-closure [[f inner-net] input-nodes output-nodes external-network]
-  (f inner-net input-nodes output-nodes external-network))
+(defn apply-network-closure [[f inner-net] external-network]
+  (f inner-net (vec (inner-ids-in external-network)) (vec (inner-ids-out external-network)) external-network))
 
 (defn- boundary-nodes [closure-cell-id nodes]
   (vec (remove #(= closure-cell-id %) nodes)))
 
-(defn create-boundary-cells
-  [link-fn]
-  (fn [net ids]
-    (let [ids (vec ids)]
-      (loop [ids-to-do ids
-             processed-net net
-             avatar-ids []]
-        (if (empty? ids-to-do)
-          [(vec avatar-ids) processed-net]
-          (let [head (first ids-to-do)
-                [id* net*] ((construct-cell
-                             (id/new-node-id)
-                             (network-cell-strongest net head)
-                             (network-cell-content net head))
-                            processed-net)
-                net** (link-fn net* head id*)]
-            (recur (rest ids-to-do) net** (conj avatar-ids id*))))))))
-
-(def create-boundary-outputs (create-boundary-cells stdlib/nothing-out-link))
-(def create-boundary-inputs (create-boundary-cells stdlib/nothing-in-link))
+(def create-boundary-outputs boundary/create-boundary-outputs)
+(def create-boundary-inputs boundary/create-boundary-inputs)
 
 (defn compound-activate
   "Compound propagator body. `closure-in-id` holds `[:closure f net]`; boundary cells are the other ports."
@@ -60,9 +40,9 @@
               (value/any-unusable-values? in-vals)
               (nil? closure-payload))
         []
-        (let [[boundary-outputs net*] (create-boundary-outputs network outs)
-              [boundary-inputs net**] (create-boundary-inputs net* ins)
-              net' (apply-network-closure closure-payload
-                                          boundary-inputs boundary-outputs net**)
-              net'' (run-tasks (pop-inputs boundary-inputs (net-graph net')) net')]
-          (diff-cells boundary-outputs outs net'' network))))))
+        (let [net* (-> network
+                       (create-boundary-outputs outs)
+                       (create-boundary-inputs ins))
+              net' (apply-network-closure closure-payload net*)
+              net'' (boundary/run-internal-network ins net')]
+          (diff-internal-output-cells net'' network outs))))))

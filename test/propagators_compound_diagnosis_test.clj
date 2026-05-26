@@ -37,9 +37,12 @@
         ins (boundary-nodes k-in (into [k-in] [c0 c1]))
         outs [c0 c1]
         n-seed (net/assoc-net-cell net c0 (cell/cell seed-val seed-val))
-        [boundary-outputs n*] (closure/create-boundary-outputs n-seed outs)
-        [boundary-inputs n**] (closure/create-boundary-inputs n* ins)
-        net' (closure/apply-network-closure bi-sync-closure boundary-inputs boundary-outputs n**)]
+        n* (-> n-seed
+               net/clear-dict
+               (closure/create-boundary-outputs outs)
+               (closure/create-boundary-inputs ins))
+        net' (closure/apply-network-closure bi-sync-closure n*)
+        boundary-inputs (vec (net/inner-ids-in net'))]
     {:net net' :ins ins :outs outs :boundary-inputs boundary-inputs :compound-prop compound-prop}))
 
 (defn- run-tasks-with-step-budget!

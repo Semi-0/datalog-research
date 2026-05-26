@@ -4,7 +4,7 @@
     clj -M:propagators-profile [chain-len]           ; isolated compound-activate phases
     clj -M:propagators-profile propagate [chain-len] ; real middle-inject cost breakdown"
   (:require [propagators.cells.cell :as cell]
-            [propagators.cells.diff :refer [diff-cells]]
+            [propagators.cells.diff :refer [diff-internal-output-cells]]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
@@ -15,7 +15,7 @@
             [propagators.ids :refer [new-node-id]]
             [propagators.message :as m :refer [message-value]]
             [propagators.network :as net :refer [construct-cell]]
-            [propagators.propagator :as prop :refer [construct-propagator prop?]]
+            [propagators.propagator :as prop]
             [propagators.stdlib :refer [bi-sync-closure p:id]]))
 
 (defn- ms [ns] (/ (double ns) 1e6))
@@ -42,8 +42,12 @@
 
 (defn- profile-ensure-boundaries [network ins outs cf]
   (let [t0 (System/nanoTime)
-        [boundary-outputs net*] (closure/create-boundary-outputs network outs)
-        [boundary-inputs net**] (closure/create-boundary-inputs net* ins)
+        net** (-> network
+                  net/clear-dict
+                  (closure/create-boundary-outputs outs)
+                  (closure/create-boundary-inputs ins))
+        boundary-inputs (vec (net/inner-ids-in net**))
+        boundary-outputs (vec (net/inner-ids-out net**))
         t1 (System/nanoTime)]
     (swap-stats! update :ensure-boundaries-ns + (- t1 t0))
     {:boundary-inputs boundary-inputs
@@ -54,9 +58,9 @@
                 :f cf}}))
 
 (defn- profile-timed-diff-cells
-  [nodesA nodesB network-from network-to]
+  [network-from network-to external-outputs]
   (let [t0 (System/nanoTime)
-        result (diff-cells nodesA nodesB network-from network-to)
+        result (diff-internal-output-cells network-from network-to external-outputs)
         t1 (System/nanoTime)]
     (swap-stats! update :diff-cells-ns + (- t1 t0))
     (swap-stats! update :diff-cells-count inc)
@@ -77,15 +81,14 @@
       {:messages [] :breakdown {:skipped? true}}
       (let [cf (closure/closure-f closure-payload)
             t1 (System/nanoTime)
-            {:keys [boundary-inputs boundary-outputs net]}
+            {:keys [boundary-inputs net]}
             (profile-ensure-boundaries network ins outs cf)
             t2 (System/nanoTime)
-            net' (closure/apply-network-closure closure-payload
-                                               boundary-inputs boundary-outputs net)
+            net' (closure/apply-network-closure closure-payload net)
             t3 (System/nanoTime)
             net'' (core/run-tasks (pop-inputs boundary-inputs (net/net-graph net')) net')
             t4 (System/nanoTime)
-            diffs (profile-timed-diff-cells boundary-outputs outs net'' network)
+            diffs (profile-timed-diff-cells net'' network outs)
             t5 (System/nanoTime)]
         {:messages (vec diffs)
          :breakdown {:skipped? false
@@ -108,12 +111,11 @@
               (value/any-unusable-values? in-vals)
               (nil? closure-payload))
         []
-        (let [{:keys [boundary-inputs boundary-outputs net]}
+        (let [{:keys [boundary-inputs net]}
               (profile-ensure-boundaries network ins outs (closure/closure-f closure-payload))
-              net' (closure/apply-network-closure closure-payload
-                                                 boundary-inputs boundary-outputs net)
+              net' (closure/apply-network-closure closure-payload net)
               net'' (core/run-tasks (pop-inputs boundary-inputs (net/net-graph net')) net')]
-          (vec (profile-timed-diff-cells boundary-outputs outs net'' network)))))))
+          (vec (profile-timed-diff-cells net'' network outs)))))))
 
 (defn- profile-compound-propagator [closure-in inputs outputs]
   (prop/construct-propagator (profile-compound-activate closure-in)
@@ -319,8 +321,7 @@
                 cmp (:compound-prop-ns s)
                 nested (+ (:inner-run-tasks-ns s) (:boundary-create-ns s) (:apply-closure-ns s)
                           (:diff-cells-ns s) (:ensure-boundaries-ns s))
-                cmp-other (max 0 (- (:compound-f-ns s) nested))
-                sched (- wall (+ (:compound-prop-ns s) (:other-prop-ns s)))]
+                cmp-other (max 0 (- (:compound-f-ns s) nested))]
             (println (str "\n=== middle inject propagation profile chain-len=" chain-len " ==="))
             (println (str "  wall clock (one run-prop from inject):  " (fmt (ms wall)) " ms"))
             (println "")

@@ -14,3 +14,12 @@
 
 (defn diff-cells [nodesA nodesB network-from network-to]
   (keep identity (map (diff-cell network-from network-to) nodesA nodesB)))
+
+(defn diff-internal-output-cells
+  "Diff inner→outer for each `external-output` based on `network-from`'s `net-dict` mapping."
+  [network-from network-to external-outputs]
+  (keep identity
+        (mapcat (fn [ext]
+                  (when-let [int-id (net/lookup-inner-out network-from ext)]
+                    (diff-cells [int-id] [ext] network-from network-to)))
+                (vec external-outputs))))
