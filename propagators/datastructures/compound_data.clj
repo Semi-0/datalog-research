@@ -2,17 +2,19 @@
   "Linked-list propagators over compound subnet cells."
   (:require [propagators.cells.value :as value]
             [propagators.datastructures.compound_strongest_result :as strongest]
+            [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_update :as update]
-            [propagators.datastructures.compound_subnet :as subnet]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
 (defn- avatar-strongest-message [subnet network outer-id]
-  (when (and (subnet/dispatch-target? network outer-id)
-             (get (net/net-dict-or-empty subnet) outer-id))
-    (let [avatar-id (get (net/net-dict-or-empty subnet) outer-id)]
-      (message outer-id (net/network-cell-strongest subnet avatar-id)))))
+  (when (get (net/net-dict-or-empty subnet) outer-id)
+    (let [avatar-id (get (net/net-dict-or-empty subnet) outer-id)
+          outer-content (net/network-cell-content network outer-id)]
+      (if (state/compound-subnet-state? outer-content)
+        (message outer-id (update/compound-sync (state/state-subnet outer-content) [outer-id]))
+        (message outer-id (net/network-cell-strongest subnet avatar-id))))))
 
 (defn p:car
   "Write `{:head elem-id}` compound-data update to collection."
@@ -38,9 +40,9 @@
   (prop/construct-propagator
    (fn [_inputs _outputs network]
      (let [cv (net/network-cell-strongest network collection-id)
-           strongest-result (when (strongest/compound-strongest-result? cv) cv)
-           sub (when strongest-result (strongest/strongest-subnet strongest-result))
-           updated* (when strongest-result (strongest/strongest-updated* strongest-result))]
+          strongest-result (when (strongest/compound-subnet-continuation? cv) cv)
+          sub (when strongest-result (strongest/continuation-subnet strongest-result))
+          updated* (when strongest-result (strongest/continuation-updated* strongest-result))]
        (if (or (value/unusable? cv) (nil? updated*))
          []
          (reduce (fn [msgs outer-id]

@@ -1,13 +1,26 @@
 (ns propagators.datastructures.compound_update
   "Compound-data update shape and predicates."
-  (:require [meander.epsilon :as m]
-            [propagators.ids :as id]))
+  (:require [propagators.ids :as id]
+            [propagators.network :as net]))
 
 (defrecord CompoundUpdate [head tail])
+(defrecord CompoundSync [subnet slots])
 
 (defn compound-update
   [{:keys [head tail]}]
   (->CompoundUpdate head tail))
+
+(defn compound-sync
+  ([subnet]
+   (compound-sync subnet []))
+  ([subnet slots]
+   (->CompoundSync subnet (vec slots))))
+
+(defn sync-subnet [sync]
+  (:subnet sync))
+
+(defn sync-slots [sync]
+  (vec (:slots sync)))
 
 (defn update-head [update]
   (:head update))
@@ -34,37 +47,30 @@
   [update]
   (vec (keep identity [(update-head update) (update-tail update)])))
 
+(defn compound-sync?
+  [x]
+  (instance? CompoundSync x))
+
 (defn complete-compound-data?
   "Both head and tail node ids are present."
   [x]
-  (boolean
-   (m/match x
-     {:head (m/pred id/node-id?) :tail (m/pred id/node-id?)}
-     true
-     :else
-     false)))
+  (and (instance? CompoundUpdate x)
+       (id/node-id? (:head x))
+       (id/node-id? (:tail x))))
 
 (defn compound-data-head?
   "Head-only compound update."
   [x]
-  (and (not (contains? x :tail))
-       (boolean
-        (m/match x
-          {:head (m/pred id/node-id?)}
-          true
-          :else
-          false))))
+  (and (instance? CompoundUpdate x)
+       (id/node-id? (:head x))
+       (nil? (:tail x))))
 
 (defn compound-data-tail?
   "Tail-only compound update."
   [x]
-  (and (not (contains? x :head))
-       (boolean
-        (m/match x
-          {:tail (m/pred id/node-id?)}
-          true
-          :else
-          false))))
+  (and (instance? CompoundUpdate x)
+       (id/node-id? (:tail x))
+       (nil? (:head x))))
 
 (defn partial-compound-data?
   "Head-only or tail-only compound slot (not complete)."
@@ -73,7 +79,4 @@
 
 (defn compound-data?
   [x]
-  (or (complete-compound-data? x)
-      (partial-compound-data? x)
-      (compound-data-head? x)
-      (compound-data-tail? x)))
+  (instance? CompoundUpdate x))

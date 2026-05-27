@@ -12,9 +12,11 @@
             [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.datastructures.compound_update :as update]
+            [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
-            [propagators.network :as net]))
+            [propagators.network :as net]
+            [propagators.propagator :as prop]))
 
 (defn- install-cell [n id content strongest]
   (second ((construct-cell id content strongest) n)))
@@ -106,7 +108,7 @@
                 (net/assoc-net-cell tail (cell/cell 20 20)))
           n' (run-tasks (tq/into-queue (pop-inputs [head tail] (net/net-graph n))) n)
           strongest (cell/cell-strongest (net/network-env-lookup n' coll))]
-      (is (strongest/compound-strongest-result? strongest))
+      (is (strongest/compound-subnet-continuation? strongest))
       (is (= 10 (cell/cell-strongest (net/network-env-lookup n' head))))
       (is (= 20 (cell/cell-strongest (net/network-env-lookup n' tail)))))))
 
@@ -182,9 +184,9 @@
         (is (contains? out0 (coll-ids 1)) "coll0 tail link in out-ids")
         (is (contains? out2 (head-ids 2)))
         (is (contains? out2 (coll-ids 3))
-            "cdr link records tail collection in out-ids (dispatch skips compound tails)")
+            "cdr link records tail collection in out-ids")
         (is (= 30 (cell/cell-strongest (net/network-env-lookup n' (head-ids 2)))))
-        (is (strongest/compound-strongest-result?
+        (is (strongest/compound-subnet-continuation?
              (cell/cell-strongest (net/network-env-lookup n' coll2)))
             "coll2 ran effectful strongest for index-2 dispatch")))))
 
@@ -199,5 +201,34 @@
                  (run-from [head2]))]
       (is (= 42 (cell/cell-strongest (net/network-env-lookup n' head2))))
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup n' head0))))
-      (is (strongest/compound-strongest-result?
+      (is (strongest/compound-subnet-continuation?
            (cell/cell-strongest (net/network-env-lookup n' coll2)))))))
+
+(deftest compound-sync-installs-missing-slot
+  (testing "compound sync installs missing slot entry into target subnet"
+    (let [outer (new-node-id)
+          n (-> net/empty-net (net/assoc-net-cell outer (cell/cell 7 7)))
+          source-state (subnet/merge-compound-data
+                        (state/empty-compound-subnet)
+                        (update/compound-update {:head outer})
+                        n)
+          sync (update/compound-sync (state/state-subnet source-state) [outer])
+          merged (subnet/merge-compound-sync (state/empty-compound-subnet) sync n)]
+      (is (state/compound-subnet-state? merged))
+      (is (contains? (state/state-out-ids merged) outer))
+      (is (= 7 (avatar/avatar-strongest (state/state-subnet merged) outer))))))
+
+(deftest compound-sync-propagator-conflict-contradiction
+  (testing "conflicting propagators on same slot return contradiction"
+    (let [outer (new-node-id)
+          inner (new-node-id)
+          mk-subnet (fn [f]
+                      (-> net/empty-net
+                          (net/net-with-graph {inner (graph/node #{} #{})})
+                          (net/net-with-env {inner (prop/prop f)})
+                          (net/net-with-dict {outer inner})))
+          target (state/compound-state (mk-subnet (fn [_ _ _] [])) #{outer})
+          source (mk-subnet (fn [_ _ _] [:different]))
+          sync (update/compound-sync source [outer])]
+      (is (value/contradiction?
+           (subnet/merge-compound-sync target sync net/empty-net))))))

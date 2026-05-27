@@ -1,7 +1,7 @@
 (ns run-tests
   "Run all project test namespaces. Usage:
-  clj -M:test                    ; all suites
-  clj -M:test propagators-network-test  ; one suite"
+  clojure -M:test                         ; all suites (includes test/)
+  clojure -M:test propagators-network-test ; one suite"
   (:require [clojure.test :refer [run-tests]]))
 
 (def all-test-namespaces

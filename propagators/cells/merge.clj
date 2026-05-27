@@ -12,23 +12,25 @@
 (def cell-equal? value/cell-value-equal?)
 
 (defn- run-subnet-effectful
-  "Run subnet and return strongest result."
-  [subnet outer-ids]
+  "Run subnet and return continuation retaining `out-ids` from compound state."
+  [state]
   (let [run-tasks (requiring-resolve 'propagators.core/run-tasks)
+        subnet (state/state-subnet state)
+        out-ids (state/state-out-ids state)
+        outer-ids (vec out-ids)
         updated* (atom #{})
         {:keys [subnet tasks]} (subnet/subnet-effectful-tasks subnet outer-ids updated*)]
-    (strongest/strongest-result (run-tasks tasks subnet) updated*)))
+    (strongest/subnet-continuation (run-tasks tasks subnet) updated* out-ids)))
 
 (defn- compound-subnet-strongest
   "Run internal subnet effectfully; return strongest result."
   [state _network]
-  (run-subnet-effectful (state/state-subnet state)
-                        (vec (state/state-out-ids state))))
+  (run-subnet-effectful state))
 
 (defmulti cell-updated?
   (fn [new old _network]
-    (if (and (strongest/compound-strongest-result? new)
-             (strongest/compound-strongest-result? old))
+    (if (and (strongest/compound-subnet-continuation? new)
+             (strongest/compound-subnet-continuation? old))
       :compound-strongest
       :default)))
 
@@ -38,10 +40,10 @@
 
 (defmethod cell-updated? :compound-strongest
   [new old _network]
-  (let [subnet-n (strongest/strongest-subnet new)
-        subnet-o (strongest/strongest-subnet old)
-        updated*-n (strongest/strongest-updated* new)
-        updated*-o (strongest/strongest-updated* old)
+  (let [subnet-n (strongest/continuation-subnet new)
+        subnet-o (strongest/continuation-subnet old)
+        updated*-n (strongest/continuation-updated* new)
+        updated*-o (strongest/continuation-updated* old)
         ids (set/union @updated*-n @updated*-o)]
     (boolean
      (some (fn [outer-id]
@@ -52,9 +54,10 @@
 
 (defmulti cell-merge
   (fn [_content update _network]
-    (if (update/compound-data? update)
-      :compound-data
-      :default)))
+    (cond
+      (update/compound-sync? update) :compound-sync
+      (update/compound-data? update) :compound-data
+      :else :default)))
 
 (defmethod cell-merge :default
   [content update _network]
@@ -75,6 +78,18 @@
                    (state/empty-compound-subnet)
                    content)]
       (subnet/merge-compound-data state update network))))
+
+(defmethod cell-merge :compound-sync
+  [content update network]
+  (cond
+    (value/contradiction? content) value/contradiction
+    (and (not (value/nothing? content))
+         (not (state/compound-subnet-state? content))) value/contradiction
+    :else
+    (let [state (if (value/nothing? content)
+                  (state/empty-compound-subnet)
+                  content)]
+      (subnet/merge-compound-sync state update network))))
 
 (def generic-merge cell-merge)
 

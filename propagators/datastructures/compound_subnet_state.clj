@@ -1,25 +1,29 @@
 (ns propagators.datastructures.compound_subnet_state
-  "Compound subnet content-state shape and accessors."
+  "Compound subnet content as a network extension map (`:out-ids` slot)."
   (:require [propagators.network :as net]))
 
-(defrecord CompoundSubnetState [subnet out-ids])
+(def ^:private extra-keys [:out-ids :updated*])
 
-(defn compound-state [subnet out-ids]
-  (->CompoundSubnetState subnet out-ids))
+(defn compound-state
+  "Extend `subnet` with tracked outer output ids."
+  [subnet out-ids]
+  (assoc subnet :out-ids out-ids))
 
-(defn state-subnet [state]
-  (:subnet state))
+(defn state-subnet
+  "Network view of compound state (extra slots stripped)."
+  [state]
+  (apply dissoc state extra-keys))
 
-(defn state-out-ids [state]
-  (:out-ids state))
+(defn state-out-ids
+  "Outer ids for dispatch/strongest runs; default `#{}` when absent."
+  [state]
+  (or (:out-ids state) #{}))
 
 (defn compound-subnet-state?
-  "Cell content shape with accumulated outer output ids."
+  "Network-shaped map with compound `:out-ids` slot."
   [x]
-  (and (map? x)
-       (contains? x :subnet)
+  (and (net/network? x)
        (contains? x :out-ids)
-       (net/network? (state-subnet x))
        (set? (state-out-ids x))))
 
 (defn empty-compound-subnet
