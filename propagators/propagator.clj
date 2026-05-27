@@ -4,19 +4,22 @@
             [propagators.cells.value :as value]
             [propagators.graph :as graph]
             [propagators.ids :refer [new-node-id]]
-            [propagators.helpers.tagged :refer [tagged?]]
             [propagators.network :refer [as-net
                                          assoc-net-prop
                                          net-graph
                                          net-with-graph
                                          network-env-lookup]]))
 
-(def prop? (tagged? :prop))
-(defn prop [f] [:prop f])
-(defn prop-f [p] (nth p 1))
+(defrecord Propagator [activate])
+
+(defn prop?
+  [x]
+  (and (map? x) (contains? x :activate) (ifn? (:activate x))))
+
+(defn prop [f] (map->Propagator {:activate f}))
+(defn prop-f [p] (:activate p))
 (def make-propagator prop)
 (defn propagator? [x] (prop? x))
-(def ->Propagator prop)
 
 (defn- wire-propagator-edges [g prop-id inputs outputs]
   (let [ins (set inputs)

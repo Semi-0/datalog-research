@@ -4,13 +4,12 @@
             [propagators.graph :as graph]
             [propagators.core :as core]
             [propagators.propagator :as prop]
-            [propagators.cells.cell :as cell]
+            [propagators.cells.cell :as cell :refer [construct-cell]]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.stdlib :refer [bi-sync-closure]]
-            [propagators.closure :as closure]
-            [propagators.network :refer [construct-cell]]))
+            [propagators.closure :as closure]))
 
 (def ^:dynamic *step* 0)
 (def ^:dynamic *max-steps* 35)

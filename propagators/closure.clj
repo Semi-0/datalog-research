@@ -3,23 +3,33 @@
             [propagators.cells.diff :refer [diff-internal-output-cells]]
             [propagators.cells.value :as value]
             [propagators.network :refer [network-cell-strongest
-                                         inner-ids-in inner-ids-out]]
-            [propagators.helpers.tagged :refer [tagged?]]
-            ))
+                                         inner-ids-in inner-ids-out]]))
 
-(def closure? (tagged? :closure))
-;; [:closure f net] or [:closure f net boundary-cache-map]
-(defn closure [f n] [:closure f n])
-(defn closure-f [c] (nth c 1))
-(defn closure-net [c] (nth c 2))
+(defrecord Closure [f net boundary])
+
+(defn closure?
+  [x]
+  (and (map? x)
+       (contains? x :f)
+       (contains? x :net)))
+
+(defn closure [f n]
+  (->Closure f n nil))
+
+(defn closure-f [c] (:f c))
+(defn closure-net [c] (:net c))
 
 (defn closure-boundary
-  "Optional avatar map on a closure value: {:ins :outs :in-avatars :out-avatars :f}."
+  "Optional avatar map on a closure value."
   [c]
-  (when (< 3 (count c)) (nth c 3)))
+  (:boundary c))
 
-(defn apply-network-closure [[f inner-net] external-network]
-  (f inner-net (vec (inner-ids-in external-network)) (vec (inner-ids-out external-network)) external-network))
+(defn apply-network-closure [closure-value external-network]
+  ((closure-f closure-value)
+   (closure-net closure-value)
+   (vec (inner-ids-in external-network))
+   (vec (inner-ids-out external-network))
+   external-network))
 
 (defn- boundary-nodes [closure-cell-id nodes]
   (vec (remove #(= closure-cell-id %) nodes)))

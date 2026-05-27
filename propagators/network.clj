@@ -1,39 +1,59 @@
 (ns propagators.network
   (:require [propagators.cells.cell :as cell]
-            [propagators.cells.value :as value]
-            [propagators.graph :as graph]
-            [propagators.helpers.tagged :refer [tagged?]]
-            [propagators.ids :refer [new-node-id]]))
+            [propagators.graph :as graph]))
 
-(def net? (tagged? :net))
+(defrecord Net [graph env dict])
+
+(defn net?
+  [x]
+  (and (map? x)
+       (contains? x :graph)
+       (contains? x :env)
+       (contains? x :dict)
+       (map? (:graph x))
+       (map? (:env x))
+       (map? (:dict x))))
+
 (def empty-dict {:avatars-in {} :avatars-out {}})
 (defn net
-  ([graph env] [:net graph env empty-dict])
-  ([graph env dict] [:net graph env dict]))
+  ([graph env] (->Net graph env empty-dict))
+  ([graph env dict]
+   (->Net graph env (if (map? dict) dict empty-dict))))
 (def empty-net (net {} {}))
 (def empty-network empty-net)
 (defn network? [x] (net? x))
 
-(defn net-graph [n] (nth n 1))
-(defn net-env [n] (nth n 2))
-(defn net-dict [n]
-  (if (< (count n) 4)
-    empty-dict
-    (nth n 3)))
+(defn net-graph [n] (:graph n))
+(defn net-env [n] (:env n))
+(defn net-dict [n] (:dict n))
 (defn net-with-graph [n graph] (net graph (net-env n) (net-dict n)))
 (defn net-with-env [n env] (net (net-graph n) env (net-dict n)))
 (defn net-with-dict [n dict] (net (net-graph n) (net-env n) dict))
 
 (defn as-net
-  "Coerce `[:net g e d]`, legacy `[:net g e]`, or `[g e]` to `[:net g e d]`."
+  "Coerce network-shaped input to net record."
   [x]
-  (if (net? x)
-    (let [g (nth x 1)
-          e (nth x 2)
-          d0 (if (< (count x) 4) empty-dict (nth x 3))
+  (cond
+    (net? x)
+    (let [d0 (net-dict x)
+          d (if (and (map? d0) (contains? d0 :avatars-in)) d0 empty-dict)]
+      (net (net-graph x) (net-env x) d))
+
+    (and (map? x) (contains? x :graph) (contains? x :env))
+    (let [d0 (:dict x)
+          d (if (and (map? d0) (contains? d0 :avatars-in)) d0 empty-dict)]
+      (net (:graph x) (:env x) d))
+
+    (and (sequential? x) (<= 2 (count x)))
+    (let [g (first x)
+          e (second x)
+          d0 (nth x 2 nil)
           d (if (and (map? d0) (contains? d0 :avatars-in)) d0 empty-dict)]
       (net g e d))
-    (net (first x) (second x))))
+
+    :else
+    (throw (ex-info "cannot coerce to network"
+                    {:value x :type (type x)}))))
 
 (def empty-env {})
 (defn env? [x] (map? x))
@@ -83,24 +103,6 @@
 
 (def network-lookup-propagator network-env-lookup)
 
-(defn construct-cell
-  ([]
-   (construct-cell (new-node-id)))
-  ([id]
-   (fn [arg]
-     (let [net (as-net arg)
-           n (-> net
-                 (assoc-net-node id (graph/blank-node))
-                 (assoc-net-cell id (cell/cell value/nothing value/nothing)))]
-       [id n])))
-  ([id content strongest]
-   (fn [arg]
-     (let [net (as-net arg)
-           n (-> net
-                 (assoc-net-node id (graph/blank-node))
-                 (assoc-net-cell id (cell/cell content strongest)))]
-       [id n]))))
-
 (defn install-net
   "Run installer `f` (`f` takes a net, returns `[id net']`). Returns the new net."
   [n f]
@@ -109,6 +111,6 @@
 (defn seed-net-cell
   "Install or update cell `id` on `n`. With content/strongest, seeds that cell value."
   ([n id]
-   (install-net n (construct-cell id)))
+   (install-net n (cell/construct-cell id)))
   ([n id content strongest]
-   (install-net n (construct-cell id content strongest))))
+   (install-net n (cell/construct-cell id content strongest))))

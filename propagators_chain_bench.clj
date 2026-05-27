@@ -2,14 +2,14 @@
   "Benchmark compound bi-sync chain propagation.
   Usage: clj -M:propagators-bench [chain-lens...]
   Default chain lengths: 10 100"
-  (:require [propagators.cells.cell :as cell]
+  (:require [propagators.cells.cell :as cell :refer [construct-cell]]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.propagator :refer [compound-propagator]]
             [propagators.core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
-            [propagators.network :as net :refer [construct-cell]]
+            [propagators.network :as net]
             [propagators.stdlib :refer [bi-sync-closure p:id]]))
 
 ;; --- network builders (same wiring as propagators-network-test) ---

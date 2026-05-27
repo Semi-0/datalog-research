@@ -1,11 +1,17 @@
 (ns propagators.cells.snapshot
-  (:require [propagators.graph :refer [get-node node-output-ids]]
-            [propagators.helpers.tagged :refer [tagged?]]))
+  (:require [propagators.graph :refer [get-node node-output-ids]]))
 
-(def snap? (tagged? :snap))
-(defn snap [node-id cell] [:snap node-id cell])
-(defn snap-id [s] (nth s 1))
-(defn snap-cell [s] (nth s 2))
+(defrecord Snapshot [id cell])
+
+(defn snap?
+  [x]
+  (and (map? x) (contains? x :id) (contains? x :cell)))
+
+(defn snap [node-id cell]
+  (->Snapshot node-id cell))
+
+(defn snap-id [s] (:id s))
+(defn snap-cell [s] (:cell s))
 
 (defn cell-snapshot [env]
   (fn [node-id]

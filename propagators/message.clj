@@ -1,7 +1,15 @@
-(ns propagators.message
-  (:require [propagators.helpers.tagged :refer [tagged?]]))
+(ns propagators.message)
 
-(def message? (tagged? :message))
-(defn message [node-id cell-value] [:message node-id cell-value])
-(defn message-id [m] (nth m 1))
-(defn message-value [m] (nth m 2))
+(defrecord Message [id value])
+
+(defn message?
+  [x]
+  (and (map? x)
+       (contains? x :id)
+       (contains? x :value)))
+
+(defn message [node-id cell-value]
+  (->Message node-id cell-value))
+
+(defn message-id [m] (:id m))
+(defn message-value [m] (:value m))

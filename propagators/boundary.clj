@@ -1,5 +1,6 @@
 (ns propagators.boundary
   (:require [propagators.cells.avatar :as avatar]
+            [propagators.cells.cell :as cell]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.core :refer [run-tasks]]
             [propagators.ids :as id]
@@ -17,13 +18,13 @@
 
   Returns `[inner-id net-with-avatar-cell]`."
   ([network outer-id]
-   ((net/construct-cell
+   ((cell/construct-cell
      (id/new-node-id)
      (net/network-cell-strongest network outer-id)
      (net/network-cell-content network outer-id))
     network))
   ([network outer-id inner-id]
-   ((net/construct-cell
+   ((cell/construct-cell
      inner-id
      (net/network-cell-strongest network outer-id)
      (net/network-cell-content network outer-id))
@@ -31,7 +32,7 @@
   ([network key strongest content]
    (avatar/spawn-avatar-cell network key strongest content))
   ([network _outer-id inner-id strongest content]
-   ((net/construct-cell inner-id content strongest) network)))
+   ((cell/construct-cell inner-id content strongest) network)))
 
 (defn create-and-register-avatar-link
   "Intention-focused helper:

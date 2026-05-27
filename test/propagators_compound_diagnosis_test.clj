@@ -2,14 +2,14 @@
   "Proof tests for compound inner scheduling (avatar boundaries).
   Run: clj -M:test propagators-compound-diagnosis-test"
   (:require [clojure.test :refer [deftest is testing]]
-            [propagators.cells.cell :as cell]
+            [propagators.cells.cell :as cell :refer [construct-cell]]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.closure :as closure]
             [propagators.propagator :refer [compound-propagator]]
             [propagators.core :as core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
-            [propagators.network :as net :refer [construct-cell]]
+            [propagators.network :as net]
             [propagators.stdlib :refer [bi-sync-closure]]))
 
 (defn- boundary-nodes [closure-cell-id nodes]

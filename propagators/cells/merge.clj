@@ -54,7 +54,7 @@
 
 (defmethod strongest-value :cell
   [c _network]
-  (nth c 2))
+  (cell/cell-strongest c))
 
 (defmethod strongest-value :content
   [x _network]

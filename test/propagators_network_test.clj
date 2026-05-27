@@ -1,6 +1,6 @@
 (ns propagators-network-test
   (:require [clojure.test :refer [deftest is testing]]
-            [propagators.cells.cell :as cell]
+            [propagators.cells.cell :as cell :refer [construct-cell]]
             [propagators.cells.diff :as diff]
             [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.graph :as graph :refer [node-input-ids node-output-ids]]
@@ -10,7 +10,7 @@
             [propagators.core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
-            [propagators.network :as net :refer [construct-cell]]
+            [propagators.network :as net]
             [propagators.stdlib :refer [bi-sync-closure p:id]]))
 
 ;; --- harness ---

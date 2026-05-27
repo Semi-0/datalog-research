@@ -9,6 +9,7 @@
     propagators-network-test
     propagators-compound-data-test
     propagators-linked-list-access-test
+    propagators-structural-records-test
     leapfrog-pure-test
     differential-leapfrog-test
     differential-dataflow-frontier-test

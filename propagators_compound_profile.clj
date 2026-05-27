@@ -3,7 +3,7 @@
   Usage:
     clj -M:propagators-profile [chain-len]           ; isolated compound-activate phases
     clj -M:propagators-profile propagate [chain-len] ; real middle-inject cost breakdown"
-  (:require [propagators.cells.cell :as cell]
+  (:require [propagators.cells.cell :as cell :refer [construct-cell]]
             [propagators.cells.diff :refer [diff-internal-output-cells]]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.cells.merge :as merge]
@@ -15,7 +15,7 @@
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.message :as m :refer [message-value]]
-            [propagators.network :as net :refer [construct-cell]]
+            [propagators.network :as net]
             [propagators.propagator :as prop]
             [propagators.stdlib :refer [bi-sync-closure p:id]]))
 

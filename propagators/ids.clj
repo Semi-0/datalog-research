@@ -1,25 +1,30 @@
 (ns propagators.ids
   "Sortable, decentralized node ids (RFC-9562 UUID v7)."
-  (:require [clj-uuid :as uuid]
-            [propagators.helpers.tagged :refer [tagged?]]))
+  (:require [clj-uuid :as uuid]))
 
-(def node-id? (tagged? :node-id))
+(defrecord NodeId [uuid])
+
+(defn node-id?
+  [x]
+  (and (map? x)
+       (contains? x :uuid)
+       (instance? java.util.UUID (:uuid x))))
 
 (defn unwrap-node-id
-  "UUID from `[:node-id uuid]`."
+  "UUID from node id value."
   [id]
   (when (node-id? id)
-    (nth id 1)))
+    (:uuid id)))
 
 (defn new-node-id
-  "New time-ordered node-id token `[:node-id <uuid-v7>]`. Uses `v7nc` (fast); use `new-node-id-secure` if ids must be unguessable."
+  "New time-ordered node id."
   []
-  [:node-id (uuid/v7nc)])
+  (->NodeId (uuid/v7nc)))
 
 (defn new-node-id-secure
-  "Cryptographically random node-id token (slower than `new-node-id`)."
+  "Cryptographically random node id."
   []
-  [:node-id (uuid/v7)])
+  (->NodeId (uuid/v7)))
 
 (defn node-instant
   [id]

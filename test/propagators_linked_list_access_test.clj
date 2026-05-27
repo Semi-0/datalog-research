@@ -2,7 +2,7 @@
   "Verify whether (car (cdr (cdr collection))) is reachable using only p:car / p:cdr.
   Run: clj -M:test propagators-linked-list-access-test"
   (:require [clojure.test :refer [deftest is testing]]
-            [propagators.cells.cell :as cell]
+            [propagators.cells.cell :as cell :refer [construct-cell]]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.cells.value :as value]
             [propagators.core :refer [run-tasks]]
@@ -10,7 +10,7 @@
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
-            [propagators.network :as net :refer [construct-cell]]))
+            [propagators.network :as net]))
 
 (defn- install-cell [n id content strongest]
   (second ((construct-cell id content strongest) n)))

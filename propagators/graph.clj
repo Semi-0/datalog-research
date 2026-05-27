@@ -1,23 +1,32 @@
 (ns propagators.graph
-  "Immutable directed graph: `[:node-id …] → [:node inputs outputs]`."
-  (:require [propagators.helpers.tagged :refer [tagged?]]
-            [propagators.ids :as ids]))
+  "Immutable directed graph: node-id -> node."
+  (:require [propagators.ids :as ids]))
 
-(def node? (tagged? :node))
-(defn node [inputs outputs] [:node (set inputs) (set outputs)])
+(defrecord Node [inputs outputs])
+
+(defn node?
+  [x]
+  (and (map? x)
+       (contains? x :inputs)
+       (contains? x :outputs)
+       (set? (:inputs x))
+       (set? (:outputs x))))
+
+(defn node [inputs outputs]
+  (->Node (set inputs) (set outputs)))
 (defn blank-node [] (node #{} #{}))
 (def empty-graph {})
 (defn graph? [x] (map? x))
 
 (defn node-id
-  "Node-id token `[:node-id …]` (env/graph key)."
+  "Node id token used as env/graph key."
   [x]
   (if (ids/node-id? x)
     x
     (throw (ex-info "expected node-id token" {:x x}))))
 
-(defn node-input-ids [n] (nth n 1))
-(defn node-output-ids [n] (nth n 2))
+(defn node-input-ids [n] (:inputs n))
+(defn node-output-ids [n] (:outputs n))
 
 (defn get-node [graph id]
   (or (get graph id)
