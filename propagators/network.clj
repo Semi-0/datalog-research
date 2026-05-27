@@ -14,7 +14,7 @@
        (map? (:env x))
        (map? (:dict x))))
 
-(def empty-dict {:avatars-in {} :avatars-out {}})
+(def empty-dict {})
 (defn net
   ([graph env] (->Net graph env empty-dict))
   ([graph env dict]
@@ -36,19 +36,19 @@
   (cond
     (net? x)
     (let [d0 (net-dict x)
-          d (if (and (map? d0) (contains? d0 :avatars-in)) d0 empty-dict)]
+          d (if (map? d0) d0 empty-dict)]
       (net (net-graph x) (net-env x) d))
 
     (and (map? x) (contains? x :graph) (contains? x :env))
     (let [d0 (:dict x)
-          d (if (and (map? d0) (contains? d0 :avatars-in)) d0 empty-dict)]
+          d (if (map? d0) d0 empty-dict)]
       (net (:graph x) (:env x) d))
 
     (and (sequential? x) (<= 2 (count x)))
     (let [g (first x)
           e (second x)
           d0 (nth x 2 nil)
-          d (if (and (map? d0) (contains? d0 :avatars-in)) d0 empty-dict)]
+          d (if (map? d0) d0 empty-dict)]
       (net g e d))
 
     :else
@@ -72,21 +72,21 @@
 (defn dict? [x] (map? x))
 (defn net-dict-or-empty [n]
   (let [d (net-dict n)]
-    (if (and (map? d) (contains? d :avatars-in))
+    (if (map? d)
       d
       empty-dict)))
 
 (defn clear-dict [n] (net-with-dict n empty-dict))
 (defn assoc-avatar-in [n outer inner]
   (net-with-dict n
-    (update (net-dict-or-empty n) :avatars-in assoc outer inner)))
+    (update (net-dict-or-empty n) :avatars-in (fnil assoc {}) outer inner)))
 (defn assoc-avatar-out [n outer inner]
   (net-with-dict n
-    (update (net-dict-or-empty n) :avatars-out assoc outer inner)))
+    (update (net-dict-or-empty n) :avatars-out (fnil assoc {}) outer inner)))
 (defn lookup-inner-in [n outer] (get-in (net-dict-or-empty n) [:avatars-in outer]))
 (defn lookup-inner-out [n outer] (get-in (net-dict-or-empty n) [:avatars-out outer]))
-(defn inner-ids-in [n] (vals (:avatars-in (net-dict-or-empty n))))
-(defn inner-ids-out [n] (vals (:avatars-out (net-dict-or-empty n))))
+(defn inner-ids-in [n] (vals (get (net-dict-or-empty n) :avatars-in {})))
+(defn inner-ids-out [n] (vals (get (net-dict-or-empty n) :avatars-out {})))
 
 (defn network-env-lookup
   "Env entry for cell or propagator at `node-id` token `[:node-id …]`."

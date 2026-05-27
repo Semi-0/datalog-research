@@ -6,18 +6,15 @@
 
 (def cell-equal? value/cell-value-equal?)
 
-(defonce ^:private compound-merge-loaded*
-  (delay (require 'propagators.cells.compound-merge)))
-
-(defn- ensure-compound-merge-loaded!
+(defn- require-compound-merge!
   []
-  (force compound-merge-loaded*))
+  (require 'propagators.cells.compound-merge))
 
 (defmulti cell-updated?
   (fn [new old _network]
     (if (and (subnet/compound-strongest-result? new)
              (subnet/compound-strongest-result? old))
-      (do (ensure-compound-merge-loaded!)
+      (do (require-compound-merge!)
           :compound-strongest)
       :default)))
 
@@ -28,7 +25,7 @@
 (defmulti cell-merge
   (fn [_content update _network]
     (if (subnet/compound-data? update)
-      (do (ensure-compound-merge-loaded!)
+      (do (require-compound-merge!)
           :compound-data)
       :default)))
 
@@ -48,7 +45,7 @@
   (fn [x _network]
     (cond
       (cell/cell? x) :cell
-      (subnet/compound-subnet-state? x) (do (ensure-compound-merge-loaded!)
+      (subnet/compound-subnet-state? x) (do (require-compound-merge!)
                                             :compound-subnet)
       :else :content)))
 

@@ -68,7 +68,7 @@
           n' (run-from n [head])
           content (cell/cell-content (net/network-env-lookup n' coll))]
       (is (cd/compound-subnet-state? content))
-      (is (contains? (second content) head)))))
+      (is (contains? (cd/state-out-ids content) head)))))
 
 (deftest cdr-writes-tail-update-to-collection
   (testing "p:cdr merges tail id into collection content"
@@ -77,7 +77,7 @@
           n' (run-from n [tail])
           content (cell/cell-content (net/network-env-lookup n' coll))]
       (is (cd/compound-subnet-state? content))
-      (is (contains? (second content) tail)))))
+      (is (contains? (cd/state-out-ids content) tail)))))
 
 (deftest car-does-not-read-collection
   (testing "collection stays nothing until p:car fires"
@@ -85,13 +85,13 @@
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup net coll)))))))
 
 (deftest car-emits-when-element-nothing
-  (testing "p:car still writes [[:head id]] when element is nothing"
+  (testing "p:car still writes {:head id} when element is nothing"
     (let [{:keys [net head coll]} (build-flat-linked-list)
           n' (run-from net [head])
           content (cell/cell-content (net/network-env-lookup n' coll))]
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup net head))))
       (is (cd/compound-subnet-state? content))
-      (is (contains? (second content) head)))))
+      (is (contains? (cd/state-out-ids content) head)))))
 
 (deftest linked-list-dispatches-to-updated-outer-ids
   (testing "flat list: head and tail wired; propagation updates element strongests"
@@ -111,10 +111,10 @@
           n (-> net (net/assoc-net-cell head (cell/cell 10 10)))
           n' (run-from n [head])
           content (cell/cell-content (net/network-env-lookup n' coll))
-          [subnet _] content
           n2 (-> n' (net/assoc-net-cell head (cell/cell 99 99)))
-          update [[:head head]]
-          [subnet' _] (cd/merge-compound-data content update n2)
+          update (cd/compound-update {:head head})
+          state' (cd/merge-compound-data content update n2)
+          subnet' (cd/state-subnet state')
           avatar-strongest (cd/avatar-strongest subnet' head)]
       (is (= 99 avatar-strongest)))))
 
@@ -167,8 +167,12 @@
             (str "head " h " keeps value " v)))
       (let [coll0 (coll-ids 0)
             coll2 (coll-ids 2)
-            [subnet0 out0] (cell/cell-content (net/network-env-lookup n' coll0))
-            [subnet2 out2] (cell/cell-content (net/network-env-lookup n' coll2))]
+            state0 (cell/cell-content (net/network-env-lookup n' coll0))
+            state2 (cell/cell-content (net/network-env-lookup n' coll2))
+            _subnet0 (cd/state-subnet state0)
+            out0 (cd/state-out-ids state0)
+            _subnet2 (cd/state-subnet state2)
+            out2 (cd/state-out-ids state2)]
         (is (contains? out0 (head-ids 0)))
         (is (contains? out0 (coll-ids 1)) "coll0 tail link in out-ids")
         (is (contains? out2 (head-ids 2)))

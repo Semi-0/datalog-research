@@ -7,21 +7,24 @@
             [propagators.datastructures.compound_subnet :as subnet]))
 
 (defn run-subnet-effectful
-  "Run subnet and return `[subnet updated-cells-atom]`."
+  "Run subnet and return strongest result."
   [subnet outer-ids]
   (let [updated* (atom #{})
         {:keys [subnet tasks]} (subnet/subnet-effectful-tasks subnet outer-ids updated*)]
-    [(run-tasks tasks subnet) updated*]))
+    (subnet/strongest-result (run-tasks tasks subnet) updated*)))
 
 (defn compound-subnet-strongest
-  "Run internal subnet effectfully; return `[subnet updated-cells-atom]`."
-  [[subnet out-ids] _network]
-  (run-subnet-effectful subnet (vec out-ids)))
+  "Run internal subnet effectfully; return strongest result."
+  [state _network]
+  (run-subnet-effectful (subnet/state-subnet state)
+                        (vec (subnet/state-out-ids state))))
 
 (defmethod merge/cell-updated? :compound-strongest
   [new old _network]
-  (let [[subnet-n updated*-n] new
-        [subnet-o updated*-o] old
+  (let [subnet-n (subnet/strongest-subnet new)
+        subnet-o (subnet/strongest-subnet old)
+        updated*-n (subnet/strongest-updated* new)
+        updated*-o (subnet/strongest-updated* old)
         ids (set/union @updated*-n @updated*-o)]
     (boolean
      (some (fn [outer-id]

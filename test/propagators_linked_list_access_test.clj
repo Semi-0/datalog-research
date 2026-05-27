@@ -23,8 +23,9 @@
         tasks (pop-inputs seed-ids g)]
     (run-tasks tasks n)))
 
-(defn- build-nested-with-cons [layers]
+(defn- build-nested-with-cons
   "Each layer: (p:cons head_i tail_i coll_i); last tail is a sentinel nothing cell."
+  [layers]
   (let [sentinel (new-node-id)
         ids (vec (repeatedly (+ (* 2 layers) 1) new-node-id))
         coll-ids (mapv #(nth ids (+ (* 2 %) 1)) (range layers))
@@ -73,7 +74,7 @@
   (nth head-ids n))
 
 ;; Lisp: (car (cdr (cdr coll0))) => element at index 2 for a 5-cell list.
-(defn- lisp-car-cdr-cdr [head-ids coll-ids]
+(defn- lisp-car-cdr-cdr [head-ids]
   (lisp-nth-head head-ids 2))
 
 (deftest dispatch-without-filter-still-does-not-walk-to-inner-heads
@@ -142,19 +143,19 @@
   (testing "5-element nested encoding: (car (cdr (cdr coll0))) is head2"
     (let [{:keys [coll-ids head-ids]} (build-nested-linked-list 5)
           coll2 (lisp-nth-coll coll-ids 2)
-          expected-head (lisp-car-cdr-cdr head-ids coll-ids)]
+          expected-head (lisp-car-cdr-cdr head-ids)]
       (is (= coll2 (lisp-nth-coll coll-ids 2)))
       (is (= expected-head (lisp-nth-head head-ids 2))))))
 
 (deftest five-element-list-propagation-reaches-index-two
   (testing "values on head cells are reachable; index 2 gets 30"
-    (let [{:keys [net head-ids coll-ids]} (build-nested-linked-list 5)
+    (let [{:keys [net head-ids]} (build-nested-linked-list 5)
           values [10 20 30 40 50]
           n (reduce (fn [n [h v]] (net/assoc-net-cell n h (cell/cell v v)))
                     net
                     (map vector head-ids values))
           n' (run-tasks (tq/into-queue (pop-inputs head-ids (net/net-graph n))) n)
-          target (lisp-car-cdr-cdr head-ids coll-ids)]
+          target (lisp-car-cdr-cdr head-ids)]
       (is (= 30 (cell/cell-strongest (net/network-env-lookup n' target))))
       (is (= 10 (cell/cell-strongest (net/network-env-lookup n' (head-ids 0)))))
       (is (= 50 (cell/cell-strongest (net/network-env-lookup n' (head-ids 4))))))))
@@ -184,7 +185,7 @@
                     net
                     (map vector head-ids values))
           n' (run-tasks (tq/into-queue (pop-inputs head-ids (net/net-graph n))) n)
-          target (lisp-car-cdr-cdr head-ids coll-ids)]
+          target (lisp-car-cdr-cdr head-ids)]
       (is (cd/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' (coll-ids 0)))))
       (is (= 30 (cell/cell-strongest (net/network-env-lookup n' target)))))))
 
@@ -205,7 +206,6 @@
 (deftest car-cdr-cdr-dispatch-via-coll2-not-coll0
   (testing "(car (cdr (cdr coll0))) = head2: dispatch runs on coll2's c:linked-list, not coll0's"
     (let [{:keys [net head-ids coll-ids]} (build-nested-with-cons 5)
-          coll0 (coll-ids 0)
           head0 (head-ids 0)
           head2 (head-ids 2)
           n' (-> net
@@ -225,7 +225,7 @@
           n (-> net (net/assoc-net-cell (head-ids 2) (cell/cell 77 77)))
           n' (run-from n [(head-ids 2)])
           content (cell/cell-content (net/network-env-lookup n' coll2))
-          [subnet _] content]
-      (is (contains? (second content) (head-ids 2)))
-      (is (not (contains? (second content) (nth coll-ids 3)))
+          _subnet (cd/state-subnet content)]
+      (is (contains? (cd/state-out-ids content) (head-ids 2)))
+      (is (not (contains? (cd/state-out-ids content) (nth coll-ids 3)))
           "tail collection id is not in out-ids dispatch set for element updates"))))

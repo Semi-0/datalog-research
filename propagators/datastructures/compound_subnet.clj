@@ -1,10 +1,9 @@
 (ns propagators.datastructures.compound_subnet
   "Compound linked-list subnet state and merge (no propagators, no scheduler)."
-  (:require [clojure.core.match :refer [match]]
+  (:require [meander.epsilon :as m]
             [propagators.cells.avatar :as avatar]
             [propagators.cells.cell :as cell]
             [propagators.cells.snapshot :refer [pop-inputs]]
-            [propagators.cells.value :as value]
             [propagators.ids :as id]
             [propagators.network :as net]
             [propagators.stdlib :refer [p:id p:tap bi-sync]]))
@@ -12,21 +11,56 @@
 (declare complete-compound-data?)
 (declare compound-data-head? compound-data-tail?)
 
+(defrecord CompoundUpdate [head tail])
+(defrecord CompoundSubnetState [subnet out-ids])
+(defrecord CompoundStrongestResult [subnet updated*])
+
+(defn compound-update
+  [{:keys [head tail]}]
+  (->CompoundUpdate head tail))
+
+(defn update-head [update]
+  (:head update))
+
+(defn update-tail [update]
+  (:tail update))
+
+(defn compound-state [subnet out-ids]
+  (->CompoundSubnetState subnet out-ids))
+
+(defn state-subnet [state]
+  (:subnet state))
+
+(defn state-out-ids [state]
+  (:out-ids state))
+
+(defn strongest-result [subnet updated*]
+  (->CompoundStrongestResult subnet updated*))
+
+(defn strongest-subnet [result]
+  (:subnet result))
+
+(defn strongest-updated* [result]
+  (:updated* result))
+
 (defn take-head [update]
-  (filterv (fn [[tag _]] (= tag :head)) update))
+  (when-let [h (update-head update)]
+    (compound-update {:head h})))
 
 (defn take-tail [update]
-  (filterv (fn [[tag _]] (= tag :tail)) update))
+  (when-let [t (update-tail update)]
+    (compound-update {:tail t})))
 
 (defn compound-id
-  "Extract the single node-id referenced by a head-only or tail-only update."
+  "Extract the single node-id referenced by a head-only or tail-only update map."
   [update]
-  (second (first update)))
+  (or (update-head update)
+      (update-tail update)))
 
 (defn compound-data-ids
   "All node-ids referenced by a compound-data update."
   [update]
-  (mapv second update))
+  (vec (keep identity [(update-head update) (update-tail update)])))
 
 (defn link-avatars
   "Wire the avatar cells referenced by `id-key` and `name-key` in the subnet dict."
@@ -80,25 +114,27 @@
      :tasks (pop-inputs avatar-ids (net/net-graph subnet'))}))
 
 (defn compound-subnet-state?
-  "Cell content shape: `[subnet out-ids]` with accumulated outer output ids."
+  "Cell content shape with accumulated outer output ids."
   [x]
-  (and (vector? x)
-       (= 2 (count x))
-       (net/network? (nth x 0))
-       (set? (nth x 1))))
+  (and (map? x)
+       (contains? x :subnet)
+       (contains? x :out-ids)
+       (net/network? (state-subnet x))
+       (set? (state-out-ids x))))
 
 (defn empty-compound-subnet
   "Initial compound cell content before any merge."
   []
-  [net/empty-net #{}])
+  (compound-state net/empty-net #{}))
 
 (defn compound-strongest-result?
-  "Strongest slot shape after effectful run: `[subnet updated-cells-atom]`."
+  "Strongest slot shape after effectful run."
   [x]
-  (and (vector? x)
-       (= 2 (count x))
-       (net/network? (nth x 0))
-       (instance? clojure.lang.Atom (nth x 1))))
+  (and (map? x)
+       (contains? x :subnet)
+       (contains? x :updated*)
+       (net/network? (strongest-subnet x))
+       (instance? clojure.lang.Atom (strongest-updated* x))))
 
 (defn avatar-strongest
   "Strongest value of the avatar registered under `outer-id` in `subnet`."
@@ -133,38 +169,52 @@
           (link-avatars id name bi-sync)))))
 
 (defn merge-compound-data
-  "Merge compound update into `[subnet out-ids]`; extend avatars and accumulate output ids.
+  "Merge compound update into state; extend avatars and accumulate output ids.
   Does not run the internal network."
-  [[subnet out-ids] update network]
-  (let [subnet' (cond (complete-compound-data? update) (-> subnet
-                                                           (update-internal-network network :tail (take-tail update))
-                                                           (update-internal-network network :head (take-head update)))
-                      (compound-data-tail? update) (update-internal-network subnet network :tail update)
-                      (compound-data-head? update) (update-internal-network subnet network :head update)
-                      :else subnet)
+  [state update network]
+  (let [subnet (state-subnet state)
+        out-ids (state-out-ids state)
+        subnet' (cond
+                  (complete-compound-data? update) (-> subnet
+                                                       (update-internal-network network :tail (take-tail update))
+                                                       (update-internal-network network :head (take-head update)))
+                  (compound-data-tail? update) (update-internal-network subnet network :tail update)
+                  (compound-data-head? update) (update-internal-network subnet network :head update)
+                  :else subnet)
         out-ids' (into (or out-ids #{}) (compound-data-ids update))]
-    [subnet' out-ids']))
+    (compound-state subnet' out-ids')))
 
 (defn complete-compound-data?
-  "Both `[:head node-id]` and `[:tail node-id]` pairs."
+  "Both head and tail node ids are present."
   [x]
-  (match [x]
-    [([[:head (h :guard id/node-id?)] [:tail (t :guard id/node-id?)]] :seq)] true
-    :else false))
+  (boolean
+   (m/match x
+     {:head (m/pred id/node-id?) :tail (m/pred id/node-id?)}
+     true
+     :else
+     false)))
 
 (defn compound-data-head?
-  "Singleton seq with only `[:head node-id]`."
+  "Head-only compound update."
   [x]
-  (match [x]
-    [([[:head (h :guard id/node-id?)]] :seq)] true
-    :else false))
+  (and (not (contains? x :tail))
+       (boolean
+        (m/match x
+          {:head (m/pred id/node-id?)}
+          true
+          :else
+          false))))
 
 (defn compound-data-tail?
-  "Singleton seq with only `[:tail node-id]`."
+  "Tail-only compound update."
   [x]
-  (match [x]
-    [([[:tail (t :guard id/node-id?)]] :seq)] true
-    :else false))
+  (and (not (contains? x :head))
+       (boolean
+        (m/match x
+          {:tail (m/pred id/node-id?)}
+          true
+          :else
+          false))))
 
 (defn partial-compound-data?
   "Head-only or tail-only compound slot (not complete)."

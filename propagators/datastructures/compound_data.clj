@@ -1,7 +1,6 @@
 (ns propagators.datastructures.compound_data
   "Linked-list propagators over compound subnet cells."
-  (:require [propagators.cells.cell :as cell]
-            [propagators.cells.compound-merge :as cm]
+  (:require [propagators.cells.compound-merge :as cm]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.message :refer [message]]
@@ -16,6 +15,11 @@
 (def merge-compound-data subnet/merge-compound-data)
 (def avatar-strongest subnet/avatar-strongest)
 (def compound-subnet-strongest cm/compound-subnet-strongest)
+(def compound-update subnet/compound-update)
+(def state-subnet subnet/state-subnet)
+(def state-out-ids subnet/state-out-ids)
+(def strongest-subnet subnet/strongest-subnet)
+(def strongest-updated* subnet/strongest-updated*)
 
 (defn- avatar-strongest-message [subnet network outer-id]
   (when (and (subnet/dispatch-target? network outer-id)
@@ -24,34 +28,36 @@
       (message outer-id (net/network-cell-strongest subnet avatar-id)))))
 
 (defn p:car
-  "Write `[:head elem-id]` compound-data update to collection (always, even if elem is nothing)."
+  "Write `{:head elem-id}` compound-data update to collection."
   [elem-id collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs _network]
-     [(message collection-id [[:head elem-id]])])
+     [(message collection-id (subnet/compound-update {:head elem-id}))])
    [elem-id]
    [collection-id]))
 
 (defn p:cdr
-  "Write `[:tail elem-id]` compound-data update to collection."
+  "Write `{:tail elem-id}` compound-data update to collection."
   [elem-id collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs _network]
-     [(message collection-id [[:tail elem-id]])])
+     [(message collection-id (subnet/compound-update {:tail elem-id}))])
    [elem-id]
    [collection-id]))
 
 (defn c:linked-list
-  "Constraint: read collection strongest `[subnet updated*]`; dispatch to @updated* outer ids."
+  "Constraint: read collection strongest result; dispatch to updated outer ids."
   [collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs network]
      (let [cv (net/network-cell-strongest network collection-id)
-           [subnet updated*] (when (subnet/compound-strongest-result? cv) cv)]
+           strongest (when (subnet/compound-strongest-result? cv) cv)
+           sub (when strongest (subnet/strongest-subnet strongest))
+           updated* (when strongest (subnet/strongest-updated* strongest))]
        (if (or (value/unusable? cv) (nil? updated*))
          []
          (reduce (fn [msgs outer-id]
-                   (if-let [m (avatar-strongest-message subnet network outer-id)]
+                   (if-let [m (avatar-strongest-message sub network outer-id)]
                      (conj msgs m)
                      msgs))
                  []
