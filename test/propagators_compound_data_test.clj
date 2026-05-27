@@ -8,7 +8,6 @@
             [propagators.cells.value :as value]
             [propagators.core :refer [run-tasks]]
             [propagators.datastructures.compound_data :as cd]
-            [propagators.datastructures.compound_strongest_result :as strongest]
             [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.datastructures.compound_update :as update]
@@ -108,7 +107,7 @@
                 (net/assoc-net-cell tail (cell/cell 20 20)))
           n' (run-tasks (tq/into-queue (pop-inputs [head tail] (net/net-graph n))) n)
           strongest (cell/cell-strongest (net/network-env-lookup n' coll))]
-      (is (strongest/compound-subnet-continuation? strongest))
+      (is (state/compound-subnet-state? strongest))
       (is (= 10 (cell/cell-strongest (net/network-env-lookup n' head))))
       (is (= 20 (cell/cell-strongest (net/network-env-lookup n' tail)))))))
 
@@ -186,9 +185,9 @@
         (is (contains? out2 (coll-ids 3))
             "cdr link records tail collection in out-ids")
         (is (= 30 (cell/cell-strongest (net/network-env-lookup n' (head-ids 2)))))
-        (is (strongest/compound-subnet-continuation?
+        (is (state/compound-subnet-state?
              (cell/cell-strongest (net/network-env-lookup n' coll2)))
-            "coll2 ran effectful strongest for index-2 dispatch")))))
+            "coll2 strongest is structural state; run happens in c:linked-list")))))
 
 (deftest nested-linked-list-five-layers-single-head-dispatch
   (testing "index-2 dispatch is local: seed only head2, head0 unchanged"
@@ -201,7 +200,7 @@
                  (run-from [head2]))]
       (is (= 42 (cell/cell-strongest (net/network-env-lookup n' head2))))
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup n' head0))))
-      (is (strongest/compound-subnet-continuation?
+      (is (state/compound-subnet-state?
            (cell/cell-strongest (net/network-env-lookup n' coll2)))))))
 
 (deftest compound-sync-installs-missing-slot

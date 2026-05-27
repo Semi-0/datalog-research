@@ -3,6 +3,7 @@
   (:require [propagators.cells.avatar :as avatar]
             [propagators.cells.cell :as cell]
             [propagators.cells.snapshot :refer [pop-inputs]]
+            [propagators.datastructures.compound_strongest_result :as strongest]
             [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_update :as update]
             [propagators.cells.value :as value]
@@ -26,6 +27,18 @@
         avatar-ids (mapv #(get dict %) (vec outer-ids))]
     {:subnet subnet'
      :tasks (pop-inputs avatar-ids (net/net-graph subnet'))}))
+
+(defn run-subnet-effectful
+  "Run internal subnet for compound state; return continuation with `:updated*` frontier.
+  Called only from `c:linked-list`, not from `strongest-value`."
+  [state]
+  (let [run-tasks (requiring-resolve 'propagators.core/run-tasks)
+        subnet (state/state-subnet state)
+        out-ids (state/state-out-ids state)
+        outer-ids (vec out-ids)
+        updated* (atom #{})
+        {:keys [subnet tasks]} (subnet-effectful-tasks subnet outer-ids updated*)]
+    (strongest/subnet-continuation (run-tasks tasks subnet) updated* out-ids)))
 
 (defn update-internal-network [subnet outer-net name update]
   (let [dict (net/net-dict-or-empty subnet)

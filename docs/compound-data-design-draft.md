@@ -1,90 +1,93 @@
 # Compound Data Design Draft
 
-This document describes the current `compound_data` design and the implemented compound-to-compound merge path for nested `cdr` behavior.
+This document describes the `compound_data` design: extension-map compound state, compound-to-compound sync merge, and **linked-list-only** effectful execution.
 
 ## Goal
 
 Represent linked lists as propagator constraints where:
 
-- collection cells hold compound network state
-- `p:car` / `p:cdr` are structural writers
-- `c:linked-list` dispatches updates outward
-- nested `cdr` (tail is another collection cell) is reconciled via `cell-merge`
+- collection cells hold compound network state (structure only in content/strongest)
+- `p:car` / `p:cdr` are structural writers (no read accessors)
+- `c:linked-list` is the **only** place that runs the internal subnet and dispatches outward
+- nested depth is **multi-hop dispatch** (`coll0` → `coll1` → …), not Lisp-style read propagators
 
 ## Data model
 
-Compound values are network extension maps (top-level `:graph`, `:env`, `:dict`) with extra slots:
+Compound **content** and **strongest** are the same shape: network extension maps (`:graph`, `:env`, `:dict`) plus:
 
-- state/content: `:out-ids` (default `#{}`)
-- continuation/strongest: `:updated*` (default `(atom #{})`)
+- `:out-ids` — outer slot ids tracked for dispatch (default `#{}`)
+
+Effectful runs produce a transient **continuation** (only inside `c:linked-list`, not stored on the cell):
+
+- `:updated*` — atom of outer ids changed in that run
 
 ```clojure
 (defn state-subnet [state]
-  (apply dissoc state [:out-ids :updated*]))
+  (dissoc state :out-ids :updated*))
 
 (defn continuation-subnet [continuation]
-  (apply dissoc continuation [:out-ids :updated*]))
+  (dissoc continuation :out-ids :updated*)
 ```
 
-## Runtime flow
+## Runtime flow (execution boundary)
+
+```mermaid
+flowchart TD
+  evalCell["eval-cell on coll"] --> mergeContent["cell-merge content"]
+  mergeContent --> strongestVal["strongest-value = structural state only"]
+  strongestVal --> cellUpdated["cell-updated? compares non-executed state"]
+  cellUpdated --> enqueue["enqueue coll outputs incl. c:linked-list"]
+  enqueue --> linkedList["c:linked-list"]
+  linkedList --> runSubnet["run-subnet-effectful"]
+  runSubnet --> dispatch["dispatch scalar / compound-sync"]
+  dispatch --> childColl["eval on child collection cells"]
+  childColl --> linkedList
+```
 
 1. `p:car` / `p:cdr` emit `compound-update` (`{:head id}` / `{:tail id}`).
-2. `cell-merge :compound-data` updates compound state (`merge-compound-data`).
-3. `strongest-value :compound-subnet` runs internal subnet and returns continuation (`:updated*` + `:out-ids`).
-4. `c:linked-list` dispatches each updated slot:
-   - element target -> scalar strongest message
-   - compound target -> `compound-sync` payload
+2. `cell-merge :compound-data` updates compound state (`merge-compound-data`) — **no run**.
+3. `strongest-value :compound-subnet` returns content unchanged (structural state).
+4. `cell-updated? :compound-subnet-state` compares old/new structural state (subnet + `out-ids`), not post-run avatar values.
+5. `c:linked-list` reads **content**, calls `run-subnet-effectful`, dispatches each id in `@updated*`:
+   - element target → scalar strongest message
+   - compound target → `compound-sync` payload
+
+### Why early run in `strongest-value` broke nesting
+
+Previously `eval-cell` ran the internal subnet in `strongest-value` and stored a `SubnetContinuation` on the cell; `c:linked-list` only read that pre-baked result. Execution happened before the constraint boundary, so deep layers did not reliably follow merge → run → dispatch → child merge → child run.
+
+Moving execution into `c:linked-list` restores hop-by-hop export from internal to external network.
 
 ## Compound-to-compound merge contract
 
-`compound-sync` carries:
+`compound-sync` carries source subnet and slot frontier. `cell-merge :compound-sync` → `merge-compound-sync`:
 
-- source subnet extension map
-- slot frontier (vector of outer node ids)
+- walk mergeable slots
+- install missing graph/env/dict entries
+- merge cell content via `cell-merge`
+- propagator mismatch at same slot → contradiction
 
-```clojure
-(defrecord CompoundSync [subnet slots])
-```
+`dispatch-target?` does not filter compound cells; routing is by payload type.
 
-`cell-merge :compound-sync` calls `merge-compound-sync` and applies this policy:
+## Nested dispatch (no read accessors)
 
-- walk mergeable slots (sync slots, else source boundary slots)
-- for each slot:
-  - install missing entry (graph/env/dict) when absent in target
-  - merge cell entries via `cell-merge` on cell content
-  - merge graph nodes by unioning inputs/outputs
-  - propagator mismatch at same slot => contradiction
-- any slot contradiction => whole compound contradiction
+Intentional model:
 
-This keeps the code concise by reusing one slot-merge path and existing merge semantics.
+- No `p:read-car` / `p:read-cdr`; navigation is dispatch-only.
+- `(car (cdr (cdr coll0)))` means chained `c:linked-list` on nested collections, not one-shot projection from `coll0`.
 
-## Nested `cdr` behavior
+### Verification (linked-list-only spike)
 
-Previous limitation: dispatch skipped compound targets and nested tail reconciliation was indirect.
+| Test | Result |
+|------|--------|
+| Flat list dispatch | Pass |
+| `coll0` only, head0 seeded, head2 not reached | Pass (`p-cons-five-access-from-coll0-only-does-not-reach-head2`) |
+| head2 seeded, run `coll0` only — chain reaches head2 | Pass (`p-cons-five-chain-from-coll0-reaches-head2-when-seeded`) |
+| head2 seeded, run `head2` — local control | Pass |
 
-Current behavior:
+Honest setup: deep heads are not pre-seeded on the outer network when testing “coll0 alone” behavior.
 
-- compound targets receive `compound-sync` from `c:linked-list`
-- `cell-merge` handles that sync directly
-- nested tail slots are reconciled through slot-wise merge
-- contradiction policy is explicit and local (fail fast on slot conflicts)
-
-`dispatch-target?` no longer filters out compound cells; compound-safe routing happens by payload type.
-
-## Validation notes
-
-Coverage includes:
-
-- compound sync installs missing slot entries
-- propagator conflict in a synced slot returns contradiction
-- flat and per-layer nested propagation tests pass
-
-Known gap (tests must fail until implemented):
-
-- nested `car`/`cdr` accessor from `coll0` alone must **not** reach deep `head2` today
-- `p-cons-five-access-from-coll0-only-does-not-reach-head2` encodes this requirement
-
-Run:
+## Run tests
 
 ```bash
 clojure -M:test propagators-linked-list-access-test propagators-compound-data-test

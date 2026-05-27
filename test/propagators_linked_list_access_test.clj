@@ -7,7 +7,6 @@
             [propagators.cells.value :as value]
             [propagators.core :refer [run-tasks]]
             [propagators.datastructures.compound_data :as cd]
-            [propagators.datastructures.compound_strongest_result :as strongest]
             [propagators.datastructures.compound_subnet_state :as state]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -108,22 +107,37 @@
                  (net/assoc-net-cell head2 (cell/cell 30 30))
                  (run-from [head2]))]
       (is (= 30 (cell/cell-strongest (net/network-env-lookup n' head2))))
-      (is (strongest/compound-subnet-continuation?
+      (is (state/compound-subnet-state?
            (cell/cell-strongest (net/network-env-lookup n' (coll-ids 2))))))))
 
 (deftest p-cons-five-access-from-coll0-only-does-not-reach-head2
-  (testing "p:cons x5; seed all heads but run only from coll0 — coll0 dispatch stays local"
+  (testing "p:cons x5; seed only head0, run coll0 — deep head2 not reached without chain"
     (let [{:keys [net head-ids coll-ids]} (build-nested-with-cons 5)
-          values [10 20 30 40 50]
+          coll0 (coll-ids 0)
+          head0 (head-ids 0)
+          head2 (head-ids 2)
+          n (-> net (net/assoc-net-cell head0 (cell/cell 10 10)))
+          n' (run-from n [coll0])]
+      (is (= 10 (cell/cell-strongest (net/network-env-lookup n' head0))))
+      (is (value/nothing? (cell/cell-strongest (net/network-env-lookup n' head2)))
+          "coll0 alone must not propagate to deep head2 via chained dispatch"))))
+
+(deftest p-cons-five-chain-from-coll0-reaches-head2-when-seeded
+  (testing "positive control: seed head2 only, run coll0 — chained c:linked-list may export to head2"
+    (let [{:keys [net head-ids coll-ids]} (build-nested-with-cons 5)
           coll0 (coll-ids 0)
           head2 (head-ids 2)
-          n (reduce (fn [n [h v]] (net/assoc-net-cell n h (cell/cell v v)))
-                    net
-                    (map vector head-ids values))
+          n (-> net (net/assoc-net-cell head2 (cell/cell 30 30)))
           n' (run-from n [coll0])]
-      (is (= 10 (cell/cell-strongest (net/network-env-lookup n' (head-ids 0)))))
-      (is (value/nothing? (cell/cell-strongest (net/network-env-lookup n' head2)))
-          "coll0 alone must not propagate to deep head2 via nested car/cdr accessor"))))
+      (is (= 30 (cell/cell-strongest (net/network-env-lookup n' head2)))
+          "hypothesis: coll0 linked-list chain dispatches nested head2 value"))))
+
+(deftest p-cons-five-local-control-head2-run-reaches-head2
+  (testing "positive control: seed head2 and run from head2 — local layer dispatch"
+    (let [{:keys [net head-ids]} (build-nested-with-cons 5)
+          head2 (head-ids 2)
+          n' (-> net (net/assoc-net-cell head2 (cell/cell 30 30)) (run-from [head2]))]
+      (is (= 30 (cell/cell-strongest (net/network-env-lookup n' head2)))))))
 
 (deftest p-cons-five-extra-car-cdr-from-coll0-not-access
   (testing "after p:cons x5, extra p:car/p:cdr on coll0 cannot route values to a new out cell"
@@ -215,9 +229,9 @@
       (is (= 42 (cell/cell-strongest (net/network-env-lookup n' head2))))
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup n' head0)))
           "coll0's dispatcher does not forward index-2 value to head0")
-      (is (strongest/compound-subnet-continuation?
+      (is (state/compound-subnet-state?
            (cell/cell-strongest (net/network-env-lookup n' (coll-ids 2))))
-          "coll2 (cdr cdr of coll0) ran strongest + dispatch"))))
+          "coll2 strongest is structural; c:linked-list runs subnet + dispatch"))))
 
 (deftest c-linked-list-dispatches-to-element-not-nested-collection
   (testing "element updates keep tail collection ids out of out-ids"

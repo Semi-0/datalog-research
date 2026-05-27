@@ -1,56 +1,28 @@
 (ns propagators.cells.merge
   "Merge, strongest selection, and contradiction handling."
-  (:require [clojure.set :as set]
-            [propagators.cells.avatar :as avatar]
-            [propagators.cells.cell :as cell]
+  (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
-            [propagators.datastructures.compound_strongest_result :as strongest]
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_update :as update]))
 
 (def cell-equal? value/cell-value-equal?)
 
-(defn- run-subnet-effectful
-  "Run subnet and return continuation retaining `out-ids` from compound state."
-  [state]
-  (let [run-tasks (requiring-resolve 'propagators.core/run-tasks)
-        subnet (state/state-subnet state)
-        out-ids (state/state-out-ids state)
-        outer-ids (vec out-ids)
-        updated* (atom #{})
-        {:keys [subnet tasks]} (subnet/subnet-effectful-tasks subnet outer-ids updated*)]
-    (strongest/subnet-continuation (run-tasks tasks subnet) updated* out-ids)))
-
-(defn- compound-subnet-strongest
-  "Run internal subnet effectfully; return strongest result."
-  [state _network]
-  (run-subnet-effectful state))
-
 (defmulti cell-updated?
   (fn [new old _network]
-    (if (and (strongest/compound-subnet-continuation? new)
-             (strongest/compound-subnet-continuation? old))
-      :compound-strongest
+    (if (and (state/compound-subnet-state? new)
+             (state/compound-subnet-state? old))
+      :compound-subnet-state
       :default)))
 
 (defmethod cell-updated? :default
   [new old _network]
   (not (cell-equal? new old)))
 
-(defmethod cell-updated? :compound-strongest
+;; :compound-subnet-state — compare not-yet-executed structural state (subnet + out-ids).
+(defmethod cell-updated? :compound-subnet-state
   [new old _network]
-  (let [subnet-n (strongest/continuation-subnet new)
-        subnet-o (strongest/continuation-subnet old)
-        updated*-n (strongest/continuation-updated* new)
-        updated*-o (strongest/continuation-updated* old)
-        ids (set/union @updated*-n @updated*-o)]
-    (boolean
-     (some (fn [outer-id]
-             (not (cell-equal?
-                   (avatar/avatar-strongest subnet-n outer-id)
-                   (avatar/avatar-strongest subnet-o outer-id))))
-           ids))))
+  (not (cell-equal? new old)))
 
 (defmulti cell-merge
   (fn [_content update _network]
@@ -108,9 +80,10 @@
   [x _network]
   x)
 
+;; :compound-subnet — structural state only; effectful run in c:linked-list.
 (defmethod strongest-value :compound-subnet
-  [content network]
-  (compound-subnet-strongest content network))
+  [content _network]
+  content)
 
 (defmulti handle-contradiction
   (fn [tasks _node env] [tasks env]))

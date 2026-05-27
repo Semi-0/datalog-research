@@ -2,6 +2,7 @@
   "Linked-list propagators over compound subnet cells."
   (:require [propagators.cells.value :as value]
             [propagators.datastructures.compound_strongest_result :as strongest]
+            [propagators.datastructures.compound_subnet :as subnet]
             [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_update :as update]
             [propagators.message :refer [message]]
@@ -35,22 +36,22 @@
    [collection-id]))
 
 (defn c:linked-list
-  "Constraint: read collection strongest result; dispatch to updated outer ids."
+  "Constraint: run internal subnet from collection content; dispatch to updated outer ids."
   [collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs network]
-     (let [cv (net/network-cell-strongest network collection-id)
-          strongest-result (when (strongest/compound-subnet-continuation? cv) cv)
-          sub (when strongest-result (strongest/continuation-subnet strongest-result))
-          updated* (when strongest-result (strongest/continuation-updated* strongest-result))]
-       (if (or (value/unusable? cv) (nil? updated*))
+     (let [content (net/network-cell-content network collection-id)]
+       (if-not (state/compound-subnet-state? content)
          []
-         (reduce (fn [msgs outer-id]
-                   (if-let [m (avatar-strongest-message sub network outer-id)]
-                     (conj msgs m)
-                     msgs))
-                 []
-                 @updated*))))
+         (let [continuation (subnet/run-subnet-effectful content)
+               sub (strongest/continuation-subnet continuation)
+               updated* (strongest/continuation-updated* continuation)]
+           (reduce (fn [msgs outer-id]
+                     (if-let [m (avatar-strongest-message sub network outer-id)]
+                       (conj msgs m)
+                       msgs))
+                   []
+                   @updated*)))))
    [collection-id]
    []))
 
