@@ -76,19 +76,91 @@ Intentional model:
 - No `p:read-car` / `p:read-cdr`; navigation is dispatch-only.
 - `(car (cdr (cdr coll0)))` means chained `c:linked-list` on nested collections, not one-shot projection from `coll0`.
 
-### Verification (linked-list-only spike)
+## Linked-list access (verified in tests)
 
-| Test | Result |
-|------|--------|
-| Flat list dispatch | Pass |
-| `coll0` only, head0 seeded, head2 not reached | Pass (`p-cons-five-access-from-coll0-only-does-not-reach-head2`) |
-| head2 seeded, run `coll0` only — chain reaches head2 | Pass (`p-cons-five-chain-from-coll0-reaches-head2-when-seeded`) |
-| head2 seeded, run `head2` — local control | Pass |
+Source of truth: `test/propagators_linked_list_access_test.clj`. Scheduling experiments live in `test/propagators_linked_list_schedule_test.clj` (may include intentional failures).
 
-Honest setup: deep heads are not pre-seeded on the outer network when testing “coll0 alone” behavior.
+### Wiring: `p:cons` spine + optional accessor writers
+
+Per layer, `p:cons head tail coll` installs:
+
+- `p:car` — `head` → `{:head head}` on `coll`
+- `p:cdr` — `tail` → `{:tail tail}` on `coll` (nested spine: `tail` is `coll_{i+1}` or a sentinel)
+- `c:linked-list` — runs subnet + dispatch when `coll` is updated
+
+To model Lisp `(car (cdr (cdr coll0)))` at an outer cell `out`, tests add **extra writers** (still not readers):
+
+```text
+(p:cdr coll1 coll0)   ;; {:tail coll1} on coll0
+(p:cdr coll2 coll1)   ;; {:tail coll2} on coll1
+(p:car  out   coll2)  ;; export slot wired to coll2
+```
+
+plus `3 × p:cons` for the three layers. `out` is not reached by wiring `p:car`/`p:cdr` directly on `coll0`.
+
+### When nested access works
+
+Access succeeds when **all** of the following hold:
+
+1. **Structure** — `p:cons` layers (and accessor `p:cdr` / `p:car` if modeling the full path).
+2. **Values on element cells** — at least the deep head (e.g. `head2 = 30`); shallow-only seed does not reach deep slots.
+3. **Writers run after values exist** — `p:car` / `p:cdr` must emit updates when inputs are non-`nothing`. In tests, `seed-cell!` / `seed-cells!` update the cell **and enqueue neighbor propagators**; bare `assoc-net-cell` does not schedule neighbors.
+4. **Dispatch from the list root** — `run-from` with `coll0` (or `pop-inputs` on `coll0`) drives `c:linked-list` hop-by-hop through nested collections.
+
+Minimal passing accessor scenario (`three-layer-cons-accessor-head2-seeded-run-coll0-reaches-out`):
+
+- Install `p:cons` × 3 + accessor writers (lazy install; no tasks until seed/run helpers).
+- `seed-cell!` on `head2` only → enqueue layer `p:car` (and related neighbors).
+- `run-from` with pending accessor tasks + `pop-inputs [coll0]` → `out` strongest = `30`.
+
+Full scenario seeds `head0` / `head1` / `head2` before running `coll0`.
+
+### When it does not work
+
+| Situation | Expected |
+|-----------|----------|
+| Seed only `head0`, run `coll0` | `head2` stays `nothing` — no shallow-to-deep shortcut |
+| Extra `p:car` / `p:cdr` on `coll0` into a fresh `out` | `out` stays `nothing` — writers do not read the list |
+| Enqueue `p:car` / `p:cdr` at `p:cons` **install** before seeding heads | Accessor path fails (`install-time-enqueue-accessor-reaches-out` in schedule test) |
+| Enqueue cons writers **after** seed, then run `coll0` | Accessor path can pass (`defer-enqueue-until-after-seed-accessor-reaches-out`) |
+
+Production implication: schedule `p:car` / `p:cdr` when **head/tail cells change**, not unconditionally at install. `p:cons-scheduled` in `compound_data.clj` exposes prop ids for harnesses only.
+
+### Two propagation styles in the access suite
+
+| Style | How values are set | How work runs |
+|-------|-------------------|---------------|
+| **Task-queue harness** | `seed-cell!` / `seed-cells!` enqueue neighbors | `run-from` merges pending queue + `pop-inputs` |
+| **Direct assoc** | `net/assoc-net-cell` on heads | `run-from` or `run-tasks` on `pop-inputs` only |
+
+Both appear in tests. Chain export (`head2` seeded, run `coll0` only) uses direct assoc; accessor `out` tests use the `!` helpers.
+
+### Dispatch locality
+
+- Running from `head2` updates `head2` and structural state on `coll2`; it does **not** copy deep values onto `head0` (`car-cdr-cdr-dispatch-via-coll2-not-coll0`).
+- Element updates: `out-ids` on a collection include element slots (e.g. `head2`), not the tail collection id (`c-linked-list-dispatches-to-element-not-nested-collection`).
+
+### Access test matrix (`propagators-linked-list-access-test`)
+
+| Test | Behavior |
+|------|----------|
+| `p-cons-five-then-access-via-cons-wired-car-cdr` | Local: seed `head2`, run `head2` → 30; `coll2` compound structural strongest |
+| `p-cons-five-access-from-coll0-only-does-not-reach-head2` | Negative: seed `head0` only, run `coll0` → `head2` nothing |
+| `p-cons-five-chain-from-coll0-reaches-head2-when-seeded` | Positive: seed `head2`, run `coll0` → `head2` = 30 via chain |
+| `three-layer-cons-accessor-three-heads-seeded-run-coll0-reaches-out` | Accessor + all heads seeded → `out` = 30 |
+| `three-layer-cons-accessor-head2-seeded-run-coll0-reaches-out` | Accessor + `head2` only → `out` = 30 |
+| `p-cons-five-extra-car-cdr-from-coll0-not-access` | Negative: writers on `coll0` cannot read into `out` |
+| `five-element-list-propagation-reaches-index-two` | Manual `p:car` + `c:linked-list` build; all heads seeded |
+| `five-layer-p-cons-matches-manual-wiring` | `p:cons` × 5 matches manual wiring at index 2 |
+| `car-cdr-cdr-dispatch-via-coll2-not-coll0` | Dispatch local to deep layer |
+| `c-linked-list-dispatches-to-element-not-nested-collection` | `out-ids` excludes tail collection |
 
 ## Run tests
 
 ```bash
+# Main linked-list access behavior
 clojure -M:test propagators-linked-list-access-test propagators-compound-data-test
+
+# Scheduling experiments (install-time enqueue may fail)
+clojure -M:test propagators-linked-list-schedule-test
 ```

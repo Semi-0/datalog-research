@@ -55,12 +55,31 @@
    [collection-id]
    []))
 
+(defn- install-p:cons-layer
+  "Install `p:car`, `p:cdr`, and `c:linked-list`; return all three propagator ids."
+  [head-id tail-id collection-id network]
+  (let [[car-id n] ((p:car head-id collection-id) network)
+        [cdr-id n] ((p:cdr tail-id collection-id) n)
+        [linked-list-id n] ((c:linked-list collection-id) n)]
+    {:car-id car-id
+     :cdr-id cdr-id
+     :linked-list-id linked-list-id
+     :network n}))
+
 (defn p:cons
   "Install `p:car`, `p:cdr`, and `c:linked-list` for one collection cell.
   Returns `[linked-list-prop-id network]`."
   [head-id tail-id collection-id]
   (fn [network]
-    (let [n (-> network
-              (net/install-net (p:car head-id collection-id))
-              (net/install-net (p:cdr tail-id collection-id)))]
-      ((c:linked-list collection-id) n))))
+    (let [{:keys [linked-list-id network]}
+          (install-p:cons-layer head-id tail-id collection-id network)]
+      [linked-list-id network])))
+
+(defn p:cons-scheduled
+  "Same install as `p:cons`, but returns all prop ids for task enqueue.
+  Returns `[[car-prop-id cdr-prop-id linked-list-prop-id] network]`."
+  [head-id tail-id collection-id]
+  (fn [network]
+    (let [{:keys [car-id cdr-id linked-list-id network]}
+          (install-p:cons-layer head-id tail-id collection-id network)]
+      [[car-id cdr-id linked-list-id] network])))

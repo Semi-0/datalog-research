@@ -1,7 +1,6 @@
 (ns propagators.stdlib
   (:require [propagators.network :as net]
-            [propagators.propagator :as prop]
-            ))
+            [propagators.propagator :as prop]))
 
 (def p:id (prop/primitive-propagator (fn [x] x)))
 
@@ -63,4 +62,5 @@
             network
             [[n-a out-b] [n-b out-a]])))
 
-(def bi-sync-closure [bi-sync net/empty-net])
+;; Map shape matches `Closure` record accessors (`:f`, `:net`); avoids stdlib ↔ closure cycle.
+(def bi-sync-closure {:f bi-sync :net net/empty-net})
