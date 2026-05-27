@@ -7,6 +7,8 @@
 (def all-test-namespaces
   '[bench-compare-test
     propagators-network-test
+    propagators-compound-data-test
+    propagators-linked-list-access-test
     leapfrog-pure-test
     differential-leapfrog-test
     differential-dataflow-frontier-test

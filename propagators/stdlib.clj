@@ -1,11 +1,19 @@
 (ns propagators.stdlib
-  (:require [propagators.cells.cell :as cell]
-            [propagators.compile :refer [net-let]]
-            [propagators.network :as net]
+  (:require [propagators.network :as net]
             [propagators.propagator :as prop]
-            [propagators.cells.value :as val]))
+            ))
 
 (def p:id (prop/primitive-propagator (fn [x] x)))
+
+(def p:tap
+  (fn [do-something]
+    (fn [in]
+      (prop/construct-propagator
+       (fn [_inputs _outputs _network]
+         (do-something _inputs)
+         [])
+       [in]
+       []))))
 ;; Topology-only link: wires ports without merge/messages when the propagator runs.
 (def p:nothing (fn [a b] (prop/construct-propagator (fn [_inputs _outputs _network] []) [a] [b])))
 

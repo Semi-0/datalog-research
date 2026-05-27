@@ -9,7 +9,8 @@
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
-            [propagators.core :as core]
+            [propagators.core :as core :refer [run-tasks]]
+            [propagators.datastructures.compound_data :as cd]
             [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -389,13 +390,45 @@
               (println (str "    cells unchanged (noop, discard queue):  "
                             (:eval-cell-noop-count s))))))))))
 
+(defn- install-prop [n installer]
+  (second (installer n)))
+
+(defn- profile-linked-list-pipeline [depth]
+  (println (str "\n=== linked-list pipeline depth=" depth " ==="))
+  (let [head (new-node-id)
+        tail (new-node-id)
+        coll (new-node-id)
+        t0 (System/nanoTime)
+        n (-> net/empty-net
+              (#(second ((construct-cell head) %)))
+              (#(second ((construct-cell tail) %)))
+              (#(second ((construct-cell coll) %)))
+              (install-prop (cd/p:car head coll))
+              (install-prop (cd/p:cdr tail coll))
+              (install-prop (cd/c:linked-list coll)))
+        t-build (System/nanoTime)
+        n* (-> n
+               (net/assoc-net-cell head (cell/cell 10 10))
+               (net/assoc-net-cell tail (cell/cell 20 20)))
+        tasks (tq/into-queue (pop-inputs [head tail] (net/net-graph n*)))
+        _ (run-tasks tasks n*)
+        t1 (System/nanoTime)
+        _ (run-tasks tasks n*)
+        t2 (System/nanoTime)]
+    (println (str "  build+wire:     " (fmt (ms (- t-build t0))) " ms"))
+    (println (str "  first run-tasks: " (fmt (ms (- t1 t-build))) " ms (cold taps)"))
+    (println (str "  second run-tasks:" (fmt (ms (- t2 t1))) " ms (warm taps)"))))
+
 (defn -main [& args]
-  (let [[mode len-str] (if (= "propagate" (first args))
-                        ["propagate" (second args)]
-                        [nil (first args)])
-        n (if len-str (Long/parseLong len-str) 1000)]
+  (let [[mode len-str] (cond
+                         (= "propagate" (first args)) ["propagate" (second args)]
+                         (= "linked-list" (first args)) ["linked-list" (second args)]
+                         :else [nil (first args)])
+        n (if len-str (Long/parseLong (or len-str "1")) 1000)]
     (println "propagators compound profile")
-    (if (= "propagate" mode)
-      (profile-middle-inject-propagation n)
-      (do (profile-isolated n)
-          (profile-middle-inject-propagation n)))))
+    (cond
+      (= "linked-list" mode) (profile-linked-list-pipeline n)
+      (= "propagate" mode) (profile-middle-inject-propagation n)
+      :else (do (profile-isolated n)
+                (profile-middle-inject-propagation n)
+                (profile-linked-list-pipeline 1))))))

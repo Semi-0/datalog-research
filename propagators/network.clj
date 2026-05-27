@@ -1,6 +1,5 @@
 (ns propagators.network
   (:require [propagators.cells.cell :as cell]
-            [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.graph :as graph]
             [propagators.helpers.tagged :refer [tagged?]]
@@ -83,15 +82,6 @@
 (def network-lookup-cell network-env-lookup)
 
 (def network-lookup-propagator network-env-lookup)
-
-(defn update-net-cell
-  "Apply `message` (CellValue) to cell at `id`; returns updated net."
-  [n id msg]
-  (let [e (net-env n)
-        cur (env-get e id)
-        content' (merge/cell-merge (cell/cell-content cur) msg n)
-        strongest' (merge/strongest-value content' n)]
-    (assoc-net-cell n id (cell/cell content' strongest'))))
 
 (defn construct-cell
   ([]

@@ -1,56 +1,36 @@
 (ns propagators.cells.merge
   "Merge, strongest selection, and contradiction handling."
   (:require [propagators.cells.cell :as cell]
-            [propagators.cells.value :as value]))
-
-(defn- compound-data?*
-  "Lazy resolve avoids load cycle: merge → compound_data → network → merge."
-  [x]
-  (boolean
-   (when x
-     (try
-       ((requiring-resolve 'propagators.datastructures.compound_data/compound-data?) x)
-       (catch Exception _ false)))))
+            [propagators.cells.value :as value]
+            [propagators.datastructures.compound_subnet :as subnet]))
 
 (def cell-equal? value/cell-value-equal?)
 
+(defonce ^:private compound-merge-loaded*
+  (delay (require 'propagators.cells.compound-merge)))
+
+(defn- ensure-compound-merge-loaded!
+  []
+  (force compound-merge-loaded*))
+
 (defmulti cell-updated?
-  (fn [_new _old _network] :default))
+  (fn [new old _network]
+    (if (and (subnet/compound-strongest-result? new)
+             (subnet/compound-strongest-result? old))
+      (do (ensure-compound-merge-loaded!)
+          :compound-strongest)
+      :default)))
 
 (defmethod cell-updated? :default
   [new old _network]
   (not (cell-equal? new old)))
 
 (defmulti cell-merge
-  (fn [content update _network]
-    (if (compound-data?* update)
-      :compound-data
+  (fn [_content update _network]
+    (if (subnet/compound-data? update)
+      (do (ensure-compound-merge-loaded!)
+          :compound-data)
       :default)))
-
-;; we have 2 option to run the network
-;; either we can run the network inside the cell-merge
-;; or cell strongest
-;; i think its better in cell-merge
-;; because then we are merge networks together
-
-;; so we would have 2 condition
-;; 1. is content is already an existing network
-;; so we can see that the updates
-;; simply run the network 
-;; with updates
-;; or we dont have existing network
-;; then we expands the upate into a network
-;; or maybe we shall treat the compound propagator as partial information?
-;; it could be either head or tail?
-
-;; nevertheless we should expand a internal network in here 
-;; and with a translation dict for the avatar network
-;; so we can express
-;; Placeholder: compound pair merge delegates to default until implemented.
-(defmethod cell-merge :compound-data
-  [content update network]
-  ((get-method cell-merge :default) content update network))
-
 
 (defmethod cell-merge :default
   [content update _network]
@@ -65,7 +45,12 @@
 (def generic-merge cell-merge)
 
 (defmulti strongest-value
-  (fn [x _network] (if (cell/cell? x) :cell :content)))
+  (fn [x _network]
+    (cond
+      (cell/cell? x) :cell
+      (subnet/compound-subnet-state? x) (do (ensure-compound-merge-loaded!)
+                                            :compound-subnet)
+      :else :content)))
 
 (defmethod strongest-value :cell
   [c _network]

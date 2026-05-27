@@ -1,4 +1,5 @@
 (ns propagators.core
+  "Propagation scheduler (eval cells/propagators, run task queue)."
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]

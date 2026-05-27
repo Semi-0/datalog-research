@@ -1,72 +1,70 @@
 (ns propagators.datastructures.compound_data
-  (:require [propagators.network :as net]
-            [propagators.propagator :as prop]
-            [propagators.cells.cell :as cell]
-            [clojure.core.match :refer [match]]
-            [propagators.ids :as id]))
+  "Linked-list propagators over compound subnet cells."
+  (:require [propagators.cells.cell :as cell]
+            [propagators.cells.compound-merge :as cm]
+            [propagators.cells.value :as value]
+            [propagators.datastructures.compound_subnet :as subnet]
+            [propagators.message :refer [message]]
+            [propagators.network :as net]
+            [propagators.propagator :as prop]))
 
-;; the problem is with the dependence tracking system
-;; if dict has a dependences
-;; we need to make sure that p:car 
-;; and p:cdr does not emit the dependences of the array
-;; we can like use similar method like compound propagator
-;; to run the network inside
+;; Re-export subnet API for callers that only require this namespace.
+(def compound-data? subnet/compound-data?)
+(def compound-subnet-state? subnet/compound-subnet-state?)
+(def compound-strongest-result? subnet/compound-strongest-result?)
+(def empty-compound-subnet subnet/empty-compound-subnet)
+(def merge-compound-data subnet/merge-compound-data)
+(def avatar-strongest subnet/avatar-strongest)
+(def compound-subnet-strongest cm/compound-subnet-strongest)
 
-;; however if we just do the routing
-;; its the same?
-;; the main point is that 
-;; when sub-elements updated the array
-;; we don't need to alert all the propagator
-;; perhaps we could do that in cons?
+(defn- avatar-strongest-message [subnet network outer-id]
+  (when (and (subnet/dispatch-target? network outer-id)
+             (get (net/net-dict-or-empty subnet) outer-id))
+    (let [avatar-id (get (net/net-dict-or-empty subnet) outer-id)]
+      (message outer-id (net/network-cell-strongest subnet avatar-id)))))
 
-;; so then p:car and p:cons just send dict into the cell
-;; then the cell maintain a internal lexical environment
-;; and cons dispatch the network when the listener diffs from the internal network?
-;; and listener constantly send them to the internal network to update themself
+(defn p:car
+  "Write `[:head elem-id]` compound-data update to collection (always, even if elem is nothing)."
+  [elem-id collection-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs _network]
+     [(message collection-id [[:head elem-id]])])
+   [elem-id]
+   [collection-id]))
 
-;; use cons to dispatch input
-;; run the internal network inside cell or strongest
+(defn p:cdr
+  "Write `[:tail elem-id]` compound-data update to collection."
+  [elem-id collection-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs _network]
+     [(message collection-id [[:tail elem-id]])])
+   [elem-id]
+   [collection-id]))
 
-(defn complete-compound-data?
-  "Both `[:head node-id]` and `[:tail node-id]` pairs."
-  [x]
-  (match [x]
-    [([[:head (h :guard id/node-id?)] [:tail (t :guard id/node-id?)]] :seq)] true
-    :else false))
+(defn c:linked-list
+  "Constraint: read collection strongest `[subnet updated*]`; dispatch to @updated* outer ids."
+  [collection-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs network]
+     (let [cv (net/network-cell-strongest network collection-id)
+           [subnet updated*] (when (subnet/compound-strongest-result? cv) cv)]
+       (if (or (value/unusable? cv) (nil? updated*))
+         []
+         (reduce (fn [msgs outer-id]
+                   (if-let [m (avatar-strongest-message subnet network outer-id)]
+                     (conj msgs m)
+                     msgs))
+                 []
+                 @updated*))))
+   [collection-id]
+   []))
 
-(defn compound-data-head?
-  "Singleton seq with only `[:head node-id]`."
-  [x]
-  (match [x]
-    [([[:head (h :guard id/node-id?)]] :seq)] true
-    :else false))
-
-(defn compound-data-tail?
-  "Singleton seq with only `[:tail node-id]`."
-  [x]
-  (match [x]
-    [([[:tail (t :guard id/node-id?)]] :seq)] true
-    :else false))
-
-(defn partial-compound-data?
-  "Head-only or tail-only compound slot (not complete)."
-  [x]
-  (or (compound-data-head? x) (compound-data-tail? x)))
-
-(defn compound-data?
-  [x]
-  (or (complete-compound-data? x)
-      (partial-compound-data? x)
-      (compound-data-head? x)
-      (compound-data-tail? x)))
-
-
-;; so we just sent the cell?
-(def p:cons
-  (prop/primitive-propagator
-    (fn [head-val rest-val]
-      {:head head-val
-       :rest rest-val})))
-     
-(def p:car (prop/primitive-propagator (fn [dict] (cell/cell-strongest (:head dict)))))
-(def p:cdr (prop/primitive-propagator (fn [dict] (cell/cell-strongest (:rest dict)))))
+(defn p:cons
+  "Install `p:car`, `p:cdr`, and `c:linked-list` for one collection cell.
+  Returns `[linked-list-prop-id network]`."
+  [head-id tail-id collection-id]
+  (fn [network]
+    (let [n (-> network
+              (net/install-net (p:car head-id collection-id))
+              (net/install-net (p:cdr tail-id collection-id)))]
+      ((c:linked-list collection-id) n))))
