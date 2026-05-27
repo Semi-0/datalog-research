@@ -2,11 +2,16 @@
   "Linked-list compound_data: p:car, p:cdr, c:linked-list.
   Run: clj -M:test propagators-compound-data-test"
   (:require [clojure.test :refer [deftest is testing]]
+            [propagators.cells.avatar :as avatar]
             [propagators.cells.cell :as cell :refer [construct-cell]]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.cells.value :as value]
             [propagators.core :refer [run-tasks]]
             [propagators.datastructures.compound_data :as cd]
+            [propagators.datastructures.compound_strongest_result :as strongest]
+            [propagators.datastructures.compound_subnet_state :as state]
+            [propagators.datastructures.compound_subnet :as subnet]
+            [propagators.datastructures.compound_update :as update]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]))
@@ -67,8 +72,8 @@
           n (-> net (net/assoc-net-cell head (cell/cell 10 10)))
           n' (run-from n [head])
           content (cell/cell-content (net/network-env-lookup n' coll))]
-      (is (cd/compound-subnet-state? content))
-      (is (contains? (cd/state-out-ids content) head)))))
+      (is (state/compound-subnet-state? content))
+      (is (contains? (state/state-out-ids content) head)))))
 
 (deftest cdr-writes-tail-update-to-collection
   (testing "p:cdr merges tail id into collection content"
@@ -76,8 +81,8 @@
           n (-> net (net/assoc-net-cell tail (cell/cell 20 20)))
           n' (run-from n [tail])
           content (cell/cell-content (net/network-env-lookup n' coll))]
-      (is (cd/compound-subnet-state? content))
-      (is (contains? (cd/state-out-ids content) tail)))))
+      (is (state/compound-subnet-state? content))
+      (is (contains? (state/state-out-ids content) tail)))))
 
 (deftest car-does-not-read-collection
   (testing "collection stays nothing until p:car fires"
@@ -90,8 +95,8 @@
           n' (run-from net [head])
           content (cell/cell-content (net/network-env-lookup n' coll))]
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup net head))))
-      (is (cd/compound-subnet-state? content))
-      (is (contains? (cd/state-out-ids content) head)))))
+      (is (state/compound-subnet-state? content))
+      (is (contains? (state/state-out-ids content) head)))))
 
 (deftest linked-list-dispatches-to-updated-outer-ids
   (testing "flat list: head and tail wired; propagation updates element strongests"
@@ -101,7 +106,7 @@
                 (net/assoc-net-cell tail (cell/cell 20 20)))
           n' (run-tasks (tq/into-queue (pop-inputs [head tail] (net/net-graph n))) n)
           strongest (cell/cell-strongest (net/network-env-lookup n' coll))]
-      (is (cd/compound-strongest-result? strongest))
+      (is (strongest/compound-strongest-result? strongest))
       (is (= 10 (cell/cell-strongest (net/network-env-lookup n' head))))
       (is (= 20 (cell/cell-strongest (net/network-env-lookup n' tail)))))))
 
@@ -112,10 +117,10 @@
           n' (run-from n [head])
           content (cell/cell-content (net/network-env-lookup n' coll))
           n2 (-> n' (net/assoc-net-cell head (cell/cell 99 99)))
-          update (cd/compound-update {:head head})
-          state' (cd/merge-compound-data content update n2)
-          subnet' (cd/state-subnet state')
-          avatar-strongest (cd/avatar-strongest subnet' head)]
+          update (update/compound-update {:head head})
+          state' (subnet/merge-compound-data content update n2)
+          subnet' (state/state-subnet state')
+          avatar-strongest (avatar/avatar-strongest subnet' head)]
       (is (= 99 avatar-strongest)))))
 
 (deftest nested-linked-list-two-layers
@@ -130,8 +135,8 @@
                 (net/assoc-net-cell head1 (cell/cell 11 11))
                 (net/assoc-net-cell head0 (cell/cell 10 10)))
           n' (-> n (run-from [head1]) (run-from [head0]))]
-      (is (cd/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' coll1))))
-      (is (cd/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' coll0))))
+      (is (state/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' coll1))))
+      (is (state/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' coll0))))
       (is (= 11 (cell/cell-strongest (net/network-env-lookup n' head1))))
       (is (= 10 (cell/cell-strongest (net/network-env-lookup n' head0)))))))
 
@@ -146,7 +151,7 @@
                 (net/assoc-net-cell h2 (cell/cell 3 3))
                 (net/assoc-net-cell h0 (cell/cell 1 1)))
           n' (-> n (run-from [h2]) (run-from [h0]))]
-      (is (cd/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' c2))))
+      (is (state/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' c2))))
       (is (= 3 (cell/cell-strongest (net/network-env-lookup n' h2))))
       (is (= 1 (cell/cell-strongest (net/network-env-lookup n' h0)))))))
 
@@ -159,7 +164,7 @@
                     (map vector head-ids values))
           n' (run-tasks (tq/into-queue (pop-inputs head-ids (net/net-graph n))) n)]
       (doseq [c coll-ids]
-        (is (cd/compound-subnet-state?
+        (is (state/compound-subnet-state?
              (cell/cell-content (net/network-env-lookup n' c)))
             (str "collection " c " has subnet content")))
       (doseq [[h v] (map vector head-ids values)]
@@ -169,17 +174,17 @@
             coll2 (coll-ids 2)
             state0 (cell/cell-content (net/network-env-lookup n' coll0))
             state2 (cell/cell-content (net/network-env-lookup n' coll2))
-            _subnet0 (cd/state-subnet state0)
-            out0 (cd/state-out-ids state0)
-            _subnet2 (cd/state-subnet state2)
-            out2 (cd/state-out-ids state2)]
+            _subnet0 (state/state-subnet state0)
+            out0 (state/state-out-ids state0)
+            _subnet2 (state/state-subnet state2)
+            out2 (state/state-out-ids state2)]
         (is (contains? out0 (head-ids 0)))
         (is (contains? out0 (coll-ids 1)) "coll0 tail link in out-ids")
         (is (contains? out2 (head-ids 2)))
         (is (contains? out2 (coll-ids 3))
             "cdr link records tail collection in out-ids (dispatch skips compound tails)")
         (is (= 30 (cell/cell-strongest (net/network-env-lookup n' (head-ids 2)))))
-        (is (cd/compound-strongest-result?
+        (is (strongest/compound-strongest-result?
              (cell/cell-strongest (net/network-env-lookup n' coll2)))
             "coll2 ran effectful strongest for index-2 dispatch")))))
 
@@ -194,5 +199,5 @@
                  (run-from [head2]))]
       (is (= 42 (cell/cell-strongest (net/network-env-lookup n' head2))))
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup n' head0))))
-      (is (cd/compound-strongest-result?
+      (is (strongest/compound-strongest-result?
            (cell/cell-strongest (net/network-env-lookup n' coll2)))))))

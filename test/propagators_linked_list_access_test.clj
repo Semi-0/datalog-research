@@ -7,6 +7,8 @@
             [propagators.cells.value :as value]
             [propagators.core :refer [run-tasks]]
             [propagators.datastructures.compound_data :as cd]
+            [propagators.datastructures.compound_strongest_result :as strongest]
+            [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -108,7 +110,7 @@
                  (net/assoc-net-cell head2 (cell/cell 30 30))
                  (run-from [head2]))]
       (is (= 30 (cell/cell-strongest (net/network-env-lookup n' head2))))
-      (is (cd/compound-strongest-result?
+      (is (strongest/compound-strongest-result?
            (cell/cell-strongest (net/network-env-lookup n' (coll-ids 2))))))))
 
 (deftest p-cons-five-access-from-coll0-only-does-not-reach-head2
@@ -186,7 +188,7 @@
                     (map vector head-ids values))
           n' (run-tasks (tq/into-queue (pop-inputs head-ids (net/net-graph n))) n)
           target (lisp-car-cdr-cdr head-ids)]
-      (is (cd/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' (coll-ids 0)))))
+      (is (state/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' (coll-ids 0)))))
       (is (= 30 (cell/cell-strongest (net/network-env-lookup n' target)))))))
 
 (deftest p-cons-chain-does-not-route-coll0-to-head2
@@ -214,7 +216,7 @@
       (is (= 42 (cell/cell-strongest (net/network-env-lookup n' head2))))
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup n' head0)))
           "coll0's dispatcher does not forward index-2 value to head0")
-      (is (cd/compound-strongest-result?
+      (is (strongest/compound-strongest-result?
            (cell/cell-strongest (net/network-env-lookup n' (coll-ids 2))))
           "coll2 (cdr cdr of coll0) ran strongest + dispatch"))))
 
@@ -225,7 +227,7 @@
           n (-> net (net/assoc-net-cell (head-ids 2) (cell/cell 77 77)))
           n' (run-from n [(head-ids 2)])
           content (cell/cell-content (net/network-env-lookup n' coll2))
-          _subnet (cd/state-subnet content)]
-      (is (contains? (cd/state-out-ids content) (head-ids 2)))
-      (is (not (contains? (cd/state-out-ids content) (nth coll-ids 3)))
+          _subnet (state/state-subnet content)]
+      (is (contains? (state/state-out-ids content) (head-ids 2)))
+      (is (not (contains? (state/state-out-ids content) (nth coll-ids 3)))
           "tail collection id is not in out-ids dispatch set for element updates"))))

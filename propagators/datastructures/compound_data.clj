@@ -1,25 +1,12 @@
 (ns propagators.datastructures.compound_data
   "Linked-list propagators over compound subnet cells."
-  (:require [propagators.cells.compound-merge :as cm]
-            [propagators.cells.value :as value]
+  (:require [propagators.cells.value :as value]
+            [propagators.datastructures.compound_strongest_result :as strongest]
+            [propagators.datastructures.compound_update :as update]
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
-
-;; Re-export subnet API for callers that only require this namespace.
-(def compound-data? subnet/compound-data?)
-(def compound-subnet-state? subnet/compound-subnet-state?)
-(def compound-strongest-result? subnet/compound-strongest-result?)
-(def empty-compound-subnet subnet/empty-compound-subnet)
-(def merge-compound-data subnet/merge-compound-data)
-(def avatar-strongest subnet/avatar-strongest)
-(def compound-subnet-strongest cm/compound-subnet-strongest)
-(def compound-update subnet/compound-update)
-(def state-subnet subnet/state-subnet)
-(def state-out-ids subnet/state-out-ids)
-(def strongest-subnet subnet/strongest-subnet)
-(def strongest-updated* subnet/strongest-updated*)
 
 (defn- avatar-strongest-message [subnet network outer-id]
   (when (and (subnet/dispatch-target? network outer-id)
@@ -32,7 +19,7 @@
   [elem-id collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs _network]
-     [(message collection-id (subnet/compound-update {:head elem-id}))])
+     [(message collection-id (update/compound-update {:head elem-id}))])
    [elem-id]
    [collection-id]))
 
@@ -41,7 +28,7 @@
   [elem-id collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs _network]
-     [(message collection-id (subnet/compound-update {:tail elem-id}))])
+     [(message collection-id (update/compound-update {:tail elem-id}))])
    [elem-id]
    [collection-id]))
 
@@ -51,9 +38,9 @@
   (prop/construct-propagator
    (fn [_inputs _outputs network]
      (let [cv (net/network-cell-strongest network collection-id)
-           strongest (when (subnet/compound-strongest-result? cv) cv)
-           sub (when strongest (subnet/strongest-subnet strongest))
-           updated* (when strongest (subnet/strongest-updated* strongest))]
+           strongest-result (when (strongest/compound-strongest-result? cv) cv)
+           sub (when strongest-result (strongest/strongest-subnet strongest-result))
+           updated* (when strongest-result (strongest/strongest-updated* strongest-result))]
        (if (or (value/unusable? cv) (nil? updated*))
          []
          (reduce (fn [msgs outer-id]
