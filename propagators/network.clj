@@ -76,6 +76,33 @@
       d
       empty-dict)))
 
+(defn assoc-net-dict-entry
+  "Associate one named dictionary entry on `n`."
+  [n k v]
+  (net-with-dict n (assoc (net-dict-or-empty n) k v)))
+
+(defn update-net-dict-entry
+  "Update one named dictionary entry on `n`."
+  [n k f & args]
+  (net-with-dict n (apply update (net-dict-or-empty n) k f args)))
+
+(defn network-dict-entry
+  "Lookup one named dictionary entry on `n`."
+  [n k]
+  (get (net-dict-or-empty n) k))
+
+(defn network-indexed-ids
+  "Lookup ids recorded under nested dictionary index `index-key` / `entry-key`."
+  [n index-key entry-key]
+  (get-in (net-dict-or-empty n) [index-key entry-key] #{}))
+
+(defn network-dict-keys-tagged
+  "Dictionary keys that are vectors beginning with `tag`."
+  [n tag]
+  (->> (keys (net-dict-or-empty n))
+       (filter #(and (vector? %) (= tag (first %))))
+       set))
+
 (defn clear-dict [n] (net-with-dict n empty-dict))
 (defn assoc-avatar-in [n outer inner]
   (net-with-dict n
@@ -98,6 +125,8 @@
 
 (defn network-cell-content [network node-id]
   (cell/cell-content (network-env-lookup network node-id)))
+
+(def network-cell-value network-cell-strongest)
 
 (def network-lookup-cell network-env-lookup)
 

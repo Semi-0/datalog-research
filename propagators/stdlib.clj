@@ -10,6 +10,15 @@
    (fn [x enabled?]
      (if enabled? x value/nothing))))
 
+(defn fast-bi-sync
+  "Install bidirectional `p:id` sync between `a` and `b`.
+
+  Returns `[[a->b b->a] network]`, where the ids are the installed propagators."
+  [network a b]
+  (let [[a->b n] ((p:id a b) network)
+        [b->a n] ((p:id b a) n)]
+    [[a->b b->a] n]))
+
 (def effect:tap
   (fn [do-something]
     (fn [in]

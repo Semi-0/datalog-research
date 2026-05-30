@@ -139,8 +139,8 @@ The current implementation makes nested access work by storing slot sync
 structure in the collection named network:
 
 ```clojure
-[:slot-sync :car parent-id :avatar->slot] -> prop-id
-[:slot-sync :car parent-id :slot->avatar] -> prop-id
+[:slot-sync :car parent-id :from->to] -> prop-id
+[:slot-sync :car parent-id :to->from] -> prop-id
 ```
 
 These entries are pure `p:id` constraints between parent avatars and slot cells.

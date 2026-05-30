@@ -107,6 +107,13 @@
 
 (def generic-merge cell-merge)
 
+(defn merge-cell-entry
+  "Merge `update` into cell `entry`, returning a cell with refreshed strongest value."
+  [entry update network]
+  (let [content' (cell-merge (cell/cell-content entry) update network)
+        strongest' (strongest-value content' network)]
+    (cell/cell content' strongest')))
+
 (defmulti strongest-value
   (fn [x _network]
     (cond
