@@ -1,8 +1,14 @@
 (ns propagators.stdlib
-  (:require [propagators.network :as net]
+  (:require [propagators.cells.value :as value]
+            [propagators.network :as net]
             [propagators.propagator :as prop]))
 
 (def p:id (prop/primitive-propagator (fn [x] x)))
+
+(def p:switch
+  (prop/primitive-propagator
+   (fn [x enabled?]
+     (if enabled? x value/nothing))))
 
 (def p:tap
   (fn [do-something]

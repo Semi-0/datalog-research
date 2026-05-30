@@ -69,6 +69,44 @@ Moving execution into `c:linked-list` restores hop-by-hop export from internal t
 
 `dispatch-target?` does not filter compound cells; routing is by payload type.
 
+## Named Network Lattice
+
+`propagators.datastructures.named-network` defines a fast preorder for
+network-shaped values that have a non-empty `:dict`. This is an **interface
+lattice**, not full graph equivalence:
+
+- `:dict` keys are the named observable commitments.
+- unnamed graph/env entries are treated as derivable implementation detail.
+- `a >= b` means every named key in `b` is present in `a`, and each named entry
+  in `a` subsumes the corresponding entry in `b`.
+- named cells compare by their strongest values using the Bool4 preorder.
+- named propagators compare by identity: the same named propagator must resolve
+  to the same internal id; a different id for the same propagator name is a
+  contradiction.
+
+Cell merge for named networks follows the preorder:
+
+| Case | Merge result |
+|------|--------------|
+| empty content + named-network update | singleton evidence set `#{update}` |
+| `update >= old-evidence` | replace weaker old evidence with `update` |
+| `old-evidence >= update` | keep old evidence (reject weaker update) |
+| update incomparable with all old evidence | add update to the evidence set |
+| same propagator name commits to incompatible ids/types | keep both in content; strongest becomes `contradiction` |
+
+The content merge is intentionally conservative: it does **not** collapse
+named-network evidence to contradiction. It normalizes named-network content to
+an **evidence set** of named networks and maintains that set as an antichain:
+stronger incoming evidence replaces weaker old evidence; weaker incoming
+evidence is ignored; incomparable evidence is retained alongside the rest.
+`strongest-value` computes the joined named-network view from that set. Disjoint
+named commitments join by union; same named Bool4 cells join their strongest
+values (so incompatible `true`/`false` become a named cell whose strongest is
+`contradiction`); and conflicting named propagator identities make the
+**strongest** contradiction, not the raw content. This lets compound/network
+content behave like a lattice without pretending to solve anonymous graph
+isomorphism or functional equivalence of propagators.
+
 ## Nested dispatch (no read accessors)
 
 Intentional model:

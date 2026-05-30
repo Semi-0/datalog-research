@@ -4,7 +4,9 @@
             [propagators.cells.value :as value]
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.datastructures.compound_subnet_state :as state]
-            [propagators.datastructures.compound_update :as update]))
+            [propagators.datastructures.compound_update :as update]
+            [propagators.datastructures.evidence-set :as evidence]
+            [propagators.datastructures.named-network :as named]))
 
 (def cell-equal? value/cell-value-equal?)
 
@@ -29,6 +31,8 @@
     (cond
       (update/compound-sync? update) :compound-sync
       (update/compound-data? update) :compound-data
+      (evidence/evidence-set? update) :named-network
+      (named/named-network? update) :named-network
       :else :default)))
 
 (defmethod cell-merge :default
@@ -63,13 +67,26 @@
                   content)]
       (subnet/merge-compound-sync state update network))))
 
+(defmethod cell-merge :named-network
+  [content update _network]
+  (cond
+    (value/contradiction? content) value/contradiction
+    (value/contradiction? update) value/contradiction
+    (value/nothing? update) (evidence/merge-evidence value/nothing content)
+    (or (value/nothing? content)
+        (named/named-network? content)
+        (evidence/evidence-set? content)) (evidence/merge-evidence content update)
+    :else value/contradiction))
+
 (def generic-merge cell-merge)
 
 (defmulti strongest-value
   (fn [x _network]
     (cond
+      (evidence/evidence-set? x) :named-network-evidence
       (cell/cell? x) :cell
       (state/compound-subnet-state? x) :compound-subnet
+      (named/named-network? x) :named-network
       :else :content)))
 
 (defmethod strongest-value :cell
@@ -79,6 +96,14 @@
 (defmethod strongest-value :content
   [x _network]
   x)
+
+(defmethod strongest-value :named-network
+  [content _network]
+  content)
+
+(defmethod strongest-value :named-network-evidence
+  [content _network]
+  (evidence/strongest content))
 
 ;; :compound-subnet — structural state only; effectful run in c:linked-list.
 (defmethod strongest-value :compound-subnet
