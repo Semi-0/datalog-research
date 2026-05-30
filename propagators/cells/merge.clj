@@ -10,11 +10,22 @@
 
 (def cell-equal? value/cell-value-equal?)
 
+(declare strongest-value)
+
 (defmulti cell-updated?
   (fn [new old _network]
-    (if (and (state/compound-subnet-state? new)
-             (state/compound-subnet-state? old))
+    (cond
+      (and (state/compound-subnet-state? new)
+           (state/compound-subnet-state? old))
       :compound-subnet-state
+
+      (or (named/named-network? new)
+          (named/named-network? old)
+          (evidence/evidence-set? new)
+          (evidence/evidence-set? old))
+      :named-network
+
+      :else
       :default)))
 
 (defmethod cell-updated? :default
@@ -25,6 +36,22 @@
 (defmethod cell-updated? :compound-subnet-state
   [new old _network]
   (not (cell-equal? new old)))
+
+(defn- named-strongest-equal? [new old]
+  (cond
+    (and (named/named-network? new)
+         (named/named-network? old))
+    (and (= true (named/named-network->= new old))
+         (= true (named/named-network->= old new)))
+
+    :else
+    (cell-equal? new old)))
+
+(defmethod cell-updated? :named-network
+  [new old network]
+  (let [new* (strongest-value new network)
+        old* (strongest-value old network)]
+    (not (named-strongest-equal? new* old*))))
 
 (defmulti cell-merge
   (fn [_content update _network]

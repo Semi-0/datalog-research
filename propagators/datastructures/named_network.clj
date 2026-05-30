@@ -7,6 +7,7 @@
             [propagators.cells.bool4 :as b]
             [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
+            [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
@@ -17,11 +18,40 @@
 (defn- named-keys [n]
   (set (keys (net/net-dict-or-empty n))))
 
+(declare named-network->=)
+
+(defn- value->= [a b]
+  (if (and (named-network? a) (named-network? b))
+    (named-network->= a b)
+    (b/>= a b)))
+
 (defn- cell->= [a b]
-  (b/>= (cell/cell-strongest a) (cell/cell-strongest b)))
+  (value->= (cell/cell-strongest a) (cell/cell-strongest b)))
+
+(declare metadata->=)
+
+(defn- map->= [a b]
+  (if-not (set/subset? (set (keys b)) (set (keys a)))
+    false
+    (reduce
+     b/and
+     true
+     (map (fn [k] (metadata->= (get a k) (get b k)))
+          (keys b)))))
+
+(defn- metadata->= [a b]
+  (cond
+    (= a b) true
+    (and (set? a) (set? b)) (set/superset? a b)
+    (and (map? a) (map? b)) (map->= a b)
+    :else false))
 
 (defn- named-entry->= [a-id a-entry b-id b-entry]
   (cond
+    (or (not (ids/node-id? a-id))
+        (not (ids/node-id? b-id)))
+    (metadata->= a-id b-id)
+
     (and (cell/cell? a-entry) (cell/cell? b-entry))
     (cell->= a-entry b-entry)
 
@@ -59,6 +89,15 @@
 (defn- merge-graph [a b]
   (merge (net/net-graph a) (net/net-graph b)))
 
+(defn- merge-metadata [a b]
+  (cond
+    (nil? a) b
+    (nil? b) a
+    (and (map? a) (map? b)) (merge-with merge-metadata a b)
+    (and (set? a) (set? b)) (set/union a b)
+    (= a b) a
+    :else b))
+
 (defn- merge-entry [a-entry b-entry]
   (cond
     (nil? a-entry) b-entry
@@ -68,8 +107,8 @@
     (let [a-strong (cell/cell-strongest a-entry)
           b-strong (cell/cell-strongest b-entry)
           strongest (cond
-                      (= true (b/>= a-strong b-strong)) a-strong
-                      (= true (b/>= b-strong a-strong)) b-strong
+                      (= true (value->= a-strong b-strong)) a-strong
+                      (= true (value->= b-strong a-strong)) b-strong
                       (and (b/bool4? a-strong) (b/bool4? b-strong)) (b/join a-strong b-strong)
                       :else value/contradiction)]
       (cell/cell strongest strongest))
@@ -90,7 +129,7 @@
         b-dict (net/net-dict-or-empty b)]
     (loop [ks (seq (set/union (set (keys a-dict)) (set (keys b-dict))))
            env (merge (net/net-env a) (net/net-env b))
-           dict (merge a-dict b-dict)]
+           dict (merge-with merge-metadata a-dict b-dict)]
       (if-not ks
         (net/net (merge-graph a b) env dict)
         (let [k (first ks)
