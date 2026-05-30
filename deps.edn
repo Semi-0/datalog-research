@@ -41,7 +41,5 @@
             :main-opts ["-m" "run-tests" "propagators-network-test"]}
            :propagators-bench
            {:main-opts ["-m" "propagators-chain-bench"]}
-           :propagators-object-bench
-           {:main-opts ["-m" "propagators-compound-object-bench"]}
            :propagators-profile
            {:main-opts ["-m" "propagators-compound-profile"]}}}
