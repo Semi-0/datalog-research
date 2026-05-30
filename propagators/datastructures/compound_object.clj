@@ -1,6 +1,7 @@
 (ns propagators.datastructures.compound-object
   "Experimental object slots over named-network cell values."
-  (:require [propagators.cells.value :as value]
+  (:require [propagators.cells.merge :as merge]
+            [propagators.cells.value :as value]
             [propagators.datastructures.named-network :as named]
             [propagators.effectful-execution :as effect]
             [propagators.effectful-sync :as sync]
@@ -80,12 +81,30 @@
                            (net/network-indexed-ids subnet :slot-index slot-key)
                            updated*))
 
+(defn- slot-sync-needed?
+  "True when parent avatar and slot strongest values still need propagation."
+  [exec-net slot-key parent-id parent-net]
+  (let [dict (net/net-dict-or-empty exec-net)
+        slot-id (get dict slot-key)
+        avatar-id (get dict parent-id)]
+    (if-not (and slot-id avatar-id)
+      true
+      (let [parent-v (net/network-cell-strongest parent-net parent-id)
+            avatar-v (net/network-cell-strongest exec-net avatar-id)
+            slot-v (net/network-cell-strongest exec-net slot-id)]
+        (or (merge/cell-updated? parent-v avatar-v parent-net)
+            (merge/cell-updated? avatar-v slot-v exec-net))))))
+
+(defn- stable-collection-net [exec-net slot-key]
+  (effect/project-stable-cells exec-net
+                               exec-net
+                               (stable-slot-cell-ids exec-net slot-key)))
+
 (defn- execute-slot-subnet
-  [collection-net slot-key parent-id parent-net]
-  (-> (attach-slot-sync collection-net slot-key parent-id parent-net)
-      (effect/execute-subnet
-       #(slot-output-taps %1 slot-key %2)
-       #(slot-seed-ids % slot-key))))
+  [exec-net slot-key]
+  (effect/execute-subnet exec-net
+                         #(slot-output-taps %1 slot-key %2)
+                         #(slot-seed-ids % slot-key)))
 
 (defn sync-slot-messages
   [collection-id slot-key [exec-net collection-net' updated*]]
@@ -108,8 +127,14 @@
                               ensure-cons-net)]
        (if (value/contradiction? collection-net)
          [(message collection-id value/contradiction)]
-         (->> (execute-slot-subnet collection-net slot-key parent-id network)
-              (sync-slot-messages collection-id slot-key)))))
+         (let [exec-net (attach-slot-sync collection-net slot-key parent-id network)]
+           (if (slot-sync-needed? exec-net slot-key parent-id network)
+             (->> (execute-slot-subnet exec-net slot-key)
+                  (sync-slot-messages collection-id slot-key))
+             (let [stable (stable-collection-net exec-net slot-key)]
+               (if (merge/cell-updated? stable collection-net network)
+                 [(message collection-id stable)]
+                 [])))))))
    [parent-id collection-id]
    [parent-id collection-id]))
 

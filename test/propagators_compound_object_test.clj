@@ -251,6 +251,25 @@
       (is (= 10 (net/network-cell-value n' head0)))
       (is (= 30 (net/network-cell-value n' out))))))
 
+(deftest slot-guard-skips-irrelevant-car-wake
+  (testing "already-synced car slot propagator reruns as a no-op wake"
+    (let [head0 (new-node-id)
+          head1 (new-node-id)
+          coll0 (new-node-id)
+          coll1 (new-node-id)
+          sentinel (new-node-id)
+          n (nb/install-cells [head0 head1 coll0 coll1 sentinel])
+          [[car0 cdr0] n] ((obj/p:cons head0 coll1 coll0) n)
+          [[car1 cdr1] n] ((obj/p:cons head1 sentinel coll1) n)
+          n1 (-> n
+                 (nb/seed-cell head0 10)
+                 (nb/seed-cell head1 20)
+                 (nb/run-propagators [car0 cdr0 car1 cdr1]))
+          n2 (-> n1 (nb/run-propagators [car0 car1 car0]))]
+      (is (= 10 (obj/slot-strongest (net/network-cell-value n2 coll0) :car)))
+      (is (= 10 (net/network-cell-value n2 head0)))
+      (is (= 20 (net/network-cell-value n2 head1))))))
+
 (deftest collection-value-does-not-persist-effect-taps
   (testing "collection named-network may store declarative sync structure, but not effect taps"
     (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)

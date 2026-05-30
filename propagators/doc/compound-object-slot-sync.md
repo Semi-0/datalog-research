@@ -102,6 +102,48 @@ it. `cell-merge` normalizes named-network values into evidence sets and
 `cell-updated?` is named-network aware so equivalent strongest collection
 networks do not re-wake slot sync just because raw evidence shape changed.
 
+## Stateless Slot Guard
+
+Every `p:slot` propagator is still connected to the collection cell, so an
+update to any slot can wake every attached slot propagator. Before running the
+effectful subnet, `p:slot` now applies a stateless guard:
+
+```clojure
+(slot-sync-needed? exec-net slot-key parent-id parent-net)
+```
+
+After `attach-slot-sync`, the guard compares strongest values with
+`cell-updated?`:
+
+- parent cell vs parent avatar
+- parent avatar vs indexed slot cell
+
+When both comparisons report no change, the propagator skips `execute-subnet`
+(taps, task queue, and inner `run-tasks`). If `attach-slot-sync` still changed
+durable collection structure, it emits a projected collection message; otherwise
+it returns no messages.
+
+This is intentionally stateless. The guard does not remember prior activations
+and does not stop the scheduler from waking irrelevant slot propagators. It only
+avoids redundant subnet execution once a propagator has been scheduled.
+
+### Benchmark
+
+`clj -M:propagators-object-bench 200` on a single `p:cons` network after the
+initial car/cdr sync:
+
+```text
+first car/cdr sync (subnet run)  median=0.925 ms
+guarded car no-op wake           median=0.057 ms
+```
+
+The guarded no-op path is about 16x faster than a full first sync on this
+micro-benchmark. The win is skipping effect taps and inner `run-tasks`, not
+graph scheduling itself.
+
+Longer term, dependency/frontier tracking should make collection updates
+slot-aware so unrelated slot propagators are not scheduled at all.
+
 ## Current Tests
 
 `test/propagators_compound_object_test.clj` covers:
@@ -119,6 +161,7 @@ networks do not re-wake slot sync just because raw evidence shape changed.
 - accessor-style `(car (cdr (cdr coll0)))` propagation using
   `(p:cdr coll1 coll0)`, `(p:cdr coll2 coll1)`, and `(p:car out coll2)`
 - an invariant test that collection content should not persist effect taps
+- guarded no-op reruns when parent avatar and slot strongest values already agree
 
 The nested accessor helper currently uses `install-prop!` for the accessor
 chain. That eagerly enqueues the newly installed `(p:cdr coll1 coll0)`,
@@ -234,6 +277,8 @@ truth-maintenance debugging.
   ids or named-network merge rules that recognize it.
 - Scalar conflicts still use normal cell merge and can become contradictions.
 - Fan-out cycles rely on `cell-updated?` suppressing no-op strongest updates.
+- The stateless slot guard suppresses redundant subnet runs but does not prevent
+  irrelevant slot propagators from being scheduled.
 - The test coverage is strongest for cons-like `:car` / `:cdr` slots; more slot
   shapes may need a clearer generalized API.
 - The dict now contains metadata such as `:slot-index`; named-network preorder
