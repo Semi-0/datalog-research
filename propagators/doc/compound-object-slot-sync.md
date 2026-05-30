@@ -196,6 +196,32 @@ With that split:
 - repeated activations cannot accidentally reuse stale closures
 - the effect-tap test becomes the safety check for projection correctness
 
+## Future Dependence Tracking
+
+When the propagator system grows a dependence-tracking TMS, plain `p:id`
+bi-sync will not be enough for compound object slots. Slot sync must preserve
+the provenance of the information flowing through the collection subnet.
+
+The likely shape is to attach a dependence-tracked bidirectional switch at the
+avatar <-> slot boundary. That `bi-switch` should pass dependencies from the TMS
+along with the value, so a value copied from parent avatar to slot, or from slot
+back to parent avatar, carries the same justifications as the source
+information.
+
+An equivalent design would let the subnet execution pass provenance into the
+emitted value directly. The important invariant is the same either way:
+
+- slot sync must not erase TMS dependencies
+- collection named-network values must retain enough provenance to explain their
+  strongest slot values
+- parent fan-out messages must carry provenance back to the receiving cells
+- effect taps may record the activation frontier, but they must not become the
+  source of truth for why a value is believed
+
+Without this, the named-network slot model would correctly move values but lose
+the dependency explanation needed for retraction, alternate worlds, or
+truth-maintenance debugging.
+
 ## Risks
 
 - Effect taps and other activation-local state must not persist in collection
