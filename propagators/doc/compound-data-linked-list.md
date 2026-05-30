@@ -10,7 +10,9 @@ Source files:
 
 ## Status
 
-This is current behavior, not final architecture.
+This path is deprecated. It remains in the tree as the old linked-list
+dispatcher spike and compatibility baseline, but new compound slot work should
+use `propagators.datastructures.compound-object`.
 
 The linked-list implementation is intentionally narrow. It centralizes effectful
 compound dispatch in `c:linked-list`, which works for the current tests but is a
@@ -44,20 +46,20 @@ p:car / p:cdr
 execution boundary is deliberate. Running in strongest selection caused nested
 access to happen too early and made dispatch order hard to reason about.
 
-## Current API
+## Deprecated API
 
-`p:car` and `p:cdr` are structural writers:
+`p:car` and `p:cdr` are deprecated structural writers:
 
 ```clojure
 (p:car elem-id collection-id) ; writes {:head elem-id}
 (p:cdr elem-id collection-id) ; writes {:tail elem-id}
 ```
 
-`c:linked-list` reads the collection cell content. If the content is compound
+`c:linked-list` is deprecated. It reads the collection cell content. If the content is compound
 subnet state, it calls `run-subnet-effectful` and emits messages for ids that
 were marked updated by avatar taps.
 
-`p:cons` installs one layer:
+`p:cons` is deprecated and installs one layer:
 
 ```clojure
 (p:cons head-id tail-id collection-id)
@@ -69,8 +71,8 @@ Internally it installs:
 - `p:cdr`
 - `c:linked-list`
 
-`p:cons-scheduled` returns all three prop ids for tests that need explicit task
-control.
+`p:cons-scheduled` is deprecated and returns all three prop ids for tests that
+need explicit task control.
 
 ## Why Dispatch Is Centralized
 
@@ -116,7 +118,11 @@ multiple collection constraints.
 ## Scheduling Rule
 
 Install-time enqueue is not enough. The structural writers must run after the
-head or tail values they depend on have been seeded.
+head or tail values they depend on have been seeded. This is one reason the
+named-network slot model supersedes this path: `p:car*` and `p:cdr*` are local
+bidirectional slot constraints, so collection-cell updates can wake neighboring
+accessor props through the ordinary scheduler instead of relying on one
+centralized linked-list dispatcher.
 
 Tests use explicit queue helpers to model this:
 
@@ -127,15 +133,15 @@ Tests use explicit queue helpers to model this:
 This keeps failures honest: if the writer never runs after the value exists, the
 nested access path should not magically work.
 
-## Future Direction
+## Replacement Direction
 
-The likely next shape is:
+The replacement shape is the named-network slot model in
+`compound_object.clj`:
 
-1. keep compound subnet state structural in cell content
-2. move effectful run and dispatch behind a generic compound boundary
-3. let linked-list constraints describe slots, not own all dispatch mechanics
-4. make scheduling and updated-slot tracking explicit data rather than a
-   linked-list-local convention
+1. keep collection cell content as durable named-network partial information
+2. let `p:car*` and `p:cdr*` describe bidirectional slots directly
+3. store slots, avatars, slot indexes, and pure sync structure in the collection
+4. keep effect taps and `updated*` activation-local
 
-Until then, `compound_data.clj` should be read as a working linked-list spike,
-not as the final compound-data framework.
+`compound_data.clj` should now be read as deprecated reference behavior, not as
+the final compound-data framework.

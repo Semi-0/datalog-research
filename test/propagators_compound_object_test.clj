@@ -8,6 +8,7 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.compound_data :as linked]
             [propagators.datastructures.compound_subnet_state :as state]
+            [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.message :refer [message]]
@@ -46,10 +47,18 @@
        (filter #(and (vector? %) (= :slot-sync (first %))))
        set))
 
-(defn- prop-entries [collection-net]
-  (->> (net/net-env collection-net)
-       (filter (fn [[_id entry]] (prop/prop? entry)))
-       vec))
+(defn- tap-prop-keys [collection-net]
+  (->> (keys (net/net-dict-or-empty collection-net))
+       (filter #(and (vector? %) (= :slot-tap (first %))))
+       set))
+
+(defn- effect-tap-prop-entries [collection-net]
+  (let [g (net/net-graph collection-net)]
+    (->> (net/net-env collection-net)
+         (filter (fn [[id entry]]
+                   (and (prop/prop? entry)
+                        (empty? (graph/node-output-ids (get g id))))))
+         vec)))
 
 (defn- named-cell-net [named-values]
   (reduce
@@ -299,17 +308,17 @@
       (is (= 10 (strongest n' head0)))
       (is (= 30 (strongest n' out))))))
 
-(deftest collection-value-does-not-persist-activation-frame
-  (testing "RED: collection named-network should store data/index only, not execution-frame propagators"
+(deftest collection-value-does-not-persist-effect-taps
+  (testing "collection named-network may store declarative sync structure, but not effect taps"
     (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car*)
           n' (-> net
                  (seed-cell parent 10)
                  (run-props [prop-id]))
           coll-net (collection-net n' coll)]
-      (is (empty? (sync-prop-keys coll-net))
-          "slot sync propagator ids are activation-frame wiring and should not persist in collection content")
-      (is (empty? (prop-entries coll-net))
-          "collection content should be a data/index named-network, not a stored executable frame"))))
+      (is (empty? (tap-prop-keys coll-net))
+          "effect tap ids are activation-local and should not persist in collection content")
+      (is (empty? (effect-tap-prop-entries coll-net))
+          "collection content should not retain effect tap propagator entries"))))
 
 (deftest no-linked-list-dispatch-required
   (testing "p:cons* installs only car/cdr slot sync propagators"

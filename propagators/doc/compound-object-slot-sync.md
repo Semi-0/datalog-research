@@ -9,14 +9,15 @@ Source files:
 
 ## Status
 
-This is an additive experiment beside the current linked-list implementation.
-It does not replace `compound_data.clj` yet.
+This supersedes the deprecated linked-list dispatcher in `compound_data.clj` for
+new compound slot work. The old implementation remains as a compatibility
+baseline and scheduling comparison.
 
-There is a known design error in the current experiment: the collection
-named-network value persists execution-frame wiring. The red test
-`collection-value-does-not-persist-activation-frame` captures the desired
-invariant and is expected to fail until the execution frame is separated from the
-stable collection value.
+The current experiment treats the collection named network as durable partial
+information. Pure sync structure such as `p:id` can be stored as declarative
+subnet data, but activation-local effects must not persist in the collection
+value. The test `collection-value-does-not-persist-effect-taps` captures that
+invariant.
 
 ## Idea
 
@@ -64,7 +65,7 @@ fetch avatar strongest values.
 
 ## Difference From Current Linked List
 
-Current `compound_data.clj`:
+Deprecated `compound_data.clj`:
 
 - `p:car` and `p:cdr` only write structural updates
 - `c:linked-list` owns internal execution and parent dispatch
@@ -77,6 +78,20 @@ This experiment:
 - parent avatars and slot indexes live in that named network
 - each slot propagator runs only the slot-indexed subnet work it needs
 - no `c:linked-list` dispatcher is installed
+
+## Robustness Over The Deprecated Dispatcher
+
+The named-network slot model is more robust for nested accessor scheduling.
+Every slot relation is a real bidirectional propagator, so updates to collection
+cells naturally wake neighboring `p:car*` / `p:cdr*` accessors through the normal
+graph scheduler. The old linked-list path depends on the timing of structural
+writers plus a centralized `c:linked-list` dispatcher; its schedule experiment
+still documents a case where install-time enqueue leaves the nested `out` cell at
+`:bool4/nothing`.
+
+The new model also lets each slot propagator run only the slot-indexed subnet
+work it needs, then emit direct messages to the real parent cells whose avatars
+changed during that activation.
 
 ## Named-Network Merge
 
@@ -103,46 +118,62 @@ networks do not re-wake slot sync just because raw evidence shape changed.
 - nested `p:cons*` local slot sync
 - accessor-style `(car (cdr (cdr coll0)))` propagation using
   `(p:cdr* coll1 coll0)`, `(p:cdr* coll2 coll1)`, and `(p:car* out coll2)`
-- a red invariant test that collection content should not persist activation
-  frame propagators
+- an invariant test that collection content should not persist effect taps
 
-## Design Error: Persisted Execution Frame
+The nested accessor helper currently uses `install-prop!` for the accessor
+chain. That eagerly enqueues the newly installed `(p:cdr* coll1 coll0)`,
+`(p:cdr* coll2 coll1)`, and `(p:car* out coll2)` propagators before any head is
+seeded. This early activation pre-attaches their parent avatars and slot indexes
+in the collection networks.
+
+The eager activation is not required for the simple seeded nested case. If the
+accessor propagators are installed but not initially enqueued, seeding `head2`
+still wakes the neighboring `p:cons*` slot propagator for `coll2`; the resulting
+collection-cell update then enqueues neighboring accessor props, and the chain
+can still deliver `30` to `out`. Eager activation is therefore a scheduling
+convenience in the test, not a semantic requirement of `p:car*`/`p:cdr*`.
+
+## Runtime Boundary: Declarative Structure vs Effects
 
 The current implementation makes nested access work by storing slot sync
-propagators in the collection named network:
+structure in the collection named network:
 
 ```clojure
 [:slot-sync :car parent-id :avatar->slot] -> prop-id
 [:slot-sync :car parent-id :slot->avatar] -> prop-id
 ```
 
-That is the wrong lifetime boundary. A collection value should be durable
-partial information:
+These entries are pure `p:id` constraints between parent avatars and slot cells.
+They are acceptable if we treat the collection network itself as partial
+information: the stored network says how the object subnet is related, and
+evaluation still happens only when a propagator runs that network.
+
+The lifetime boundary is instead between declarative subnet structure and
+activation-local effects. A collection value may contain durable partial
+information:
 
 - slot cells
 - parent avatar cells
 - slot index metadata
+- pure sync constraints such as `p:id`
 
-Execution machinery should be activation-local:
+Effectful execution machinery should be activation-local:
 
-- p:id sync wiring used to run this round
 - tap propagators
 - `updated*`
 - task queue frontier
 
-Persisting tap props was already wrong because taps close over an `updated*`
-atom from one activation. Stripping taps after the run avoids that immediate bug,
-but it does not solve the deeper issue: the collection value is still partly an
-execution frame.
+Persisting tap props is wrong because taps close over an `updated*` atom from one
+activation. Stripping taps after the run keeps nested access working without
+leaking activation-local state into the collection value.
 
-## Potential Fix
+## Boundary-Preserving Flow
 
-Split slot sync into three explicit transformations:
+Slot sync can still be described as three explicit transformations:
 
 ```clojure
 (defn stable->execution-frame [collection-net slot-key parent-net]
-  ;; copy stable cells/index into an executable net
-  ;; install p:id avatar <-> slot wiring for this frame
+  ;; start from durable cells/index/declarative sync structure
   ;; install fresh taps that close over this activation's updated*
   )
 
@@ -151,8 +182,8 @@ Split slot sync into three explicit transformations:
   )
 
 (defn execution-frame->stable [frame-result]
-  ;; keep slot cells, avatar cells, and :slot-index
-  ;; drop p:id sync props, tap props, transient graph edges, and updated*
+  ;; keep slot cells, avatar cells, :slot-index, and pure sync constraints
+  ;; drop tap props, transient effect state, and updated*
   ;; return a named-network value for the collection cell
   )
 ```
@@ -161,17 +192,23 @@ With that split:
 
 - `p:slot*` can still emit a named-network update to the collection cell
 - fan-out still uses tap-recorded `updated*`
-- the collection value stays pure data/index
+- the collection value stays durable partial information
 - repeated activations cannot accidentally reuse stale closures
-- the red test becomes the safety check for projection correctness
+- the effect-tap test becomes the safety check for projection correctness
 
 ## Risks
 
-- Duplicate or activation-local sync props must not persist in collection
+- Effect taps and other activation-local state must not persist in collection
   content.
 - Slot ids and parent avatar ids must remain stable for named-network merge to
   stay readable.
+- Pure sync propagators such as `p:id` are currently stored as installed network
+  structure. That is acceptable while we treat networks as partial information,
+  but equivalent independently-created sync structure still depends on stable
+  ids or named-network merge rules that recognize it.
 - Scalar conflicts still use normal cell merge and can become contradictions.
 - Fan-out cycles rely on `cell-updated?` suppressing no-op strongest updates.
+- The test coverage is strongest for cons-like `:car` / `:cdr` slots; more slot
+  shapes may need a clearer generalized API.
 - The dict now contains metadata such as `:slot-index`; named-network preorder
   therefore supports metadata comparison in addition to node-id commitments.

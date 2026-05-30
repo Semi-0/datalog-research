@@ -1,6 +1,9 @@
 # Compound Data Design Draft
 
-This document describes the `compound_data` design: extension-map compound state, compound-to-compound sync merge, and **linked-list-only** effectful execution.
+This document describes the deprecated `compound_data` design: extension-map
+compound state, compound-to-compound sync merge, and **linked-list-only**
+effectful execution. New compound slot work should use the named-network slot
+model in `propagators/datastructures/compound_object.clj`.
 
 ## Goal
 

@@ -1,7 +1,9 @@
 (ns propagators.datastructures.compound_data
-  "Linked-list propagators over compound subnet cells."
-  (:require [propagators.cells.value :as value]
-            [propagators.datastructures.compound_strongest_result :as strongest]
+  "Deprecated linked-list propagators over compound subnet cells.
+
+  Prefer propagators.datastructures.compound-object for new compound slot work.
+  This namespace is kept as the old linked-list dispatcher spike."
+  (:require [propagators.datastructures.compound_strongest_result :as strongest]
             [propagators.datastructures.compound_subnet :as subnet]
             [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_update :as update]
@@ -18,7 +20,7 @@
         (message outer-id (net/network-cell-strongest subnet avatar-id))))))
 
 (defn p:car
-  "Write `{:head elem-id}` compound-data update to collection."
+  "Deprecated. Write `{:head elem-id}` compound-data update to collection."
   [elem-id collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs _network]
@@ -27,7 +29,7 @@
    [collection-id]))
 
 (defn p:cdr
-  "Write `{:tail elem-id}` compound-data update to collection."
+  "Deprecated. Write `{:tail elem-id}` compound-data update to collection."
   [elem-id collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs _network]
@@ -36,7 +38,7 @@
    [collection-id]))
 
 (defn c:linked-list
-  "Constraint: run internal subnet from collection content; dispatch to updated outer ids."
+  "Deprecated. Run internal subnet from collection content; dispatch to updated outer ids."
   [collection-id]
   (prop/construct-propagator
    (fn [_inputs _outputs network]
@@ -67,7 +69,7 @@
      :network n}))
 
 (defn p:cons
-  "Install `p:car`, `p:cdr`, and `c:linked-list` for one collection cell.
+  "Deprecated. Install `p:car`, `p:cdr`, and `c:linked-list` for one collection cell.
   Returns `[linked-list-prop-id network]`."
   [head-id tail-id collection-id]
   (fn [network]
@@ -76,7 +78,7 @@
       [linked-list-id network])))
 
 (defn p:cons-scheduled
-  "Same install as `p:cons`, but returns all prop ids for task enqueue.
+  "Deprecated. Same install as `p:cons`, but returns all prop ids for task enqueue.
   Returns `[[car-prop-id cdr-prop-id linked-list-prop-id] network]`."
   [head-id tail-id collection-id]
   (fn [network]

@@ -10,7 +10,7 @@
    (fn [x enabled?]
      (if enabled? x value/nothing))))
 
-(def p:tap
+(def effect:tap
   (fn [do-something]
     (fn [in]
       (prop/construct-propagator
@@ -23,7 +23,7 @@
 (defn mark-updated-tap
   "Build an effectful tap that records `outer-node-id` into `updated*`."
   [updated* outer-node-id]
-  (p:tap
+  (effect:tap
    (fn [_inputs]
      (swap! updated* conj outer-node-id))))
 
