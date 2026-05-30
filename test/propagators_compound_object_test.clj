@@ -89,6 +89,8 @@
           dict (net/net-dict-or-empty coll-net)]
       (is (= 10 (obj/slot-strongest coll-net :car)))
       (is (contains? dict parent))
+      (is (= value/nothing (net/network-cell-value coll-net (get dict parent)))
+          "durable collection value keeps accessor avatars empty")
       (is (contains? (get-in dict [:slot-index :car]) parent)))))
 
 (deftest p-car-syncs-collection-slot-out-to-parent
@@ -179,6 +181,23 @@
           [tasks _n'] (core/eval-cell coll (message coll coll-net) n0)]
       (is (prop/prop? (net/network-lookup-propagator n0 prop-id)))
       (is (tq/queue-empty? tasks)))))
+
+(deftest repeated-equivalent-slot-activation-skips-subnet
+  (testing "once slot and parent agree, rerunning the slot prop emits no messages"
+    (let [{:keys [net parent prop-id]} (build-slot-net obj/p:car)
+          n1 (-> net
+                 (nb/seed-cell parent 10)
+                 (nb/run-propagators [prop-id]))
+          f (prop/prop-f (net/network-lookup-propagator n1 prop-id))
+          messages (f nil nil n1)]
+      (is (empty? messages)))))
+
+(deftest unchanged-empty-slot-registration-emits-only-topology
+  (testing "a new nothing-valued accessor registers topology without subnet execution"
+    (let [{:keys [net prop-id]} (build-slot-net obj/p:car)
+          f (prop/prop-f (net/network-lookup-propagator net prop-id))
+          messages (f nil nil net)]
+      (is (= 1 (count messages))))))
 
 (deftest p-cons-syncs-car-and-cdr-independently
   (testing "p:cons installs independent bidirectional slot constraints"
