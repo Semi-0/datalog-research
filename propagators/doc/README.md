@@ -18,7 +18,7 @@ larger repo later.
   describes the current `compound_data.clj` approach, including why it is
   intentionally fragile and likely to change.
 - [Compound Object Slot Sync](compound-object-slot-sync.md) describes the
-  experimental replacement direction where `p:car*` and `p:cdr*` directly sync
+  replacement direction where `p:car` and `p:cdr` directly sync
   named-network slots without `c:linked-list`.
 - [Experiments And Commands](experiments-and-commands.md) keeps test commands,
   benchmark commands, file maps, and open-work notes.

@@ -119,7 +119,7 @@ multiple collection constraints.
 
 Install-time enqueue is not enough. The structural writers must run after the
 head or tail values they depend on have been seeded. This is one reason the
-named-network slot model supersedes this path: `p:car*` and `p:cdr*` are local
+named-network slot model supersedes this path: `p:car` and `p:cdr` are local
 bidirectional slot constraints, so collection-cell updates can wake neighboring
 accessor props through the ordinary scheduler instead of relying on one
 centralized linked-list dispatcher.
@@ -139,7 +139,7 @@ The replacement shape is the named-network slot model in
 `compound_object.clj`:
 
 1. keep collection cell content as durable named-network partial information
-2. let `p:car*` and `p:cdr*` describe bidirectional slots directly
+2. let `p:car` and `p:cdr` describe bidirectional slots directly
 3. store slots, avatars, slot indexes, and pure sync structure in the collection
 4. keep effect taps and `updated*` activation-local
 

@@ -36,7 +36,7 @@ For a cons-like object, the collection network has stable slot cells:
                      :cdr #{other-parent-id}}}}
 ```
 
-`p:car*` and `p:cdr*` are bidirectional slot constraints. They do not write a
+`p:car` and `p:cdr` are bidirectional slot constraints. They do not write a
 structural update for a later `c:linked-list` dispatcher. Instead, each slot
 propagator runs the collection network directly and emits:
 
@@ -47,7 +47,7 @@ propagator runs the collection network directly and emits:
 
 ```text
 parent cell / collection cell updates
-  -> p:car* or p:cdr*
+  -> p:car or p:cdr
   -> ensure slot cell exists
   -> ensure parent avatar exists
   -> derive execution frame with avatar <-> slot p:id wiring
@@ -73,7 +73,7 @@ Deprecated `compound_data.clj`:
 
 This experiment:
 
-- `p:car*` and `p:cdr*` are the bidirectional constraints
+- `p:car` and `p:cdr` are the bidirectional constraints
 - the collection cell is a named-network value
 - parent avatars and slot indexes live in that named network
 - each slot propagator runs only the slot-indexed subnet work it needs
@@ -83,7 +83,7 @@ This experiment:
 
 The named-network slot model is more robust for nested accessor scheduling.
 Every slot relation is a real bidirectional propagator, so updates to collection
-cells naturally wake neighboring `p:car*` / `p:cdr*` accessors through the normal
+cells naturally wake neighboring `p:car` / `p:cdr` accessors through the normal
 graph scheduler. The old linked-list path depends on the timing of structural
 writers plus a centralized `c:linked-list` dispatcher; its schedule experiment
 still documents a case where install-time enqueue leaves the nested `out` cell at
@@ -113,25 +113,25 @@ networks do not re-wake slot sync just because raw evidence shape changed.
 - missing slot creation before attach
 - subsuming named-network values replacing weaker slot evidence
 - named-network `cell-updated?` no-op suppression
-- `p:cons*` installing only slot sync props
+- `p:cons` installing only slot sync props
 - one-layer old-vs-new local behavior comparison
-- nested `p:cons*` local slot sync
+- nested `p:cons` local slot sync
 - accessor-style `(car (cdr (cdr coll0)))` propagation using
-  `(p:cdr* coll1 coll0)`, `(p:cdr* coll2 coll1)`, and `(p:car* out coll2)`
+  `(p:cdr coll1 coll0)`, `(p:cdr coll2 coll1)`, and `(p:car out coll2)`
 - an invariant test that collection content should not persist effect taps
 
 The nested accessor helper currently uses `install-prop!` for the accessor
-chain. That eagerly enqueues the newly installed `(p:cdr* coll1 coll0)`,
-`(p:cdr* coll2 coll1)`, and `(p:car* out coll2)` propagators before any head is
+chain. That eagerly enqueues the newly installed `(p:cdr coll1 coll0)`,
+`(p:cdr coll2 coll1)`, and `(p:car out coll2)` propagators before any head is
 seeded. This early activation pre-attaches their parent avatars and slot indexes
 in the collection networks.
 
 The eager activation is not required for the simple seeded nested case. If the
 accessor propagators are installed but not initially enqueued, seeding `head2`
-still wakes the neighboring `p:cons*` slot propagator for `coll2`; the resulting
+still wakes the neighboring `p:cons` slot propagator for `coll2`; the resulting
 collection-cell update then enqueues neighboring accessor props, and the chain
 can still deliver `30` to `out`. Eager activation is therefore a scheduling
-convenience in the test, not a semantic requirement of `p:car*`/`p:cdr*`.
+convenience in the test, not a semantic requirement of `p:car`/`p:cdr`.
 
 ## Runtime Boundary: Declarative Structure vs Effects
 
@@ -190,7 +190,7 @@ Slot sync can still be described as three explicit transformations:
 
 With that split:
 
-- `p:slot*` can still emit a named-network update to the collection cell
+- `p:slot` can still emit a named-network update to the collection cell
 - fan-out still uses tap-recorded `updated*`
 - the collection value stays durable partial information
 - repeated activations cannot accidentally reuse stale closures

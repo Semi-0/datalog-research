@@ -96,7 +96,7 @@
 (defn- run-queue [n tasks]
   (core/run-tasks tasks n))
 
-(defn- build-nested-with-cons* [layers]
+(defn- build-nested-with-cons [layers]
   (let [sentinel (new-node-id)
         ids (vec (repeatedly (+ (* 2 layers) 1) new-node-id))
         coll-ids (mapv #(nth ids (+ (* 2 %) 1)) (range layers))
@@ -107,13 +107,13 @@
        (let [h (head-ids i)
              c (coll-ids i)
              t (if (< i (dec layers)) (coll-ids (inc i)) sentinel)
-             [[car-prop cdr-prop] n'] ((obj/p:cons* h t c) net)]
+             [[car-prop cdr-prop] n'] ((obj/p:cons h t c) net)]
          (assoc acc :net n' :props (conj props car-prop cdr-prop))))
      {:net n :head-ids head-ids :coll-ids coll-ids :sentinel sentinel :props []}
      (range layers))))
 
-(defn- build-three-layer-cons*-with-accessor []
-  (let [{:keys [net head-ids coll-ids props]} (build-nested-with-cons* 3)
+(defn- build-three-layer-cons-with-accessor []
+  (let [{:keys [net head-ids coll-ids props]} (build-nested-with-cons 3)
         [coll0 coll1 coll2] coll-ids
         [head0 head1 head2] head-ids
         out (new-node-id)
@@ -122,9 +122,9 @@
                    (fn [[n tasks] installer]
                      (install-prop! n tasks installer))
                    [n tq/empty-queue]
-                   [(obj/p:cdr* coll1 coll0)
-                    (obj/p:cdr* coll2 coll1)
-                    (obj/p:car* out coll2)])]
+                   [(obj/p:cdr coll1 coll0)
+                    (obj/p:cdr coll2 coll1)
+                    (obj/p:car out coll2)])]
     {:net n
      :tasks tasks
      :props props
@@ -138,7 +138,7 @@
 
 (deftest p-car-syncs-parent-value-into-collection-network
   (testing "parent value enters the collection named-network :car slot"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car*)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
           n' (-> net
                  (seed-cell parent 10)
                  (run-props [prop-id]))
@@ -150,7 +150,7 @@
 
 (deftest p-car-syncs-collection-slot-out-to-parent
   (testing "collection slot value dispatches through tapped avatar to parent"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car*)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
           {:keys [exec-net]} (obj/attach-slot-sync (obj/empty-cons-net) :car parent net)
           slot (obj/slot-id exec-net :car)
           coll-value (net/assoc-net-cell exec-net slot (cell/cell 42 42))
@@ -165,7 +165,7 @@
           p2 (new-node-id)
           coll (new-node-id)
           n0 (install-cells [p1 p2 coll])
-          [prop-id n0] ((obj/p:car* p1 coll) n0)
+          [prop-id n0] ((obj/p:car p1 coll) n0)
           n0 (-> n0 (seed-cell p1 value/nothing) (seed-cell p2 value/nothing))
           {:keys [exec-net]} (obj/attach-slot-sync (obj/empty-cons-net) :car p1 n0)
           {:keys [exec-net]} (obj/attach-slot-sync exec-net :car p2 n0)
@@ -179,7 +179,7 @@
 
 (deftest p-car-reuses-existing-avatar
   (testing "repeated equivalent parent updates reuse the same avatar and sync props"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car*)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
           n1 (-> net (seed-cell parent 1) (run-props [prop-id]))
           coll-net1 (collection-net n1 coll)
           avatar1 (get (net/net-dict-or-empty coll-net1) parent)
@@ -194,7 +194,7 @@
 
 (deftest p-car-creates-missing-slot-before-attach
   (testing "slot sync can establish a missing slot cell"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car*)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
           sparse (net/net-with-dict net/empty-net {:slot-index {}})
           n' (-> net
                  (seed-cell parent 5)
@@ -206,7 +206,7 @@
 
 (deftest p-car-accepts-subsuming-named-network-update
   (testing "subsuming named-network values replace weaker slot evidence"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car*)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
           weak (named-cell-net [[:x true]])
           strong (add-named-cell weak :y false)
           n1 (-> net (seed-cell parent weak) (run-props [prop-id]))
@@ -230,7 +230,7 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (install-cells [parent coll])
-          [prop-id n0] ((obj/p:car* parent coll) n0)
+          [prop-id n0] ((obj/p:car parent coll) n0)
           coll-net (obj/empty-cons-net)
           n0 (net/assoc-net-cell n0 coll (cell/cell coll-net coll-net))
           [tasks _n'] (core/eval-cell coll (message coll coll-net) n0)]
@@ -238,12 +238,12 @@
       (is (tq/queue-empty? tasks)))))
 
 (deftest p-cons-syncs-car-and-cdr-independently
-  (testing "p:cons* installs independent bidirectional slot constraints"
+  (testing "p:cons installs independent bidirectional slot constraints"
     (let [head (new-node-id)
           tail (new-node-id)
           coll (new-node-id)
           n (install-cells [head tail coll])
-          [[car-prop cdr-prop] n] ((obj/p:cons* head tail coll) n)
+          [[car-prop cdr-prop] n] ((obj/p:cons head tail coll) n)
           n' (-> n
                  (seed-cell head 10)
                  (seed-cell tail 20)
@@ -268,7 +268,7 @@
           new-tail (new-node-id)
           new-coll (new-node-id)
           new-net (install-cells [new-head new-tail new-coll])
-          [[car-prop cdr-prop] new-net] ((obj/p:cons* new-head new-tail new-coll) new-net)
+          [[car-prop cdr-prop] new-net] ((obj/p:cons new-head new-tail new-coll) new-net)
           new-net (-> new-net
                       (seed-cell new-head 10)
                       (seed-cell new-tail 20)
@@ -279,9 +279,9 @@
       (is (= 10 (slot-strongest new-coll-net :car)))
       (is (= 20 (slot-strongest new-coll-net :cdr))))))
 
-(deftest p-cons*-nested-local-layer-syncs-index-two-head
-  (testing "p:cons* x5: seeding head2 syncs the local coll2 :car slot"
-    (let [{:keys [net head-ids coll-ids props]} (build-nested-with-cons* 5)
+(deftest p-cons-nested-local-layer-syncs-index-two-head
+  (testing "p:cons x5: seeding head2 syncs the local coll2 :car slot"
+    (let [{:keys [net head-ids coll-ids props]} (build-nested-with-cons 5)
           head2 (nth head-ids 2)
           coll2 (nth coll-ids 2)
           n' (-> net
@@ -291,16 +291,16 @@
       (is (= 30 (strongest n' head2)))
       (is (= 30 (slot-strongest coll2-net :car))))))
 
-(deftest p-cons*-three-layer-accessor-head2-reaches-out
+(deftest p-cons-three-layer-accessor-head2-reaches-out
   (testing "new slot-index model supports (car (cdr (cdr coll0))) accessor fan-out"
-    (let [{:keys [net tasks head2 out]} (build-three-layer-cons*-with-accessor)
+    (let [{:keys [net tasks head2 out]} (build-three-layer-cons-with-accessor)
           [n tasks] (seed-cell! net tasks head2 30)
           n' (run-queue n tasks)]
       (is (= 30 (strongest n' out))))))
 
-(deftest p-cons*-three-layer-accessor-three-heads-reaches-out
+(deftest p-cons-three-layer-accessor-three-heads-reaches-out
   (testing "new slot-index model reaches accessor out with all heads seeded"
-    (let [{:keys [net tasks head0 head1 head2 out]} (build-three-layer-cons*-with-accessor)
+    (let [{:keys [net tasks head0 head1 head2 out]} (build-three-layer-cons-with-accessor)
           [n tasks] (seed-cell! net tasks head0 10)
           [n tasks] (seed-cell! n tasks head1 20)
           [n tasks] (seed-cell! n tasks head2 30)
@@ -310,7 +310,7 @@
 
 (deftest collection-value-does-not-persist-effect-taps
   (testing "collection named-network may store declarative sync structure, but not effect taps"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car*)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
           n' (-> net
                  (seed-cell parent 10)
                  (run-props [prop-id]))
@@ -321,12 +321,12 @@
           "collection content should not retain effect tap propagator entries"))))
 
 (deftest no-linked-list-dispatch-required
-  (testing "p:cons* installs only car/cdr slot sync propagators"
+  (testing "p:cons installs only car/cdr slot sync propagators"
     (let [head (new-node-id)
           tail (new-node-id)
           coll (new-node-id)
           n (install-cells [head tail coll])
-          [[car-prop cdr-prop] n] ((obj/p:cons* head tail coll) n)]
+          [[car-prop cdr-prop] n] ((obj/p:cons head tail coll) n)]
       (is (= 2 (count (filter prop/prop? (vals (net/net-env n))))))
       (is (prop/prop? (net/network-lookup-propagator n car-prop)))
       (is (prop/prop? (net/network-lookup-propagator n cdr-prop))))))

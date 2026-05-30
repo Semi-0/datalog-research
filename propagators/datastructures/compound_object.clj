@@ -187,7 +187,7 @@
     {:collection-net (remove-slot-taps collection-net' slot-key)
      :parent-messages parent-messages}))
 
-(defn p:slot*
+(defn p:slot
   [slot-key parent-id collection-id]
   (when-not (contains? slot-keys slot-key)
     (throw (ex-info "unknown compound object slot" {:slot-key slot-key})))
@@ -203,15 +203,15 @@
    [parent-id collection-id]
    [parent-id collection-id]))
 
-(defn p:car* [elem-id collection-id]
-  (p:slot* :car elem-id collection-id))
+(defn p:car [elem-id collection-id]
+  (p:slot :car elem-id collection-id))
 
-(defn p:cdr* [elem-id collection-id]
-  (p:slot* :cdr elem-id collection-id))
+(defn p:cdr [elem-id collection-id]
+  (p:slot :cdr elem-id collection-id))
 
-(defn p:cons*
+(defn p:cons
   [head-id tail-id collection-id]
   (fn [network]
-    (let [[car-prop n] ((p:car* head-id collection-id) network)
-          [cdr-prop n] ((p:cdr* tail-id collection-id) n)]
+    (let [[car-prop n] ((p:car head-id collection-id) network)
+          [cdr-prop n] ((p:cdr tail-id collection-id) n)]
       [[car-prop cdr-prop] n])))
