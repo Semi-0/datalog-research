@@ -4,11 +4,14 @@
             [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
+            [propagators.core :refer [run-tasks]]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.datastructures.named-network :as named]
+            [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.stdlib :as stdlib]))
 
 (defn- named-cell-net
   [named-values]
@@ -26,6 +29,75 @@
   (-> net/empty-net
       (net/net-with-dict {k id})
       (net/assoc-net-prop id (prop/prop (fn [_inputs _outputs _network] [])))))
+
+(defn- prop-ids
+  [n]
+  (->> (net/net-env n)
+       (keep (fn [[id entry]]
+               (when (prop/prop? entry)
+                 id)))
+       vec))
+
+(defn- install-cells
+  [n ids]
+  (reduce
+   (fn [n id]
+     (second ((cell/construct-cell id) n)))
+   n
+   ids))
+
+(defn- p-id-value-sync-net
+  []
+  (let [from (new-node-id)
+        to (new-node-id)
+        n (install-cells net/empty-net [from to])
+        [sync-id n] ((stdlib/p:id from to) n)]
+    {:net n
+     :from from
+     :to to
+     :sync-id sync-id}))
+
+(defn- bi-sync-value-sync-net
+  []
+  (let [left (new-node-id)
+        right (new-node-id)
+        out-left (new-node-id)
+        out-right (new-node-id)
+        n (install-cells net/empty-net [left right out-left out-right])
+        n (stdlib/bi-sync nil [left right] [out-left out-right] n)
+        [left-sync right-sync] (prop-ids n)]
+    {:net n
+     :left left
+     :right right
+     :out-left out-left
+     :out-right out-right
+     :sync-ids [left-sync right-sync]}))
+
+(defn- add-named-cell
+  [n k v]
+  (let [id (new-node-id)]
+    (-> (second ((cell/construct-cell id v v) n))
+        (net/net-with-dict (assoc (net/net-dict-or-empty n) k id)))))
+
+(defn- seed-cell
+  [n cell-id v]
+  (net/assoc-net-cell n cell-id (cell/cell v v)))
+
+(defn- run-props
+  [n prop-ids]
+  (run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
+
+(defn- strongest
+  [n cell-id]
+  (cell/cell-strongest (net/env-get (net/net-env n) cell-id)))
+
+(defn- content
+  [n cell-id]
+  (cell/cell-content (net/env-get (net/net-env n) cell-id)))
+
+(defn- propagate-value
+  [n prop-ids from v]
+  (run-props (seed-cell n from v) prop-ids))
 
 (deftest named-network-interface-subsumption
   (testing "a subsumes b when a has every named key in b with stronger values"
@@ -64,6 +136,40 @@
           merged (merge/cell-merge value/nothing update net/empty-net)]
       (is (= #{update} merged))
       (is (= update (merge/strongest-value merged net/empty-net))))))
+
+(deftest named-network-value-syncs-through-p-id
+  (testing "p:id propagates a named-network value and later replaces it with a subsuming update"
+    (let [{:keys [net from to sync-id]} (p-id-value-sync-net)
+          weak (named-cell-net [[:x true]])
+          strong (add-named-cell weak :y false)
+          after-weak (propagate-value net [sync-id] from weak)
+          after-strong (propagate-value after-weak [sync-id] from strong)]
+      (is (= true (named/named-network->= strong weak)))
+      (is (= false (named/named-network->= weak strong)))
+      (is (= #{weak} (content after-weak to)))
+      (is (= weak (strongest after-weak to)))
+      (is (= #{strong} (content after-strong to)))
+      (is (= strong (strongest after-strong to))))))
+
+(deftest named-network-value-syncs-through-bi-sync
+  (testing "bi-sync propagates named-network values and accepts subsuming updates"
+    (let [{:keys [net left right out-left out-right sync-ids]} (bi-sync-value-sync-net)
+          weak (named-cell-net [[:x true]])
+          strong (add-named-cell weak :y false)
+          left-weak (propagate-value net sync-ids left weak)
+          left-strong (propagate-value left-weak sync-ids left strong)
+          right-weak (propagate-value left-strong sync-ids right weak)
+          right-strong (propagate-value right-weak sync-ids right strong)]
+      (is (= true (named/named-network->= strong weak)))
+      (is (= false (named/named-network->= weak strong)))
+      (is (= #{weak} (content left-weak out-right)))
+      (is (= weak (strongest left-weak out-right)))
+      (is (= #{strong} (content left-strong out-right)))
+      (is (= strong (strongest left-strong out-right)))
+      (is (= #{weak} (content right-weak out-left)))
+      (is (= weak (strongest right-weak out-left)))
+      (is (= #{strong} (content right-strong out-left)))
+      (is (= strong (strongest right-strong out-left))))))
 
 (deftest named-network-evidence-set-merge-maintains-antichain
   (testing "stronger update replaces weaker evidence"
