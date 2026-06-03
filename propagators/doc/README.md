@@ -20,6 +20,9 @@ larger repo later.
 - [Compound Object Slot Sync](compound-object-slot-sync.md) describes the
   replacement direction where `p:car` and `p:cdr` directly sync
   named-network slots without `c:linked-list`.
+- [Layered Procedure Network](layered-procedure-network.md) describes layered
+  data/procedure slots, pure procedure extension fragments, and stable layered
+  operators such as `p:+`.
 - [Experiments And Commands](experiments-and-commands.md) keeps test commands,
   benchmark commands, file maps, and open-work notes.
 

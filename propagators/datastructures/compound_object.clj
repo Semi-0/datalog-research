@@ -5,7 +5,7 @@
             [propagators.effectful-execution :as effect]
             [propagators.effectful-sync :as sync]
             [propagators.ids :as ids]
-            [propagators.message :refer [message]]
+            [propagators.message :refer [message message-id]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
@@ -59,7 +59,8 @@
    (fn [n parent-id]
      (sync/ensure-parent-avatar n slot-index-key slot-key parent-id parent-net))
    stable-net
-   (net/network-indexed-ids stable-net slot-index-key slot-key)))
+   (filter #(contains? (net/net-env parent-net) %)
+           (net/network-indexed-ids stable-net slot-index-key slot-key))))
 
 (defn- execute-slot-subnet [stable-net slot-key parent-net]
   (let [seeded-net (seed-indexed-avatars stable-net slot-key parent-net)
@@ -84,7 +85,8 @@
         slot-value
         (net/network-cell-strongest parent-net parent-id)
         parent-net))
-     (net/network-indexed-ids collection-net slot-index-key slot-key))))
+     (filter #(contains? (net/net-env parent-net) %)
+             (net/network-indexed-ids collection-net slot-index-key slot-key)))))
 
 (defn sync-slot-messages
   [collection-id slot-key [exec-net collection-net' updated*]]
@@ -116,7 +118,8 @@
                               ensure-cons-net)]
        (if (value/contradiction? collection-net)
          [(message collection-id value/contradiction)]
-         (guarded-slot-messages collection-id slot-key parent-id network collection-net))))
+         (filterv #(contains? (net/net-env network) (message-id %))
+                  (guarded-slot-messages collection-id slot-key parent-id network collection-net)))))
    [parent-id collection-id]
    [parent-id collection-id]))
 
