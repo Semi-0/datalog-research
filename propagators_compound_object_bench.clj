@@ -45,7 +45,7 @@
 (defn baseline-attach-slot-sync
   [collection-net slot-key parent-id parent-net]
   (let [n (-> collection-net
-              (#'obj/ensure-slot-cell slot-key)
+              (sync/ensure-indexed-cell :slot-index slot-key)
               (sync/ensure-parent-avatar :slot-index slot-key parent-id parent-net))
         dict (net/net-dict-or-empty n)
         avatar-id (get dict parent-id)

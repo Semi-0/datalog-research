@@ -8,6 +8,36 @@
             [propagators.network-builder :as nb]
             [propagators.stdlib :as stdlib]))
 
+(defn strongest-equivalent?
+  "True when `a` and `b` strongest values are merge-equivalent on `network`."
+  [a b network]
+  (false? (merge/cell-updated? a b network)))
+
+(defn ensure-indexed-cell
+  "Ensure `index-entry` maps to a cell and has an empty index bucket."
+  [subnet index-key index-entry]
+  (if (net/network-dict-entry subnet index-entry)
+    subnet
+    (let [cell-id (ids/new-node-id)]
+      (-> subnet
+          (nb/install-cell cell-id)
+          (net/assoc-net-dict-entry index-entry cell-id)
+          (net/update-net-dict-entry index-key #(assoc (or % {}) index-entry #{}))))))
+
+(defn ensure-indexed-shell-avatar
+  "Ensure `parent-id` has an avatar cell and is indexed, without copying parent values."
+  [subnet index-key index-entry parent-id]
+  (let [dict (net/net-dict-or-empty subnet)]
+    (if (get dict parent-id)
+      (net/update-net-dict-entry subnet index-key
+                                 #(update (or % {}) index-entry (fnil conj #{}) parent-id))
+      (let [avatar-id (ids/new-node-id)]
+        (-> subnet
+            (nb/install-cell avatar-id)
+            (net/assoc-net-dict-entry parent-id avatar-id)
+            (net/update-net-dict-entry index-key
+                                       #(update (or % {}) index-entry (fnil conj #{}) parent-id)))))))
+
 (defn ensure-parent-avatar
   "Ensure `parent-id` has an avatar cell in `subnet` and is indexed.
 
