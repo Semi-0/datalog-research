@@ -187,8 +187,6 @@
 
 (defn p:slot
   [slot-key parent-id collection-id]
-  (when-not (contains? slot-keys slot-key)
-    (throw (ex-info "unknown compound object slot" {:slot-key slot-key})))
   (prop/construct-propagator
    (fn [_inputs _outputs network]
      (let [collection-net (-> network
