@@ -5,6 +5,7 @@
   not dispatch on policy tags at runtime; callers choose the reducer topology
   when constructing an application network."
   (:require [propagators.cells.value :as value]
+            [propagators.closure :as closure]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -25,6 +26,76 @@
          :else [])))
    [pred-id in-id]
    [out-id]))
+
+(defn p:match-args
+  "Run one predicate closure per arg, then apply `matcher-id` to the predicate
+  results and write the match decision to `match-out-id`."
+  [predicate-ids matcher-id arg-ids match-out-id]
+  (fn [n]
+    (when-not (= (count predicate-ids) (count arg-ids))
+      (throw (ex-info "predicate/arg arity mismatch"
+                      {:predicate-count (count predicate-ids)
+                       :arg-count (count arg-ids)})))
+    (let [predicate-out-ids (vec (repeatedly (count arg-ids) ids/new-node-id))
+          n0 (reduce nb/install-cell n predicate-out-ids)
+          [predicate-props n1]
+          (reduce
+           (fn [[prop-ids acc] [predicate-id arg-id predicate-out-id]]
+             (let [[prop-id acc']
+                   ((closure/p:apply-closure predicate-id
+                                             arg-id
+                                             predicate-out-id)
+                    acc)]
+               [(conj prop-ids prop-id) acc']))
+           [[] n0]
+           (map vector predicate-ids arg-ids predicate-out-ids))
+          [matcher-prop n2]
+          ((apply closure/p:apply-closure matcher-id
+                  (conj predicate-out-ids match-out-id))
+           n1)]
+      [(conj predicate-props matcher-prop) n2])))
+
+(defn p:filter-args
+  "Forward each arg to its paired output when `match-id` is usable and truthy."
+  [match-id arg-ids out-ids]
+  (fn [n]
+    (when-not (= (count arg-ids) (count out-ids))
+      (throw (ex-info "arg/filter-output arity mismatch"
+                      {:arg-count (count arg-ids)
+                       :out-count (count out-ids)})))
+    (reduce
+     (fn [[prop-ids acc] [arg-id out-id]]
+       (let [[prop-id acc'] ((p:filter match-id arg-id out-id) acc)]
+         [(conj prop-ids prop-id) acc']))
+     [[] n]
+     (map vector arg-ids out-ids))))
+
+(defn p:matched-handler-branch
+  "Install a reusable dispatch branch.
+
+  Predicates and matcher decide whether the arg tuple applies. Matching args are
+  forwarded into `handler-id`; the handler result is written to `result-bank-id`
+  under `slot-key`."
+  [slot-key predicate-ids matcher-id handler-id arg-ids result-bank-id]
+  (fn [n]
+    (let [match-out-id (ids/new-node-id)
+          handler-out-id (ids/new-node-id)
+          filtered-ids (vec (repeatedly (count arg-ids) ids/new-node-id))
+          n0 (reduce nb/install-cell
+                     n
+                     (into [match-out-id handler-out-id] filtered-ids))
+          [match-props n1] ((p:match-args predicate-ids
+                                           matcher-id
+                                           arg-ids
+                                           match-out-id)
+                            n0)
+          [filter-props n2] ((p:filter-args match-out-id arg-ids filtered-ids) n1)
+          [handler-prop n3] ((apply closure/p:apply-closure handler-id
+                                    (conj filtered-ids handler-out-id))
+                             n2)
+          [slot-prop n4] ((obj/p:slot slot-key handler-out-id result-bank-id) n3)]
+      [(into (vec match-props) (concat filter-props [handler-prop slot-prop]))
+       n4])))
 
 (defn install-result-bank
   "Install an empty compound-object result bank cell."

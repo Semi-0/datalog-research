@@ -14,6 +14,12 @@
   ([n id content strongest]
    (net/install-net n (cell/construct-cell id content strongest))))
 
+(defn copy-cell
+  "Install `id` in `n` with the strongest value from `source-net`."
+  [n source-net id]
+  (let [strongest (cell/cell-strongest (net/network-env-lookup source-net id))]
+    (install-cell n id strongest strongest)))
+
 (defn install-cells
   "Install empty cells for every id into a fresh network."
   [ids]
