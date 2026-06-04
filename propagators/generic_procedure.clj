@@ -8,7 +8,6 @@
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.debugger :as debugger]
             [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
@@ -241,23 +240,6 @@
        (not (value/contradiction? default-value))
        (= select-one-policy-tag policy-value)))
 
-(defn- make-application-net
-  [{:keys [outer-net arg-ids default-value methods]}]
-  (let [result-bank-id (ids/new-node-id)
-        default-id (ids/new-node-id)
-        reduced-out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (#(reduce (fn [acc id] (nb/copy-cell acc outer-net id)) % arg-ids))
-               (nb/install-cell default-id default-value default-value)
-               (nb/install-cell reduced-out-id)
-               (dispatch/install-result-bank result-bank-id))]
-    {:net n0
-     :arg-ids arg-ids
-     :methods methods
-     :result-bank-id result-bank-id
-     :default-id default-id
-     :reduced-out-id reduced-out-id}))
-
 (defn- generic-reducer-install
   [{:keys [methods result-bank-id default-id reduced-out-id]}]
   (dispatch/reduce-results
@@ -266,48 +248,28 @@
    reduced-out-id))
 
 (defn- build-generic-application
-  [context]
-  (let [{:keys [net methods arg-ids result-bank-id] :as app}
-        (make-application-net context)
-        branch-app (install-generic-branches net methods arg-ids result-bank-id)]
-    (assoc app
-           :net (:net branch-app)
-           :branch-prop-ids (:props branch-app)
-           :branch-debug (:debug branch-app)
-           :reducer-install (generic-reducer-install app))))
-
-(defn- report-generic-branches!
-  [n branch-debug]
-  (when (debugger/enabled?)
-    (doseq [{:keys [slot-key
-                    predicate-out-ids
-                    match-out-id
-                    filtered-ids
-                    handler-out-id
-                    result-bank-id]} branch-debug]
-      (let [result-bank (application/cell-strongest-or-nothing n result-bank-id)]
-        (debugger/report!
-         :generic/method
-         {:method-key slot-key
-          :predicate-results (mapv #(application/cell-strongest-or-nothing n %)
-                                   predicate-out-ids)
-          :matched? (application/cell-strongest-or-nothing n match-out-id)
-          :filtered-args (mapv #(application/cell-strongest-or-nothing n %)
-                               filtered-ids)
-          :handler-result (application/cell-strongest-or-nothing n handler-out-id)
-          :result-bank-value (obj/slot-value result-bank slot-key)})))))
-
-(defn- run-generic-application
-  [{:keys [net branch-prop-ids branch-debug reducer-install reduced-out-id]}]
-  (application/run-branch-reducer
-   {:net net
-    :branch-prop-ids branch-prop-ids
-    :reducer-install reducer-install}
-   {:after-branches #(report-generic-branches! % branch-debug)
-    :after-reducer (application/selected-value-reporter
-                    :generic/selected
-                    :selected-value
-                    reduced-out-id)}))
+  [{:keys [outer-net arg-ids default-value methods]}]
+  (let [default-id (ids/new-node-id)]
+    (application/build-branch-application
+     {:cell-specs (conj (mapv #(application/copied-cell outer-net %) arg-ids)
+                        (application/value-cell default-id default-value))
+      :install-branches (fn [n {:keys [result-bank-id]}]
+                          (let [branch-app
+                                (install-generic-branches n
+                                                          methods
+                                                          arg-ids
+                                                          result-bank-id)]
+                            {:net (:net branch-app)
+                             :branch-prop-ids (:props branch-app)
+                             :branch-debug (:debug branch-app)
+                             :methods methods
+                             :arg-ids arg-ids
+                             :default-id default-id}))
+      :reducer-install generic-reducer-install
+      :trace (fn [{:keys [branch-debug reduced-out-id]}]
+               {:trace/type :generic
+                :branches branch-debug
+                :reduced-out-id reduced-out-id})})))
 
 (defn- generic-apply-activate
   [generic-id arg-ids out-id]
@@ -316,7 +278,7 @@
       (if-not (generic-application-ready? context)
         []
         (let [{:keys [reduced-out-id] :as app} (build-generic-application context)
-              after (run-generic-application app)]
+              after (application/run-reduced-application app)]
           (application/diff-reduced-output outer-net after reduced-out-id out-id))))))
 
 (defn p:apply-generic

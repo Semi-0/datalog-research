@@ -1,8 +1,6 @@
 (ns propagators.layered
   "Layered data/procedure support built from compound-object slots."
-  (:require [clojure.set :as set]
-            [propagators.application :as application]
-            [propagators.cells.cell :as cell]
+  (:require [propagators.application :as application]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.named-network :as named]
@@ -95,14 +93,6 @@
   [v layer-name]
   (contains? (available-branches v) layer-name))
 
-(defn- install-local-cell
-  [n id outer-net]
-  (let [entry (net/network-env-lookup outer-net id)
-        strongest (cell/cell-strongest entry)]
-    (nb/install-cell n id
-                     (normalize-layered-value strongest)
-                     (normalize-layered-value strongest))))
-
 (defn- install-layer-closure-cell
   [n proc-id layer-name]
   (let [closure-id (ids/new-node-id)
@@ -164,20 +154,9 @@
     :else
     [n prop-ids false]))
 
-(defn- build-application-net
-  [outer-net proc-id arg-ids out-id layers arg-values]
-  (let [out-entry (net/network-env-lookup outer-net out-id)
-        out-strongest (cell/cell-strongest out-entry)
-        result-bank-id (ids/new-node-id)
-        reduced-out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (install-local-cell proc-id outer-net)
-               (#(reduce (fn [acc id] (install-local-cell acc id outer-net)) % arg-ids))
-               (nb/install-cell out-id
-                                (normalize-layered-value out-strongest)
-                                (normalize-layered-value out-strongest))
-               (nb/install-cell reduced-out-id)
-               (dispatch/install-result-bank result-bank-id))
+(defn- install-layer-branches
+  [n frame proc-id arg-ids out-id layers arg-values]
+  (let [{:keys [result-bank-id]} frame
         [branch-net branch-prop-ids active-layers]
         (reduce
          (fn [[n prop-ids active-layers] layer-name]
@@ -191,19 +170,41 @@
                                             arg-values
                                             prop-ids)]
              [n' prop-ids' (cond-> active-layers installed? (conj layer-name))]))
-         [n0 [] []]
-         layers)
-        reducer-install
-        (dispatch/reduce-results
-         (dispatch/layered-object-policy active-layers)
-         result-bank-id
-         reduced-out-id)]
+         [n [] []]
+         layers)]
     {:net branch-net
      :branch-prop-ids branch-prop-ids
-     :active-layers active-layers
-     :result-bank-id result-bank-id
-     :reduced-out-id reduced-out-id
-     :reducer-install reducer-install}))
+     :active-layers active-layers}))
+
+(defn- layered-cell-specs
+  [outer-net proc-id arg-ids out-id]
+  (into [(application/copied-cell outer-net proc-id normalize-layered-value)
+         (application/copied-cell outer-net out-id normalize-layered-value)]
+        (map #(application/copied-cell outer-net % normalize-layered-value))
+        arg-ids))
+
+(defn- build-layered-application
+  [outer-net proc-id arg-ids out-id layers arg-values]
+  (application/build-branch-application
+   {:cell-specs (layered-cell-specs outer-net proc-id arg-ids out-id)
+    :install-branches (fn [n frame]
+                        (install-layer-branches n
+                                                frame
+                                                proc-id
+                                                arg-ids
+                                                out-id
+                                                layers
+                                                arg-values))
+    :reducer-install (fn [{:keys [active-layers result-bank-id reduced-out-id]}]
+                       (dispatch/reduce-results
+                        (dispatch/layered-object-policy active-layers)
+                        result-bank-id
+                        reduced-out-id))
+    :trace (fn [{:keys [active-layers result-bank-id reduced-out-id]}]
+             {:trace/type :layered
+              :result-bank-id result-bank-id
+              :slots active-layers
+              :reduced-out-id reduced-out-id})}))
 
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
@@ -214,34 +215,14 @@
               (apply value/any-unusable-values? arg-values))
         []
         (let [layers (available-branches proc-value)
-              {:keys [net
-                      branch-prop-ids
-                      active-layers
-                      result-bank-id
-                      reduced-out-id
-                      reducer-install]}
-              (build-application-net outer-net
-                                     proc-id
-                                     arg-ids
-                                     out-id
-                                     layers
-                                     arg-values)
-              after (application/run-branch-reducer
-                     {:net net
-                      :branch-prop-ids branch-prop-ids
-                      :reducer-install reducer-install}
-                     {:after-branches
-                      (application/result-bank-slot-reporter
-                       {:event :layered/layer
-                        :result-bank-id result-bank-id
-                        :slots active-layers
-                        :slot-key :layer
-                        :result-key :handler-result})
-                      :after-reducer
-                      (application/selected-value-reporter
-                       :layered/selected
-                       :selected-value
-                       reduced-out-id)})]
+              {:keys [reduced-out-id] :as app}
+              (build-layered-application outer-net
+                                         proc-id
+                                         arg-ids
+                                         out-id
+                                         layers
+                                         arg-values)
+              after (application/run-reduced-application app)]
           (application/diff-reduced-output outer-net after reduced-out-id out-id))))))
 
 (defn p:apply-layered
