@@ -7,6 +7,7 @@
 (def all-test-namespaces
   '[bench-compare-test
     propagators-cell-protocol-test
+    propagators-compile-2-test
     propagators-dispatch-test
     propagators-generic-procedure-test
     propagators-recursive-compound-test
