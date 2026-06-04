@@ -1,14 +1,40 @@
 (ns propagators.stdlib
   (:require [propagators.cells.value :as value]
             [propagators.network :as net]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.stdlib.arithmetic :as arithmetic]
+            [propagators.stdlib.arithmetic.base :as base]
+            [propagators.stdlib.arithmetic.provenance :as provenance]))
 
 (def p:id (prop/primitive-propagator (fn [x] x)))
+
+(def p:+ base/+)
 
 (def p:switch
   (prop/primitive-propagator
    (fn [x enabled?]
      (if enabled? x value/nothing))))
+
+(def p:provenance-union provenance/p:union)
+
+(def arithmetic-base-closure base/arithmetic-base-closure)
+
+(def arithmetic-provenance-closure provenance/arithmetic-provenance-closure)
+
+(def plus-base-closure base/plus-closure)
+
+(def plus-provenance-closure provenance/+)
+
+(def procedure-extension arithmetic/procedure-extension)
+
+(def plus-base-extension arithmetic/plus-base-extension)
+
+(def plus-provenance-extension arithmetic/plus-provenance-extension)
+
+(defn p:layered+
+  "Create a layered + propagator installer backed by `procedure-id`."
+  [procedure-id]
+  (arithmetic/layered-operator procedure-id))
 
 (defn fast-bi-sync
   "Install bidirectional `p:id` sync between `a` and `b`.

@@ -1,14 +1,16 @@
 (ns propagators-layered-procedure-test
-  (:require [clojure.set :as set]
-            [clojure.test :refer [deftest is testing]]
-            [propagators.cells.value :as value]
+  (:require [clojure.test :refer [deftest is testing]]
             [propagators.closure :as closure]
             [propagators.compile :as compile]
             [propagators.datastructures.compound-object :as obj]
             [propagators.layered :as layered]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.stdlib :as stdlib]
+            [propagators.stdlib.arithmetic :as arithmetic]
+            [propagators.stdlib.arithmetic.base :as base]
+            [propagators.stdlib.arithmetic.provenance :as provenance]))
 
 (def ^:private layered-installers
   {'layered/p:base layered/p:base
@@ -70,47 +72,6 @@
     {:net (:net ctx)
      :prop (first (:props ctx))}))
 
-(defn- plus-base-closure-value []
-  (closure/closure
-   (fn [_closure-net input-ids output-ids network]
-     (let [[a b] input-ids
-           [out] output-ids]
-       (:net
-        (compile/eval-layered
-         network
-         {'p:+base (prop/primitive-propagator +)}
-         {'a a 'b b 'out out}
-         '(p:+base a b out)))))
-   net/empty-net))
-
-(defn- plus-provenance-closure-value []
-  (closure/closure
-   (fn [_closure-net input-ids output-ids network]
-     (let [[current arg-a arg-b] input-ids
-           [out] output-ids
-           union-provenance
-           (prop/primitive-propagator
-            (fn [cur pa pb]
-              (if (and (set? pa) (set? pb))
-                (set/union
-                 (if (set? cur) cur #{})
-                 pa
-                 pb)
-                value/nothing)))]
-       (:net
-        (compile/eval-layered
-         network
-         (assoc layered-installers 'p:union-provenance union-provenance)
-         {'current current
-          'arg-a arg-a
-          'arg-b arg-b
-          'out out}
-         '(let-cell [a-prov b-prov]
-            (layered/p:layer :provenance a-prov arg-a)
-            (layered/p:layer :provenance b-prov arg-b)
-            (p:union-provenance current a-prov b-prov out))))))
-   net/empty-net))
-
 (defn- units-closure-value []
   (closure/closure
    (fn [_closure-net input-ids output-ids network]
@@ -126,10 +87,6 @@
           'out out}
          '(p:unitless current arg-a arg-b out)))))
    net/empty-net))
-
-(defn- procedure-extension
-  [layer closure-value]
-  (nb/named-cell-net [[layer closure-value]]))
 
 (defn- install-procedure-extension
   [n proc extension extension-value]
@@ -153,13 +110,13 @@
                net
                proc
                base-extension
-               (procedure-extension :base (plus-base-closure-value)))
+               (arithmetic/base-extension base/plus-closure))
          prov (when provenance?
                 (install-procedure-extension
                  (:net base)
                  proc
                  prov-extension
-                 (procedure-extension :provenance (plus-provenance-closure-value))))
+                 (arithmetic/provenance-extension provenance/+)))
          n3 (if provenance? (:net prov) (:net base))
          base-prop (:prop base)
          prov-prop (:prop prov)
@@ -240,7 +197,7 @@
                    (:net extension)
                    proc
                    (:cell extension)
-                   (procedure-extension layer closure-value))]
+                   (stdlib/procedure-extension layer closure-value))]
     {:net (nb/run-propagators (:net installed) [(:prop installed)])
      :extension (:cell extension)
      :prop (:prop installed)}))
@@ -320,7 +277,7 @@
 (deftest layered-operator-reuses-and-observes-procedure-extension
   (testing "same operator installer sees later procedure-cell extensions"
     (let [{:keys [net proc]} (install-plus-procedure {:provenance? false})
-          p:+ (layered/p:layered-operator proc)
+          p:+ (stdlib/p:layered+ proc)
           first-result (run-layered-application
                         net
                         #(install-operator-apply %1 'p:+ p:+ %2 %3 %4)
@@ -331,7 +288,7 @@
                     proc
                     'prov-extension
                     :provenance
-                    (plus-provenance-closure-value))
+                    provenance/+)
           output (new-output-cell (:net extended))
           out2 (:out output)
           second-result (run-operator-on-existing-inputs
@@ -353,7 +310,7 @@
                     proc
                     'prov-extension
                     :provenance
-                    (plus-provenance-closure-value))
+                    provenance/+)
           result (run-layered-application
                   (:net extended)
                   #(install-layered-apply %1 proc %2 %3 %4)
