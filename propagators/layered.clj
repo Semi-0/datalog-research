@@ -228,6 +228,8 @@
    :layered/selected
    {:selected-value (cell-strongest-or-nothing n reduced-out-id)}))
 
+
+;; this debugger is too costly not good
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
   (fn [_input-ids _output-ids outer-net]
@@ -250,10 +252,10 @@
                                      layers
                                      arg-values)
               after-branches (nb/run-propagators net branch-prop-ids)
-              _ (report-layered-branches! after-branches result-bank-id active-layers)
+              ;; _ (report-layered-branches! after-branches result-bank-id active-layers)
               [reducer-prop-ids reducer-net] (reducer-install after-branches)
               after (nb/run-propagators reducer-net reducer-prop-ids)]
-          (report-layered-selected! after reduced-out-id)
+          ;; (report-layered-selected! after reduced-out-id)
           (diff/diff-cells [reduced-out-id] [out-id] after outer-net))))))
 
 (defn p:apply-layered
