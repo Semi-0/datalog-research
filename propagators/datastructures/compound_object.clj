@@ -2,6 +2,7 @@
   "Experimental object slots over named-network cell values."
   (:require [propagators.cells.value :as value]
             [propagators.datastructures.named-network :as named]
+            [propagators.datastructures.reducer-subnet :as reducer]
             [propagators.effectful-execution :as effect]
             [propagators.effectful-sync :as sync]
             [propagators.ids :as ids]
@@ -122,6 +123,27 @@
                   (guarded-slot-messages collection-id slot-key parent-id network collection-net)))))
    [parent-id collection-id]
    [parent-id collection-id]))
+
+(defn p:reduce
+  "Construct reducer-subnet content from source, merge-net, and init cells.
+
+  The emitted reducer-subnet has exactly `{:source source :merge-net merge-net
+  :init init}`. Its strongest value folds all usable public slots in `source`
+  through `merge-net`, using fixed merge-net dict keys `:acc`, `:update`, and
+  `:out`."
+  [source-id merge-net-id init-id out-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs network]
+     (let [source (net/network-cell-strongest network source-id)
+           merge-net (net/network-cell-strongest network merge-net-id)
+           init (net/network-cell-strongest network init-id)]
+       (if (or (value/unusable? source)
+               (value/unusable? merge-net)
+               (value/unusable? init))
+         []
+         [(message out-id (reducer/reducer-subnet source merge-net init))])))
+   [source-id merge-net-id init-id]
+   [out-id]))
 
 (defn p:car [elem-id collection-id]
   (p:slot :car elem-id collection-id))

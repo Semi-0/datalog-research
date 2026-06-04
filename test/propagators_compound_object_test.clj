@@ -45,6 +45,21 @@
         [prop-id n] ((slot-installer parent coll) n)]
     {:net n :parent parent :coll coll :prop-id prop-id}))
 
+(defn- slot-set-merge-net
+  []
+  (let [acc (new-node-id)
+        update (new-node-id)
+        out (new-node-id)
+        n0 (nb/install-cells [acc update out])
+        merge-update (fn [acc* update*]
+                       (conj (or acc* #{})
+                             [(:slot update*) (:value update*)]))
+        [_ n1] (((prop/primitive-propagator merge-update) acc update out) n0)]
+    (-> n1
+        (net/assoc-net-dict-entry :acc acc)
+        (net/assoc-net-dict-entry :update update)
+        (net/assoc-net-dict-entry :out out))))
+
 (defn- build-nested-with-cons [layers]
   (let [sentinel (new-node-id)
         ids (vec (repeatedly (+ (* 2 layers) 1) new-node-id))
@@ -219,6 +234,88 @@
           coll-net (net/network-cell-value n' coll)]
       (is (= 10 (obj/slot-strongest coll-net :car)))
       (is (= 20 (obj/slot-strongest coll-net :cdr))))))
+
+(deftest p-reduce-folds-all-compound-slots-from-strongest-reducer-subnet
+  (testing "empty source returns init"
+    (let [coll (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [coll merge-net init out])
+          [reduce-prop n1] ((obj/p:reduce coll merge-net init out) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll (obj/empty-cons-net))
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/run-propagators [reduce-prop]))]
+      (is (= #{} (net/network-cell-value n2 out)))))
+
+  (testing "slots arriving car then cdr produce the same final set"
+    (let [coll (new-node-id)
+          car (new-node-id)
+          cdr (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [coll car cdr merge-net init out])
+          [car-prop n1] ((obj/p:slot :car car coll) n0)
+          [cdr-prop n2] ((obj/p:slot :cdr cdr coll) n1)
+          [reduce-prop n3] ((obj/p:reduce coll merge-net init out) n2)
+          n4 (-> n3
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/seed-cell car 10)
+                 (nb/run-propagators [car-prop reduce-prop]))
+          n5 (-> n4
+                 (nb/seed-cell cdr 20)
+                 (nb/run-propagators [cdr-prop]))]
+      (is (= #{[:car 10]} (net/network-cell-value n4 out)))
+      (is (= #{[:car 10] [:cdr 20]} (net/network-cell-value n5 out)))))
+
+  (testing "slots arriving cdr then car produce the same final set"
+    (let [coll (new-node-id)
+          car (new-node-id)
+          cdr (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [coll car cdr merge-net init out])
+          [car-prop n1] ((obj/p:slot :car car coll) n0)
+          [cdr-prop n2] ((obj/p:slot :cdr cdr coll) n1)
+          [reduce-prop n3] ((obj/p:reduce coll merge-net init out) n2)
+          n4 (-> n3
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/seed-cell cdr 20)
+                 (nb/run-propagators [cdr-prop reduce-prop]))
+          n5 (-> n4
+                 (nb/seed-cell car 10)
+                 (nb/run-propagators [car-prop]))]
+      (is (= #{[:cdr 20]} (net/network-cell-value n4 out)))
+      (is (= #{[:car 10] [:cdr 20]} (net/network-cell-value n5 out)))))
+
+  (testing "unusable slots and internal keys are ignored"
+    (let [coll (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          good-slot (new-node-id)
+          unusable-slot (new-node-id)
+          source (-> net/empty-net
+                     (nb/install-cell good-slot 20 20)
+                     (nb/install-cell unusable-slot value/nothing value/nothing)
+                     (net/net-with-dict {:good good-slot
+                                         :bad unusable-slot
+                                         :slot-index {:good #{}}
+                                         [:slot-sync :good] (new-node-id)}))
+          n0 (nb/install-cells [coll merge-net init out])
+          [reduce-prop n1] ((obj/p:reduce coll merge-net init out) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll source)
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/run-propagators [reduce-prop]))]
+      (is (= #{[:good 20]} (net/network-cell-value n2 out))))))
 
 (deftest compare-new-slot-sync-with-current-linked-list-local-case
   (testing "new one-layer slot sync exposes the same local car/cdr values as old p:cons"

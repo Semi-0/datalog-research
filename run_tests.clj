@@ -6,6 +6,7 @@
 
 (def all-test-namespaces
   '[bench-compare-test
+    propagators-dispatch-test
     propagators-network-test
     propagators-compound-data-test
     propagators-linked-list-access-test

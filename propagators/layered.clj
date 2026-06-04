@@ -6,6 +6,7 @@
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.named-network :as named]
+            [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
@@ -111,7 +112,7 @@
      :network n'}))
 
 (defn- install-base-layer
-  [n proc-id arg-ids out-id layer-prop-ids]
+  [n proc-id arg-ids result-bank-id layer-prop-ids]
   (let [{:keys [closure-id slot-prop-id network]} (install-layer-closure-cell n proc-id :base)
         arg-base-ids (vec (repeatedly (count arg-ids) ids/new-node-id))
         out-base-id (ids/new-node-id)
@@ -127,12 +128,12 @@
          [[] n1]
          (map vector arg-ids arg-base-ids))
         [compound-prop-id n3] ((prop/compound-propagator closure-id arg-base-ids [out-base-id]) n2)
-        [out-slot-prop-id n4] ((p:base out-base-id out-id) n3)]
+        [out-slot-prop-id n4] ((p:base out-base-id result-bank-id) n3)]
     [n4 (into layer-prop-ids
               (conj arg-slot-prop-ids slot-prop-id compound-prop-id out-slot-prop-id))]))
 
 (defn- install-non-base-layer
-  [n proc-id arg-ids out-id layer-name layer-prop-ids]
+  [n proc-id arg-ids out-id result-bank-id layer-name layer-prop-ids]
   (let [{:keys [closure-id slot-prop-id network]} (install-layer-closure-cell n proc-id layer-name)
         current-id (ids/new-node-id)
         result-id (ids/new-node-id)
@@ -144,7 +145,7 @@
                                                          (into [current-id] arg-ids)
                                                          [result-id])
                                n2)
-        [result-slot-prop-id n4] ((p:layer layer-name result-id out-id) n3)]
+        [result-slot-prop-id n4] ((p:layer layer-name result-id result-bank-id) n3)]
     [n4 (conj layer-prop-ids
               slot-prop-id
               current-slot-prop-id
@@ -152,32 +153,55 @@
               result-slot-prop-id)]))
 
 (defn- install-layer-application
-  [n proc-id arg-ids out-id layer-name arg-values prop-ids]
+  [n proc-id arg-ids out-id result-bank-id layer-name arg-values prop-ids]
   (cond
     (= layer-name :base)
-    (install-base-layer n proc-id arg-ids out-id prop-ids)
+    (conj (install-base-layer n proc-id arg-ids result-bank-id prop-ids) true)
 
     (some #(layer-present? % layer-name) arg-values)
-    (install-non-base-layer n proc-id arg-ids out-id layer-name prop-ids)
+    (conj (install-non-base-layer n proc-id arg-ids out-id result-bank-id layer-name prop-ids) true)
 
     :else
-    [n prop-ids]))
+    [n prop-ids false]))
 
 (defn- build-application-net
   [outer-net proc-id arg-ids out-id layers arg-values]
   (let [out-entry (net/network-env-lookup outer-net out-id)
         out-strongest (cell/cell-strongest out-entry)
+        result-bank-id (ids/new-node-id)
+        reduced-out-id (ids/new-node-id)
         n0 (-> net/empty-net
                (install-local-cell proc-id outer-net)
                (#(reduce (fn [acc id] (install-local-cell acc id outer-net)) % arg-ids))
                (nb/install-cell out-id
                                 (normalize-layered-value out-strongest)
-                                (normalize-layered-value out-strongest)))]
-    (reduce
-     (fn [[n prop-ids] layer-name]
-       (install-layer-application n proc-id arg-ids out-id layer-name arg-values prop-ids))
-     [n0 []]
-     layers)))
+                                (normalize-layered-value out-strongest))
+               (nb/install-cell reduced-out-id)
+               (dispatch/install-result-bank result-bank-id))
+        [branch-net branch-prop-ids active-layers]
+        (reduce
+         (fn [[n prop-ids active-layers] layer-name]
+           (let [[n' prop-ids' installed?]
+                 (install-layer-application n
+                                            proc-id
+                                            arg-ids
+                                            out-id
+                                            result-bank-id
+                                            layer-name
+                                            arg-values
+                                            prop-ids)]
+             [n' prop-ids' (cond-> active-layers installed? (conj layer-name))]))
+         [n0 [] []]
+         layers)
+        reducer-install
+        (dispatch/reduce-results
+         (dispatch/layered-object-policy active-layers)
+         result-bank-id
+         reduced-out-id)]
+    {:net branch-net
+     :branch-prop-ids branch-prop-ids
+     :reduced-out-id reduced-out-id
+     :reducer-install reducer-install}))
 
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
@@ -188,14 +212,17 @@
               (apply value/any-unusable-values? arg-values))
         []
         (let [layers (available-branches proc-value)
-              [app-net prop-ids] (build-application-net outer-net
-                                                        proc-id
-                                                        arg-ids
-                                                        out-id
-                                                        layers
-                                                        arg-values)
-              after (nb/run-propagators app-net prop-ids)]
-          (diff/diff-cells [out-id] [out-id] after outer-net))))))
+              {:keys [net branch-prop-ids reduced-out-id reducer-install]}
+              (build-application-net outer-net
+                                     proc-id
+                                     arg-ids
+                                     out-id
+                                     layers
+                                     arg-values)
+              after-branches (nb/run-propagators net branch-prop-ids)
+              [reducer-prop-ids reducer-net] (reducer-install after-branches)
+              after (nb/run-propagators reducer-net reducer-prop-ids)]
+          (diff/diff-cells [reduced-out-id] [out-id] after outer-net))))))
 
 (defn p:apply-layered
   [proc-id arg-ids out-id]

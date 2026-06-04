@@ -4,8 +4,10 @@ Source files:
 
 - `propagators/layered.clj`
 - `propagators/datastructures/compound_object.clj`
+- `propagators/dispatch.clj`
 - `propagators/propagator.clj`
 - `test/propagators_layered_procedure_test.clj`
+- `test/propagators_dispatch_test.clj`
 
 ## Status
 
@@ -58,16 +60,69 @@ layers are known.
 
 `p:apply-layered` builds an activation-local application network from the
 current procedure value. The procedure object chooses which layer branches exist.
-For each procedure branch:
+For each active procedure branch:
 
 - `:base` extracts `:base` from every argument, runs the base closure, and writes
-  the result to output `:base`.
+  the branch result to an internal result-bank `:base` slot.
 - Non-base branches receive the current output layer plus the full layered
   argument cells. The branch closure may inspect any layers it needs using
-  `p:slot`, then writes its layer result back to the output object.
+  `p:slot`, then writes its layer result to the matching result-bank slot.
 
-The procedure network itself owns layer access. Callers only supply the full
-argument cells and output cell.
+The result bank is a compound object. After branches are installed, reduction
+uses `propagators.datastructures.compound-object/p:reduce`: it gathers named
+result-bank slots through `p:slot`/`p:layer`, then runs a supplied reducer
+network over the gathered slot cells. `propagators.dispatch/reduce-results`
+wraps that lower-level primitive for dispatch applications. For layered
+procedures the reducer combinator is `layered-object-policy`, which copies each
+active result-bank slot to the same slot on the final output object. There is no
+runtime policy switch; the caller supplies the reducer topology directly.
+
+The procedure network itself owns layer access and result reduction. Callers only
+supply the full argument cells and output cell.
+
+## Dispatch Combinators
+
+`propagators.dispatch` contains reusable topology helpers:
+
+```clojure
+(dispatch/p:filter predicate value filtered-value)
+
+((obj/p:reduce
+  [:base :provenance]
+  reducer-install
+  result-bank
+  out)
+ network)
+
+((dispatch/reduce-results
+  (dispatch/layered-object-policy [:base :provenance])
+  result-bank
+  out)
+ network)
+
+((dispatch/reduce-results
+  (dispatch/select-one-policy [:handler/number :handler/string] default)
+  result-bank
+  out)
+ network)
+```
+
+`compound-object/p:reduce` is the generic compound-object reducer boundary. It
+turns a compound net into ordinary slot-value cells by using `p:slot`, then lets
+the supplied reducer network produce one output value.
+
+`layered-object-policy` is the reducer used by layered procedures. It is
+implemented through `compound-object/p:reduce` and writes gathered result slots
+to matching output slots.
+
+`select-one-policy` is a generic-procedure prototype reducer: exactly one usable
+result is emitted, zero results fall back to a default cell, and multiple results
+emit contradiction. It is also implemented through `compound-object/p:reduce`.
+Reducers should not peek into the result-bank named network directly;
+compound-object slots are partial information, and new slot data may arrive
+asynchronously through slot sync. Because default fallback is a reduction
+decision, prototype generic applications install the reducer after
+predicate/handler branches have quiesced.
 
 ## Example Flow
 
@@ -149,4 +204,3 @@ over `proc`, with `p:layered-procedure` kept for late or external layers.
 - skipping absent non-base layers when arguments lack them
 - **Special case (reactive):** `install-plus-procedure-base-only`,
   `extend-procedure-layer`, late provenance on `layered/+`, extra `:units` layer
-

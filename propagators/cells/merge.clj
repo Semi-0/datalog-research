@@ -6,7 +6,8 @@
             [propagators.datastructures.compound_subnet_state :as state]
             [propagators.datastructures.compound_update :as update]
             [propagators.datastructures.evidence-set :as evidence]
-            [propagators.datastructures.named-network :as named]))
+            [propagators.datastructures.named-network :as named]
+            [propagators.datastructures.reducer-subnet :as reducer]))
 
 (def cell-equal? value/cell-value-equal?)
 
@@ -18,6 +19,10 @@
       (and (state/compound-subnet-state? new)
            (state/compound-subnet-state? old))
       :compound-subnet-state
+
+      (or (reducer/reducer-subnet? new)
+          (reducer/reducer-subnet? old))
+      :reducer-subnet
 
       (or (named/named-network? new)
           (named/named-network? old)
@@ -36,6 +41,11 @@
 (defmethod cell-updated? :compound-subnet-state
   [new old _network]
   (not (cell-equal? new old)))
+
+(defmethod cell-updated? :reducer-subnet
+  [new old network]
+  (not (cell-equal? (strongest-value new network)
+                    (strongest-value old network))))
 
 (defn- named-strongest-equal? [new old]
   (cond
@@ -58,6 +68,7 @@
     (cond
       (update/compound-sync? update) :compound-sync
       (update/compound-data? update) :compound-data
+      (reducer/reducer-subnet? update) :reducer-subnet
       (evidence/evidence-set? update) :named-network
       (named/named-network? update) :named-network
       :else :default)))
@@ -105,6 +116,34 @@
         (evidence/evidence-set? content)) (evidence/merge-evidence content update)
     :else value/contradiction))
 
+(defmethod cell-merge :reducer-subnet
+  [content update _network]
+  (cond
+    (value/nothing? content) update
+    (value/nothing? update) content
+    (value/contradiction? content) value/contradiction
+    (value/contradiction? update) value/contradiction
+    (= content update) content
+    (and (reducer/reducer-subnet? content)
+         (reducer/reducer-subnet? update)
+         (= (reducer/merge-net content) (reducer/merge-net update))
+         (= (reducer/init content) (reducer/init update))
+         (named/named-network? (reducer/source content))
+         (named/named-network? (reducer/source update))
+         (= true (named/named-network->= (reducer/source update)
+                                         (reducer/source content))))
+    update
+    (and (reducer/reducer-subnet? content)
+         (reducer/reducer-subnet? update)
+         (= (reducer/merge-net content) (reducer/merge-net update))
+         (= (reducer/init content) (reducer/init update))
+         (named/named-network? (reducer/source content))
+         (named/named-network? (reducer/source update))
+         (= true (named/named-network->= (reducer/source content)
+                                         (reducer/source update))))
+    content
+    :else value/contradiction))
+
 (def generic-merge cell-merge)
 
 (defn merge-cell-entry
@@ -119,6 +158,7 @@
     (cond
       (evidence/evidence-set? x) :named-network-evidence
       (cell/cell? x) :cell
+      (reducer/reducer-subnet? x) :reducer-subnet
       (state/compound-subnet-state? x) :compound-subnet
       (named/named-network? x) :named-network
       :else :content)))
@@ -138,6 +178,10 @@
 (defmethod strongest-value :named-network-evidence
   [content _network]
   (evidence/strongest content))
+
+(defmethod strongest-value :reducer-subnet
+  [content _network]
+  (reducer/strongest content))
 
 ;; :compound-subnet — structural state only; effectful run in c:linked-list.
 (defmethod strongest-value :compound-subnet
