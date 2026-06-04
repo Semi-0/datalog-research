@@ -1,9 +1,10 @@
 # Eager Install Activation and `install-arithmetic-procedure`
 
-Status: **design / experiment plan** (not implemented).
+Status: **stage 1 complete** on branch `experiment/eager-install-stage-1` (implementation); results and policy notes live on `main` in this doc folder.
 
 Related:
 
+- [Builder Policy, Run Order, and Correctness](builder-policy-run-order-and-correctness.md) — order independence vs flush boundaries; global `:queue` test matrix
 - [Layered Procedure Network](layered-procedure-network.md) — current extension-cell + `p:layered-procedure` model
 - [Core Runtime Model](core-runtime.md) — installers, scheduler, compile surface
 - [Compound Object Slot Sync](compound-object-slot-sync.md) — precedent for eager vs lazy enqueue in tests
@@ -55,17 +56,18 @@ So today:
 
 `p:apply-layered` is different: it **already** runs its application subnet to quiescence inside activation (`nb/run-propagators` on inner props). That is eager **inside** one propagator, not at the compile/install layer.
 
-### 1.2 Definition: “eager activate”
+### 1.2 Definition: global builder policy (`*builder-policy*`)
 
-For this plan, **eager activate on install** means:
+Stage 1 now uses a **single global policy** in `propagators.builder-policy` (not per-install `run-tasks`):
 
-> After `((installer arg …) network)` returns `[prop-id network']`, immediately enqueue `prop-id` on a task queue and run the scheduler until that propagator’s activation completes (single-prop step or drain-to-quiescence — see open choice below).
+| Policy | Install | Seed | When tasks run |
+|--------|---------|------|----------------|
+| `:lazy` (default) | Wire only | Update cell only | Caller runs `nb/run-propagators` |
+| `:queue` | Enqueue new prop ids on compile `tasks` | Enqueue neighbor prop ids | `flush-queued-tasks` at end of `do` and `eval-net*` |
 
-Optional extensions (same stage, separate flags):
+**`:queue` does not run the scheduler on each install.** It only accumulates tasks; `propagators.compile/flush-queued-tasks` drains the queue once per flush boundary.
 
-- **Eager on seed** — `seed` in compile also calls `seed-cell!` semantics (enqueue neighbors of seeded cell).
-- **Eager on `eval-application` only** — layered compile tests use `eval-layered`; default `eval-net` stays lazy for backward compatibility.
-- **Drain policy** — `enqueue-one` vs `run-tasks` until empty after each install (affects order when a `do` installs many props).
+This matches the desired “propagator builder policy” model: construction enqueues work; evaluation happens at controlled flush points.
 
 ### 1.3 Hypotheses to test
 
@@ -160,6 +162,31 @@ Stage 1 is **done** when we can answer yes/no with tests:
    - **E3** — keep compile lazy; only new installers use `install-propagator!` style.
 
 Recommendation to decide in stage 1: prefer **E2 (batch at end of sequential install block)** for macro ergonomics, and **E3** for explicit stdlib installers — avoids N drains per `do` line.
+
+### 1.9 Stage 1 results (`*builder-policy*` :queue)
+
+Implementation:
+
+- `propagators.builder-policy/*builder-policy*` — `:lazy` | `:queue`
+- `propagators.network-builder/install-propagator*`, `seed-cell*`, `run-queued-tasks`
+- `propagators.compile` — compile ctx carries `:tasks`; flush at end of `do` and `eval-net*`
+
+Removed: immediate `run-propagators` on install (`*eager-install?*`, `install-propagator-eager!`).
+
+Tests: `test/propagators_eager_install_test.clj` (bind `*builder-policy*` `:queue`).
+
+| Hypothesis | Result |
+|------------|--------|
+| **H1** | **Confirmed** — `:queue` + flush at end of `(do install seed)` merges without manual `run-propagators`. |
+| **H2** (revised) | Install-only expr flush runs prop against empty extension → no `:base` on `proc`. |
+| **Seed queue** | **Confirmed** — `:queue` on `seed` enqueues `p:layered-procedure`; expr flush merges. |
+| **Equivalence** | **Confirmed** — `:queue` flush matches manual `run-propagators` for plus procedure. |
+
+**Decision:** use **`:queue` + flush boundaries** as the global builder policy for stage 2 bootstrap (`install-arithmetic-procedure`). Default remains **`:lazy`**.
+
+Stage 2 should build on `install-propagator*` / `run-queued-tasks`, not immediate run-on-install.
+
+**Do not** bind `:queue` globally in unrelated test namespaces without reshaping helpers — see [builder-policy-run-order-and-correctness.md](builder-policy-run-order-and-correctness.md) for the layered/compound-data failure modes and the correctness distinction between scheduler order and flush placement.
 
 ### 1.8 Stage 1 work checklist
 

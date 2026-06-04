@@ -9,7 +9,9 @@ Source files:
 
 ## Status
 
-Layered procedures are modeled as pure propagator values. A layered procedure
+Layered procedures are modeled as pure propagator values.
+
+Bootstrap and compile policy: see [Builder Policy, Run Order, and Correctness](builder-policy-run-order-and-correctness.md) and [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md). Test helpers that split `eval-layered` (install apply, then seed, then manual `run-propagators`) assume **`:lazy`**; under **`:queue`** they run apply before seeds unless refactored into a single `(do …)` flush boundary. A layered procedure
 cell stores a named-network procedure object. Extending a procedure means
 propagating another named-network fragment into that cell; normal cell merge
 accumulates the branches.

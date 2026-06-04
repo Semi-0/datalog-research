@@ -26,6 +26,10 @@ larger repo later.
 - [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)
   is a two-stage plan: experiment eager installer/macro activation (stage 1),
   then define `install-arithmetic-procedure` as a bootstrap installer (stage 2).
+- [Builder Policy, Run Order, and Correctness](builder-policy-run-order-and-correctness.md)
+  explains why propagator results should not depend on task order, how `:lazy`
+  vs `:queue` flush boundaries interact with that goal, and which test suites
+  break if policy is applied globally without refactoring helpers.
 - [Experiments And Commands](experiments-and-commands.md) keeps test commands,
   benchmark commands, file maps, and open-work notes.
 
