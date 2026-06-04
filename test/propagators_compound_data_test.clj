@@ -3,9 +3,10 @@
   Run: clj -M:test propagators-compound-data-test"
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.avatar :as avatar]
-            [propagators.cells.cell :as cell :refer [construct-cell]]
+            [propagators.cells.cell :as cell]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.cells.value :as value]
+            [propagators.compile :as compile]
             [propagators.core :refer [run-tasks]]
             [propagators.datastructures.compound_data :as cd]
             [propagators.datastructures.compound_subnet_state :as state]
@@ -17,61 +18,74 @@
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
-(defn- install-cell [n id content strongest]
-  (second ((construct-cell id content strongest) n)))
-
-(defn- install-prop [n installer]
-  (second (installer n)))
+(def ^:private compound-data-installers
+  {'cd/p:car cd/p:car
+   'cd/p:cdr cd/p:cdr
+   'cd/c:linked-list cd/c:linked-list})
 
 (defn- run-from [n seed-ids]
   (let [g (net/net-graph n)
         tasks (pop-inputs seed-ids g)]
     (run-tasks tasks n)))
 
+(defn- seed-values [n id->value]
+  (reduce
+   (fn [n [id v]]
+     (net/assoc-net-cell n id (cell/cell v v)))
+   n
+   id->value))
+
+(defn- seed-and-run [n id->value]
+  (let [n' (seed-values n id->value)]
+    (run-from n' (mapv first id->value))))
+
+(defn- compile-compound-data [expr]
+  (compile/eval-net net/empty-net compound-data-installers expr))
+
+(defn- refs [ctx syms]
+  (mapv #(compile/cell-ref ctx %) syms))
+
 (defn- build-flat-linked-list []
-  (let [head (new-node-id)
-        tail (new-node-id)
-        coll (new-node-id)
-        n (-> net/empty-net
-              (install-cell head value/nothing value/nothing)
-              (install-cell tail value/nothing value/nothing)
-              (install-cell coll value/nothing value/nothing))]
-    {:net (-> n
-              (install-prop (cd/p:car head coll))
-              (install-prop (cd/p:cdr tail coll))
-              (install-prop (cd/c:linked-list coll)))
-     :head head
-     :tail tail
-     :coll coll}))
+  (let [ctx (compile-compound-data
+             '(let-cell [head tail coll]
+                (cd/p:car head coll)
+                (cd/p:cdr tail coll)
+                (cd/c:linked-list coll)))]
+    {:net (:net ctx)
+     :props (:props ctx)
+     :head (compile/cell-ref ctx 'head)
+     :tail (compile/cell-ref ctx 'tail)
+     :coll (compile/cell-ref ctx 'coll)}))
+
+(defn- nested-linked-list-form [head-syms coll-syms]
+  (let [cell-syms (vec (interleave head-syms coll-syms))
+        layer-forms
+        (mapcat
+         (fn [i]
+           (let [h (head-syms i)
+                 c (coll-syms i)
+                 next-c (get coll-syms (inc i))]
+             (cond-> [(list 'cd/p:car h c)
+                      (list 'cd/c:linked-list c)]
+               next-c (conj (list 'cd/p:cdr next-c c)))))
+         (range (count head-syms)))]
+    (apply list 'let-cell cell-syms layer-forms)))
 
 (defn- build-nested-linked-list [layers]
-  (let [ids (vec (repeatedly (+ (* 2 layers) 1) new-node-id))
-        coll-ids (mapv #(nth ids (+ (* 2 %) 1)) (range layers))
-        head-ids (mapv #(nth ids (* 2 %)) (range layers))
-        tail-ids (mapv #(nth ids (+ (* 2 %) 2)) (range (dec layers)))
-        n (reduce (fn [net id] (install-cell net id value/nothing value/nothing))
-                  net/empty-net
-                  ids)]
-    (loop [layer 0
-           n n]
-      (if (= layer layers)
-        {:net n :head-ids head-ids :coll-ids coll-ids :tail-ids tail-ids :layers layers}
-        (let [h (head-ids layer)
-              c (coll-ids layer)
-              t (when (< layer (dec layers)) (coll-ids (inc layer)))
-              n (-> n
-                    (install-prop (cd/p:car h c))
-                    (install-prop (cd/c:linked-list c)))]
-          (recur (inc layer)
-                 (if t
-                   (install-prop n (cd/p:cdr t c))
-                   n)))))))
+  (let [head-syms (mapv #(symbol (str "head" %)) (range layers))
+        coll-syms (mapv #(symbol (str "coll" %)) (range layers))
+        ctx (compile-compound-data (nested-linked-list-form head-syms coll-syms))]
+    {:net (:net ctx)
+     :props (:props ctx)
+     :head-ids (refs ctx head-syms)
+     :coll-ids (refs ctx coll-syms)
+     :tail-ids (subvec (refs ctx coll-syms) 1)
+     :layers layers}))
 
 (deftest car-writes-head-update-to-collection
   (testing "p:car merges head id into collection content"
     (let [{:keys [net head coll]} (build-flat-linked-list)
-          n (-> net (net/assoc-net-cell head (cell/cell 10 10)))
-          n' (run-from n [head])
+          n' (seed-and-run net [[head 10]])
           content (cell/cell-content (net/network-env-lookup n' coll))]
       (is (state/compound-subnet-state? content))
       (is (contains? (state/state-out-ids content) head)))))
@@ -79,8 +93,7 @@
 (deftest cdr-writes-tail-update-to-collection
   (testing "p:cdr merges tail id into collection content"
     (let [{:keys [net tail coll]} (build-flat-linked-list)
-          n (-> net (net/assoc-net-cell tail (cell/cell 20 20)))
-          n' (run-from n [tail])
+          n' (seed-and-run net [[tail 20]])
           content (cell/cell-content (net/network-env-lookup n' coll))]
       (is (state/compound-subnet-state? content))
       (is (contains? (state/state-out-ids content) tail)))))
@@ -102,10 +115,7 @@
 (deftest linked-list-dispatches-to-updated-outer-ids
   (testing "flat list: head and tail wired; propagation updates element strongests"
     (let [{:keys [net head tail coll]} (build-flat-linked-list)
-          n (-> net
-                (net/assoc-net-cell head (cell/cell 10 10))
-                (net/assoc-net-cell tail (cell/cell 20 20)))
-          n' (run-tasks (tq/into-queue (pop-inputs [head tail] (net/net-graph n))) n)
+          n' (seed-and-run net [[head 10] [tail 20]])
           strongest (cell/cell-strongest (net/network-env-lookup n' coll))]
       (is (state/compound-subnet-state? strongest))
       (is (= 10 (cell/cell-strongest (net/network-env-lookup n' head))))
@@ -114,10 +124,9 @@
 (deftest sync-avatar-cell-syncs-existing-avatar
   (testing "re-merge syncs avatar from parent when id already in dict"
     (let [{:keys [net head coll]} (build-flat-linked-list)
-          n (-> net (net/assoc-net-cell head (cell/cell 10 10)))
-          n' (run-from n [head])
+          n' (seed-and-run net [[head 10]])
           content (cell/cell-content (net/network-env-lookup n' coll))
-          n2 (-> n' (net/assoc-net-cell head (cell/cell 99 99)))
+          n2 (seed-values n' [[head 99]])
           update (update/compound-update {:head head})
           state' (subnet/merge-compound-data content update n2)
           subnet' (state/state-subnet state')
@@ -132,10 +141,9 @@
           head1 (head-ids 1)
           coll0 (coll-ids 0)
           coll1 (coll-ids 1)
-          n (-> net
-                (net/assoc-net-cell head1 (cell/cell 11 11))
-                (net/assoc-net-cell head0 (cell/cell 10 10)))
-          n' (-> n (run-from [head1]) (run-from [head0]))]
+          n' (-> net
+                 (seed-and-run [[head1 11]])
+                 (seed-and-run [[head0 10]]))]
       (is (state/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' coll1))))
       (is (state/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' coll0))))
       (is (= 11 (cell/cell-strongest (net/network-env-lookup n' head1))))
@@ -148,10 +156,9 @@
           h0 (head-ids 0)
           h2 (head-ids 2)
           c2 (coll-ids 2)
-          n (-> net
-                (net/assoc-net-cell h2 (cell/cell 3 3))
-                (net/assoc-net-cell h0 (cell/cell 1 1)))
-          n' (-> n (run-from [h2]) (run-from [h0]))]
+          n' (-> net
+                 (seed-and-run [[h2 3]])
+                 (seed-and-run [[h0 1]]))]
       (is (state/compound-subnet-state? (cell/cell-content (net/network-env-lookup n' c2))))
       (is (= 3 (cell/cell-strongest (net/network-env-lookup n' h2))))
       (is (= 1 (cell/cell-strongest (net/network-env-lookup n' h0)))))))
@@ -160,9 +167,7 @@
   (testing "5 cons cells: (p:cdr coll_{i+1} coll_i), (p:car h_i coll_i), (c:linked-list coll_i)"
     (let [{:keys [net head-ids coll-ids]} (build-nested-linked-list 5)
           values [10 20 30 40 50]
-          n (reduce (fn [n [h v]] (net/assoc-net-cell n h (cell/cell v v)))
-                    net
-                    (map vector head-ids values))
+          n (seed-values net (map vector head-ids values))
           n' (run-tasks (tq/into-queue (pop-inputs head-ids (net/net-graph n))) n)]
       (doseq [c coll-ids]
         (is (state/compound-subnet-state?
@@ -195,9 +200,7 @@
           head0 (head-ids 0)
           head2 (head-ids 2)
           coll2 (coll-ids 2)
-          n' (-> net
-                 (net/assoc-net-cell head2 (cell/cell 42 42))
-                 (run-from [head2]))]
+          n' (seed-and-run net [[head2 42]])]
       (is (= 42 (cell/cell-strongest (net/network-env-lookup n' head2))))
       (is (value/nothing? (cell/cell-strongest (net/network-env-lookup n' head0))))
       (is (state/compound-subnet-state?
@@ -206,7 +209,7 @@
 (deftest compound-sync-installs-missing-slot
   (testing "compound sync installs missing slot entry into target subnet"
     (let [outer (new-node-id)
-          n (-> net/empty-net (net/assoc-net-cell outer (cell/cell 7 7)))
+          n (seed-values net/empty-net [[outer 7]])
           source-state (subnet/merge-compound-data
                         (state/empty-compound-subnet)
                         (update/compound-update {:head outer})

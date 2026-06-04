@@ -3,10 +3,11 @@
             [propagators.cells.cell :as cell :refer [construct-cell]]
             [propagators.cells.diff :as diff]
             [propagators.cells.value :refer [cell-value-equal?]]
+            [propagators.compile :as compile]
+            [propagators.compile :refer [cell-ref compile-net prop-ref]]
             [propagators.graph :as graph :refer [node-input-ids node-output-ids]]
             [propagators.message :as m]
             [propagators.propagator :refer [compound-propagator prop?]]
-            [propagators.compile :refer [cell-ref compile-net prop-ref]]
             [propagators.core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -121,6 +122,61 @@
       (expect-strongest n c expected (str "cell " i " chain-len " chain-len)))))
 
 ;; --- tests ---
+
+(deftest compiler-self-evaluating-values
+  (is (= 42 (:value (compile/eval-net 42))))
+  (is (= "x" (:value (compile/eval-net "x"))))
+  (is (= :provenance (:value (compile/eval-net :provenance))))
+  (is (= true (:value (compile/eval-net true))))
+  (is (= #{:a} (:value (compile/eval-net #{:a}))))
+  (is (= [:a :b] (:value (compile/eval-net [:a :b])))))
+
+(deftest compiler-symbol-auto-creates-cell
+  (let [ctx (compile/eval-net 'a)
+        a (compile/cell-ref ctx 'a)]
+    (is a)
+    (is (= a (:value ctx)))
+    (is (cell/cell? (net/network-lookup-cell (:net ctx) a)))))
+
+(deftest compiler-repeated-symbol-reuses-cell
+  (let [ctx (compile/eval-net
+             '(let-cell [a]
+                a))
+        a1 (compile/cell-ref ctx 'a)]
+    (is (= a1 (:value ctx)))))
+
+(deftest compiler-application-auto-creates-args-and-collects-props
+  (let [ctx (compile/eval-net '(p:id a b))]
+    (is (compile/cell-ref ctx 'a))
+    (is (compile/cell-ref ctx 'b))
+    (is (= 1 (count (:props ctx))))))
+
+(deftest compiler-let-cell-variadic-body
+  (let [ctx (compile/compile-net
+             '(let-cell [a b c]
+                (p:id a b)
+                (p:id b c)))]
+    (is (= 3 (count (:cells ctx))))
+    (is (= 2 (count (:props ctx))))))
+
+(deftest compiler-keyword-arg-self-evaluates
+  (let [seen (atom nil)
+        installer (fn [layer a b]
+                    (reset! seen [layer a b])
+                    (fn [n]
+                      [(new-node-id) n]))
+        ctx (compile/eval-net
+             net/empty-net
+             {'fake/layer installer}
+             '(fake/layer :provenance a b))]
+    (is (= :provenance (first @seen)))
+    (is (= 1 (count (:props ctx))))))
+
+(deftest compiler-seed-form-creates-and-seeds-cell
+  (let [ctx (compile/eval-net '(seed a 42))
+        a (compile/cell-ref ctx 'a)]
+    (is (= a (:value ctx)))
+    (is (= 42 (cell/cell-strongest (net/network-lookup-cell (:net ctx) a))))))
 
 (deftest sync-chain-propagates-value
   (with-compiled

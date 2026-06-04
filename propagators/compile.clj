@@ -3,9 +3,9 @@
 
   Compile-time: `compile-net`, `let-cell`.
   Runtime: `net-let` — declare cells by symbol, install propagators like function calls."
-  (:require [clojure.core.match :refer [match]]
-            [propagators.ids :refer [new-node-id]]
-            [propagators.network :as net]))
+  (:require [propagators.ids :refer [new-node-id]]
+            [propagators.network :as net]
+            [propagators.network-builder :as nb]))
 
 (defn default-installers
   "Installer map (lazy resolve avoids compile ↔ stdlib cycle)."
@@ -16,49 +16,57 @@
 (def install-net net/install-net)
 (def seed-net-cell net/seed-net-cell)
 
-(defn- ctx0 [installers]
-  {:cells {} :installers installers :graph {} :env {} :props []})
+(defn- ctx0
+  ([installers]
+   (ctx0 net/empty-net installers))
+  ([n installers]
+   {:net n
+    :installers installers
+    :props []
+    :value nil}))
 
-(defn- lookup-cell [sym {:keys [cells]}]
-  (or (get cells sym)
-      (throw (ex-info "unbound cell" {:sym sym :known (keys cells)}))))
+(defn- self-evaluating? [x]
+  (or (nil? x)
+      (number? x)
+      (string? x)
+      (keyword? x)
+      (boolean? x)
+      (set? x)
+      (map? x)
+      (vector? x)))
 
-(defn- lookup-inst [sym {:keys [installers]}]
-  (let [v (or (get installers sym)
-              (throw (ex-info "unknown installer" {:inst sym :known (keys installers)})))]
+(defn bind-var
+  "Bind compiler symbol `sym` to value/id `v` in the network dict."
+  [n sym v]
+  (net/assoc-net-dict-entry n sym v))
+
+(defn bind-vars
+  "Bind compiler symbols to values/ids in the network dict."
+  [n sym->value]
+  (reduce-kv bind-var n sym->value))
+
+(defn- resolve-symbol
+  "Symbols are cell vars. Missing symbols create fresh empty cells."
+  [ctx sym]
+  (if-let [v (net/network-dict-entry (:net ctx) sym)]
+    [ctx v]
+    (let [id (new-node-id)
+          n' (-> (:net ctx)
+                 (nb/install-cell id)
+                 (bind-var sym id))]
+      [(assoc ctx :net n') id])))
+
+(defn- lookup-inst [ctx sym]
+  (let [v (or (get (:installers ctx) sym)
+              (throw (ex-info "unknown installer"
+                              {:inst sym
+                               :known (keys (:installers ctx))})))]
     (if (var? v) @v v)))
 
-(defn- binding-pairs [bindings]
-  (if (and (seq bindings) (vector? (first bindings)))
-    (mapv vec bindings)
-    (do
-      (when (odd? (count bindings))
-        (throw (ex-info "let bindings must be sym/init pairs" {:bindings bindings})))
-      (mapv vec (partition 2 bindings)))))
-
-(defn- do+? [x]
-  (and (seq? x) (= 'do (first x)) (< 1 (count x))))
-
-(defn- prop-apply? [x ctx]
-  (and (seq? x)
-       (let [op (first x)]
-         (and (symbol? op) (contains? (:installers ctx) op)))))
-
-(defn- net-of-ctx [{:keys [graph env]}]
-  (net/net graph env))
-
-(defn- ctx-of-net [ctx n]
-  (-> ctx
-      (assoc :graph (net/net-graph n))
-      (assoc :env (net/net-env n))))
-
-(defn- with-net [ctx f]
-  (ctx-of-net ctx (f (net-of-ctx ctx))))
-
-(defn- bind-cell [sym ctx]
-  (let [id (new-node-id)
-        ctx' (with-net ctx #(net/seed-net-cell % id))]
-    (assoc-in ctx' [:cells sym] id)))
+(defn- prop-ids [installed-id]
+  (if (sequential? installed-id)
+    (vec installed-id)
+    [installed-id]))
 
 (defn run-net-let
   "Runtime network builder.
@@ -109,45 +117,134 @@
                 (vector ~@(map cell-bind-entry cell-binds))
                 '~prop-forms))
 
-(defn- compile* [exp ctx]
-  (cond
-    (prop-apply? exp ctx)
-    (let [[inst & arg-syms] exp
-          ids (mapv #(lookup-cell % ctx) arg-syms)
-          [pid n'] ((apply (lookup-inst inst ctx) ids) (net-of-ctx ctx))
-          ctx' (ctx-of-net ctx n')]
-      (-> ctx' (update :props conj pid)))
+(declare eval-expr)
 
-    (do+? exp)
-    (reduce (fn [ctx form] (compile* form ctx)) ctx (rest exp))
+(defn- eval-seq [ctx exprs]
+  (reduce
+   (fn [[ctx _] expr]
+     (eval-expr ctx expr))
+   [ctx nil]
+   exprs))
+
+(defn- eval-let-cell [ctx [_ syms & body]]
+  (let [ctx'
+        (reduce
+         (fn [ctx sym]
+           (first (resolve-symbol ctx sym)))
+         ctx
+         syms)]
+    (eval-seq ctx' body)))
+
+(defn- eval-do [ctx [_ & body]]
+  (eval-seq ctx body))
+
+(defn- eval-seed [ctx [_ cell-expr value-expr]]
+  (let [[ctx' cell-id] (eval-expr ctx cell-expr)
+        [ctx'' value] (eval-expr ctx' value-expr)
+        n' (nb/seed-cell (:net ctx'') cell-id value)]
+    [(-> ctx''
+         (assoc :net n')
+         (assoc :value cell-id))
+     cell-id]))
+
+(defn- eval-application [ctx form]
+  (let [[op & args] form
+        installer (lookup-inst ctx op)
+        [ctx' argv]
+        (reduce
+         (fn [[ctx values] arg]
+           (let [[ctx' v] (eval-expr ctx arg)]
+             [ctx' (conj values v)]))
+         [ctx []]
+         args)
+        [installed-id n'] ((apply installer argv) (:net ctx'))
+        ids (prop-ids installed-id)]
+    [(-> ctx'
+         (assoc :net n')
+         (update :props into ids)
+         (assoc :value installed-id))
+     installed-id]))
+
+(defn- eval-expr [ctx expr]
+  (cond
+    (self-evaluating? expr)
+    [(assoc ctx :value expr) expr]
+
+    (symbol? expr)
+    (let [[ctx' v] (resolve-symbol ctx expr)]
+      [(assoc ctx' :value v) v])
+
+    (and (seq? expr) (= 'let-cell (first expr)))
+    (eval-let-cell ctx expr)
+
+    (and (seq? expr) (= 'do (first expr)))
+    (eval-do ctx expr)
+
+    (and (seq? expr) (= 'seed (first expr)))
+    (eval-seed ctx expr)
+
+    (seq? expr)
+    (eval-application ctx expr)
 
     :else
-    (match exp
-      (['let-cell syms body] :seq)
-      (let [bindings (vec (mapcat (fn [sym] [sym '(cell)]) syms))
-            let-form (list 'let bindings body)]
-        (compile* let-form ctx))
+    (throw (ex-info "unsupported expression" {:expr expr}))))
 
-      (['let bindings body] :seq)
-      (let [ctx' (reduce
-                  (fn [ctx [sym init]]
-                    (if (= init '(cell))
-                      (bind-cell sym ctx)
-                      (throw (ex-info "let binding must be (cell)" {:sym sym :init init}))))
-                  ctx
-                  (binding-pairs bindings))]
-        (compile* body ctx'))
+(defn eval-net*
+  "Evaluate multiple top-level expressions against network `n`."
+  [n installers exprs]
+  (let [[ctx value] (eval-seq (ctx0 n installers) exprs)]
+    (assoc ctx :value value)))
 
-      (['do] :seq)
-      ctx
+(defn eval-net
+  "Evaluate one network expression."
+  ([expr]
+   (eval-net net/empty-net (default-installers) expr))
+  ([n expr]
+   (eval-net n (default-installers) expr))
+  ([n installers expr]
+   (let [[ctx value] (eval-expr (ctx0 n installers) expr)]
+     (assoc ctx :value value))))
 
-      :else
-      (throw (ex-info "unsupported form" {:form exp})))))
+(defn eval-net-with-bindings
+  "Evaluate one network expression after binding symbols into network `n`."
+  [n installers sym->value expr]
+  (eval-net (bind-vars n sym->value) installers expr))
+
+(defn eval-layered
+  "Evaluate one network expression with an explicit installer map and pre-bound symbols.
+
+  This is intentionally installer-driven rather than tied to `propagators.layered`,
+  so tests and higher-level builders can supply the layered vocabulary they want."
+  [n installers sym->value expr]
+  (eval-net-with-bindings n installers sym->value expr))
+
+(defmacro net-build
+  "Evaluate body expressions against `n` using default installers."
+  [n & body]
+  `(eval-net* ~n (default-installers) '~body))
+
+(defn- symbol-bindings [n]
+  (into {}
+        (filter (fn [[k _]] (symbol? k)))
+        (net/net-dict-or-empty n)))
 
 (defn compile-net
-  ([expr] (compile-net expr (default-installers)))
-  ([expr installers] (compile* expr (ctx0 installers))))
+  ([expr]
+   (compile-net expr (default-installers)))
+  ([expr installers]
+   (let [{:keys [net props value] :as ctx}
+         (eval-net net/empty-net installers expr)]
+     (assoc ctx
+            :graph (net/net-graph net)
+            :env (net/net-env net)
+            :cells (symbol-bindings net)
+            :props props
+            :value value))))
 
-(defn cell-ref [compiled sym] (lookup-cell sym compiled))
+(defn cell-ref [compiled sym]
+  (or (get-in compiled [:cells sym])
+      (when-let [n (:net compiled)]
+        (net/network-dict-entry n sym))
+      (throw (ex-info "unbound cell" {:sym sym}))))
 
 (defn prop-ref [compiled idx] (nth (:props compiled) idx))
