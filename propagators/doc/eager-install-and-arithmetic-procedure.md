@@ -1,6 +1,6 @@
 # Eager Install Activation and `install-arithmetic-procedure`
 
-Status: **design / experiment plan** (not implemented).
+Status: **stage 1 in progress** on branch `experiment/eager-install-stage-1`.
 
 Related:
 
@@ -160,6 +160,31 @@ Stage 1 is **done** when we can answer yes/no with tests:
    - **E3** — keep compile lazy; only new installers use `install-propagator!` style.
 
 Recommendation to decide in stage 1: prefer **E2 (batch at end of sequential install block)** for macro ergonomics, and **E3** for explicit stdlib installers — avoids N drains per `do` line.
+
+### 1.9 Stage 1 preliminary results (2026-06-04)
+
+Implemented behind dynamic vars in `propagators.compile` (defaults **false**):
+
+| Flag | Behavior |
+|------|----------|
+| `*eager-install?*` | Run each installed propagator immediately after `eval-application` |
+| `*eager-install-batch?*` | Defer props installed in a `do`; flush with `run-propagators` at end of `do` |
+| `*eager-seed?*` | After `seed`, run neighbor propagators (`seed-cell!` semantics) |
+
+`propagators.network-builder` adds `install-propagator-eager!` and `run-propagators-quiesce`.
+
+Tests: `test/propagators_eager_install_test.clj`.
+
+| Hypothesis | Result |
+|------------|--------|
+| **H1** | **Confirmed** — `*eager-install-batch?*` on `(do install seed)` merges base+provenance without manual `run-propagators`. |
+| **H2** | **Confirmed** — `*eager-install?*` per-install inside same `do` runs before `seed`; `proc` has no `:base`. |
+| **Eager seed** | **Confirmed** — install `p:layered-procedure` lazy, `*eager-seed?*` on extension fragment wakes merge into `proc`. |
+| **Equivalence** | **Confirmed** — batch eager matches manual run on extension props for plus procedure. |
+
+**Provisional decision:** prefer **E2** (`*eager-install-batch?*` at end of `do`) for compile ergonomics; **E3** / `install-propagator-eager!` for explicit installers. Keep global compile **lazy** by default (network/compound regression tests unchanged).
+
+Stage 2 (`install-arithmetic-procedure`) should not start until this branch merges or the decision is reviewed.
 
 ### 1.8 Stage 1 work checklist
 

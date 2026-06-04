@@ -34,6 +34,25 @@
   [n prop-ids]
   (core/run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
 
+(defn run-propagators-quiesce
+  "Run `prop-ids` then drain the task queue until empty."
+  [n prop-ids]
+  (core/run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
+
+(defn install-propagator-eager!
+  "Install a propagator and run it immediately.
+
+  Returns `[prop-id network]` like `install-propagator`.
+  `drain` is `:one` (default) or `:quiesce` (drain full queue after enqueue)."
+  ([n installer]
+   (install-propagator-eager! n installer :one))
+  ([n installer drain]
+   (let [[prop-id n'] (install-propagator n installer)
+         n'' (case drain
+               :quiesce (run-propagators-quiesce n' [prop-id])
+               (run-propagators n' [prop-id]))]
+     [prop-id n''])))
+
 (defn install-propagator!
   "Install a propagator and enqueue it, returning `[updated-network updated-tasks]`."
   [n tasks installer]

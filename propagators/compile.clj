@@ -7,6 +7,11 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]))
 
+;; Stage-1 eager-install experiments (see doc/eager-install-and-arithmetic-procedure.md).
+(def ^:dynamic *eager-install?* false)
+(def ^:dynamic *eager-install-batch?* false)
+(def ^:dynamic *eager-seed?* false)
+
 (defn default-installers
   "Installer map (lazy resolve avoids compile ↔ stdlib cycle)."
   []
@@ -136,15 +141,29 @@
          syms)]
     (eval-seq ctx' body)))
 
+(defn- flush-do-eager-props [ctx]
+  (if (and *eager-install-batch?* (seq (:do-props ctx)))
+    (let [n' (nb/run-propagators (:net ctx) (:do-props ctx))]
+      (-> ctx
+          (assoc :net n')
+          (dissoc :do-props)))
+    (dissoc ctx :do-props)))
+
 (defn- eval-do [ctx [_ & body]]
-  (eval-seq ctx body))
+  (let [ctx' (assoc ctx :do-props [])
+        [ctx'' value] (eval-seq ctx' body)
+        ctx''' (flush-do-eager-props ctx'')]
+    [ctx''' value]))
 
 (defn- eval-seed [ctx [_ cell-expr value-expr]]
   (let [[ctx' cell-id] (eval-expr ctx cell-expr)
         [ctx'' value] (eval-expr ctx' value-expr)
-        n' (nb/seed-cell (:net ctx'') cell-id value)]
+        n' (nb/seed-cell (:net ctx'') cell-id value)
+        n'' (if *eager-seed?*
+              (nb/run-propagators n' (nb/neighbor-propagator-ids n' cell-id))
+              n')]
     [(-> ctx''
-         (assoc :net n')
+         (assoc :net n'')
          (assoc :value cell-id))
      cell-id]))
 
@@ -159,9 +178,18 @@
          [ctx []]
          args)
         [installed-id n'] ((apply installer argv) (:net ctx'))
-        ids (prop-ids installed-id)]
-    [(-> ctx'
-         (assoc :net n')
+        ids (prop-ids installed-id)
+        n-run (cond
+                (and *eager-install?* (not *eager-install-batch?*))
+                (nb/run-propagators n' ids)
+
+                :else
+                n')
+        ctx'' (if *eager-install-batch?*
+                (update ctx' :do-props into ids)
+                ctx')]
+    [(-> ctx''
+         (assoc :net n-run)
          (update :props into ids)
          (assoc :value installed-id))
      installed-id]))
