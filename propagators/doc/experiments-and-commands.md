@@ -83,7 +83,10 @@ propagators/helpers/task_queue.clj
 
 ## Open Work
 
-- dependence tracking
+See [Four Core Features](four-core-features.md) for the canonical four-feature
+checklist and progress matrix.
+
+- dependence tracking (feature 4)
 - contradiction policy beyond the current stub
 - compiled compound form
 - promotion/demotion between runtime and compiled compounds

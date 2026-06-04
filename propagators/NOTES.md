@@ -3,9 +3,22 @@
 The design notes have been split into focused documents under
 `propagators/doc/` so this directory can become an independent project later.
 
+## Four core features (checklist)
+
+Restored from this file before commit `484781b`; full definitions and progress:
+[doc/four-core-features.md](doc/four-core-features.md).
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | Networked semantics | Done |
+| 2 | Fixpoint evaluation | Done |
+| 3 | Partial information | In progress (named-network, layered, compound) |
+| 4 | Dependence tracking | Not yet |
+
 Start here:
 
 - [Documentation index](doc/README.md)
+- [Four core features](doc/four-core-features.md)
 - [Core runtime model](doc/core-runtime.md)
 - [Named network evidence](doc/named-network-evidence.md)
 - [Compound runtime](doc/compound-runtime.md)

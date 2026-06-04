@@ -198,29 +198,32 @@ With that split:
 
 ## Future Dependence Tracking
 
-When the propagator system grows a dependence-tracking TMS, plain `p:id`
-bi-sync will not be enough for compound object slots. Slot sync must preserve
-the provenance of the information flowing through the collection subnet.
+Dependence tracking is a **merge-time subsystem** (MIT-shaped), not something
+wired into `eval-propagator` or `eval-cell`. The hook in this repo is
+`propagators.cells.merge/cell-merge` when slot/collection cells absorb messages.
 
-The likely shape is to attach a dependence-tracked bidirectional switch at the
-avatar <-> slot boundary. That `bi-switch` should pass dependencies from the TMS
-along with the value, so a value copied from parent avatar to slot, or from slot
-back to parent avatar, carries the same justifications as the source
-information.
+When that subsystem exists, plain `p:id` bi-sync will not be enough for compound
+object slots. Slot sync must preserve **justifications** stored by merge, not
+only scalar or named-network payloads.
 
-An equivalent design would let the subnet execution pass provenance into the
-emitted value directly. The important invariant is the same either way:
+The likely shape is a dependence-aware merge (or merge wrapper) plus a
+dependence-tracked bidirectional switch at the avatar ↔ slot boundary. That
+`bi-switch` should keep TMS supports aligned when values copy between parent
+avatar and slot.
 
-- slot sync must not erase TMS dependencies
-- collection named-network values must retain enough provenance to explain their
-  strongest slot values
-- parent fan-out messages must carry provenance back to the receiving cells
-- effect taps may record the activation frontier, but they must not become the
-  source of truth for why a value is believed
+Layered **`:provenance`** (arithmetic sets, etc.) is **domain data** merged like
+any other layer; it is not a substitute for merge-time dependence. The important
+invariants:
 
-Without this, the named-network slot model would correctly move values but lose
-the dependency explanation needed for retraction, alternate worlds, or
-truth-maintenance debugging.
+- slot sync must not erase merge-time justifications
+- collection named-network content must retain enough support to explain strongest views
+- parent fan-out must not drop dependence carried in merged cell content
+- effect taps may record the activation frontier, but must not become the TMS source of truth
+
+Without merge-time dependence, the slot model can move values correctly but lose
+explanation and retraction needed for alternate worlds or truth-maintenance debugging.
+
+See [Four Core Features — provenance vs dependence](four-core-features.md#provenance-vs-dependence-layered).
 
 ## Risks
 

@@ -78,14 +78,33 @@ Define the operator once:
 (def p:+ (layered/p:layered-operator plus-proc))
 ```
 
-Merge base behavior:
+Default stdlib bootstrap (base + provenance on a fresh `proc`):
+
+```clojure
+(require '[propagators.stdlib.provenance-arithmetic :as prov-arith])
+
+(def {:keys [net proc operator]} (prov-arith/+ network))
+;; `operator` is the `layered/+` installer for `proc`
+```
+
+Reactive / manual extension (library boundary):
 
 ```clojure
 (def plus-base-extension (new-node-id))
 
+(layered/install-layered-procedure!
+  network
+  plus-proc
+  plus-base-extension
+  (arithmetic/plus-base-extension))
+```
+
+Reactive wiring by hand (same semantics):
+
+```clojure
 ((layered/p:layered-procedure plus-proc plus-base-extension) network)
-(nb/seed-cell network plus-base-extension
-              (nb/named-cell-net [[:base plus-base-closure]]))
+(nb/seed-cell network plus-base-extension (arithmetic/plus-base-extension))
+(nb/run-propagators network [prop-id])
 ```
 
 Later, merge provenance behavior without redefining `p:+`:
@@ -125,10 +144,9 @@ over `proc`, with `p:layered-procedure` kept for late or external layers.
 
 `test/propagators_layered_procedure_test.clj` covers:
 
-- merging pure procedure extension fragments
-- applying base and provenance branches
-- defining `p:+` before provenance exists
-- extending the procedure later and using the same operator installer
-- modeling defaults as ordinary extension fragments
-- skipping absent non-base layers
+- **Default:** `propagators.stdlib.provenance-arithmetic` (`+`, `-`, `*`, `/` on a
+  network), then apply via returned `:operator` or `p:apply-layered` on `:proc`
+- skipping absent non-base layers when arguments lack them
+- **Special case (reactive):** `install-plus-procedure-base-only`,
+  `extend-procedure-layer`, late provenance on `layered/+`, extra `:units` layer
 

@@ -33,6 +33,20 @@
    [extension-id]
    [proc-id]))
 
+(defn install-layered-procedure!
+  "Library boundary for reactive procedure extension.
+
+  Wires `p:layered-procedure` from `extension-id` to `proc-id`, seeds
+  `extension-id` with named-network `fragment`, and runs the merge propagator
+  so `proc-id` accumulates the new layer branch.
+
+  Returns `{:net network' :prop prop-id}`."
+  [n proc-id extension-id fragment]
+  (let [[prop-id n'] ((p:layered-procedure proc-id extension-id) n)
+        n'' (nb/seed-cell n' extension-id fragment)
+        n''' (nb/run-propagators n'' [prop-id])]
+    {:net n''' :prop prop-id}))
+
 (declare p:apply-layered)
 
 (defn p:layered-operator

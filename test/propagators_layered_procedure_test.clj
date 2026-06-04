@@ -8,9 +8,9 @@
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
             [propagators.stdlib.arithmetic :as arithmetic]
-            [propagators.stdlib.arithmetic.base :as base]
             [propagators.stdlib.arithmetic.provenance :as provenance]
             [propagators.stdlib.layered :as layered-ops]
+            [propagators.stdlib.provenance-arithmetic :as prov-arith]
             [propagators.stdlib.prop :as stdlib-prop]))
 
 (def ^:private layered-installers
@@ -23,6 +23,7 @@
    'prop// stdlib-prop//
    'layered/+ layered-ops/+
    'layered/- layered-ops/-
+   'layered/* layered-ops/*
    'layered// layered-ops//})
 
 (defn- layered-ctx [n sym->value expr]
@@ -47,17 +48,6 @@
   (let [ctx (layered-ctx n {} '(let-cell [out] out))]
     {:net (:net ctx)
      :out (compile/cell-ref ctx 'out)}))
-
-(defn- new-plus-procedure-cells
-  []
-  (let [ctx (layered-ctx
-             net/empty-net
-             {}
-             '(let-cell [proc base-extension prov-extension] proc))]
-    {:net (:net ctx)
-     :proc (compile/cell-ref ctx 'proc)
-     :base-extension (compile/cell-ref ctx 'base-extension)
-     :prov-extension (compile/cell-ref ctx 'prov-extension)}))
 
 (defn- install-layered-apply
   [n proc a b out]
@@ -93,100 +83,6 @@
           'out out}
          '(p:unitless current arg-a arg-b out)))))
    net/empty-net))
-
-(defn- install-procedure-extension
-  [n proc extension extension-value]
-  (let [ctx (layered-ctx
-             n
-             {'proc proc
-              'extension extension
-              'extension-value extension-value}
-             '(do
-                (layered/p:layered-procedure proc extension)
-                (seed extension extension-value)))]
-    {:net (:net ctx)
-     :prop (first (:props ctx))}))
-
-(defn- install-plus-procedure
-  ([]
-   (install-plus-procedure {:provenance? true}))
-  ([{:keys [provenance?] :or {provenance? true}}]
-   (let [{:keys [net proc base-extension prov-extension]} (new-plus-procedure-cells)
-         base (install-procedure-extension
-               net
-               proc
-               base-extension
-               (arithmetic/base-extension base/plus-closure))
-         prov (when provenance?
-                (install-procedure-extension
-                 (:net base)
-                 proc
-                 prov-extension
-                 (arithmetic/provenance-extension provenance/+)))
-         n3 (if provenance? (:net prov) (:net base))
-         base-prop (:prop base)
-         prov-prop (:prop prov)
-         procedure-props (cond-> [base-prop] provenance? (conj prov-prop))
-         n4 (nb/run-propagators n3 procedure-props)]
-     {:net n4
-      :proc proc
-      :base-extension base-extension
-      :prov-extension (when provenance? prov-extension)
-      :procedure-props procedure-props})))
-
-(defn- install-minus-procedure
-  ([]
-   (install-minus-procedure {:provenance? true}))
-  ([{:keys [provenance?] :or {provenance? true}}]
-   (let [{:keys [net proc base-extension prov-extension]} (new-plus-procedure-cells)
-         base (install-procedure-extension
-               net
-               proc
-               base-extension
-               (arithmetic/minus-base-extension))
-         prov (when provenance?
-                (install-procedure-extension
-                 (:net base)
-                 proc
-                 prov-extension
-                 (arithmetic/minus-provenance-extension)))
-         n3 (if provenance? (:net prov) (:net base))
-         base-prop (:prop base)
-         prov-prop (:prop prov)
-         procedure-props (cond-> [base-prop] provenance? (conj prov-prop))
-         n4 (nb/run-propagators n3 procedure-props)]
-     {:net n4
-      :proc proc
-      :base-extension base-extension
-      :prov-extension (when provenance? prov-extension)
-      :procedure-props procedure-props})))
-
-(defn- install-divide-procedure
-  ([]
-   (install-divide-procedure {:provenance? true}))
-  ([{:keys [provenance?] :or {provenance? true}}]
-   (let [{:keys [net proc base-extension prov-extension]} (new-plus-procedure-cells)
-         base (install-procedure-extension
-               net
-               proc
-               base-extension
-               (arithmetic/divide-base-extension))
-         prov (when provenance?
-                (install-procedure-extension
-                 (:net base)
-                 proc
-                 prov-extension
-                 (arithmetic/divide-provenance-extension)))
-         n3 (if provenance? (:net prov) (:net base))
-         base-prop (:prop base)
-         prov-prop (:prop prov)
-         procedure-props (cond-> [base-prop] provenance? (conj prov-prop))
-         n4 (nb/run-propagators n3 procedure-props)]
-     {:net n4
-      :proc proc
-      :base-extension base-extension
-      :prov-extension (when provenance? prov-extension)
-      :procedure-props procedure-props})))
 
 (defn- install-layered-inputs
   [n a b]
@@ -251,14 +147,15 @@
        (seed b-base b-value)))))
 
 (defn- extend-procedure-layer
+  "Special-case reactive path: merge a later layer via `install-layered-procedure!`."
   [n proc extension-name layer closure-value]
   (let [extension (new-cell n extension-name)
-        installed (install-procedure-extension
+        installed (layered/install-layered-procedure!
                    (:net extension)
                    proc
                    (:cell extension)
                    (arithmetic/procedure-extension layer closure-value))]
-    {:net (nb/run-propagators (:net installed) [(:prop installed)])
+    {:net (:net installed)
      :extension (:cell extension)
      :prop (:prop installed)}))
 
@@ -310,9 +207,64 @@
   [object layer]
   (is (nil? (net/network-dict-entry object layer))))
 
+;; --- Default path: full procedure (base + provenance), layered/+ - / //
+
+(deftest apply-layered-computes-base-and-provenance
+  (testing "layered apply with pre-installed base and provenance"
+    (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
+          result (run-layered-application
+                  net
+                  #(install-layered-apply %1 proc %2 %3 %4)
+                  10 #{:a}
+                  20 #{:b})]
+      (assert-layer (:out-object result) :base 30)
+      (assert-layer (:out-object result) :provenance #{:a :b}))))
+
+(deftest apply-layered-minus-computes-base-and-provenance
+  (testing "layered/- with pre-installed base and provenance"
+    (let [{:keys [net operator]} (prov-arith/- net/empty-net)
+          result (run-layered-application
+                  net
+                  #(install-operator-apply %1 'layered/- operator %2 %3 %4)
+                  30 #{:a}
+                  12 #{:b})]
+      (assert-layer (:out-object result) :base 18)
+      (assert-layer (:out-object result) :provenance #{:a :b}))))
+
+(deftest apply-layered-times-computes-base-and-provenance
+  (testing "layered/* with pre-installed base and provenance"
+    (let [{:keys [net operator]} (prov-arith/* net/empty-net)
+          result (run-layered-application
+                  net
+                  #(install-operator-apply %1 'layered/* operator %2 %3 %4)
+                  6 #{:a}
+                  7 #{:b})]
+      (assert-layer (:out-object result) :base 42)
+      (assert-layer (:out-object result) :provenance #{:a :b}))))
+
+(deftest apply-layered-divide-computes-base-and-provenance
+  (testing "layered// with pre-installed base and provenance"
+    (let [{:keys [net operator]} (prov-arith// net/empty-net)
+          result (run-layered-application
+                  net
+                  #(install-operator-apply %1 'layered// operator %2 %3 %4)
+                  60 #{:a}
+                  12 #{:b})]
+      (assert-layer (:out-object result) :base 5)
+      (assert-layer (:out-object result) :provenance #{:a :b}))))
+
+(deftest skips-non-base-layer-when-args-do-not-have-it
+  (testing "provenance branch skipped when arguments have no provenance layer"
+    (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
+          result (run-base-only-application net proc 7 8)]
+      (assert-layer (:out-object result) :base 15)
+      (assert-missing-layer (:out-object result) :provenance))))
+
+;; --- Special case: reactive `install-layered-procedure!` / late layers
+
 (deftest layered-procedure-builds-and-extends-slot-object
-  (testing "p:layered-procedure merges pure extension fragments"
-    (let [{:keys [net proc]} (install-plus-procedure)
+  (testing "reactive extension merges an extra layer after full bootstrap"
+    (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
           extended (extend-procedure-layer
                     net
                     proc
@@ -323,24 +275,12 @@
       (is (obj/slot-strongest (procedure-object net proc) :provenance))
       (is (obj/slot-strongest (procedure-object (:net extended) proc) :units)))))
 
-(deftest apply-layered-computes-base-and-provenance
-  (testing "p:apply-layered applies closure slots and writes output slots"
-    (let [{:keys [net proc]} (install-plus-procedure)
-          result (run-layered-application
-                  net
-                  #(install-layered-apply %1 proc %2 %3 %4)
-                  10 #{:a}
-                  20 #{:b})]
-      (assert-layer (:out-object result) :base 30)
-      (assert-layer (:out-object result) :provenance #{:a :b}))))
-
 (deftest layered-operator-reuses-and-observes-procedure-extension
-  (testing "same operator installer sees later procedure-cell extensions"
-    (let [{:keys [net proc]} (install-plus-procedure {:provenance? false})
-          p:+ (layered-ops/+ proc)
+  (testing "layered/+ defined on base-only proc; provenance added later still affects re-apply"
+    (let [{:keys [net proc operator]} (prov-arith/+ net/empty-net {:provenance? false})
           first-result (run-layered-application
                         net
-                        #(install-operator-apply %1 'layered/+ p:+ %2 %3 %4)
+                        #(install-operator-apply %1 'layered/+ operator %2 %3 %4)
                         1 #{:a}
                         2 #{:b})
           extended (extend-procedure-layer
@@ -353,7 +293,7 @@
           out2 (:out output)
           second-result (run-operator-on-existing-inputs
                          (:net output)
-                         p:+
+                         operator
                          (:a first-result)
                          (:b first-result)
                          out2)]
@@ -361,51 +301,3 @@
       (assert-missing-layer (:out-object first-result) :provenance)
       (assert-layer (:out-object second-result) :base 3)
       (assert-layer (:out-object second-result) :provenance #{:a :b}))))
-
-(deftest ordinary-extension-fragments-model-defaults
-  (testing "ordinary extension fragments model defaults without global mutation"
-    (let [{:keys [net proc]} (install-plus-procedure {:provenance? false})
-          extended (extend-procedure-layer
-                    net
-                    proc
-                    'prov-extension
-                    :provenance
-                    provenance/+)
-          result (run-layered-application
-                  (:net extended)
-                  #(install-layered-apply %1 proc %2 %3 %4)
-                  4 #{:a}
-                  5 #{:b})]
-      (assert-layer (:out-object result) :base 9)
-      (assert-layer (:out-object result) :provenance #{:a :b}))))
-
-(deftest skips-non-base-layer-when-args-do-not-have-it
-  (testing "non-base procedure layer is skipped when no arg has that layer"
-    (let [{:keys [net proc]} (install-plus-procedure)
-          result (run-base-only-application net proc 7 8)]
-      (assert-layer (:out-object result) :base 15)
-      (assert-missing-layer (:out-object result) :provenance))))
-
-(deftest apply-layered-minus-computes-base-and-provenance
-  (testing "layered/- applies minus closure slots and writes output slots"
-    (let [{:keys [net proc]} (install-minus-procedure)
-          p:- (layered-ops/- proc)
-          result (run-layered-application
-                  net
-                  #(install-operator-apply %1 'layered/- p:- %2 %3 %4)
-                  30 #{:a}
-                  12 #{:b})]
-      (assert-layer (:out-object result) :base 18)
-      (assert-layer (:out-object result) :provenance #{:a :b}))))
-
-(deftest apply-layered-divide-computes-base-and-provenance
-  (testing "layered// applies divide closure slots and writes output slots"
-    (let [{:keys [net proc]} (install-divide-procedure)
-          p-div (layered-ops// proc)
-          result (run-layered-application
-                  net
-                  #(install-operator-apply %1 'layered// p-div %2 %3 %4)
-                  60 #{:a}
-                  12 #{:b})]
-      (assert-layer (:out-object result) :base 5)
-      (assert-layer (:out-object result) :provenance #{:a :b}))))

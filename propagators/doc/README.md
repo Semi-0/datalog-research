@@ -4,8 +4,23 @@ This folder holds design notes for the propagator experiment. It intentionally
 lives under `propagators/` so the propagator system can be separated from the
 larger repo later.
 
+## Four core features
+
+The propagator experiment is organized around four goals inherited from the
+original `propagators/NOTES.md` design (restored in [Four Core Features](four-core-features.md)):
+
+| # | Feature | Status (summary) |
+|---|---------|------------------|
+| 1 | **Networked semantics** | Done — immutable `graph` + `env`, installers, compile |
+| 2 | **Fixpoint evaluation** | Done — `run-tasks` and inner subnet quiescence |
+| 3 | **Partial information** | In progress — named-network merge, layered/compound objects; contradiction stub |
+| 4 | **Dependence tracking** | Not started — merge-time subsystem (`cell-merge`); not `eval-cell` |
+
+See [Four Core Features](four-core-features.md) for definitions, MIT comparison, and a milestone log since the doc refactor.
+
 ## Map
 
+- [Four Core Features](four-core-features.md) — canonical checklist and progress
 - [Core Runtime Model](core-runtime.md) describes the graph/env split,
   installer shape, scheduler, compiler surface, and current assumptions.
 - [Named Network Evidence](named-network-evidence.md) describes named networks,
@@ -23,6 +38,8 @@ larger repo later.
 - [Layered Procedure Network](layered-procedure-network.md) describes layered
   data/procedure slots, pure procedure extension fragments, and stable layered
   operators such as `p:+`.
+- `propagators.stdlib.provenance-arithmetic` — `+`, `-`, `*`, `/` that bootstrap
+  base and provenance on a fresh `proc` and return the `layered/*` installer.
 - [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)
   is a two-stage plan: experiment eager installer/macro activation (stage 1),
   then define `install-arithmetic-procedure` as a bootstrap installer (stage 2).
