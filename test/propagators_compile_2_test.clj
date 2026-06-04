@@ -39,6 +39,51 @@
       (is (= :cell (:binding/type binding)))
       (is (= child-id (:binding/id binding))))))
 
+(deftest compile-2-network-env-ops-build-scoped-compound-env
+  (testing "scope propagators receive parent env one-way and bind locals into a fresh child env"
+    (let [parent-x-id (ids/new-node-id)
+          local-x-id (ids/new-node-id)
+          parent-y-id (ids/new-node-id)
+          parent-env-id (ids/new-node-id)
+          inherited-env-id (ids/new-node-id)
+          local-binding-id (ids/new-node-id)
+          scoped-env-id (ids/new-node-id)
+          parent-env (c2/bind (c2/default-env)
+                              'x
+                              (c2/cell-binding parent-x-id)
+                              0)
+          parent-env-with-y (c2/bind parent-env
+                                     'y
+                                     (c2/cell-binding parent-y-id)
+                                     0)
+          n0 (-> (nb/install-cells [parent-env-id
+                                    inherited-env-id
+                                    local-binding-id
+                                    scoped-env-id])
+                 (nb/seed-cell parent-env-id parent-env)
+                 (nb/seed-cell local-binding-id
+                               (c2/cell-binding local-x-id)))
+          [sub-prop n1] ((c2/p:sub-env parent-env-id inherited-env-id) n0)
+          [bind-prop n2] ((c2/p:bind-local
+                           'x
+                           inherited-env-id
+                           local-binding-id
+                           scoped-env-id)
+                          n1)
+          n3 (nb/run-propagators n2 [sub-prop bind-prop])
+          inherited-env (strongest n3 inherited-env-id)
+          scoped-env (strongest n3 scoped-env-id)
+          n4 (nb/seed-cell n3 parent-env-id parent-env-with-y)
+          n5 (nb/run-propagators n4
+                                 (nb/neighbor-propagator-ids n4 parent-env-id))
+          scoped-env-after-parent-update (strongest n5 scoped-env-id)]
+      (is (= parent-x-id (:binding/id (c2/lookup inherited-env 'x))))
+      (is (= local-x-id (:binding/id (c2/lookup scoped-env 'x))))
+      (is (= local-x-id
+             (:binding/id (c2/lookup scoped-env-after-parent-update 'x))))
+      (is (= parent-y-id
+             (:binding/id (c2/lookup scoped-env-after-parent-update 'y)))))))
+
 (deftest compile-2-lexical-compound-captures-parent-cell
   (testing "compound declarations capture parent cells as hidden inputs"
     (let [[bias-id base-net] (seeded-cell net/empty-net 10)
@@ -64,6 +109,31 @@
           compiled (c2/compile-expr expr env {:net base-net})
           result-net (run-compiled compiled)]
       (is (= 6 (strongest result-net (:cell compiled)))))))
+
+(deftest compile-2-supports-multiple-nested-compounds-in-one-compound
+  (testing "an outer compound can define and apply nested compound propagators"
+    (let [expr
+          (c2/let-compound
+           'outer
+           (c2/compound {:inputs ['x] :output 'out}
+             (c2/let-compound
+              'inc
+              (c2/compound {:inputs ['y] :output 'z}
+                (c2/app '+ 'y (c2/lit 1)))
+              (c2/let-compound
+               'scale-after-inc
+               (c2/compound {:inputs ['y] :output 'z}
+                 (c2/let-compound
+                  'double
+                  (c2/compound {:inputs ['v] :output 'w}
+                    (c2/app '* 'v (c2/lit 2)))
+                  (c2/app 'double (c2/app 'inc 'y))))
+               (c2/app '+ (c2/app 'inc 'x)
+                       (c2/app 'scale-after-inc 'x)))))
+           (c2/app 'outer (c2/lit 4)))
+          compiled (c2/compile-expr expr)
+          result-net (run-compiled compiled)]
+      (is (= 15 (strongest result-net (:cell compiled)))))))
 
 (deftest compile-2-supports-bi-sync-operator
   (testing "<-> installs bidirectional sync and returns the second cell"
