@@ -200,7 +200,7 @@
   [ordered-slot-keys default-id]
   (fn [n result-bank-id out-id]
     (let [default-value (net/network-cell-strongest n default-id)]
-      (if (value/unusable? default-value)
+      (if (value/contradiction? default-value)
         [[] n]
         (install-reducer
          n

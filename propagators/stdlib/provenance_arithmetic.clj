@@ -12,6 +12,7 @@
             [propagators.network-builder :as nb]
             [propagators.stdlib.arithmetic :as arithmetic]
             [propagators.stdlib.arithmetic.base :as base]
+            [propagators.stdlib.arithmetic.intensity :as intensity]
             [propagators.stdlib.arithmetic.provenance :as provenance]
             [propagators.stdlib.layered :as layered-ops]))
 
@@ -19,13 +20,17 @@
   [op]
   (case op
     :+ {:base (arithmetic/base-extension base/plus-closure)
-        :prov (arithmetic/provenance-extension provenance/+)}
+        :prov (arithmetic/provenance-extension provenance/+)
+        :intensity (arithmetic/intensity-extension intensity/+)}
     :- {:base (arithmetic/minus-base-extension)
-        :prov (arithmetic/minus-provenance-extension)}
+        :prov (arithmetic/minus-provenance-extension)
+        :intensity (arithmetic/minus-intensity-extension)}
     :* {:base (arithmetic/times-base-extension)
-        :prov (arithmetic/times-provenance-extension)}
+        :prov (arithmetic/times-provenance-extension)
+        :intensity (arithmetic/times-intensity-extension)}
     :/ {:base (arithmetic/divide-base-extension)
-        :prov (arithmetic/divide-provenance-extension)}
+        :prov (arithmetic/divide-provenance-extension)
+        :intensity (arithmetic/divide-intensity-extension)}
     (throw (ex-info "unknown layered arithmetic op" {:op op}))))
 
 (defn- layered-operator
@@ -37,15 +42,21 @@
     :/ (layered-ops// proc-id)))
 
 (defn install!
-  "Install base (+ optional provenance) layers on a fresh `proc` in `n`.
+  "Install base (+ optional provenance/intensity) layers on a fresh `proc` in `n`.
 
   Returns `{:net :proc :operator}`."
-  [n op & {:keys [provenance?] :or {provenance? true}}]
+  [n op & {:keys [provenance? intensity?]
+           :or {provenance? true
+                intensity? false}}]
   (let [proc (new-node-id)
         base-extension (new-node-id)
         prov-extension (new-node-id)
-        {:keys [base prov]} (fragments op)
-        n0 (reduce nb/install-cell n [proc base-extension prov-extension])
+        intensity-extension (new-node-id)
+        {:keys [base prov intensity]} (fragments op)
+        n0 (reduce nb/install-cell n [proc
+                                       base-extension
+                                       prov-extension
+                                       intensity-extension])
         {:keys [net]} (layered/install-layered-procedure!
                        n0
                        proc
@@ -57,6 +68,13 @@
                          proc
                          prov-extension
                          prov)
+                        {:net net})
+        {:keys [net]} (if intensity?
+                        (layered/install-layered-procedure!
+                         net
+                         proc
+                         intensity-extension
+                         intensity)
                         {:net net})]
     {:net net
      :proc proc

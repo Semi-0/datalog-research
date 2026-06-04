@@ -2,6 +2,7 @@
   (:require [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
             [propagators.stdlib.arithmetic.base :as base]
+            [propagators.stdlib.arithmetic.intensity :as intensity]
             [propagators.stdlib.arithmetic.provenance :as provenance]))
 
 (defn procedure-extension
@@ -20,6 +21,10 @@
   [closure-value]
   (procedure-extension :provenance closure-value))
 
+(defn intensity-extension
+  [closure-value]
+  (procedure-extension :intensity closure-value))
+
 (defn plus-base-extension
   []
   (base-extension base/plus-closure))
@@ -27,6 +32,10 @@
 (defn plus-provenance-extension
   []
   (provenance-extension provenance/+))
+
+(defn plus-intensity-extension
+  []
+  (intensity-extension intensity/+))
 
 (defn minus-base-extension
   []
@@ -36,6 +45,10 @@
   []
   (provenance-extension provenance/-))
 
+(defn minus-intensity-extension
+  []
+  (intensity-extension intensity/-))
+
 (defn times-base-extension
   []
   (base-extension base/times-closure))
@@ -44,6 +57,10 @@
   []
   (provenance-extension provenance/*))
 
+(defn times-intensity-extension
+  []
+  (intensity-extension intensity/*))
+
 (defn divide-base-extension
   []
   (base-extension base/divide-closure))
@@ -51,3 +68,7 @@
 (defn divide-provenance-extension
   []
   (provenance-extension provenance//))
+
+(defn divide-intensity-extension
+  []
+  (intensity-extension intensity//))

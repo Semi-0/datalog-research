@@ -219,7 +219,7 @@
            init (net/network-cell-strongest network init-id)]
        (if (or (value/unusable? source)
                (value/unusable? merge-net)
-               (value/unusable? init))
+               (value/contradiction? init))
          []
          [(message out-id (reducer/reducer-subnet source merge-net init))])))
    [source-id merge-net-id init-id]

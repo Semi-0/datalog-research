@@ -62,6 +62,16 @@
   [method-key branch-value]
   (nb/named-cell-net [[(vector method-tag method-key) branch-value]]))
 
+(defn- p:generic-slot-value
+  "Write a generic metadata slot directly, preserving `the-nothing` as a value."
+  [slot-key value-id generic-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs network]
+     (let [slot-value (net/network-cell-strongest network value-id)]
+       [(message generic-id (nb/named-cell-net [[slot-key slot-value]]))]))
+   [value-id]
+   [generic-id]))
+
 (defn make-generic-propagator
   "Initialize `generic-id` with fixed v1 select-one policy and `default-id`.
 
@@ -73,7 +83,7 @@
     (let [policy-id (ids/new-node-id)
           n0 (nb/install-cell n policy-id select-one-policy-tag select-one-policy-tag)
           [policy-prop n1] ((layered/p:layer policy-slot policy-id generic-id) n0)
-          [default-prop n2] ((layered/p:layer default-slot default-id generic-id) n1)]
+          [default-prop n2] ((p:generic-slot-value default-slot default-id generic-id) n1)]
       [[policy-prop default-prop] n2])))
 
 (defn define-generic-propagator
@@ -229,7 +239,7 @@
   [{:keys [generic-value default-value policy-value] :as context}]
   (and (not (value/unusable? generic-value))
        (context-args-usable? context)
-       (not (value/unusable? default-value))
+       (not (value/contradiction? default-value))
        (= select-one-policy-tag policy-value)))
 
 (defn- make-application-net
@@ -324,6 +334,26 @@
    (generic-apply-activate generic-id (vec arg-ids) out-id)
    (into [generic-id] arg-ids)
    [out-id]))
+
+(defn apply-generic-value
+  "Apply an already-realized generic procedure value to plain argument values.
+
+  This runs the generic application in a temporary network and returns the
+  selected output value. The temporary network has no cell-protocol dict keys, so
+  merge/strongest protocol hooks do not recursively dispatch while this helper
+  is evaluating a protocol generic."
+  [generic-value arg-values]
+  (let [generic-id (ids/new-node-id)
+        arg-ids (vec (repeatedly (count arg-values) ids/new-node-id))
+        out-id (ids/new-node-id)
+        n0 (reduce nb/install-cell net/empty-net (into [generic-id out-id] arg-ids))
+        n1 (nb/seed-cell n0 generic-id generic-value)
+        n2 (reduce (fn [acc [id v]] (nb/seed-cell acc id v))
+                   n1
+                   (map vector arg-ids arg-values))
+        [apply-prop n3] ((p:apply-generic generic-id arg-ids out-id) n2)
+        n4 (nb/run-propagators n3 [apply-prop])]
+    (net/network-cell-strongest n4 out-id)))
 
 (defn p:generic-operator
   [generic-id]

@@ -63,7 +63,7 @@
         old* (strongest-value old network)]
     (not (named-strongest-equal? new* old*))))
 
-(defmulti cell-merge
+(defmulti built-in-cell-merge
   (fn [_content update _network]
     (cond
       (update/compound-sync? update) :compound-sync
@@ -73,7 +73,7 @@
       (named/named-network? update) :named-network
       :else :default)))
 
-(defmethod cell-merge :default
+(defmethod built-in-cell-merge :default
   [content update _network]
   (cond
     (value/nothing? content) update
@@ -83,7 +83,7 @@
     (= content update) content
     :else value/contradiction))
 
-(defmethod cell-merge :compound-data
+(defmethod built-in-cell-merge :compound-data
   [content update network]
   (cond
     (value/contradiction? content) value/contradiction
@@ -93,7 +93,7 @@
                    content)]
       (subnet/merge-compound-data state update network))))
 
-(defmethod cell-merge :compound-sync
+(defmethod built-in-cell-merge :compound-sync
   [content update network]
   (cond
     (value/contradiction? content) value/contradiction
@@ -105,7 +105,7 @@
                   content)]
       (subnet/merge-compound-sync state update network))))
 
-(defmethod cell-merge :named-network
+(defmethod built-in-cell-merge :named-network
   [content update _network]
   (let [content* (if (or (value/nothing? content)
                          (named/named-network? content)
@@ -123,7 +123,7 @@
           (evidence/evidence-set? content*)) (evidence/merge-evidence content* update)
       :else value/contradiction)))
 
-(defmethod cell-merge :reducer-subnet
+(defmethod built-in-cell-merge :reducer-subnet
   [content update _network]
   (cond
     (value/nothing? content) update
@@ -151,6 +151,29 @@
     content
     :else value/contradiction))
 
+(defn- protocol-handled?
+  [result]
+  (and (map? result)
+       (true? (get result :propagators.cells.cell-protocol/handled?))))
+
+(defn- protocol-handled-value
+  [result]
+  (get result :propagators.cells.cell-protocol/value))
+
+(defn- protocol-cell-merge
+  [content update network]
+  (let [try-cell-merge
+        (requiring-resolve
+         'propagators.cells.cell-protocol/try-cell-merge)]
+    (try-cell-merge network content update)))
+
+(defn cell-merge
+  [content update network]
+  (let [protocol-result (protocol-cell-merge content update network)]
+    (if (protocol-handled? protocol-result)
+      (protocol-handled-value protocol-result)
+      (built-in-cell-merge content update network))))
+
 (def generic-merge cell-merge)
 
 (defn merge-cell-entry
@@ -160,7 +183,7 @@
         strongest' (strongest-value content' network)]
     (cell/cell content' strongest')))
 
-(defmulti strongest-value
+(defmulti built-in-strongest-value
   (fn [x _network]
     (cond
       (evidence/evidence-set? x) :named-network-evidence
@@ -170,30 +193,46 @@
       (named/named-network? x) :named-network
       :else :content)))
 
-(defmethod strongest-value :cell
+(defmethod built-in-strongest-value :cell
   [c _network]
   (cell/cell-strongest c))
 
-(defmethod strongest-value :content
+(defmethod built-in-strongest-value :content
   [x _network]
   x)
 
-(defmethod strongest-value :named-network
+(defmethod built-in-strongest-value :named-network
   [content _network]
   content)
 
-(defmethod strongest-value :named-network-evidence
+(defmethod built-in-strongest-value :named-network-evidence
   [content _network]
   (evidence/strongest content))
 
-(defmethod strongest-value :reducer-subnet
+(defmethod built-in-strongest-value :reducer-subnet
   [content _network]
   (reducer/strongest content))
 
 ;; :compound-subnet — structural state only; effectful run in c:linked-list.
-(defmethod strongest-value :compound-subnet
+(defmethod built-in-strongest-value :compound-subnet
   [content _network]
   content)
+
+(defn- protocol-cell-strongest
+  [content network]
+  (let [try-cell-strongest
+        (requiring-resolve
+         'propagators.cells.cell-protocol/try-cell-strongest)]
+    (try-cell-strongest network content)))
+
+(defn strongest-value
+  [content network]
+  (if (cell/cell? content)
+    (built-in-strongest-value content network)
+    (let [protocol-result (protocol-cell-strongest content network)]
+      (if (protocol-handled? protocol-result)
+        (protocol-handled-value protocol-result)
+        (built-in-strongest-value content network)))))
 
 (defmulti handle-contradiction
   (fn [tasks _node env] [tasks env]))

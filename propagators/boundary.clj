@@ -20,14 +20,14 @@
   ([network outer-id]
    ((cell/construct-cell
      (id/new-node-id)
-     (net/network-cell-strongest network outer-id)
-     (net/network-cell-content network outer-id))
+     (net/network-cell-content network outer-id)
+     (net/network-cell-strongest network outer-id))
     network))
   ([network outer-id inner-id]
    ((cell/construct-cell
      inner-id
-     (net/network-cell-strongest network outer-id)
-     (net/network-cell-content network outer-id))
+     (net/network-cell-content network outer-id)
+     (net/network-cell-strongest network outer-id))
     network))
   ([network key strongest content]
    (avatar/spawn-avatar-cell network key strongest content))
