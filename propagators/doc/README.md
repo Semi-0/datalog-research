@@ -38,6 +38,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Layered Procedure Network](layered-procedure-network.md) describes layered
   data/procedure slots, pure procedure extension fragments, and stable layered
   operators such as `p:+`.
+- [Generic Procedures, Cell Protocols, And Intensity](generic-cell-protocol-and-intensity.md)
+  describes propagator-native generic dispatch, network-local merge/strongest
+  generics, layered intensity values, and intensity arithmetic.
 - `propagators.stdlib.provenance-arithmetic` — `+`, `-`, `*`, `/` that bootstrap
   base and provenance on a fresh `proc` and return the `layered/*` installer.
 - [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)
