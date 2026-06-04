@@ -4,7 +4,7 @@
   A generic procedure cell is a named-network value. Initialization installs the
   reducer policy/default slots once; method definitions merge compiled branch
   fragments into the same cell."
-  (:require [propagators.cells.diff :as diff]
+  (:require [propagators.application :as application]
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
             [propagators.datastructures.compound-object :as obj]
@@ -232,8 +232,7 @@
 
 (defn- context-args-usable?
   [{:keys [outer-net arg-ids]}]
-  (not (apply value/any-unusable-values?
-              (mapv #(net/network-cell-strongest outer-net %) arg-ids))))
+  (application/cells-usable? outer-net arg-ids))
 
 (defn- generic-application-ready?
   [{:keys [generic-value default-value policy-value] :as context}]
@@ -277,12 +276,6 @@
            :branch-debug (:debug branch-app)
            :reducer-install (generic-reducer-install app))))
 
-(defn- cell-strongest-or-nothing
-  [n id]
-  (if (contains? (net/net-env n) id)
-    (net/network-cell-strongest n id)
-    value/nothing))
-
 (defn- report-generic-branches!
   [n branch-debug]
   (when (debugger/enabled?)
@@ -292,31 +285,29 @@
                     filtered-ids
                     handler-out-id
                     result-bank-id]} branch-debug]
-      (let [result-bank (cell-strongest-or-nothing n result-bank-id)]
+      (let [result-bank (application/cell-strongest-or-nothing n result-bank-id)]
         (debugger/report!
          :generic/method
          {:method-key slot-key
-          :predicate-results (mapv #(cell-strongest-or-nothing n %)
+          :predicate-results (mapv #(application/cell-strongest-or-nothing n %)
                                    predicate-out-ids)
-          :matched? (cell-strongest-or-nothing n match-out-id)
-          :filtered-args (mapv #(cell-strongest-or-nothing n %) filtered-ids)
-          :handler-result (cell-strongest-or-nothing n handler-out-id)
+          :matched? (application/cell-strongest-or-nothing n match-out-id)
+          :filtered-args (mapv #(application/cell-strongest-or-nothing n %)
+                               filtered-ids)
+          :handler-result (application/cell-strongest-or-nothing n handler-out-id)
           :result-bank-value (obj/slot-value result-bank slot-key)})))))
-
-(defn- report-generic-selected!
-  [n reduced-out-id]
-  (debugger/report!
-   :generic/selected
-   {:selected-value (cell-strongest-or-nothing n reduced-out-id)}))
 
 (defn- run-generic-application
   [{:keys [net branch-prop-ids branch-debug reducer-install reduced-out-id]}]
-  (let [after-branches (nb/run-propagators net branch-prop-ids)
-        _ (report-generic-branches! after-branches branch-debug)
-        [reducer-props reducer-net] (reducer-install after-branches)]
-    (let [after (nb/run-propagators reducer-net reducer-props)]
-      (report-generic-selected! after reduced-out-id)
-      after)))
+  (application/run-branch-reducer
+   {:net net
+    :branch-prop-ids branch-prop-ids
+    :reducer-install reducer-install}
+   {:after-branches #(report-generic-branches! % branch-debug)
+    :after-reducer (application/selected-value-reporter
+                    :generic/selected
+                    :selected-value
+                    reduced-out-id)}))
 
 (defn- generic-apply-activate
   [generic-id arg-ids out-id]
@@ -326,7 +317,7 @@
         []
         (let [{:keys [reduced-out-id] :as app} (build-generic-application context)
               after (run-generic-application app)]
-          (diff/diff-cells [reduced-out-id] [out-id] after outer-net))))))
+          (application/diff-reduced-output outer-net after reduced-out-id out-id))))))
 
 (defn p:apply-generic
   [generic-id arg-ids out-id]

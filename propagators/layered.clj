@@ -1,12 +1,11 @@
 (ns propagators.layered
   "Layered data/procedure support built from compound-object slots."
   (:require [clojure.set :as set]
+            [propagators.application :as application]
             [propagators.cells.cell :as cell]
-            [propagators.cells.diff :as diff]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.named-network :as named]
-            [propagators.debugger :as debugger]
             [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -206,35 +205,11 @@
      :reduced-out-id reduced-out-id
      :reducer-install reducer-install}))
 
-(defn- cell-strongest-or-nothing
-  [n id]
-  (if (contains? (net/net-env n) id)
-    (net/network-cell-strongest n id)
-    value/nothing))
-
-(defn- report-layered-branches!
-  [n result-bank-id active-layers]
-  (when (debugger/enabled?)
-    (let [result-bank (cell-strongest-or-nothing n result-bank-id)]
-      (doseq [layer-name active-layers]
-        (debugger/report!
-         :layered/layer
-         {:layer layer-name
-          :handler-result (obj/slot-value result-bank layer-name)})))))
-
-(defn- report-layered-selected!
-  [n reduced-out-id]
-  (debugger/report!
-   :layered/selected
-   {:selected-value (cell-strongest-or-nothing n reduced-out-id)}))
-
-
-;; this debugger is too costly not good
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
   (fn [_input-ids _output-ids outer-net]
     (let [proc-value (net/network-cell-strongest outer-net proc-id)
-          arg-values (mapv #(net/network-cell-strongest outer-net %) arg-ids)]
+          arg-values (application/cell-values outer-net arg-ids)]
       (if (or (value/unusable? proc-value)
               (apply value/any-unusable-values? arg-values))
         []
@@ -251,12 +226,23 @@
                                      out-id
                                      layers
                                      arg-values)
-              after-branches (nb/run-propagators net branch-prop-ids)
-              ;; _ (report-layered-branches! after-branches result-bank-id active-layers)
-              [reducer-prop-ids reducer-net] (reducer-install after-branches)
-              after (nb/run-propagators reducer-net reducer-prop-ids)]
-          ;; (report-layered-selected! after reduced-out-id)
-          (diff/diff-cells [reduced-out-id] [out-id] after outer-net))))))
+              after (application/run-branch-reducer
+                     {:net net
+                      :branch-prop-ids branch-prop-ids
+                      :reducer-install reducer-install}
+                     {:after-branches
+                      (application/result-bank-slot-reporter
+                       {:event :layered/layer
+                        :result-bank-id result-bank-id
+                        :slots active-layers
+                        :slot-key :layer
+                        :result-key :handler-result})
+                      :after-reducer
+                      (application/selected-value-reporter
+                       :layered/selected
+                       :selected-value
+                       reduced-out-id)})]
+          (application/diff-reduced-output outer-net after reduced-out-id out-id))))))
 
 (defn p:apply-layered
   [proc-id arg-ids out-id]
