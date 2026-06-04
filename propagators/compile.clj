@@ -11,7 +11,12 @@
   "Installer map (lazy resolve avoids compile ↔ stdlib cycle)."
   []
   {'prop/id (requiring-resolve 'propagators.stdlib.prop/id)
-   'p:id (requiring-resolve 'propagators.stdlib.prop/id)})
+   'p:id (requiring-resolve 'propagators.stdlib.prop/id)
+   'prop/+ (requiring-resolve 'propagators.stdlib.prop/+)
+   'prop/switch (requiring-resolve 'propagators.stdlib.prop/switch)
+   'closure/p:apply-closure (requiring-resolve 'propagators.closure/p:apply-closure)
+   'recursive/p:recursive-compound
+   (requiring-resolve 'propagators.recursive/p:recursive-compound)})
 
 ;; Re-export for manual threading
 (def install-net net/install-net)
@@ -49,13 +54,21 @@
 (defn- resolve-symbol
   "Symbols are cell vars. Missing symbols create fresh empty cells."
   [ctx sym]
-  (if-let [v (net/network-dict-entry (:net ctx) sym)]
-    [ctx v]
+  (if (contains? (net/net-dict-or-empty (:net ctx)) sym)
+    [ctx (net/network-dict-entry (:net ctx) sym)]
     (let [id (new-node-id)
           n' (-> (:net ctx)
                  (nb/install-cell id)
                  (bind-var sym id))]
       [(assoc ctx :net n') id])))
+
+(defn- bind-fresh-cell
+  [ctx sym]
+  (let [id (new-node-id)
+        n' (-> (:net ctx)
+               (nb/install-cell id)
+               (bind-var sym id))]
+    (assoc ctx :net n')))
 
 (defn- lookup-inst [ctx sym]
   (let [v (or (get (:installers ctx) sym)
@@ -137,7 +150,7 @@
   (let [ctx'
         (reduce
          (fn [ctx sym]
-           (first (resolve-symbol ctx sym)))
+           (bind-fresh-cell ctx sym))
          ctx
          syms)]
     (eval-seq ctx' body)))

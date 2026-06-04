@@ -41,6 +41,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Generic Procedures, Cell Protocols, And Intensity](generic-cell-protocol-and-intensity.md)
   describes propagator-native generic dispatch, network-local merge/strongest
   generics, layered intensity values, and intensity arithmetic.
+- [Recursive Compound Propagator](recursive-compound-propagator.md) describes
+  activation-local recursive network expansion, compile DSL wiring, and the
+  Fibonacci proof.
 - `propagators.stdlib.provenance-arithmetic` — `+`, `-`, `*`, `/` that bootstrap
   base and provenance on a fresh `proc` and return the `layered/*` installer.
 - [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)

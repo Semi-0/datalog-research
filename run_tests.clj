@@ -9,6 +9,7 @@
     propagators-cell-protocol-test
     propagators-dispatch-test
     propagators-generic-procedure-test
+    propagators-recursive-compound-test
     propagators-network-test
     propagators-compound-data-test
     propagators-linked-list-access-test
