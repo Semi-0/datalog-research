@@ -96,6 +96,12 @@
      n'
      prop-forms)))
 
+(defn install-and-run
+  "Install one propagator installer on `n` and run the installed propagator ids."
+  [n installer]
+  (let [[installed-id n'] (installer n)]
+    (nb/run-propagators n' (prop-ids installed-id))))
+
 (defn- cell-bind-entry [entry]
   (let [[sym id & seed] entry]
     `(list '~sym ~id ~@seed)))

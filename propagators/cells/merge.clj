@@ -107,14 +107,21 @@
 
 (defmethod cell-merge :named-network
   [content update _network]
-  (cond
-    (value/contradiction? content) value/contradiction
-    (value/contradiction? update) value/contradiction
-    (value/nothing? update) (evidence/merge-evidence value/nothing content)
-    (or (value/nothing? content)
-        (named/named-network? content)
-        (evidence/evidence-set? content)) (evidence/merge-evidence content update)
-    :else value/contradiction))
+  (let [content* (if (or (value/nothing? content)
+                         (named/named-network? content)
+                         (evidence/evidence-set? content))
+                   content
+                   ((requiring-resolve
+                     'propagators.datastructures.compound-object/compound-object)
+                    content))]
+    (cond
+      (value/contradiction? content*) value/contradiction
+      (value/contradiction? update) value/contradiction
+      (value/nothing? update) (evidence/merge-evidence value/nothing content*)
+      (or (value/nothing? content*)
+          (named/named-network? content*)
+          (evidence/evidence-set? content*)) (evidence/merge-evidence content* update)
+      :else value/contradiction)))
 
 (defmethod cell-merge :reducer-subnet
   [content update _network]

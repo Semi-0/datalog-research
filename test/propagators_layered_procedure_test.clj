@@ -3,6 +3,7 @@
             [propagators.closure :as closure]
             [propagators.compile :as compile]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.debugger :as debugger]
             [propagators.layered :as layered]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -219,6 +220,30 @@
                   20 #{:b})]
       (assert-layer (:out-object result) :base 30)
       (assert-layer (:out-object result) :provenance #{:a :b}))))
+
+(deftest debugger-reports-layered-dispatch
+  (testing "layered debugger reports layer branch results and selected value"
+    (let [events (atom [])
+          {:keys [net proc]} (prov-arith/+ net/empty-net)]
+      (try
+        (debugger/set-sink! #(swap! events conj %))
+        (debugger/enable!)
+        (run-layered-application
+         net
+         #(install-layered-apply %1 proc %2 %3 %4)
+         10 #{:a}
+         20 #{:b})
+        (let [layer-events (filter #(= :layered/layer (:event %)) @events)
+              selected-event (first (filter #(= :layered/selected (:event %)) @events))
+              by-layer (into {} (map (juxt :layer :handler-result)) layer-events)]
+          (is (= 30 (:base by-layer)))
+          (is (= #{:a :b} (:provenance by-layer)))
+          (is (= 30 (obj/slot-value (:selected-value selected-event) :base)))
+          (is (= #{:a :b}
+                 (obj/slot-value (:selected-value selected-event) :provenance))))
+        (finally
+          (debugger/disable!)
+          (debugger/reset-sink!))))))
 
 (deftest apply-layered-minus-computes-base-and-provenance
   (testing "layered/- with pre-installed base and provenance"

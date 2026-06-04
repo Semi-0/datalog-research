@@ -8,6 +8,7 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.compound_data :as linked]
             [propagators.datastructures.compound_subnet_state :as state]
+            [propagators.datastructures.named-network :as named]
             [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -21,6 +22,8 @@
             [propagators.stdlib.arithmetic.provenance :as provenance]
             [propagators.stdlib.layered :as layered-ops]
             [propagators.stdlib.prop :as stdlib-prop]))
+
+(defrecord ExampleRecord [left right])
 
 (defn- sync-prop-keys [collection-net]
   (net/network-dict-keys-tagged collection-net obj/slot-sync-key))
@@ -235,6 +238,96 @@
       (is (= 10 (obj/slot-strongest coll-net :car)))
       (is (= 20 (obj/slot-strongest coll-net :cdr))))))
 
+(deftest compound-object-normalizes-map-vector-and-record-slots
+  (testing "maps and records expose public slot cells"
+    (let [m (obj/compound-object {:left 1 :right 2})
+          r (obj/compound-object (->ExampleRecord 3 4))]
+      (is (= #{:left :right} (obj/public-slot-keys m)))
+      (is (= 1 (obj/slot-value m :left)))
+      (is (= 4 (obj/slot-value r :right)))))
+
+  (testing "vectors expose indexes and derived count"
+    (let [v (obj/compound-object [:a :b])]
+      (is (= #{0 1 :count} (obj/public-slot-keys v)))
+      (is (= :a (obj/slot-value v 0)))
+      (is (= 2 (obj/slot-value v :count)))))
+
+  (testing "slot conflicts are local to the slot cell"
+    (let [left (obj/compound-object {:a 1 :b 2})
+          right (obj/compound-object {:a 9 :c 3})
+          joined (named/join left right)]
+      (is (= value/contradiction (obj/slot-value joined :a)))
+      (is (= 2 (obj/slot-value joined :b)))
+      (is (= 3 (obj/slot-value joined :c))))))
+
+(deftest p-slot-syncs-plain-map-record-and-vector-values
+  (testing "p:slot reads a map slot and localizes conflicting writes"
+    (let [parent (new-node-id)
+          coll (new-node-id)
+          n0 (nb/install-cells [parent coll])
+          [prop-id n1] ((obj/p:slot :left parent coll) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll {:left 1 :right 2})
+                 (nb/run-propagators [prop-id]))
+          n3 (-> n2
+                 (nb/seed-cell parent 10)
+                 (nb/run-propagators [prop-id]))
+          coll-net (net/network-cell-value n3 coll)]
+      (is (= 1 (net/network-cell-value n2 parent)))
+      (is (= value/contradiction (obj/slot-value coll-net :left)))
+      (is (= 2 (obj/slot-value coll-net :right)))))
+
+  (testing "p:slot writes a missing map slot back into a slot cell"
+    (let [parent (new-node-id)
+          coll (new-node-id)
+          n0 (nb/install-cells [parent coll])
+          [prop-id n1] ((obj/p:slot :left parent coll) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll {:right 2})
+                 (nb/seed-cell parent 10)
+                 (nb/run-propagators [prop-id]))
+          coll-net (net/network-cell-value n2 coll)]
+      (is (= 10 (obj/slot-value coll-net :left)))
+      (is (= 2 (obj/slot-value coll-net :right)))))
+
+  (testing "records expose map-style field slots"
+    (let [parent (new-node-id)
+          coll (new-node-id)
+          n0 (nb/install-cells [parent coll])
+          [prop-id n1] ((obj/p:slot :right parent coll) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll (->ExampleRecord 3 4))
+                 (nb/run-propagators [prop-id]))]
+      (is (= 4 (net/network-cell-value n2 parent)))))
+
+  (testing "vector indexes are slots"
+    (let [parent (new-node-id)
+          coll (new-node-id)
+          n0 (nb/install-cells [parent coll])
+          [prop-id n1] ((obj/p:slot 1 parent coll) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll [:a :b])
+                 (nb/run-propagators [prop-id]))]
+      (is (= :b (net/network-cell-value n2 parent)))))
+
+  (testing "vector count is derived and does not resize indexed slots"
+    (let [parent (new-node-id)
+          coll (new-node-id)
+          n0 (nb/install-cells [parent coll])
+          [prop-id n1] ((obj/p:slot :count parent coll) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll [:a :b])
+                 (nb/run-propagators [prop-id]))
+          n3 (-> n2
+                 (nb/seed-cell parent 99)
+                 (nb/run-propagators [prop-id]))
+          coll-net (net/network-cell-value n3 coll)]
+      (is (= 2 (net/network-cell-value n2 parent)))
+      (is (= value/contradiction (net/network-cell-value n3 parent)))
+      (is (= :a (obj/slot-value coll-net 0)))
+      (is (= :b (obj/slot-value coll-net 1)))
+      (is (= 2 (obj/slot-value coll-net :count))))))
+
 (deftest p-reduce-folds-all-compound-slots-from-strongest-reducer-subnet
   (testing "empty source returns init"
     (let [coll (new-node-id)
@@ -316,6 +409,35 @@
                  (nb/seed-cell init #{})
                  (nb/run-propagators [reduce-prop]))]
       (is (= #{[:good 20]} (net/network-cell-value n2 out))))))
+
+(deftest p-reduce-folds-normalized-map-and-vector-slots
+  (testing "plain maps are normalized before reducer-subnet folding"
+    (let [coll (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [coll merge-net init out])
+          [reduce-prop n1] ((obj/p:reduce coll merge-net init out) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll {:a 1 :b 2})
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/run-propagators [reduce-prop]))]
+      (is (= #{[:a 1] [:b 2]} (net/network-cell-value n2 out)))))
+
+  (testing "plain vectors expose indexes and public count to reducer-subnet"
+    (let [coll (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [coll merge-net init out])
+          [reduce-prop n1] ((obj/p:reduce coll merge-net init out) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll [:a :b])
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/run-propagators [reduce-prop]))]
+      (is (= #{[0 :a] [1 :b] [:count 2]} (net/network-cell-value n2 out))))))
 
 (deftest compare-new-slot-sync-with-current-linked-list-local-case
   (testing "new one-layer slot sync exposes the same local car/cdr values as old p:cons"

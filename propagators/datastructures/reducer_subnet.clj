@@ -28,6 +28,7 @@
 (defn- internal-slot-key?
   [k]
   (or (= k :slot-index)
+      (= k :read-only-slots)
       (ids/node-id? k)
       (and (vector? k)
            (contains? #{:slot-sync :slot-tap :effect-tap} (first k)))))

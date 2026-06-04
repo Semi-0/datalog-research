@@ -6,6 +6,7 @@
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.named-network :as named]
+            [propagators.debugger :as debugger]
             [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -200,8 +201,32 @@
          reduced-out-id)]
     {:net branch-net
      :branch-prop-ids branch-prop-ids
+     :active-layers active-layers
+     :result-bank-id result-bank-id
      :reduced-out-id reduced-out-id
      :reducer-install reducer-install}))
+
+(defn- cell-strongest-or-nothing
+  [n id]
+  (if (contains? (net/net-env n) id)
+    (net/network-cell-strongest n id)
+    value/nothing))
+
+(defn- report-layered-branches!
+  [n result-bank-id active-layers]
+  (when (debugger/enabled?)
+    (let [result-bank (cell-strongest-or-nothing n result-bank-id)]
+      (doseq [layer-name active-layers]
+        (debugger/report!
+         :layered/layer
+         {:layer layer-name
+          :handler-result (obj/slot-value result-bank layer-name)})))))
+
+(defn- report-layered-selected!
+  [n reduced-out-id]
+  (debugger/report!
+   :layered/selected
+   {:selected-value (cell-strongest-or-nothing n reduced-out-id)}))
 
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
@@ -212,7 +237,12 @@
               (apply value/any-unusable-values? arg-values))
         []
         (let [layers (available-branches proc-value)
-              {:keys [net branch-prop-ids reduced-out-id reducer-install]}
+              {:keys [net
+                      branch-prop-ids
+                      active-layers
+                      result-bank-id
+                      reduced-out-id
+                      reducer-install]}
               (build-application-net outer-net
                                      proc-id
                                      arg-ids
@@ -220,8 +250,10 @@
                                      layers
                                      arg-values)
               after-branches (nb/run-propagators net branch-prop-ids)
+              _ (report-layered-branches! after-branches result-bank-id active-layers)
               [reducer-prop-ids reducer-net] (reducer-install after-branches)
               after (nb/run-propagators reducer-net reducer-prop-ids)]
+          (report-layered-selected! after reduced-out-id)
           (diff/diff-cells [reduced-out-id] [out-id] after outer-net))))))
 
 (defn p:apply-layered

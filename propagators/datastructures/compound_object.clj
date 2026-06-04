@@ -1,6 +1,7 @@
 (ns propagators.datastructures.compound-object
   "Experimental object slots over named-network cell values."
-  (:require [propagators.cells.value :as value]
+  (:require [propagators.cells.cell :as cell]
+            [propagators.cells.value :as value]
             [propagators.datastructures.named-network :as named]
             [propagators.datastructures.reducer-subnet :as reducer]
             [propagators.effectful-execution :as effect]
@@ -14,36 +15,109 @@
 (def slot-sync-key :slot-sync)
 
 (def ^:private slot-index-key :slot-index)
+(def ^:private read-only-slots-key :read-only-slots)
+
+(defn empty-compound-object
+  "A named network with no public slots."
+  []
+  (net/net-with-dict net/empty-net {slot-index-key {}}))
+
+(defn- add-slot-cell
+  [n slot-key slot-value]
+  (let [slot-id (or (net/network-dict-entry n slot-key)
+                    (ids/new-node-id))
+        n' (if (contains? (net/net-env n) slot-id)
+             n
+             (nb/install-cell n slot-id slot-value slot-value))]
+    (-> n'
+        (net/assoc-net-cell slot-id (cell/cell slot-value slot-value))
+        (net/assoc-net-dict-entry slot-key slot-id)
+        (net/update-net-dict-entry slot-index-key
+                                   #(assoc (or % {}) slot-key #{})))))
+
+(defn- map-compound-object
+  [m]
+  (reduce-kv add-slot-cell (empty-compound-object) m))
+
+(defn- vector-compound-object
+  [v]
+  (-> (reduce-kv add-slot-cell (empty-compound-object) v)
+      (add-slot-cell :count (count v))
+      (net/assoc-net-dict-entry read-only-slots-key #{:count})))
+
+(defn compound-object
+  "Normalize ordinary compound values into the named-network slot representation."
+  [x]
+  (cond
+    (value/nothing? x) (empty-compound-object)
+    (named/named-network? x) x
+    (or (net/net? x)
+        (ids/node-id? x)
+        (cell/cell? x)
+        (prop/prop? x)) value/contradiction
+    (vector? x) (vector-compound-object x)
+    (map? x) (map-compound-object x)
+    (value/contradiction? x) value/contradiction
+    :else value/contradiction))
 
 (defn empty-cons-net
   "A named network with stable `:car` and `:cdr` slot cells."
   []
-  (let [car-id (ids/new-node-id)
-        cdr-id (ids/new-node-id)]
-    (-> net/empty-net
-        (nb/install-cell car-id)
-        (nb/install-cell cdr-id)
-        (net/net-with-dict {:car car-id
-                            :cdr cdr-id
-                            :slot-index {:car #{}
-                                         :cdr #{}}}))))
+  (-> (empty-compound-object)
+      (add-slot-cell :car value/nothing)
+      (add-slot-cell :cdr value/nothing)))
 
 (defn ensure-cons-net
   [x]
-  (cond
-    (value/nothing? x) (empty-cons-net)
-    (named/named-network? x) x
-    (value/contradiction? x) value/contradiction
-    :else value/contradiction))
+  (compound-object x))
 
-(defn slot-cell-id [collection-net slot-key]
-  (net/network-dict-entry collection-net slot-key))
+(defn slot-cell-id [collection slot-key]
+  (let [collection-net (compound-object collection)]
+    (when-not (value/contradiction? collection-net)
+      (net/network-dict-entry collection-net slot-key))))
 
-(defn slot-strongest [collection-net slot-key]
-  (net/network-cell-strongest collection-net (slot-cell-id collection-net slot-key)))
+(defn slot-strongest [collection slot-key]
+  (let [collection-net (compound-object collection)]
+    (when-not (value/contradiction? collection-net)
+      (when-let [id (slot-cell-id collection-net slot-key)]
+        (net/network-cell-strongest collection-net id)))))
 
-(defn slot-content [collection-net slot-key]
-  (net/network-cell-content collection-net (slot-cell-id collection-net slot-key)))
+(defn slot-content [collection slot-key]
+  (let [collection-net (compound-object collection)]
+    (when-not (value/contradiction? collection-net)
+      (when-let [id (slot-cell-id collection-net slot-key)]
+        (net/network-cell-content collection-net id)))))
+
+(def slot-value slot-strongest)
+
+(defn- internal-slot-key?
+  [k]
+  (or (= k slot-index-key)
+      (= k read-only-slots-key)
+      (ids/node-id? k)
+      (and (vector? k)
+           (= slot-sync-key (first k)))))
+
+(defn public-slot-keys
+  [collection]
+  (let [collection-net (compound-object collection)]
+    (if (value/contradiction? collection-net)
+      #{}
+      (->> (keys (net/net-dict-or-empty collection-net))
+           (remove internal-slot-key?)
+           set))))
+
+(defn- read-only-slot?
+  [collection-net slot-key]
+  (contains? (get (net/net-dict-or-empty collection-net) read-only-slots-key #{})
+             slot-key))
+
+(defn- read-only-slot-messages
+  [parent-id collection-net slot-key]
+  (let [slot-value (slot-strongest collection-net slot-key)]
+    (if (value/unusable? slot-value)
+      []
+      [(message parent-id slot-value)])))
 
 (defn attach-slot-sync
   [collection-net slot-key parent-id _parent-net]
@@ -116,11 +190,17 @@
    (fn [_inputs _outputs network]
      (let [collection-net (-> network
                               (net/network-cell-strongest collection-id)
-                              ensure-cons-net)]
+                              compound-object)]
        (if (value/contradiction? collection-net)
          [(message collection-id value/contradiction)]
          (filterv #(contains? (net/net-env network) (message-id %))
-                  (guarded-slot-messages collection-id slot-key parent-id network collection-net)))))
+                  (if (read-only-slot? collection-net slot-key)
+                    (read-only-slot-messages parent-id collection-net slot-key)
+                    (guarded-slot-messages collection-id
+                                           slot-key
+                                           parent-id
+                                           network
+                                           collection-net))))))
    [parent-id collection-id]
    [parent-id collection-id]))
 
@@ -134,7 +214,7 @@
   [source-id merge-net-id init-id out-id]
   (prop/construct-propagator
    (fn [_inputs _outputs network]
-     (let [source (net/network-cell-strongest network source-id)
+     (let [source (compound-object (net/network-cell-strongest network source-id))
            merge-net (net/network-cell-strongest network merge-net-id)
            init (net/network-cell-strongest network init-id)]
        (if (or (value/unusable? source)
