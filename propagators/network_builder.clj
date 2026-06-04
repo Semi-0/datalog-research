@@ -1,6 +1,7 @@
 (ns propagators.network-builder
   "Small construction helpers for immutable propagator networks."
-  (:require [propagators.cells.cell :as cell]
+  (:require [propagators.builder-policy :as policy]
+            [propagators.cells.cell :as cell]
             [propagators.core :as core]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
@@ -25,12 +26,31 @@
   (net/assoc-net-cell n id (cell/cell v v)))
 
 (defn install-propagator
-  "Install a propagator with `installer`, returning `[prop-id updated-network]`."
+  "Install a propagator with `installer`, returning `[prop-id updated-network]`.
+
+  When `*builder-policy*` is `:queue`, also pass `tasks` and use
+  `install-propagator*` to enqueue without running."
   [n installer]
   (installer n))
 
+(defn install-propagator*
+  "Install per `propagators.builder-policy/*builder-policy*`.
+
+  Returns `[prop-id network tasks]`. `:lazy` leaves `tasks` unchanged;
+  `:queue` enqueues `prop-id` without running."
+  [n tasks installer]
+  (let [[prop-id n'] (install-propagator n installer)]
+    (if (policy/policy-queue?)
+      [prop-id n' (tq/enqueue tasks prop-id)]
+      [prop-id n' tasks])))
+
+(defn run-queued-tasks
+  "Drain `tasks` on `n`; returns `[network' empty-queue]`."
+  [n tasks]
+  [(core/run-tasks tasks n) tq/empty-queue])
+
 (defn run-propagators
-  "Run propagators by id on `n`."
+  "Run propagators by id on `n` (immediate, not policy-aware)."
   [n prop-ids]
   (core/run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
 
@@ -39,22 +59,8 @@
   [n prop-ids]
   (core/run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
 
-(defn install-propagator-eager!
-  "Install a propagator and run it immediately.
-
-  Returns `[prop-id network]` like `install-propagator`.
-  `drain` is `:one` (default) or `:quiesce` (drain full queue after enqueue)."
-  ([n installer]
-   (install-propagator-eager! n installer :one))
-  ([n installer drain]
-   (let [[prop-id n'] (install-propagator n installer)
-         n'' (case drain
-               :quiesce (run-propagators-quiesce n' [prop-id])
-               (run-propagators n' [prop-id]))]
-     [prop-id n''])))
-
 (defn install-propagator!
-  "Install a propagator and enqueue it, returning `[updated-network updated-tasks]`."
+  "Install a propagator and enqueue it (explicit queue, ignores policy)."
   [n tasks installer]
   (let [[prop-id n'] (install-propagator n installer)]
     [n' (tq/enqueue tasks prop-id)]))
@@ -66,11 +72,18 @@
     (filter #(prop/prop? (get (net/net-env n) %))
             (into (vec (:inputs node)) (:outputs node)))))
 
-(defn seed-cell!
-  "Seed a cell and enqueue neighboring propagators, returning `[updated-network updated-tasks]`."
+(defn seed-cell*
+  "Seed per `*builder-policy*`. Returns `[network tasks]`."
   [n tasks id v]
   (let [n' (seed-cell n id v)]
-    [n' (tq/enqueue-all tasks (neighbor-propagator-ids n' id))]))
+    (if (policy/policy-queue?)
+      [n' (tq/enqueue-all tasks (neighbor-propagator-ids n' id))]
+      [n' tasks])))
+
+(defn seed-cell!
+  "Seed a cell and enqueue neighboring propagators (explicit queue)."
+  [n tasks id v]
+  (seed-cell* n tasks id v))
 
 (defn add-named-cell
   "Install a named cell under dict key `k` with content and strongest `v`."

@@ -55,17 +55,18 @@ So today:
 
 `p:apply-layered` is different: it **already** runs its application subnet to quiescence inside activation (`nb/run-propagators` on inner props). That is eager **inside** one propagator, not at the compile/install layer.
 
-### 1.2 Definition: “eager activate”
+### 1.2 Definition: global builder policy (`*builder-policy*`)
 
-For this plan, **eager activate on install** means:
+Stage 1 now uses a **single global policy** in `propagators.builder-policy` (not per-install `run-tasks`):
 
-> After `((installer arg …) network)` returns `[prop-id network']`, immediately enqueue `prop-id` on a task queue and run the scheduler until that propagator’s activation completes (single-prop step or drain-to-quiescence — see open choice below).
+| Policy | Install | Seed | When tasks run |
+|--------|---------|------|----------------|
+| `:lazy` (default) | Wire only | Update cell only | Caller runs `nb/run-propagators` |
+| `:queue` | Enqueue new prop ids on compile `tasks` | Enqueue neighbor prop ids | `flush-queued-tasks` at end of `do` and `eval-net*` |
 
-Optional extensions (same stage, separate flags):
+**`:queue` does not run the scheduler on each install.** It only accumulates tasks; `propagators.compile/flush-queued-tasks` drains the queue once per flush boundary.
 
-- **Eager on seed** — `seed` in compile also calls `seed-cell!` semantics (enqueue neighbors of seeded cell).
-- **Eager on `eval-application` only** — layered compile tests use `eval-layered`; default `eval-net` stays lazy for backward compatibility.
-- **Drain policy** — `enqueue-one` vs `run-tasks` until empty after each install (affects order when a `do` installs many props).
+This matches the desired “propagator builder policy” model: construction enqueues work; evaluation happens at controlled flush points.
 
 ### 1.3 Hypotheses to test
 
@@ -161,30 +162,28 @@ Stage 1 is **done** when we can answer yes/no with tests:
 
 Recommendation to decide in stage 1: prefer **E2 (batch at end of sequential install block)** for macro ergonomics, and **E3** for explicit stdlib installers — avoids N drains per `do` line.
 
-### 1.9 Stage 1 preliminary results (2026-06-04)
+### 1.9 Stage 1 results (`*builder-policy*` :queue)
 
-Implemented behind dynamic vars in `propagators.compile` (defaults **false**):
+Implementation:
 
-| Flag | Behavior |
-|------|----------|
-| `*eager-install?*` | Run each installed propagator immediately after `eval-application` |
-| `*eager-install-batch?*` | Defer props installed in a `do`; flush with `run-propagators` at end of `do` |
-| `*eager-seed?*` | After `seed`, run neighbor propagators (`seed-cell!` semantics) |
+- `propagators.builder-policy/*builder-policy*` — `:lazy` | `:queue`
+- `propagators.network-builder/install-propagator*`, `seed-cell*`, `run-queued-tasks`
+- `propagators.compile` — compile ctx carries `:tasks`; flush at end of `do` and `eval-net*`
 
-`propagators.network-builder` adds `install-propagator-eager!` and `run-propagators-quiesce`.
+Removed: immediate `run-propagators` on install (`*eager-install?*`, `install-propagator-eager!`).
 
-Tests: `test/propagators_eager_install_test.clj`.
+Tests: `test/propagators_eager_install_test.clj` (bind `*builder-policy*` `:queue`).
 
 | Hypothesis | Result |
 |------------|--------|
-| **H1** | **Confirmed** — `*eager-install-batch?*` on `(do install seed)` merges base+provenance without manual `run-propagators`. |
-| **H2** | **Confirmed** — `*eager-install?*` per-install inside same `do` runs before `seed`; `proc` has no `:base`. |
-| **Eager seed** | **Confirmed** — install `p:layered-procedure` lazy, `*eager-seed?*` on extension fragment wakes merge into `proc`. |
-| **Equivalence** | **Confirmed** — batch eager matches manual run on extension props for plus procedure. |
+| **H1** | **Confirmed** — `:queue` + flush at end of `(do install seed)` merges without manual `run-propagators`. |
+| **H2** (revised) | Install-only expr flush runs prop against empty extension → no `:base` on `proc`. |
+| **Seed queue** | **Confirmed** — `:queue` on `seed` enqueues `p:layered-procedure`; expr flush merges. |
+| **Equivalence** | **Confirmed** — `:queue` flush matches manual `run-propagators` for plus procedure. |
 
-**Provisional decision:** prefer **E2** (`*eager-install-batch?*` at end of `do`) for compile ergonomics; **E3** / `install-propagator-eager!` for explicit installers. Keep global compile **lazy** by default (network/compound regression tests unchanged).
+**Decision:** use **`:queue` + flush boundaries** as the global builder policy for stage 2 bootstrap (`install-arithmetic-procedure`). Default remains **`:lazy`**.
 
-Stage 2 (`install-arithmetic-procedure`) should not start until this branch merges or the decision is reviewed.
+Stage 2 should build on `install-propagator*` / `run-queued-tasks`, not immediate run-on-install.
 
 ### 1.8 Stage 1 work checklist
 

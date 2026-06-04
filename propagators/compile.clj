@@ -3,14 +3,11 @@
 
   Compile-time: `compile-net`, `let-cell`.
   Runtime: `net-let` — declare cells by symbol, install propagators like function calls."
-  (:require [propagators.ids :refer [new-node-id]]
+  (:require [propagators.builder-policy :as policy]
+            [propagators.helpers.task-queue :as tq]
+            [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]))
-
-;; Stage-1 eager-install experiments (see doc/eager-install-and-arithmetic-procedure.md).
-(def ^:dynamic *eager-install?* false)
-(def ^:dynamic *eager-install-batch?* false)
-(def ^:dynamic *eager-seed?* false)
 
 (defn default-installers
   "Installer map (lazy resolve avoids compile ↔ stdlib cycle)."
@@ -29,7 +26,18 @@
    {:net n
     :installers installers
     :props []
+    :tasks tq/empty-queue
     :value nil}))
+
+(defn- flush-queued-tasks
+  "Drain compile `tasks` when `*builder-policy*` is `:queue`."
+  [ctx]
+  (if (and (policy/policy-queue?) (not (tq/queue-empty? (:tasks ctx))))
+    (let [[n' _] (nb/run-queued-tasks (:net ctx) (:tasks ctx))]
+      (-> ctx
+          (assoc :net n')
+          (assoc :tasks tq/empty-queue)))
+    ctx))
 
 (defn- self-evaluating? [x]
   (or (nil? x)
@@ -141,29 +149,18 @@
          syms)]
     (eval-seq ctx' body)))
 
-(defn- flush-do-eager-props [ctx]
-  (if (and *eager-install-batch?* (seq (:do-props ctx)))
-    (let [n' (nb/run-propagators (:net ctx) (:do-props ctx))]
-      (-> ctx
-          (assoc :net n')
-          (dissoc :do-props)))
-    (dissoc ctx :do-props)))
-
 (defn- eval-do [ctx [_ & body]]
-  (let [ctx' (assoc ctx :do-props [])
-        [ctx'' value] (eval-seq ctx' body)
-        ctx''' (flush-do-eager-props ctx'')]
-    [ctx''' value]))
+  (let [[ctx' value] (eval-seq ctx body)
+        ctx'' (flush-queued-tasks ctx')]
+    [ctx'' value]))
 
 (defn- eval-seed [ctx [_ cell-expr value-expr]]
   (let [[ctx' cell-id] (eval-expr ctx cell-expr)
         [ctx'' value] (eval-expr ctx' value-expr)
-        n' (nb/seed-cell (:net ctx'') cell-id value)
-        n'' (if *eager-seed?*
-              (nb/run-propagators n' (nb/neighbor-propagator-ids n' cell-id))
-              n')]
+        [n' tasks] (nb/seed-cell* (:net ctx'') (:tasks ctx'') cell-id value)]
     [(-> ctx''
-         (assoc :net n'')
+         (assoc :net n')
+         (assoc :tasks tasks)
          (assoc :value cell-id))
      cell-id]))
 
@@ -177,19 +174,16 @@
              [ctx' (conj values v)]))
          [ctx []]
          args)
-        [installed-id n'] ((apply installer argv) (:net ctx'))
-        ids (prop-ids installed-id)
-        n-run (cond
-                (and *eager-install?* (not *eager-install-batch?*))
-                (nb/run-propagators n' ids)
-
-                :else
-                n')
-        ctx'' (if *eager-install-batch?*
-                (update ctx' :do-props into ids)
-                ctx')]
-    [(-> ctx''
-         (assoc :net n-run)
+        install-on-net (fn [n] ((apply installer argv) n))
+        [installed-id n' tasks]
+        (if (policy/policy-queue?)
+          (nb/install-propagator* (:net ctx') (:tasks ctx') install-on-net)
+          (let [[id n''] (install-on-net (:net ctx'))]
+            [id n'' (:tasks ctx')]))
+        ids (prop-ids installed-id)]
+    [(-> ctx'
+         (assoc :net n')
+         (assoc :tasks tasks)
          (update :props into ids)
          (assoc :value installed-id))
      installed-id]))
@@ -221,8 +215,9 @@
 (defn eval-net*
   "Evaluate multiple top-level expressions against network `n`."
   [n installers exprs]
-  (let [[ctx value] (eval-seq (ctx0 n installers) exprs)]
-    (assoc ctx :value value)))
+  (let [[ctx value] (eval-seq (ctx0 n installers) exprs)
+        ctx' (flush-queued-tasks ctx)]
+    (assoc ctx' :value value)))
 
 (defn eval-net
   "Evaluate one network expression."
@@ -231,8 +226,9 @@
   ([n expr]
    (eval-net n (default-installers) expr))
   ([n installers expr]
-   (let [[ctx value] (eval-expr (ctx0 n installers) expr)]
-     (assoc ctx :value value))))
+   (let [[ctx value] (eval-expr (ctx0 n installers) expr)
+         ctx' (flush-queued-tasks ctx)]
+     (assoc ctx' :value value))))
 
 (defn eval-net-with-bindings
   "Evaluate one network expression after binding symbols into network `n`."
