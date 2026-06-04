@@ -7,17 +7,23 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.stdlib :as stdlib]
             [propagators.stdlib.arithmetic :as arithmetic]
             [propagators.stdlib.arithmetic.base :as base]
-            [propagators.stdlib.arithmetic.provenance :as provenance]))
+            [propagators.stdlib.arithmetic.provenance :as provenance]
+            [propagators.stdlib.layered :as layered-ops]
+            [propagators.stdlib.prop :as stdlib-prop]))
 
 (def ^:private layered-installers
   {'layered/p:base layered/p:base
    'layered/p:layer layered/p:layer
    'layered/p:layered-procedure layered/p:layered-procedure
    'layered/p:apply-layered2 (fn [proc a b out]
-                               (layered/p:apply-layered proc [a b] out))})
+                               (layered/p:apply-layered proc [a b] out))
+   'prop/+ stdlib-prop/+
+   'prop// stdlib-prop//
+   'layered/+ layered-ops/+
+   'layered/- layered-ops/-
+   'layered// layered-ops//})
 
 (defn- layered-ctx [n sym->value expr]
   (compile/eval-layered n layered-installers sym->value expr))
@@ -128,6 +134,60 @@
       :prov-extension (when provenance? prov-extension)
       :procedure-props procedure-props})))
 
+(defn- install-minus-procedure
+  ([]
+   (install-minus-procedure {:provenance? true}))
+  ([{:keys [provenance?] :or {provenance? true}}]
+   (let [{:keys [net proc base-extension prov-extension]} (new-plus-procedure-cells)
+         base (install-procedure-extension
+               net
+               proc
+               base-extension
+               (arithmetic/minus-base-extension))
+         prov (when provenance?
+                (install-procedure-extension
+                 (:net base)
+                 proc
+                 prov-extension
+                 (arithmetic/minus-provenance-extension)))
+         n3 (if provenance? (:net prov) (:net base))
+         base-prop (:prop base)
+         prov-prop (:prop prov)
+         procedure-props (cond-> [base-prop] provenance? (conj prov-prop))
+         n4 (nb/run-propagators n3 procedure-props)]
+     {:net n4
+      :proc proc
+      :base-extension base-extension
+      :prov-extension (when provenance? prov-extension)
+      :procedure-props procedure-props})))
+
+(defn- install-divide-procedure
+  ([]
+   (install-divide-procedure {:provenance? true}))
+  ([{:keys [provenance?] :or {provenance? true}}]
+   (let [{:keys [net proc base-extension prov-extension]} (new-plus-procedure-cells)
+         base (install-procedure-extension
+               net
+               proc
+               base-extension
+               (arithmetic/divide-base-extension))
+         prov (when provenance?
+                (install-procedure-extension
+                 (:net base)
+                 proc
+                 prov-extension
+                 (arithmetic/divide-provenance-extension)))
+         n3 (if provenance? (:net prov) (:net base))
+         base-prop (:prop base)
+         prov-prop (:prop prov)
+         procedure-props (cond-> [base-prop] provenance? (conj prov-prop))
+         n4 (nb/run-propagators n3 procedure-props)]
+     {:net n4
+      :proc proc
+      :base-extension base-extension
+      :prov-extension (when provenance? prov-extension)
+      :procedure-props procedure-props})))
+
 (defn- install-layered-inputs
   [n a b]
   (let [ctx (layered-ctx
@@ -197,7 +257,7 @@
                    (:net extension)
                    proc
                    (:cell extension)
-                   (stdlib/procedure-extension layer closure-value))]
+                   (arithmetic/procedure-extension layer closure-value))]
     {:net (nb/run-propagators (:net installed) [(:prop installed)])
      :extension (:cell extension)
      :prop (:prop installed)}))
@@ -232,7 +292,7 @@
 
 (defn- run-operator-on-existing-inputs
   [n operator a b out]
-  (let [apply (install-operator-apply n 'p:+ operator a b out)
+  (let [apply (install-operator-apply n 'layered/+ operator a b out)
         n' (nb/run-propagators (:net apply) [(:prop apply)])]
     {:net n'
      :out out
@@ -277,10 +337,10 @@
 (deftest layered-operator-reuses-and-observes-procedure-extension
   (testing "same operator installer sees later procedure-cell extensions"
     (let [{:keys [net proc]} (install-plus-procedure {:provenance? false})
-          p:+ (stdlib/p:layered+ proc)
+          p:+ (layered-ops/+ proc)
           first-result (run-layered-application
                         net
-                        #(install-operator-apply %1 'p:+ p:+ %2 %3 %4)
+                        #(install-operator-apply %1 'layered/+ p:+ %2 %3 %4)
                         1 #{:a}
                         2 #{:b})
           extended (extend-procedure-layer
@@ -325,3 +385,27 @@
           result (run-base-only-application net proc 7 8)]
       (assert-layer (:out-object result) :base 15)
       (assert-missing-layer (:out-object result) :provenance))))
+
+(deftest apply-layered-minus-computes-base-and-provenance
+  (testing "layered/- applies minus closure slots and writes output slots"
+    (let [{:keys [net proc]} (install-minus-procedure)
+          p:- (layered-ops/- proc)
+          result (run-layered-application
+                  net
+                  #(install-operator-apply %1 'layered/- p:- %2 %3 %4)
+                  30 #{:a}
+                  12 #{:b})]
+      (assert-layer (:out-object result) :base 18)
+      (assert-layer (:out-object result) :provenance #{:a :b}))))
+
+(deftest apply-layered-divide-computes-base-and-provenance
+  (testing "layered// applies divide closure slots and writes output slots"
+    (let [{:keys [net proc]} (install-divide-procedure)
+          p-div (layered-ops// proc)
+          result (run-layered-application
+                  net
+                  #(install-operator-apply %1 'layered// p-div %2 %3 %4)
+                  60 #{:a}
+                  12 #{:b})]
+      (assert-layer (:out-object result) :base 5)
+      (assert-layer (:out-object result) :provenance #{:a :b}))))

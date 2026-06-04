@@ -6,7 +6,7 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.stdlib :as stdlib]))
+            [propagators.stdlib.boundary :as boundary]))
 
 (defn strongest-equivalent?
   "True when `a` and `b` strongest values are merge-equivalent on `network`."
@@ -70,7 +70,7 @@
     (if (and (contains? dict from->to-key)
              (contains? dict to->from-key))
       subnet
-      (let [[[from->to to->from] subnet'] (stdlib/fast-bi-sync subnet from-id to-id)]
+      (let [[[from->to to->from] subnet'] (boundary/fast-bi-sync subnet from-id to-id)]
         (-> subnet'
             (net/assoc-net-dict-entry from->to-key from->to)
             (net/assoc-net-dict-entry to->from-key to->from))))))

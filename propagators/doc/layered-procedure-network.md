@@ -108,6 +108,17 @@ frames while carrying slot indexes from earlier frames.
 installation time when invoking the activation function. The graph still stores
 sets for adjacency, but compound closures need stable port order.
 
+## Planned Bootstrap API
+
+The current tests use extension cells + `seed` + manual `run-propagators` for
+every arithmetic procedure. That is the reactive extension path, not the only
+path.
+
+See [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)
+for the two-stage plan to (1) experiment with eager installer/compile
+activation, then (2) add `install-arithmetic-procedure` as a one-shot bootstrap
+over `proc`, with `p:layered-procedure` kept for late or external layers.
+
 ## Current Tests
 
 `test/propagators_layered_procedure_test.clj` covers:

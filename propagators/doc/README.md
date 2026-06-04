@@ -23,6 +23,9 @@ larger repo later.
 - [Layered Procedure Network](layered-procedure-network.md) describes layered
   data/procedure slots, pure procedure extension fragments, and stable layered
   operators such as `p:+`.
+- [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)
+  is a two-stage plan: experiment eager installer/macro activation (stage 1),
+  then define `install-arithmetic-procedure` as a bootstrap installer (stage 2).
 - [Experiments And Commands](experiments-and-commands.md) keeps test commands,
   benchmark commands, file maps, and open-work notes.
 

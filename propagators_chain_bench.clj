@@ -10,7 +10,8 @@
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
-            [propagators.stdlib :refer [bi-sync-closure p:id]]))
+            [propagators.stdlib.boundary :refer [bi-sync-closure]]
+            [propagators.stdlib.prop :refer [id]]))
 
 ;; --- network builders (same wiring as propagators-network-test) ---
 
@@ -42,7 +43,7 @@
         mid (nth cells inject-idx)
         e (new-node-id)
         n (second ((construct-cell e) net))
-        [e->mid n] ((p:id e mid) n)]
+        [e->mid n] ((id e mid) n)]
     {:net n :cells cells :props props :mid mid :e e :e->mid e->mid :inject-idx inject-idx}))
 
 (defn- seed-cell [n cell-id v]

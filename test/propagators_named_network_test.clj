@@ -11,7 +11,8 @@
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
             [propagators.propagator :as prop]
-            [propagators.stdlib :as stdlib]))
+            [propagators.stdlib.boundary :as boundary]
+            [propagators.stdlib.prop :as stdlib-prop]))
 
 (defn- named-cell-net
   [named-values]
@@ -51,7 +52,7 @@
   (let [from (new-node-id)
         to (new-node-id)
         n (install-cells net/empty-net [from to])
-        [sync-id n] ((stdlib/p:id from to) n)]
+        [sync-id n] ((stdlib-prop/id from to) n)]
     {:net n
      :from from
      :to to
@@ -64,7 +65,7 @@
         out-left (new-node-id)
         out-right (new-node-id)
         n (install-cells net/empty-net [left right out-left out-right])
-        n (stdlib/bi-sync nil [left right] [out-left out-right] n)
+        n (boundary/bi-sync nil [left right] [out-left out-right] n)
         [left-sync right-sync] (prop-ids n)]
     {:net n
      :left left

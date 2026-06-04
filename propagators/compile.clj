@@ -10,7 +10,8 @@
 (defn default-installers
   "Installer map (lazy resolve avoids compile ↔ stdlib cycle)."
   []
-  {'p:id (requiring-resolve 'propagators.stdlib/p:id)})
+  {'prop/id (requiring-resolve 'propagators.stdlib.prop/id)
+   'p:id (requiring-resolve 'propagators.stdlib.prop/id)})
 
 ;; Re-export for manual threading
 (def install-net net/install-net)

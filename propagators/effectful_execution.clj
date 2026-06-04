@@ -4,7 +4,7 @@
             [propagators.core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.network :as net]
-            [propagators.stdlib :as stdlib]))
+            [propagators.stdlib.effect :as effect]))
 
 (defn- effect-tap-key [outer-id]
   [:effect-tap outer-id])
@@ -15,7 +15,7 @@
 
 (defn- install-effect-tap [subnet updated* outer-id]
   (let [avatar-id (net/network-dict-entry subnet outer-id)
-        [tap-id subnet'] (((stdlib/mark-updated-tap updated* outer-id) avatar-id) subnet)]
+        [tap-id subnet'] (((effect/mark-updated-tap updated* outer-id) avatar-id) subnet)]
     (net/assoc-net-dict-entry subnet' (effect-tap-key outer-id) tap-id)))
 
 (defn hook-output-taps

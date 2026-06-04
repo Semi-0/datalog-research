@@ -3,7 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.ids :as id]
             [propagators.network :as net]
-            [propagators.stdlib :refer [p:id]]))
+            [propagators.stdlib.prop :refer [id]]))
 
 (defn spawn-avatar-cell
   "Create an avatar cell and register it in the subnet dict under `key`.
@@ -40,6 +40,6 @@
         b (get dict name-key)]
     (if (and a b)
       (-> subnet
-          (net/install-net (p:id a b))
-          (net/install-net (p:id b a)))
+          (net/install-net (id a b))
+          (net/install-net (id b a)))
       subnet)))

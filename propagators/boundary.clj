@@ -5,7 +5,7 @@
             [propagators.core :refer [run-tasks]]
             [propagators.ids :as id]
             [propagators.network :as net :refer [net-graph]]
-            [propagators.stdlib :as stdlib]))
+            [propagators.stdlib.boundary :as boundary]))
 
 (defn spawn-avatar-cell
   "Create an avatar cell cloned from the outer cell value/content.
@@ -46,7 +46,7 @@
   "Spawn avatar per external output; assoc into dict :avatars-out; return net."
   [network outer-ids]
   (reduce (fn [net* ext]
-            (create-and-register-avatar-link net* ext stdlib/nothing-out-link net/assoc-avatar-out))
+            (create-and-register-avatar-link net* ext boundary/nothing-out-link net/assoc-avatar-out))
           network
           (vec outer-ids)))
 
@@ -54,7 +54,7 @@
   "Spawn avatar per external input; assoc into dict :avatars-in; return net."
   [network outer-ids]
   (reduce (fn [net* ext]
-            (create-and-register-avatar-link net* ext stdlib/nothing-in-link net/assoc-avatar-in))
+            (create-and-register-avatar-link net* ext boundary/nothing-in-link net/assoc-avatar-in))
           network
           (vec outer-ids)))
 

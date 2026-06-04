@@ -17,7 +17,8 @@
             [propagators.message :as m :refer [message-value]]
             [propagators.network :as net]
             [propagators.propagator :as prop]
-            [propagators.stdlib :refer [bi-sync-closure p:id]]))
+            [propagators.stdlib.boundary :refer [bi-sync-closure]]
+            [propagators.stdlib.prop :refer [id]]))
 
 (defn- ms [ns] (/ (double ns) 1e6))
 
@@ -153,7 +154,7 @@
         mid (nth cells inject-idx)
         e (new-node-id)
         n (second ((construct-cell e) net))
-        [e->mid n'] ((p:id e mid) n)]
+        [e->mid n'] ((id e mid) n)]
     {:net n' :cells cells :props (set props) :inject-prop e->mid :inject-cell e :inject-idx inject-idx}))
 
 (defn- seed-cell [n cell-id v]

@@ -10,7 +10,7 @@
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
-            [propagators.stdlib :refer [bi-sync-closure]]))
+            [propagators.stdlib.boundary :refer [bi-sync-closure]]))
 
 (defn- boundary-nodes [closure-cell-id nodes]
   (vec (remove #(= closure-cell-id %) nodes)))

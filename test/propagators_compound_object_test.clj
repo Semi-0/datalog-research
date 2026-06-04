@@ -16,10 +16,11 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.stdlib :as stdlib]
             [propagators.stdlib.arithmetic :as arithmetic]
             [propagators.stdlib.arithmetic.base :as base]
-            [propagators.stdlib.arithmetic.provenance :as provenance]))
+            [propagators.stdlib.arithmetic.provenance :as provenance]
+            [propagators.stdlib.layered :as layered-ops]
+            [propagators.stdlib.prop :as stdlib-prop]))
 
 (defn- sync-prop-keys [collection-net]
   (net/network-dict-keys-tagged collection-net obj/slot-sync-key))
@@ -299,20 +300,33 @@
       (is (prop/prop? (net/network-lookup-propagator n cdr-prop))))))
 
 (deftest stdlib-primitive-plus-computes-bare-values
-  (testing "stdlib p:+ is an ordinary primitive propagator first"
+  (testing "prop/+ is an ordinary primitive propagator"
     (let [a (new-node-id)
           b (new-node-id)
           out (new-node-id)
           n (nb/install-cells [a b out])
-          [plus-prop n] ((base/+ a b out) n)
+          [plus-prop n] ((stdlib-prop/+ a b out) n)
           n' (-> n
                  (nb/seed-cell a 3)
                  (nb/seed-cell b 4)
                  (nb/run-propagators [plus-prop]))]
       (is (= 7 (net/network-cell-value n' out))))))
 
+(deftest stdlib-primitive-divide-computes-bare-values
+  (testing "prop// is an ordinary primitive propagator"
+    (let [a (new-node-id)
+          b (new-node-id)
+          out (new-node-id)
+          n (nb/install-cells [a b out])
+          [div-prop n] ((stdlib-prop// a b out) n)
+          n' (-> n
+                 (nb/seed-cell a 60)
+                 (nb/seed-cell b 12)
+                 (nb/run-propagators [div-prop]))]
+      (is (= 5 (net/network-cell-value n' out))))))
+
 (deftest stdlib-layered-plus-retains-provenance-through-compound-object-slots
-  (testing "stdlib layered + computes base and unions provenance slots"
+  (testing "layered/+ computes base and unions provenance slots"
     (let [proc (new-node-id)
           base-extension (new-node-id)
           prov-extension (new-node-id)
@@ -332,7 +346,7 @@
           [a-prov-prop n4] ((obj/p:slot :provenance a-prov a) n3)
           [b-base-prop n5] ((obj/p:slot :base b-base b) n4)
           [b-prov-prop n6] ((obj/p:slot :provenance b-prov b) n5)
-          p:+ (stdlib/p:layered+ proc)
+          p:+ (layered-ops/+ proc)
           [apply-prop n7] ((p:+ a b out) n6)
           n8 (-> n7
                  (nb/seed-cell base-extension (arithmetic/base-extension base/plus-closure))
@@ -352,9 +366,13 @@
       (is (= 30 (obj/slot-strongest out-object :base)))
       (is (= #{:a :b} (obj/slot-strongest out-object :provenance))))))
 
-(deftest arithmetic-provenance-combinator-supports-minus-and-times
-  (testing "base and provenance arithmetic namespaces provide matching - and * layers"
+(deftest arithmetic-provenance-combinator-supports-minus-times-and-divide
+  (testing "base and provenance arithmetic namespaces provide matching -, *, and / layers"
     (is (map? (arithmetic/base-extension base/minus-closure)))
     (is (map? (arithmetic/base-extension base/times-closure)))
+    (is (map? (arithmetic/base-extension base/divide-closure)))
     (is (map? (arithmetic/provenance-extension provenance/-)))
-    (is (map? (arithmetic/provenance-extension provenance/*)))))
+    (is (map? (arithmetic/provenance-extension provenance/*)))
+    (is (map? (arithmetic/provenance-extension provenance//)))
+    (is (map? (arithmetic/divide-base-extension)))
+    (is (map? (arithmetic/divide-provenance-extension)))))

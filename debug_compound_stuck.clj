@@ -8,7 +8,7 @@
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
-            [propagators.stdlib :refer [bi-sync-closure]]
+            [propagators.stdlib.boundary :refer [bi-sync-closure]]
             [propagators.closure :as closure]))
 
 (def ^:dynamic *step* 0)

@@ -11,7 +11,7 @@
             [propagators.ids :as id]
             [propagators.network :as net]
             [propagators.propagator :as prop]
-            [propagators.stdlib :refer [hook-output-taps]]))
+            [propagators.stdlib.effect :refer [hook-output-taps]]))
 
 (defn subnet-outer-ids
   "All outer node-id dict keys in `subnet`."
