@@ -41,6 +41,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Generic Procedures, Cell Protocols, And Intensity](generic-cell-protocol-and-intensity.md)
   describes propagator-native generic dispatch, network-local merge/strongest
   generics, layered intensity values, and intensity arithmetic.
+- [Behavior Reactivity](behavior-reactivity.md) describes sparse event-to-history
+  behavior reducers, the content/strongest split, and why behavior strongest
+  carries a summary without changing the scheduler kernel.
 - [Compiler 2](compiler-2.md) describes AST-based compiler-2 network expansion,
   slot-backed closure data, activation-local application evaluation, contextual
   dependency arithmetic, and common algebra shared with compound/layered/generic

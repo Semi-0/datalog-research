@@ -1,6 +1,7 @@
 (ns propagators.cells.cell-protocol
   "Network-local generic merge/strongest protocol."
   (:require [propagators.cells.value :as value]
+            [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.intensity :as intensity]
             [propagators.datastructures.scope-source :as scope-source]
@@ -217,5 +218,32 @@
              (generic/handler-closure
               (fn [content]
                 (protocol-result (dependency/strongest-value content)))))
+           n1)]
+      [(into (vec merge-props) strongest-props) n2])))
+
+(defn install-behavior-protocol
+  "Install sparse behavior reducer output methods into the network-local
+  merge/strongest generics."
+  []
+  (fn [n]
+    (let [[merge-props n1]
+          ((define-merge-handler
+             (generic/match-cells-pred
+              #(or (empty-content? %)
+                   (behavior/behavior-content? %))
+              behavior/behavior-value?)
+             (generic/handler-closure
+              (fn [content update]
+                (protocol-result
+                 (behavior/merge-content
+                  (if (empty-content? content) value/nothing content)
+                  update)))))
+           n)
+          [strongest-props n2]
+          ((define-strongest-handler
+             (generic/match-cells-pred behavior/behavior-content?)
+             (generic/handler-closure
+              (fn [content]
+                (protocol-result (behavior/strongest-value content)))))
            n1)]
       [(into (vec merge-props) strongest-props) n2])))

@@ -15,6 +15,11 @@
 (def slot-sync-key :slot-sync)
 (def reduce-sync-key :reduce-sync)
 (def slot-declarations-key :slot-declarations)
+(def internal-metadata-prefix :compound/internal)
+
+(defn internal-metadata-key
+  [& path]
+  (into [internal-metadata-prefix] path))
 
 (def ^:private slot-index-key :slot-index)
 (def ^:private reduce-index-key :reduce-index)
@@ -101,7 +106,10 @@
       (= k read-only-slots-key)
       (ids/node-id? k)
       (and (vector? k)
-           (contains? #{slot-sync-key reduce-sync-key} (first k)))))
+           (contains? #{slot-sync-key
+                        reduce-sync-key
+                        internal-metadata-prefix}
+                      (first k)))))
 
 (defn public-slot-keys
   [collection]
