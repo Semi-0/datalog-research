@@ -114,21 +114,19 @@
                        :dict (net/net-dict-or-empty n)}))))
 
 (defn define-merge-handler
-  [method-key applicability handler]
+  [applicability handler]
   (fn [n]
     ((generic/define-generic-propagator-handler
       (protocol-generic-id n merge-generic-key)
-      method-key
       applicability
       handler)
      n)))
 
 (defn define-strongest-handler
-  [method-key applicability handler]
+  [applicability handler]
   (fn [n]
     ((generic/define-generic-propagator-handler
       (protocol-generic-id n strongest-generic-key)
-      method-key
       applicability
       handler)
      n)))
@@ -138,9 +136,8 @@
   merge/strongest generics."
   []
   (fn [n]
-    (let [[merge-prop n1]
+    (let [[merge-props n1]
           ((define-merge-handler
-             :cell/intensity-merge
              (generic/match-cells-pred
               #(or (empty-content? %)
                    (intensity/intensity-content? %))
@@ -152,12 +149,11 @@
                   (if (empty-content? content) value/nothing content)
                   update)))))
            n)
-          [strongest-prop n2]
+          [strongest-props n2]
           ((define-strongest-handler
-             :cell/intensity-strongest
              (generic/match-cells-pred intensity/intensity-content?)
              (generic/handler-closure
               (fn [content]
                 (protocol-result (intensity/strongest-value content)))))
            n1)]
-      [[merge-prop strongest-prop] n2])))
+      [(into (vec merge-props) strongest-props) n2])))

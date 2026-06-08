@@ -28,10 +28,11 @@
 (defn- internal-slot-key?
   [k]
   (or (= k :slot-index)
+      (= k :reduce-index)
       (= k :read-only-slots)
       (ids/node-id? k)
       (and (vector? k)
-           (contains? #{:slot-sync :slot-tap :effect-tap} (first k)))))
+           (contains? #{:slot-sync :reduce-sync :slot-tap :effect-tap} (first k)))))
 
 (defn source-updates
   "All usable public source slots as `{:slot k :value v}` updates."

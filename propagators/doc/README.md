@@ -36,7 +36,7 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
   replacement direction where `p:car` and `p:cdr` directly sync
   named-network slots without `c:linked-list`.
 - [Layered Procedure Network](layered-procedure-network.md) describes layered
-  data/procedure slots, pure procedure extension fragments, and stable layered
+  data/procedure slots, slotful procedure extension, and stable layered
   operators such as `p:+`.
 - [Generic Procedures, Cell Protocols, And Intensity](generic-cell-protocol-and-intensity.md)
   describes propagator-native generic dispatch, network-local merge/strongest

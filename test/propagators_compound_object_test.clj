@@ -28,6 +28,9 @@
 (defn- sync-prop-keys [collection-net]
   (net/network-dict-keys-tagged collection-net obj/slot-sync-key))
 
+(defn- reduce-prop-keys [collection-net]
+  (net/network-dict-keys-tagged collection-net obj/reduce-sync-key))
+
 (defn- tap-prop-keys [collection-net]
   (->> (keys (net/net-dict-or-empty collection-net))
        (filter #(and (vector? %) (contains? #{:slot-tap :effect-tap} (first %))))
@@ -223,6 +226,30 @@
           messages (f nil nil net)]
       (is (= 1 (count messages))))))
 
+(deftest p-slot-records-topology-declaration-without-materializing-data
+  (testing "installing p:slot records declaration metadata but does not update the collection"
+    (let [parent (new-node-id)
+          coll (new-node-id)
+          n0 (nb/install-cells [parent coll])
+          [prop-id n1] ((obj/p:slot :car parent coll) n0)
+          declarations (obj/slot-declarations-for n1 coll)]
+      (is (= #{:car} (set (keys declarations))))
+      (is (= #{parent} (set (keys (get declarations :car)))))
+      (is (= {:prop-id prop-id} (get-in declarations [:car parent])))
+      (is (nil? (obj/slot-value (net/network-cell-value n1 coll) :car)))
+      (is (= #{} (obj/public-slot-keys (net/network-cell-value n1 coll))))))
+
+  (testing "duplicate declarations are idempotent at the topology level"
+    (let [parent (new-node-id)
+          coll (new-node-id)
+          n0 (nb/install-cells [parent coll])
+          [_prop-id n1] ((obj/p:slot :car parent coll) n0)
+          [prop-id* n2] ((obj/p:slot :car parent coll) n1)
+          declarations (obj/slot-declarations-for n2 coll)]
+      (is (= #{:car} (set (keys declarations))))
+      (is (= #{parent} (set (keys (get declarations :car)))))
+      (is (= {:prop-id prop-id*} (get-in declarations [:car parent]))))))
+
 (deftest p-cons-syncs-car-and-cdr-independently
   (testing "p:cons installs independent bidirectional slot constraints"
     (let [head (new-node-id)
@@ -399,6 +426,7 @@
                      (nb/install-cell unusable-slot value/nothing value/nothing)
                      (net/net-with-dict {:good good-slot
                                          :bad unusable-slot
+                                         obj/slot-declarations-key {:ignored :metadata}
                                          :slot-index {:good #{}}
                                          [:slot-sync :good] (new-node-id)}))
           n0 (nb/install-cells [coll merge-net init out])
@@ -438,6 +466,68 @@
                  (nb/seed-cell init #{})
                  (nb/run-propagators [reduce-prop]))]
       (is (= #{[0 :a] [1 :b] [:count 2]} (net/network-cell-value n2 out))))))
+
+(deftest p-reduce-installs-accessors-and-folds-independent-of-slot-order
+  (testing "slotful source that exists before reducer activation is folded"
+    (let [coll (new-node-id)
+          car (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [coll car merge-net init out])
+          [car-prop n1] ((obj/p:slot :car car coll) n0)
+          n2 (-> n1
+                 (nb/seed-cell car 10)
+                 (nb/run-propagators [car-prop]))
+          [reduce-prop n3] ((obj/p:reduce coll merge-net init out) n2)
+          n4 (-> n3
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/run-propagators [reduce-prop]))
+          coll-net (net/network-cell-value n4 coll)]
+      (is (= #{[:car 10]} (net/network-cell-value n4 out)))
+      (is (seq (reduce-prop-keys coll-net)))
+      (is (= #{:car} (obj/public-slot-keys coll-net)))))
+
+  (testing "reducer activated before a later slot still observes the slot update"
+    (let [coll (new-node-id)
+          car (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [coll car merge-net init out])
+          [car-prop n1] ((obj/p:slot :car car coll) n0)
+          [reduce-prop n2] ((obj/p:reduce coll merge-net init out) n1)
+          n3 (-> n2
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/run-propagators [reduce-prop]))
+          n4 (-> n3
+                 (nb/seed-cell car 10)
+                 (nb/run-propagators [car-prop]))
+          coll-net (net/network-cell-value n4 coll)]
+      (is (= #{} (net/network-cell-value n3 out)))
+      (is (= #{[:car 10]} (net/network-cell-value n4 out)))
+      (is (seq (reduce-prop-keys coll-net)))
+      (is (= #{:car} (obj/public-slot-keys coll-net)))))
+
+  (testing "reducer metadata is internal and does not become folded data"
+    (let [coll (new-node-id)
+          merge-net (new-node-id)
+          init (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [coll merge-net init out])
+          [reduce-prop n1] ((obj/p:reduce coll merge-net init out) n0)
+          n2 (-> n1
+                 (nb/seed-cell coll {:a 1})
+                 (nb/seed-cell merge-net (slot-set-merge-net))
+                 (nb/seed-cell init #{})
+                 (nb/run-propagators [reduce-prop]))
+          coll-net (net/network-cell-value n2 coll)]
+      (is (contains? (net/net-dict-or-empty coll-net) :reduce-index))
+      (is (seq (reduce-prop-keys coll-net)))
+      (is (= #{:a} (obj/public-slot-keys coll-net)))
+      (is (= #{[:a 1]} (net/network-cell-value n2 out))))))
 
 (deftest compare-new-slot-sync-with-current-linked-list-local-case
   (testing "new one-layer slot sync exposes the same local car/cdr values as old p:cons"
@@ -547,8 +637,8 @@
 (deftest stdlib-layered-plus-retains-provenance-through-compound-object-slots
   (testing "layered/+ computes base and unions provenance slots"
     (let [proc (new-node-id)
-          base-extension (new-node-id)
-          prov-extension (new-node-id)
+          base-closure (new-node-id)
+          prov-closure (new-node-id)
           a (new-node-id)
           b (new-node-id)
           out (new-node-id)
@@ -556,11 +646,11 @@
           a-prov (new-node-id)
           b-base (new-node-id)
           b-prov (new-node-id)
-          n0 (nb/install-cells [proc base-extension prov-extension
+          n0 (nb/install-cells [proc base-closure prov-closure
                                 a b out
                                 a-base a-prov b-base b-prov])
-          [base-prop n1] ((layered/p:layered-procedure proc base-extension) n0)
-          [prov-prop n2] ((layered/p:layered-procedure proc prov-extension) n1)
+          [base-prop n1] ((layered/p:layered-procedure :base base-closure proc) n0)
+          [prov-prop n2] ((layered/p:layered-procedure :provenance prov-closure proc) n1)
           [a-base-prop n3] ((obj/p:slot :base a-base a) n2)
           [a-prov-prop n4] ((obj/p:slot :provenance a-prov a) n3)
           [b-base-prop n5] ((obj/p:slot :base b-base b) n4)
@@ -568,8 +658,8 @@
           p:+ (layered-ops/+ proc)
           [apply-prop n7] ((p:+ a b out) n6)
           n8 (-> n7
-                 (nb/seed-cell base-extension (arithmetic/base-extension base/plus-closure))
-                 (nb/seed-cell prov-extension (arithmetic/provenance-extension provenance/+))
+                 (nb/seed-cell base-closure base/plus-closure)
+                 (nb/seed-cell prov-closure provenance/+)
                  (nb/seed-cell a-base 10)
                  (nb/seed-cell a-prov #{:a})
                  (nb/seed-cell b-base 20)

@@ -1,5 +1,6 @@
 (ns propagators-generic-procedure-test
   (:require [clojure.test :refer [deftest is testing]]
+            [propagators.cells.value :as value]
             [propagators.closure :as closure]
             [propagators.compile :as compile]
             [propagators.datastructures.compound-object :as obj]
@@ -21,15 +22,6 @@
 (defn- initialize-generic
   [n generic-id default-id]
   (compile/install-and-run n (generic/make-generic-propagator generic-id default-id)))
-
-(defn- define-handler
-  [n generic-id method-key applicability handler]
-  (compile/install-and-run
-   n
-   (generic/define-generic-propagator-handler generic-id
-                                              method-key
-                                              applicability
-                                              handler)))
 
 (defn- apply-generic
   [n generic-id arg-ids out-id]
@@ -85,11 +77,12 @@
   [n generic-id handler-count]
   (reduce
    (fn [acc i]
-     (define-handler acc
-                     generic-id
-                     [:exact i]
-                     (generic/match-cells-pred #(= i %))
-                     (generic/handler-closure (fn [x] [:exact i x]))))
+     (compile/install-and-run
+      acc
+      (generic/define-generic-propagator-handler
+       generic-id
+       (generic/match-cells-pred #(= i %))
+       (generic/handler-closure (fn [x] [:exact i x])))))
    n
    (range handler-count)))
 
@@ -158,34 +151,79 @@
               generic-value
               (net/network-dict-entry generic-value :generic/policy)))))))
 
-(deftest generic-method-branch-is-plain-compound-map
-  (testing "method extension stores plain map data readable through compound slots"
+(deftest generic-method-branch-is-compound-slot-object
+  (testing "method extension stores slot data readable through compound slots"
     (let [{:keys [net generic-id]} (one-arg-generic-net 10)
           pred (generic/predicate-closure number?)
           handler (generic/handler-closure inc)
-          n2 (define-handler net
-                             generic-id
-                             :inc
-                             (generic/match-cells [pred])
-                             handler)
+          n2 (compile/install-and-run
+              net
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells [pred])
+               handler))
           generic-value (net/network-cell-strongest n2 generic-id)
-          branch-id (net/network-dict-entry generic-value [:generic/method :inc])
+          branch-entry (first (filter (fn [[slot-key _slot-id]]
+                                        (and (vector? slot-key)
+                                             (= :generic/method (first slot-key))))
+                                      (net/net-dict-or-empty generic-value)))
+          branch-id (second branch-entry)
           branch-value (net/network-cell-strongest generic-value branch-id)]
-      (is (map? branch-value))
-      (is (not (net/network? branch-value)))
+      (is (some? branch-entry))
+      (is (net/network? branch-value))
+      (is (= #{:method/predicates :method/matcher :method/handler}
+             (obj/public-slot-keys branch-value)))
       (is (= [pred] (obj/slot-value branch-value :method/predicates)))
       (is (= generic/all-args-match-closure
              (obj/slot-value branch-value :method/matcher)))
       (is (= handler (obj/slot-value branch-value :method/handler))))))
 
+(deftest generic-default-slot-preserves-nothing
+  (testing "slot-based default attachment keeps the-nothing as a real no-match default"
+    (let [generic-id (ids/new-node-id)
+          arg-id (ids/new-node-id)
+          default-id (ids/new-node-id)
+          out-id (ids/new-node-id)
+          n0 (-> (installed-cells generic-id arg-id default-id out-id)
+                 (nb/seed-cell arg-id :x)
+                 (nb/seed-cell default-id value/nothing))
+          n1 (initialize-generic n0 generic-id default-id)
+          generic-value (net/network-cell-strongest n1 generic-id)
+          n2 (apply-generic n1 generic-id [arg-id] out-id)]
+      (is (some? (net/network-dict-entry generic-value :generic/default)))
+      (is (= value/nothing (obj/slot-value generic-value :generic/default)))
+      (is (= value/nothing (net/network-cell-strongest n2 out-id))))))
+
+(deftest installed-generic-application-observes-late-handler-with-nothing-default
+  (testing "an existing generic application is woken by later handler attachment"
+    (let [generic-id (ids/new-node-id)
+          arg-id (ids/new-node-id)
+          default-id (ids/new-node-id)
+          out-id (ids/new-node-id)
+          n0 (-> (installed-cells generic-id arg-id default-id out-id)
+                 (nb/seed-cell arg-id "x")
+                 (nb/seed-cell default-id value/nothing))
+          n1 (initialize-generic n0 generic-id default-id)
+          [apply-prop n2] ((generic/p:apply-generic generic-id [arg-id] out-id) n1)
+          n3 (run-props n2 [apply-prop])
+          n4 (compile/install-and-run
+              n3
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred string?)
+               (generic/handler-closure (fn [x] [:string x]))))]
+      (is (= value/nothing (net/network-cell-strongest n3 out-id)))
+      (is (= [:string "x"] (net/network-cell-strongest n4 out-id))))))
+
 (deftest generic-propagator-selects-one-matching-method
   (testing "one defined method with true matcher emits its handler result"
     (let [{:keys [net generic-id arg-id out-id]} (one-arg-generic-net 10)
-          n2 (define-handler net
-                             generic-id
-                             :number
-                             (generic/match-cells-pred number?)
-                             (generic/handler-closure (fn [x] [:number x])))
+          n2 (compile/install-and-run
+              net
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred number?)
+               (generic/handler-closure (fn [x] [:number x]))))
           n3 (apply-generic n2 generic-id [arg-id] out-id)]
       (is (= [:number 10] (net/network-cell-strongest n3 out-id))))))
 
@@ -206,18 +244,19 @@
   (testing "generic debugger reports predicates, handler result, and selected value"
     (let [events (atom [])
           {:keys [net generic-id arg-id out-id]} (one-arg-generic-net 10)
-          n2 (define-handler net
-                             generic-id
-                             :inc
-                             (generic/match-cells-pred number?)
-                             (generic/handler-closure inc))]
+          n2 (compile/install-and-run
+              net
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred number?)
+               (generic/handler-closure inc)))]
       (try
         (debugger/set-sink! #(swap! events conj %))
         (debugger/enable!)
         (apply-generic n2 generic-id [arg-id] out-id)
         (let [method-event (first (filter #(= :generic/method (:event %)) @events))
               selected-event (first (filter #(= :generic/selected (:event %)) @events))]
-          (is (= :inc (:method-key method-event)))
+          (is (some? (:method-key method-event)))
           (is (= [true] (:predicate-results method-event)))
           (is (= true (:matched? method-event)))
           (is (= [10] (:filtered-args method-event)))
@@ -231,44 +270,49 @@
 (deftest generic-propagator-falls-back-when-no-method-matches
   (testing "false matcher leaves result bank empty, so select-one emits default"
     (let [{:keys [net generic-id arg-id out-id]} (one-arg-generic-net "x")
-          n2 (define-handler net
-                             generic-id
-                             :number
-                             (generic/match-cells-pred number?)
-                             (generic/handler-closure (fn [x] [:number x])))
+          n2 (compile/install-and-run
+              net
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred number?)
+               (generic/handler-closure (fn [x] [:number x]))))
           n3 (apply-generic n2 generic-id [arg-id] out-id)]
       (is (= :default (net/network-cell-strongest n3 out-id))))))
 
 (deftest generic-propagator-contradicts-when-two-methods-match
   (testing "two usable branch results reduce to contradiction"
     (let [{:keys [net generic-id arg-id out-id]} (one-arg-generic-net 10)
-          n2 (define-handler net
-                             generic-id
-                             :number
-                             (generic/match-cells-pred number?)
-                             (generic/handler-closure (fn [x] [:number x])))
-          n3 (define-handler n2
-                             generic-id
-                             :any
-                             (generic/match-cells-pred (constantly true))
-                             (generic/handler-closure (fn [x] [:any x])))
+          n2 (compile/install-and-run
+              net
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred number?)
+               (generic/handler-closure (fn [x] [:number x]))))
+          n3 (compile/install-and-run
+              n2
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred (constantly true))
+               (generic/handler-closure (fn [x] [:any x]))))
           n4 (apply-generic n3 generic-id [arg-id] out-id)]
       (is (= :bool4/contradiction (net/network-cell-strongest n4 out-id))))))
 
 (deftest late-generic-method-extension-affects-later-applications
   (testing "a later merged method branch changes later generic applications"
     (let [{:keys [net generic-id arg-id out-id]} (one-arg-generic-net "x")
-          n2 (define-handler net
-                             generic-id
-                             :number
-                             (generic/match-cells-pred number?)
-                             (generic/handler-closure (fn [x] [:number x])))
+          n2 (compile/install-and-run
+              net
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred number?)
+               (generic/handler-closure (fn [x] [:number x]))))
           first-app (apply-generic n2 generic-id [arg-id] out-id)
-          n3 (define-handler n2
-                             generic-id
-                             :string
-                             (generic/match-cells-pred string?)
-                             (generic/handler-closure (fn [x] [:string x])))
+          n3 (compile/install-and-run
+              n2
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred string?)
+               (generic/handler-closure (fn [x] [:string x]))))
           second-app (apply-generic n3 generic-id [arg-id] out-id)]
       (is (= :default (net/network-cell-strongest first-app out-id)))
       (is (= [:string "x"] (net/network-cell-strongest second-app out-id))))))
@@ -306,11 +350,12 @@
 (deftest generic-operator-wraps-apply-generic
   (testing "operator convenience installs the same generic application"
     (let [{:keys [net generic-id arg-id out-id]} (one-arg-generic-net 10)
-          n2 (define-handler net
-                             generic-id
-                             :inc
-                             (generic/match-cells-pred number?)
-                             (generic/handler-closure inc))
+          n2 (compile/install-and-run
+              net
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred number?)
+               (generic/handler-closure inc)))
           [apply-prop n3] (((generic/p:generic-operator generic-id) arg-id out-id) n2)
           n4 (run-props n3 [apply-prop])]
       (is (= 11 (net/network-cell-strongest n4 out-id))))))

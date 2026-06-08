@@ -4,11 +4,11 @@
             [propagators.compile :as compile]
             [propagators.datastructures.compound-object :as obj]
             [propagators.debugger :as debugger]
+            [propagators.ids :refer [new-node-id]]
             [propagators.layered :as layered]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.stdlib.arithmetic :as arithmetic]
             [propagators.stdlib.arithmetic.provenance :as provenance]
             [propagators.stdlib.layered :as layered-ops]
             [propagators.stdlib.provenance-arithmetic :as prov-arith]
@@ -37,12 +37,6 @@
      :a (compile/cell-ref ctx 'a)
      :b (compile/cell-ref ctx 'b)
      :out (compile/cell-ref ctx 'out)}))
-
-(defn- new-cell
-  [n sym]
-  (let [ctx (layered-ctx n {} (list 'let-cell [sym] sym))]
-    {:net (:net ctx)
-     :cell (compile/cell-ref ctx sym)}))
 
 (defn- new-output-cell
   [n]
@@ -85,6 +79,12 @@
          '(p:unitless current arg-a arg-b out)))))
    net/empty-net))
 
+(defn- install-procedure-layer-value
+  [n proc layer-name closure-value]
+  (let [closure-id (new-node-id)
+        n0 (nb/install-cell n closure-id closure-value closure-value)]
+    (layered/install-layered-procedure! n0 proc layer-name closure-id)))
+
 (defn- install-layered-inputs
   [n a b]
   (let [ctx (layered-ctx
@@ -100,6 +100,19 @@
      :a-base (compile/cell-ref ctx 'a-base)
      :a-prov (compile/cell-ref ctx 'a-prov)
      :b-base (compile/cell-ref ctx 'b-base)
+     :b-prov (compile/cell-ref ctx 'b-prov)}))
+
+(defn- install-provenance-inputs
+  [n a b]
+  (let [ctx (layered-ctx
+             n
+             {'a a 'b b}
+             '(let-cell [a-prov b-prov]
+                (layered/p:layer :provenance a-prov a)
+                (layered/p:layer :provenance b-prov b)))]
+    {:net (:net ctx)
+     :slot-props (:props ctx)
+     :a-prov (compile/cell-ref ctx 'a-prov)
      :b-prov (compile/cell-ref ctx 'b-prov)}))
 
 (defn- seed-layered-inputs
@@ -147,19 +160,6 @@
        (seed a-base a-value)
        (seed b-base b-value)))))
 
-(defn- extend-procedure-layer
-  "Special-case reactive path: merge a later layer via `install-layered-procedure!`."
-  [n proc extension-name layer closure-value]
-  (let [extension (new-cell n extension-name)
-        installed (layered/install-layered-procedure!
-                   (:net extension)
-                   proc
-                   (:cell extension)
-                   (arithmetic/procedure-extension layer closure-value))]
-    {:net (:net installed)
-     :extension (:cell extension)
-     :prop (:prop installed)}))
-
 (defn- run-layered-application
   [n install-apply a-value a-provenance b-value b-provenance]
   (let [call (new-layered-call n)
@@ -173,6 +173,9 @@
      :a a
      :b b
      :out out
+     :apply-prop (:prop apply)
+     :input input
+     :slot-props (:slot-props input)
      :out-object (net/network-cell-value n' out)}))
 
 (defn- run-base-only-application
@@ -185,7 +188,12 @@
                (seed-base-inputs input a-value b-value)
                (nb/run-propagators (conj (:slot-props input) (:prop apply))))]
     {:net n'
+     :a a
+     :b b
      :out out
+     :apply-prop (:prop apply)
+     :input input
+     :slot-props (:slot-props input)
      :out-object (net/network-cell-value n' out)}))
 
 (defn- run-operator-on-existing-inputs
@@ -287,18 +295,35 @@
 
 ;; --- Special case: reactive `install-layered-procedure!` / late layers
 
+(deftest layered-procedure-attachment-is-a-slot-propagator
+  (testing "raw layered procedure attachment is visible after running its slot prop"
+    (let [proc (new-node-id)
+          closure-id (new-node-id)
+          closure-value (units-closure-value)
+          n0 (nb/install-cells [proc closure-id])
+          [slot-prop n1] ((layered/p:layered-procedure :units closure-id proc) n0)
+          n2 (nb/seed-cell n1 closure-id closure-value)
+          n3 (nb/run-propagators n2 [slot-prop])]
+      (is (nil? (obj/slot-value (procedure-object n2 proc) :units)))
+      (is (= closure-value
+             (obj/slot-strongest (procedure-object n3 proc) :units))))))
+
 (deftest layered-procedure-builds-and-extends-slot-object
-  (testing "reactive extension merges an extra layer after full bootstrap"
+  (testing "reactive extension declares topology without materializing procedure state"
     (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
-          extended (extend-procedure-layer
-                    net
-                    proc
-                    'units-extension
-                    :units
-                    (units-closure-value))]
-      (is (obj/slot-strongest (procedure-object net proc) :base))
-      (is (obj/slot-strongest (procedure-object net proc) :provenance))
-      (is (obj/slot-strongest (procedure-object (:net extended) proc) :units)))))
+          extended (install-procedure-layer-value net
+                                                  proc
+                                                  :units
+                                                  (units-closure-value))
+          declarations (obj/slot-declarations-for (:net extended) proc)
+          visible-net (nb/run-propagators (:net extended) [(:prop extended)])]
+      (is (contains? declarations :base))
+      (is (contains? declarations :provenance))
+      (is (contains? declarations :units))
+      (is (nil? (obj/slot-strongest (procedure-object net proc) :base)))
+      (is (nil? (obj/slot-strongest (procedure-object net proc) :provenance)))
+      (is (nil? (obj/slot-strongest (procedure-object (:net extended) proc) :units)))
+      (is (obj/slot-strongest (procedure-object visible-net proc) :units)))))
 
 (deftest layered-operator-reuses-and-observes-procedure-extension
   (testing "layered/+ defined on base-only proc; provenance added later still affects re-apply"
@@ -308,12 +333,10 @@
                         #(install-operator-apply %1 'layered/+ operator %2 %3 %4)
                         1 #{:a}
                         2 #{:b})
-          extended (extend-procedure-layer
-                    (:net first-result)
-                    proc
-                    'prov-extension
-                    :provenance
-                    provenance/+)
+          extended (install-procedure-layer-value (:net first-result)
+                                                  proc
+                                                  :provenance
+                                                  provenance/+)
           output (new-output-cell (:net extended))
           out2 (:out output)
           second-result (run-operator-on-existing-inputs
@@ -326,3 +349,24 @@
       (assert-missing-layer (:out-object first-result) :provenance)
       (assert-layer (:out-object second-result) :base 3)
       (assert-layer (:out-object second-result) :provenance #{:a :b}))))
+
+(deftest installed-layered-application-observes-late-procedure-layer
+  (testing "later input slot updates let an installed application observe late procedure layers"
+    (let [{:keys [net proc operator]} (prov-arith/+ net/empty-net {:provenance? false})
+          first-result (run-base-only-application net proc 1 2)
+          extended (install-procedure-layer-value (:net first-result)
+                                                  proc
+                                                  :provenance
+                                                  provenance/+)
+          provenance-input (install-provenance-inputs (:net extended)
+                                                      (:a first-result)
+                                                      (:b first-result))
+          refired-net (-> (:net provenance-input)
+                          (nb/seed-cell (:a-prov provenance-input) #{:a})
+                          (nb/seed-cell (:b-prov provenance-input) #{:b})
+                          (nb/run-propagators (:slot-props provenance-input)))
+          out-object (net/network-cell-value refired-net (:out first-result))]
+      (assert-layer (:out-object first-result) :base 3)
+      (assert-missing-layer (:out-object first-result) :provenance)
+      (assert-layer out-object :base 3)
+      (assert-layer out-object :provenance #{:a :b}))))

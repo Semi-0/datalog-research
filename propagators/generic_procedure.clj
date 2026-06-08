@@ -3,15 +3,13 @@
 
   A generic procedure cell is a named-network value. Initialization installs the
   reducer policy/default slots once; method definitions merge compiled branch
-  fragments into the same cell."
+  slots into the same cell."
   (:require [propagators.application :as application]
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
             [propagators.datastructures.compound-object :as obj]
             [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
-            [propagators.layered :as layered]
-            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
@@ -51,26 +49,6 @@
   [& predicates]
   (match-cells (mapv predicate-closure predicates)))
 
-(defn- make-method-branch-value
-  [predicate-values matcher-value handler-value]
-  {:method/predicates (vec predicate-values)
-   :method/matcher matcher-value
-   :method/handler handler-value})
-
-(defn- make-method-extension
-  [method-key branch-value]
-  (nb/named-cell-net [[(vector method-tag method-key) branch-value]]))
-
-(defn- p:generic-slot-value
-  "Write a generic metadata slot directly, preserving `the-nothing` as a value."
-  [slot-key value-id generic-id]
-  (prop/construct-propagator
-   (fn [_inputs _outputs network]
-     (let [slot-value (net/network-cell-strongest network value-id)]
-       [(message generic-id (nb/named-cell-net [[slot-key slot-value]]))]))
-   [value-id]
-   [generic-id]))
-
 (defn make-generic-propagator
   "Initialize `generic-id` with fixed v1 select-one policy and `default-id`.
 
@@ -81,9 +59,56 @@
   (fn [n]
     (let [policy-id (ids/new-node-id)
           n0 (nb/install-cell n policy-id select-one-policy-tag select-one-policy-tag)
-          [policy-prop n1] ((layered/p:layer policy-slot policy-id generic-id) n0)
-          [default-prop n2] ((p:generic-slot-value default-slot default-id generic-id) n1)]
+          [policy-prop n1] ((obj/p:slot policy-slot policy-id generic-id) n0)
+          [default-prop n2] ((obj/p:slot default-slot default-id generic-id) n1)]
       [[policy-prop default-prop] n2])))
+
+(defn- value-cell
+  [n v]
+  (let [id (ids/new-node-id)]
+    [id (nb/install-cell n id v v)]))
+
+(defn- predicate-vector-installer
+  [predicate-ids predicates-id]
+  (apply (prop/primitive-propagator vector)
+         (conj (vec predicate-ids) predicates-id)))
+
+(defn- install-method-attachment
+  [n generic-id method-key predicate-ids matcher-id handler-id]
+  (let [predicates-id (ids/new-node-id)
+        branch-id (ids/new-node-id)
+        n0 (-> n
+               (nb/install-cell predicates-id)
+               (nb/install-cell branch-id))
+        [predicates-prop n1] ((predicate-vector-installer predicate-ids predicates-id) n0)
+        [predicates-slot-prop n2] ((obj/p:slot :method/predicates predicates-id branch-id) n1)
+        [matcher-slot-prop n3] ((obj/p:slot :method/matcher matcher-id branch-id) n2)
+        [handler-slot-prop n4] ((obj/p:slot :method/handler handler-id branch-id) n3)
+        [method-slot-prop n5] ((obj/p:slot (vector method-tag method-key)
+                                           branch-id
+                                           generic-id)
+                               n4)]
+    [[predicates-prop
+      predicates-slot-prop
+      matcher-slot-prop
+      handler-slot-prop
+      method-slot-prop]
+     n5]))
+
+(defn- define-generic-propagator*
+  "Merge one method branch into an initialized generic procedure cell.
+
+  `predicate-ids` are ordered per-argument predicate closure cells.
+  `arg-matcher-id` is a closure cell over predicate result booleans.
+  `handler-id` is a closure cell over the filtered arguments."
+  [generic-id method-key predicate-ids arg-matcher-id handler-id]
+  (fn [n]
+    (install-method-attachment n
+                               generic-id
+                               method-key
+                               predicate-ids
+                               arg-matcher-id
+                               handler-id)))
 
 (defn define-generic-propagator
   "Merge one method branch into an initialized generic procedure cell.
@@ -91,60 +116,48 @@
   `predicate-ids` are ordered per-argument predicate closure cells.
   `arg-matcher-id` is a closure cell over predicate result booleans.
   `handler-id` is a closure cell over the filtered arguments."
-  [generic-id method-key predicate-ids arg-matcher-id handler-id]
-  (prop/construct-propagator
-   (fn [_inputs _outputs network]
-     (let [predicate-values (mapv #(net/network-cell-strongest network %) predicate-ids)
-           matcher-value (net/network-cell-strongest network arg-matcher-id)
-           handler-value (net/network-cell-strongest network handler-id)]
-       (if (or (apply value/any-unusable-values? predicate-values)
-               (value/unusable? matcher-value)
-               (value/unusable? handler-value))
-         []
-         [(message generic-id
-                   (make-method-extension
-                    method-key
-                    (make-method-branch-value predicate-values
-                                              matcher-value
-                                              handler-value)))])))
-   (into (vec predicate-ids) [arg-matcher-id handler-id])
-   [generic-id]))
+  [generic-id predicate-ids arg-matcher-id handler-id]
+  (define-generic-propagator* generic-id
+                              (generated-method-key)
+                              predicate-ids
+                              arg-matcher-id
+                              handler-id))
 
-(defn- resolve-cell-or-value
-  [network x]
-  (if (ids/node-id? x)
-    (net/network-cell-strongest network x)
-    x))
+(defn- define-generic-propagator-handler*
+  "Merge one generic handler into `generic-id`.
+
+  `applicability` is built with `match-cells` or `match-cells-pred`.
+  `handler` may be a handler closure value or a cell id containing one."
+  [generic-id method-key applicability handler]
+  (fn [n]
+    (let [[predicate-ids n1]
+          (reduce
+           (fn [[ids acc] predicate-value]
+             (let [[predicate-id acc'] (value-cell acc predicate-value)]
+               [(conj ids predicate-id) acc']))
+           [[] n]
+           (:predicate-closures applicability))
+          [matcher-id n2] (value-cell n1 (:matcher-closure applicability))
+          [handler-id n3] (if (ids/node-id? handler)
+                            [handler n2]
+                            (value-cell n2 handler))]
+      (install-method-attachment n3
+                                 generic-id
+                                 method-key
+                                 predicate-ids
+                                 matcher-id
+                                 handler-id))))
 
 (defn define-generic-propagator-handler
   "Merge one generic handler into `generic-id`.
 
   `applicability` is built with `match-cells` or `match-cells-pred`.
   `handler` may be a handler closure value or a cell id containing one."
-  ([generic-id applicability handler]
-   (define-generic-propagator-handler generic-id
+  [generic-id applicability handler]
+  (define-generic-propagator-handler* generic-id
                                       (generated-method-key)
                                       applicability
                                       handler))
-  ([generic-id method-key applicability handler]
-   (prop/construct-propagator
-    (fn [_inputs _outputs network]
-      (let [predicate-values (:predicate-closures applicability)
-            matcher-value (:matcher-closure applicability)
-            handler-value (resolve-cell-or-value network handler)]
-        (if (or (apply value/any-unusable-values? predicate-values)
-                (value/unusable? matcher-value)
-                (value/unusable? handler-value))
-          []
-          [(message generic-id
-                    (make-method-extension
-                     method-key
-                     (make-method-branch-value predicate-values
-                                               matcher-value
-                                               handler-value)))])))
-    (cond-> []
-      (ids/node-id? handler) (conj handler))
-    [generic-id])))
 
 (defn- method-slot?
   [slot-key]
@@ -164,6 +177,21 @@
    :matcher (obj/slot-value branch-value :method/matcher)
    :handler (obj/slot-value branch-value :method/handler)})
 
+(defn- compound-slot-present?
+  [compound-value slot-key]
+  (let [compound-net (obj/compound-object compound-value)]
+    (and (not (value/contradiction? compound-net))
+         (some? (net/network-dict-entry compound-net slot-key)))))
+
+(defn- complete-method-spec?
+  [{:keys [predicates matcher handler]}]
+  (and (vector? predicates)
+       (not (apply value/any-unusable-values? predicates))
+       (some? matcher)
+       (not (value/unusable? matcher))
+       (some? handler)
+       (not (value/unusable? handler))))
+
 (defn- generic-methods
   [generic-value]
   (->> (net/net-dict-or-empty generic-value)
@@ -173,6 +201,7 @@
                   :branch-value (net/network-cell-strongest generic-value slot-id)})))
        (sort-by (comp pr-str method-key))
        (mapv make-method-spec)
+       (filter complete-method-spec?)
        vec))
 
 (defn- install-method-closures
@@ -222,8 +251,12 @@
     {:outer-net outer-net
      :generic-value generic-value
      :arg-ids arg-ids
+     :default-present? (when-not (value/unusable? generic-value)
+                         (compound-slot-present? generic-value default-slot))
      :default-value (when-not (value/unusable? generic-value)
                       (obj/slot-value generic-value default-slot))
+     :policy-present? (when-not (value/unusable? generic-value)
+                        (compound-slot-present? generic-value policy-slot))
      :policy-value (when-not (value/unusable? generic-value)
                      (obj/slot-value generic-value policy-slot))
      :methods (when-not (value/unusable? generic-value)
@@ -234,10 +267,12 @@
   (application/cells-usable? outer-net arg-ids))
 
 (defn- generic-application-ready?
-  [{:keys [generic-value default-value policy-value] :as context}]
+  [{:keys [generic-value default-present? default-value policy-present? policy-value] :as context}]
   (and (not (value/unusable? generic-value))
        (context-args-usable? context)
+       default-present?
        (not (value/contradiction? default-value))
+       policy-present?
        (= select-one-policy-tag policy-value)))
 
 (defn- generic-reducer-install

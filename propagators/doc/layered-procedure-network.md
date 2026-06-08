@@ -15,12 +15,10 @@ Layered procedures are modeled as pure propagator values.
 
 Bootstrap and compile policy: see [Builder Policy, Run Order, and Correctness](builder-policy-run-order-and-correctness.md) and [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md). Test helpers that split `eval-layered` (install apply, then seed, then manual `run-propagators`) assume **`:lazy`**; under **`:queue`** they run apply before seeds unless refactored into a single `(do …)` flush boundary. A layered procedure
 cell stores a named-network procedure object. Extending a procedure means
-propagating another named-network fragment into that cell; normal cell merge
-accumulates the branches.
+attaching a closure cell as a compound-object slot on that procedure cell.
 
 There is no global layer registry, atom, or mutation-based default table in
-`propagators.layered`. Defaults are represented as ordinary procedure extension
-fragments.
+`propagators.layered`. Defaults are represented as ordinary procedure slots.
 
 ## Core Shape
 
@@ -31,20 +29,18 @@ Layered data and layered procedures both use compound-object slots:
 (layered/p:layer :provenance provenance-cell layered-object)
 ```
 
-A procedure extension is a named-network value. For example, a base extension
-for `+` is a named network whose `:base` slot contains a closure value. A
-provenance extension is another named network whose `:provenance` slot contains
-the provenance closure.
+A procedure layer is a closure cell attached to the procedure object under its
+layer name. For example, the `:base` slot contains the base closure for `+`, and
+the `:provenance` slot contains the provenance closure.
 
 `p:layered-procedure` is a normal propagator:
 
 ```clojure
-extension-cell -> procedure-cell
+(layered/p:layered-procedure :base base-closure plus-proc)
 ```
 
-When the extension cell has a usable named-network value, the propagator emits
-that value to the procedure cell. The merge layer then joins it with any earlier
-procedure fragments.
+It delegates to `compound-object/p:slot`, so the closure cell and procedure
+slot stay synchronized through normal propagation.
 
 ## Applying A Procedure
 
@@ -145,34 +141,40 @@ Default stdlib bootstrap (base + provenance on a fresh `proc`):
 Reactive / manual extension (library boundary):
 
 ```clojure
-(def plus-base-extension (new-node-id))
-
-(layered/install-layered-procedure!
-  network
-  plus-proc
-  plus-base-extension
-  (arithmetic/plus-base-extension))
+(let [{:keys [net prop]}
+      (layered/install-layered-procedure!
+        network
+        plus-proc
+        :base
+        plus-base-closure)]
+  (nb/run-propagators net [prop]))
 ```
 
 Reactive wiring by hand (same semantics):
 
 ```clojure
-((layered/p:layered-procedure plus-proc plus-base-extension) network)
-(nb/seed-cell network plus-base-extension (arithmetic/plus-base-extension))
+(def plus-base-closure-id (new-node-id))
+
+((layered/p:layered-procedure :base plus-base-closure-id plus-proc) network)
+(nb/seed-cell network plus-base-closure-id plus-base-closure)
 (nb/run-propagators network [prop-id])
 ```
 
 Later, merge provenance behavior without redefining `p:+`:
 
 ```clojure
-(def plus-provenance-extension (new-node-id))
+(def plus-provenance-closure-id (new-node-id))
 
-((layered/p:layered-procedure plus-proc plus-provenance-extension) network)
-(nb/seed-cell network plus-provenance-extension
-              (nb/named-cell-net [[:provenance plus-provenance-closure]]))
+((layered/p:layered-procedure :provenance plus-provenance-closure-id plus-proc)
+ network)
+(nb/seed-cell network plus-provenance-closure-id plus-provenance-closure)
+(nb/run-propagators network [prop-id])
 ```
 
-Future `(p:+ a b out)` installations use the expanded procedure cell.
+After the returned or manually installed slot prop runs, future
+`(p:+ a b out)` installations use the expanded procedure cell. Already
+installed applications that depend on the procedure cell are also woken by the
+procedure-cell update.
 
 ## Runtime Notes
 
@@ -186,9 +188,8 @@ sets for adjacency, but compound closures need stable port order.
 
 ## Planned Bootstrap API
 
-The current tests use extension cells + `seed` + manual `run-propagators` for
-every arithmetic procedure. That is the reactive extension path, not the only
-path.
+The current tests use closure cells + slot propagators for reactive procedure
+extension.
 
 See [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)
 for the two-stage plan to (1) experiment with eager installer/compile

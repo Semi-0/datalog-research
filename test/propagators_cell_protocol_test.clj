@@ -34,16 +34,16 @@
   (install-intensity (protocol-net)))
 
 (defn- define-merge-handler
-  [n method-key applicability handler]
+  [n applicability handler]
   (compile/install-and-run
    n
-   (protocol/define-merge-handler method-key applicability handler)))
+   (protocol/define-merge-handler applicability handler)))
 
 (defn- define-strongest-handler
-  [n method-key applicability handler]
+  [n applicability handler]
   (compile/install-and-run
    n
-   (protocol/define-strongest-handler method-key applicability handler)))
+   (protocol/define-strongest-handler applicability handler)))
 
 (defn- intensity-update
   [intensity payload]
@@ -80,12 +80,10 @@
     (let [n0 (protocol-net)
           n1 (define-merge-handler
               n0
-              :merge-left-right
               (generic/match-cells-pred #(= :left %) #(= :right %))
               (generic/handler-closure (fn [_content _update] :merged)))
           n2 (define-strongest-handler
               n1
-              :strongest-first
               (generic/match-cells-pred vector?)
               (generic/handler-closure first))]
       (is (= :merged (merge/cell-merge :left :right n2)))

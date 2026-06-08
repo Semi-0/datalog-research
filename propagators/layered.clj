@@ -6,7 +6,6 @@
             [propagators.datastructures.named-network :as named]
             [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
-            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
@@ -21,30 +20,30 @@
   (p:layer :base base-value-id layered-object-id))
 
 (defn p:layered-procedure
-  "Merge one procedure-network extension cell into a layered procedure cell."
-  [proc-id extension-id]
-  (prop/construct-propagator
-   (fn [_inputs _outputs network]
-     (let [extension (net/network-cell-strongest network extension-id)]
-       (if (value/unusable? extension)
-         []
-         [(message proc-id extension)])))
-   [extension-id]
-   [proc-id]))
+  "Attach one closure cell as a layer on a layered procedure cell."
+  [layer-name closure-id proc-id]
+  (p:layer layer-name closure-id proc-id))
+
+(defn- ensure-cell
+  [n id]
+  (if (contains? (net/net-env n) id)
+    n
+    (nb/install-cell n id)))
 
 (defn install-layered-procedure!
-  "Library boundary for reactive procedure extension.
+  "Declare a reactive procedure layer.
 
-  Wires `p:layered-procedure` from `extension-id` to `proc-id`, seeds
-  `extension-id` with named-network `fragment`, and runs the merge propagator
-  so `proc-id` accumulates the new layer branch.
-
-  Returns `{:net network' :prop prop-id}`."
-  [n proc-id extension-id fragment]
-  (let [[prop-id n'] ((p:layered-procedure proc-id extension-id) n)
-        n'' (nb/seed-cell n' extension-id fragment)
-        n''' (nb/run-propagators n'' [prop-id])]
-    {:net n''' :prop prop-id}))
+  This is topology only: it ensures the procedure and closure cells exist,
+  installs the slot propagator, and records the slot declaration through
+  `obj/p:slot`. It does not seed values, run propagators, or enqueue tasks."
+  [n proc-id layer-name closure-id]
+  (let [n0 (-> n
+               (ensure-cell proc-id)
+               (ensure-cell closure-id))
+        [prop-id n1] ((p:layered-procedure layer-name closure-id proc-id) n0)]
+    {:net n1
+     :prop prop-id
+     :closure closure-id}))
 
 (declare p:apply-layered)
 
@@ -72,38 +71,56 @@
     (value/nothing? v) (net/net-with-dict net/empty-net {:slot-index {}})
     :else (layer-object-net {:base v})))
 
-(defn- ignored-dict-key?
-  [k]
-  (or (= k :slot-index)
-      (and (vector? k)
-           (= (first k) obj/slot-sync-key))
-      (ids/node-id? k)))
+(defn- usable-layer-value?
+  [v]
+  (and (some? v)
+       (not (value/unusable? v))))
+
+(defn- layer-values-from-object
+  [v]
+  (cond
+    (named/named-network? v)
+    (->> (obj/public-slot-keys v)
+         (keep (fn [layer-name]
+                 (let [layer-value (obj/slot-value v layer-name)]
+                   (when (usable-layer-value? layer-value)
+                     [layer-name layer-value]))))
+         (into {}))
+
+    (value/unusable? v)
+    {}
+
+    :else
+    {:base v}))
 
 (defn- available-branches
   [v]
-  (if (named/named-network? v)
-    (->> (keys (net/net-dict-or-empty v))
-         (remove ignored-dict-key?)
-         (filter #(not (value/nothing?
-                         (net/network-cell-strongest v (net/network-dict-entry v %)))))
-         set)
-    #{:base}))
+  (set (keys (layer-values-from-object v))))
 
 (defn- layer-present?
   [v layer-name]
   (contains? (available-branches v) layer-name))
 
 (defn- install-layer-closure-cell
-  [n proc-id layer-name]
-  (let [closure-id (ids/new-node-id)
-        [slot-prop-id n'] ((p:layer layer-name closure-id proc-id) (nb/install-cell n closure-id))]
-    {:closure-id closure-id
-     :slot-prop-id slot-prop-id
-     :network n'}))
+  [n proc-id layer-name layer-values]
+  (let [closure-id (ids/new-node-id)]
+    (if (contains? layer-values layer-name)
+      {:closure-id closure-id
+       :slot-prop-ids []
+       :network (nb/install-cell n
+                                 closure-id
+                                 (get layer-values layer-name)
+                                 (get layer-values layer-name))}
+      (let [[slot-prop-id n'] ((p:layer layer-name closure-id proc-id)
+                               (nb/install-cell n closure-id))]
+        {:closure-id closure-id
+         :slot-prop-ids [slot-prop-id]
+         :network n'}))))
 
 (defn- install-base-layer
-  [n proc-id arg-ids result-bank-id layer-prop-ids]
-  (let [{:keys [closure-id slot-prop-id network]} (install-layer-closure-cell n proc-id :base)
+  [n proc-id arg-ids result-bank-id layer-prop-ids layer-values]
+  (let [{:keys [closure-id slot-prop-ids network]}
+        (install-layer-closure-cell n proc-id :base layer-values)
         arg-base-ids (vec (repeatedly (count arg-ids) ids/new-node-id))
         out-base-id (ids/new-node-id)
         n1 (reduce
@@ -120,11 +137,14 @@
         [compound-prop-id n3] ((prop/compound-propagator closure-id arg-base-ids [out-base-id]) n2)
         [out-slot-prop-id n4] ((p:base out-base-id result-bank-id) n3)]
     [n4 (into layer-prop-ids
-              (conj arg-slot-prop-ids slot-prop-id compound-prop-id out-slot-prop-id))]))
+              (concat arg-slot-prop-ids
+                      slot-prop-ids
+                      [compound-prop-id out-slot-prop-id]))]))
 
 (defn- install-non-base-layer
-  [n proc-id arg-ids out-id result-bank-id layer-name layer-prop-ids]
-  (let [{:keys [closure-id slot-prop-id network]} (install-layer-closure-cell n proc-id layer-name)
+  [n proc-id arg-ids out-id result-bank-id layer-name layer-prop-ids layer-values]
+  (let [{:keys [closure-id slot-prop-ids network]}
+        (install-layer-closure-cell n proc-id layer-name layer-values)
         current-id (ids/new-node-id)
         result-id (ids/new-node-id)
         n1 (-> network
@@ -136,26 +156,34 @@
                                                          [result-id])
                                n2)
         [result-slot-prop-id n4] ((p:layer layer-name result-id result-bank-id) n3)]
-    [n4 (conj layer-prop-ids
-              slot-prop-id
-              current-slot-prop-id
-              compound-prop-id
-              result-slot-prop-id)]))
+    [n4 (into layer-prop-ids
+              (concat slot-prop-ids
+                      [current-slot-prop-id
+                       compound-prop-id
+                       result-slot-prop-id]))]))
 
 (defn- install-layer-application
-  [n proc-id arg-ids out-id result-bank-id layer-name arg-values prop-ids]
+  [n proc-id arg-ids out-id result-bank-id layer-name arg-values prop-ids layer-values]
   (cond
     (= layer-name :base)
-    (conj (install-base-layer n proc-id arg-ids result-bank-id prop-ids) true)
+    (conj (install-base-layer n proc-id arg-ids result-bank-id prop-ids layer-values) true)
 
     (some #(layer-present? % layer-name) arg-values)
-    (conj (install-non-base-layer n proc-id arg-ids out-id result-bank-id layer-name prop-ids) true)
+    (conj (install-non-base-layer n
+                                  proc-id
+                                  arg-ids
+                                  out-id
+                                  result-bank-id
+                                  layer-name
+                                  prop-ids
+                                  layer-values)
+          true)
 
     :else
     [n prop-ids false]))
 
 (defn- install-layer-branches
-  [n frame proc-id arg-ids out-id layers arg-values]
+  [n frame proc-id arg-ids out-id layers arg-values layer-values]
   (let [{:keys [result-bank-id]} frame
         [branch-net branch-prop-ids active-layers]
         (reduce
@@ -168,7 +196,8 @@
                                             result-bank-id
                                             layer-name
                                             arg-values
-                                            prop-ids)]
+                                            prop-ids
+                                            layer-values)]
              [n' prop-ids' (cond-> active-layers installed? (conj layer-name))]))
          [n [] []]
          layers)]
@@ -177,16 +206,63 @@
      :active-layers active-layers}))
 
 (defn- layered-cell-specs
-  [outer-net proc-id arg-ids out-id]
-  (into [(application/copied-cell outer-net proc-id normalize-layered-value)
+  [outer-net proc-id arg-ids out-id proc-value]
+  (into [(application/value-cell proc-id proc-value)
          (application/copied-cell outer-net out-id normalize-layered-value)]
         (map #(application/copied-cell outer-net % normalize-layered-value))
         arg-ids))
 
+(defn- copy-outer-cell
+  ([n outer-net id]
+   (copy-outer-cell n outer-net id identity))
+  ([n outer-net id normalize]
+   (cond
+     (contains? (net/net-env n) id)
+     n
+
+     (contains? (net/net-env outer-net) id)
+     (let [v (normalize (net/network-cell-strongest outer-net id))]
+       (nb/install-cell n id v v))
+
+     :else
+     (nb/install-cell n id))))
+
+(defn- declared-procedure-layer-ids
+  [outer-net proc-id]
+  (->> (obj/slot-declarations-for outer-net proc-id)
+       (mapcat (fn [[layer-name parent->declaration]]
+                 (map (fn [closure-id] [layer-name closure-id])
+                      (keys parent->declaration))))
+       (sort-by (fn [[layer-name closure-id]]
+                  [(pr-str layer-name) (pr-str closure-id)]))
+       vec))
+
+(defn- materialize-procedure
+  [outer-net proc-id]
+  (let [declared-layers (declared-procedure-layer-ids outer-net proc-id)
+        n0 (copy-outer-cell net/empty-net outer-net proc-id normalize-layered-value)
+        n1 (reduce (fn [acc [_layer-name closure-id]]
+                     (copy-outer-cell acc outer-net closure-id))
+                   n0
+                   declared-layers)
+        [slot-prop-ids n2]
+        (reduce
+         (fn [[prop-ids acc] [layer-name closure-id]]
+           (let [[prop-id acc'] ((p:layered-procedure layer-name closure-id proc-id)
+                                 acc)]
+             [(conj prop-ids prop-id) acc']))
+         [[] n1]
+         declared-layers)
+        materialized-net (nb/run-propagators n2 slot-prop-ids)
+        proc-value (net/network-cell-strongest materialized-net proc-id)]
+    {:net materialized-net
+     :value proc-value
+     :layer-values (layer-values-from-object proc-value)}))
+
 (defn- build-layered-application
-  [outer-net proc-id arg-ids out-id layers arg-values]
+  [outer-net proc-id arg-ids out-id layers arg-values layer-values proc-value]
   (application/build-branch-application
-   {:cell-specs (layered-cell-specs outer-net proc-id arg-ids out-id)
+   {:cell-specs (layered-cell-specs outer-net proc-id arg-ids out-id proc-value)
     :install-branches (fn [n frame]
                         (install-layer-branches n
                                                 frame
@@ -194,7 +270,8 @@
                                                 arg-ids
                                                 out-id
                                                 layers
-                                                arg-values))
+                                                arg-values
+                                                layer-values))
     :reducer-install (fn [{:keys [active-layers result-bank-id reduced-out-id]}]
                        (dispatch/reduce-results
                         (dispatch/layered-object-policy active-layers)
@@ -209,21 +286,25 @@
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
   (fn [_input-ids _output-ids outer-net]
-    (let [proc-value (net/network-cell-strongest outer-net proc-id)
-          arg-values (application/cell-values outer-net arg-ids)]
-      (if (or (value/unusable? proc-value)
-              (apply value/any-unusable-values? arg-values))
+    (let [arg-values (application/cell-values outer-net arg-ids)]
+      (if (apply value/any-unusable-values? arg-values)
         []
-        (let [layers (available-branches proc-value)
-              {:keys [reduced-out-id] :as app}
-              (build-layered-application outer-net
-                                         proc-id
-                                         arg-ids
-                                         out-id
-                                         layers
-                                         arg-values)
-              after (application/run-reduced-application app)]
-          (application/diff-reduced-output outer-net after reduced-out-id out-id))))))
+        (let [{proc-value :value layer-values :layer-values}
+              (materialize-procedure outer-net proc-id)
+              layers (sort-by pr-str (keys layer-values))]
+          (if (empty? layers)
+            []
+            (let [{:keys [reduced-out-id] :as app}
+                  (build-layered-application outer-net
+                                             proc-id
+                                             arg-ids
+                                             out-id
+                                             layers
+                                             arg-values
+                                             layer-values
+                                             proc-value)
+                  after (application/run-reduced-application app)]
+              (application/diff-reduced-output outer-net after reduced-out-id out-id))))))))
 
 (defn p:apply-layered
   [proc-id arg-ids out-id]

@@ -14,8 +14,8 @@ Source files:
 
 Generic procedures are propagator-native dispatch values. A generic procedure
 cell stores policy/default slots plus method branch data in one named-network
-value. Method extension is ordinary cell merge: adding a method means emitting a
-new named-network fragment into the generic cell.
+value. Method extension is ordinary slot propagation: adding a method installs
+compound-object slot links into the generic cell.
 
 The cell merge/strongest protocol uses two generic procedure cells installed
 inside the same network:
@@ -55,8 +55,8 @@ V1 policy is fixed to `:select-one`:
 - one usable branch result emits that result
 - multiple usable branch results emits contradiction
 
-The default slot is written directly, not through `p:layer`, so
-`the-nothing` is a real no-match default value rather than an absent slot.
+The default slot is attached with `compound-object/p:slot`, so `the-nothing` is
+a real no-match default value rather than an absent slot.
 
 ## Method Extension
 
@@ -65,7 +65,6 @@ The ergonomic handler API is:
 ```clojure
 (generic/define-generic-propagator-handler
   generic-id
-  method-key
   (generic/match-cells-pred number? number?)
   (generic/handler-closure +))
 ```
@@ -74,7 +73,7 @@ The ergonomic handler API is:
 The default matcher is `all-args-match-closure`: every predicate result must be
 `true`.
 
-Stored method branch values are plain compound-compatible maps:
+Stored method branch values are compound-object slot values:
 
 ```clojure
 {:method/predicates [predicate-closure-a predicate-closure-b]
@@ -102,6 +101,15 @@ generic cell + args
 The generic procedure does not use a central imperative dispatch switch. Branches
 are ordinary propagator topology, and dispatch is parallel execution plus a
 reducer.
+
+Known limitation: if an already-run generic application has emitted a concrete
+default value into its output, attaching a later matching handler to the same
+generic cell cannot yet replace that same output cleanly. The outer output cell
+currently receives the reducer's strongest value, not durable reducer content,
+so the concrete default and the later handler value merge as ordinary cell
+values. Reactive late handler attachment is supported when no concrete default
+has already been committed, for example with `the-nothing` as the default, or by
+running a later application with a fresh output cell.
 
 For pure protocol execution there is also:
 
@@ -154,12 +162,10 @@ Extend them like any other generic procedure:
 
 ```clojure
 (protocol/define-merge-handler
-  :merge-left-right
   (generic/match-cells-pred #(= :left %) #(= :right %))
   (generic/handler-closure (fn [_content _update] :merged)))
 
 (protocol/define-strongest-handler
-  :strongest-first
   (generic/match-cells-pred vector?)
   (generic/handler-closure first))
 ```
@@ -332,7 +338,7 @@ strongest, or scheduling semantics.
 `test/propagators_generic_procedure_test.clj` covers:
 
 - select-one initialization
-- plain map method branch storage
+- compound-object method branch storage
 - one match, no match, and multiple-match contradiction
 - late method extension affecting later applications
 - operator wrapper

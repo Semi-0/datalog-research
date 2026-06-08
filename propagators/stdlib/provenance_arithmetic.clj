@@ -8,29 +8,27 @@
   (:refer-clojure :exclude [+ - * /])
   (:require [propagators.ids :refer [new-node-id]]
             [propagators.layered :as layered]
-            [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.stdlib.arithmetic :as arithmetic]
             [propagators.stdlib.arithmetic.base :as base]
             [propagators.stdlib.arithmetic.intensity :as intensity]
             [propagators.stdlib.arithmetic.provenance :as provenance]
             [propagators.stdlib.layered :as layered-ops]))
 
-(defn- fragments
+(defn- closures
   [op]
   (case op
-    :+ {:base (arithmetic/base-extension base/plus-closure)
-        :prov (arithmetic/provenance-extension provenance/+)
-        :intensity (arithmetic/intensity-extension intensity/+)}
-    :- {:base (arithmetic/minus-base-extension)
-        :prov (arithmetic/minus-provenance-extension)
-        :intensity (arithmetic/minus-intensity-extension)}
-    :* {:base (arithmetic/times-base-extension)
-        :prov (arithmetic/times-provenance-extension)
-        :intensity (arithmetic/times-intensity-extension)}
-    :/ {:base (arithmetic/divide-base-extension)
-        :prov (arithmetic/divide-provenance-extension)
-        :intensity (arithmetic/divide-intensity-extension)}
+    :+ {:base base/plus-closure
+        :provenance provenance/+
+        :intensity intensity/+}
+    :- {:base base/minus-closure
+        :provenance provenance/-
+        :intensity intensity/-}
+    :* {:base base/times-closure
+        :provenance provenance/*
+        :intensity intensity/*}
+    :/ {:base base/divide-closure
+        :provenance provenance//
+        :intensity intensity//}
     (throw (ex-info "unknown layered arithmetic op" {:op op}))))
 
 (defn- layered-operator
@@ -41,6 +39,16 @@
     :* (layered-ops/* proc-id)
     :/ (layered-ops// proc-id)))
 
+(defn- install-closure-cell
+  [n closure-value]
+  (let [closure-id (new-node-id)]
+    [closure-id (nb/install-cell n closure-id closure-value closure-value)]))
+
+(defn- install-layer!
+  [n proc layer-name closure-value]
+  (let [[closure-id n0] (install-closure-cell n closure-value)]
+    (layered/install-layered-procedure! n0 proc layer-name closure-id)))
+
 (defn install!
   "Install base (+ optional provenance/intensity) layers on a fresh `proc` in `n`.
 
@@ -49,33 +57,20 @@
            :or {provenance? true
                 intensity? false}}]
   (let [proc (new-node-id)
-        base-extension (new-node-id)
-        prov-extension (new-node-id)
-        intensity-extension (new-node-id)
-        {:keys [base prov intensity]} (fragments op)
-        n0 (reduce nb/install-cell n [proc
-                                       base-extension
-                                       prov-extension
-                                       intensity-extension])
-        {:keys [net]} (layered/install-layered-procedure!
-                       n0
-                       proc
-                       base-extension
-                       base)
-        {:keys [net]} (if provenance?
-                        (layered/install-layered-procedure!
-                         net
-                         proc
-                         prov-extension
-                         prov)
-                        {:net net})
-        {:keys [net]} (if intensity?
-                        (layered/install-layered-procedure!
-                         net
-                         proc
-                         intensity-extension
-                         intensity)
-                        {:net net})]
+        {:keys [base provenance intensity]} (closures op)
+        n0 (nb/install-cell n proc)
+        base-layer (install-layer! n0 proc :base base)
+        provenance-layer (when provenance?
+                           (install-layer! (:net base-layer)
+                                           proc
+                                           :provenance
+                                           provenance))
+        intensity-layer (when intensity?
+                          (install-layer! (:net (or provenance-layer base-layer))
+                                          proc
+                                          :intensity
+                                          intensity))
+        net (:net (or intensity-layer provenance-layer base-layer))]
     {:net net
      :proc proc
      :operator (layered-operator op proc)}))
