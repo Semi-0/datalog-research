@@ -81,6 +81,11 @@
   [v]
   (mapv record-map (behavior/history-records v)))
 
+(defn- interval-map
+  [interval]
+  {:from (obj/slot-value interval :from)
+   :to (obj/slot-value interval :to)})
+
 (deftest behavior-history-state-is-slot-addressable
   (testing "reducer accumulator state is a compound-object layered value"
     (let [state (behavior/history-state
@@ -113,8 +118,11 @@
           result (run (:net reducer) (:props reducer))
           out-content (content result out-id)]
       (is (= :x (current-value result out-id)))
-      (is (= #{6} (behavior/summary-source-keys (strongest result out-id))))
+      (is (= 6 (behavior/summary-latest-time (strongest result out-id))))
       (is (= 1 (behavior/summary-retained-count (strongest result out-id))))
+      (is (= {:from 6 :to 6}
+             (interval-map
+              (behavior/summary-retained-interval (strongest result out-id)))))
       (is (= #{6} (obj/public-slot-keys out-content)))
       (is (= {:history [{:at 6 :value :x}]
               :source-keys #{6}
@@ -165,9 +173,11 @@
           result (run (:net event-20) [(:prop event-20)])
           out-content (content result out-id)]
       (is (= :c (current-value result out-id)))
-      (is (= #{10 20 30}
-             (behavior/summary-source-keys (strongest result out-id))))
+      (is (= 30 (behavior/summary-latest-time (strongest result out-id))))
       (is (= 3 (behavior/summary-retained-count (strongest result out-id))))
+      (is (= {:from 10 :to 30}
+             (interval-map
+              (behavior/summary-retained-interval (strongest result out-id)))))
       (is (= [{:at 10 :value :a}
               {:at 20 :value :b}
               {:at 30 :value :c}]
@@ -269,7 +279,11 @@
           result (run (:net event-3) [(:prop event-3)])
           out-content (content result out-id)]
       (is (= :c (current-value result out-id)))
+      (is (= 3 (behavior/summary-latest-time (strongest result out-id))))
       (is (= 2 (behavior/summary-retained-count (strongest result out-id))))
+      (is (= {:from 2 :to 3}
+             (interval-map
+              (behavior/summary-retained-interval (strongest result out-id)))))
       (is (= [{:at 2 :value :b}
               {:at 3 :value :c}]
              (records out-content)))
@@ -294,9 +308,13 @@
       (is (= :b
              (behavior/base-value
               (behavior/strongest-value (merge/cell-merge old new n)))))
-      (is (= #{1 2}
-             (behavior/summary-source-keys
-              (behavior/strongest-value (merge/cell-merge old new n)))))))
+      (is (= 2
+             (behavior/summary-latest-time
+              (behavior/strongest-value (merge/cell-merge old new n)))))
+      (is (= {:from 1 :to 2}
+             (interval-map
+              (behavior/summary-retained-interval
+               (behavior/strongest-value (merge/cell-merge old new n))))))))
 
   (testing "equal source keys with unequal history contradict"
     (let [n (behavior-net)

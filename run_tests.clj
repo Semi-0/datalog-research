@@ -7,6 +7,9 @@
 
 (def propagators-test-namespaces
   '[propagators-bool4-test
+    propagators-behavior-algebra-test
+    propagators-behavior-arithmetic-test
+    propagators-behavior-compiler-test
     propagators-behavior-test
     propagators-cell-protocol-test
     propagators-compile-2-test
@@ -23,6 +26,9 @@
 
 (def all-test-namespaces
   '[propagators-bool4-test
+    propagators-behavior-algebra-test
+    propagators-behavior-arithmetic-test
+    propagators-behavior-compiler-test
     propagators-behavior-test
     propagators-cell-protocol-test
     propagators-compile-2-test

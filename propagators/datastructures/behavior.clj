@@ -17,11 +17,9 @@
 (def behavior-kind :behavior/sparse-history)
 (def base-layer :base)
 (def summary-layer :behavior/summary)
-(def summary-reducer-key :behavior/reducer)
-(def summary-source-keys-key :behavior/source-keys)
-(def summary-source-count-key :behavior/source-count)
+(def summary-latest-time-key :behavior/latest-time)
 (def summary-retained-count-key :behavior/retained-count)
-(def summary-history-keys-key :behavior/history-keys)
+(def summary-retained-interval-key :behavior/retained-interval)
 (def state-events-layer :behavior/events)
 (def state-history-layer :behavior/history)
 
@@ -34,6 +32,45 @@
 
 (def event-history-reducer-id :behavior.reducer/event-history)
 (def constant-history-reducer-id :behavior.reducer/constant-history)
+(def constant-value-reducer-id :behavior.reducer/constant-value)
+(def latest-value-reducer-id :behavior.reducer/latest-value)
+(def retained-value-reducer-prefix :behavior.reducer/retained-value)
+(def dominant-source-reducer-prefix :behavior.reducer/dominant-source)
+
+(defn retained-value-reducer-id
+  "Reducer id for behavior values that retain every point version.
+
+  This is useful for cells whose strongest should still be the latest value, but
+  whose content should keep prior versions as history.
+  "
+  [domain]
+  [retained-value-reducer-prefix domain])
+
+(defn retained-value-reducer?
+  [reducer]
+  (and (vector? reducer)
+       (= retained-value-reducer-prefix (first reducer))))
+
+(defn dominant-source-reducer-id
+  "Reducer id for views where one tagged source dimension dominates replacement.
+
+  For example, behavior closure application output uses the operator-version
+  source as dominant: a newer closure version may replace an older result even
+  when the closure body depends on different lexical cells.
+  "
+  [domain source-tag]
+  [dominant-source-reducer-prefix domain source-tag])
+
+(defn dominant-source-reducer?
+  [reducer]
+  (and (vector? reducer)
+       (= dominant-source-reducer-prefix (first reducer))
+       (= 3 (count reducer))))
+
+(defn dominant-source-tag
+  [reducer]
+  (when (dominant-source-reducer? reducer)
+    (nth reducer 2)))
 
 (defn point-event
   [t v]
@@ -110,6 +147,42 @@
               source-keys-key (set source-keys)
               reducer-key reducer)))))
 
+(defn constant-value
+  "Build a behavior value that treats `v` as an explicit constant interval."
+  ([v]
+   (constant-value 0 v #{0} constant-value-reducer-id))
+  ([from v source-keys]
+   (constant-value from v source-keys constant-value-reducer-id))
+  ([from v source-keys reducer]
+   (behavior-value
+    {:history {from (constant-interval from v)}
+     :source-keys source-keys
+     :reducer reducer})))
+
+(defn latest-value
+  "Build a latest-retained behavior value with one retained point record."
+  ([v]
+   (latest-value 0 v #{0} latest-value-reducer-id))
+  ([tick v]
+   (latest-value tick v #{tick} latest-value-reducer-id))
+  ([tick v source-keys]
+   (latest-value tick v source-keys latest-value-reducer-id))
+  ([tick v source-keys reducer]
+   (behavior-value
+    {:history {tick (point-event tick v)}
+     :source-keys source-keys
+     :reducer reducer})))
+
+(defn retained-value
+  "Build a behavior value for a retained point version."
+  ([domain v]
+   (retained-value domain 0 v #{0}))
+  ([domain tick v source-keys]
+   (latest-value tick
+                 v
+                 source-keys
+                 (retained-value-reducer-id domain))))
+
 (defn history-state
   "Reducer accumulator value with slot-addressable event evidence and history."
   [events history]
@@ -184,15 +257,18 @@
   [v]
   (obj/slot-value v summary-layer))
 
-(defn summary-source-keys
+(defn summary-latest-time
   [v]
-  (let [ks (obj/slot-value (summary v) summary-source-keys-key)]
-    (if (set? ks) ks #{})))
+  (obj/slot-value (summary v) summary-latest-time-key))
 
 (defn summary-retained-count
   [v]
   (let [n (obj/slot-value (summary v) summary-retained-count-key)]
     (if (integer? n) n 0)))
+
+(defn summary-retained-interval
+  [v]
+  (obj/slot-value (summary v) summary-retained-interval-key))
 
 (defn behavior-value?
   [v]
@@ -230,6 +306,87 @@
   [a b]
   (set/superset? (source-keys a) (source-keys b)))
 
+(defn- strict-source-superset?
+  [a b]
+  (and (source-superset? a b)
+       (not= (source-keys a) (source-keys b))))
+
+(defn- tagged-source-keys
+  [tag view]
+  (set (filter #(and (vector? %)
+                     (= tag (first %)))
+               (source-keys view))))
+
+(defn- dominant-source-superset?
+  [tag a b]
+  (set/superset? (tagged-source-keys tag a)
+                 (tagged-source-keys tag b)))
+
+(defn- strict-dominant-source-superset?
+  [tag a b]
+  (and (dominant-source-superset? tag a b)
+       (not= (tagged-source-keys tag a)
+             (tagged-source-keys tag b))))
+
+(defn- merge-history-slot
+  [acc slot-key slot-value]
+  (if (and (contains? acc slot-key)
+           (not= (public-snapshot (get acc slot-key))
+                 (public-snapshot slot-value)))
+    value/contradiction
+    (assoc acc slot-key slot-value)))
+
+(defn- merge-retained-views
+  [existing update]
+  (let [views (conj (vec existing) update)
+        reducer (reducer-id update)]
+    (if (not (every? #(= reducer (reducer-id %)) views))
+      value/contradiction
+      (let [history*
+            (reduce
+             (fn [acc view]
+               (if (value/contradiction? acc)
+                 acc
+                 (let [slots (public-slot-map view)]
+                   (if (value/contradiction? slots)
+                     value/contradiction
+                     (reduce-kv merge-history-slot acc slots)))))
+             {}
+             views)]
+        (if (value/contradiction? history*)
+          value/contradiction
+          (behavior-value
+           {:history history*
+            :source-keys (apply set/union (map source-keys views))
+            :reducer reducer}))))))
+
+(defn- existing-content
+  [existing]
+  (if (= 1 (count existing))
+    (first existing)
+    (vec existing)))
+
+(defn- merge-dominant-source-views
+  [existing update]
+  (let [tag (dominant-source-tag (reducer-id update))]
+    (cond
+      (nil? tag) value/contradiction
+      (some #(same-behavior-view? update %) existing) (existing-content existing)
+      (every? #(dominant-source-superset? tag update %) existing)
+      (if (some #(strict-dominant-source-superset? tag update %) existing)
+        update
+        (cond
+          (some #(and (= (source-keys update) (source-keys %))
+                      (not (same-behavior-view? update %)))
+                existing)
+          value/contradiction
+          (every? #(source-superset? update %) existing) update
+          (some #(source-superset? % update) existing) (existing-content existing)
+          :else value/contradiction))
+      (some #(strict-dominant-source-superset? tag % update) existing)
+      (existing-content existing)
+      :else value/contradiction)))
+
 (defn merge-content
   [content update]
   (let [existing (candidates content)]
@@ -239,6 +396,10 @@
       (empty? existing) update
       (not (every? #(= (reducer-id update) (reducer-id %)) existing))
       value/contradiction
+      (retained-value-reducer? (reducer-id update))
+      (merge-retained-views existing update)
+      (dominant-source-reducer? (reducer-id update))
+      (merge-dominant-source-views existing update)
       (some #(and (= (source-keys update) (source-keys %))
                   (not (same-behavior-view? update %)))
             existing)
@@ -259,19 +420,41 @@
   [record]
   (obj/slot-value record :value))
 
+(defn- record-time
+  [record]
+  (let [at (obj/slot-value record :at)]
+    (if (some? at)
+      at
+      (obj/slot-value record :from))))
+
+(defn- time-rank
+  [t]
+  (if (= :infinity t)
+    Long/MAX_VALUE
+    t))
+
+(defn- retained-times
+  [behavior]
+  (->> (history-records behavior)
+       (map record-time)
+       (remove nil?)
+       (sort-by time-rank)
+       vec))
+
 (defn- behavior-summary-value
   [behavior record]
-  (let [history-keys (sort (obj/public-slot-keys (history behavior)))
-        source-keys* (source-keys behavior)]
+  (let [times (retained-times behavior)
+        latest-time (last times)
+        first-retained-time (first times)]
     (obj/compound-object
      {base-layer (record-value record)
       summary-layer
       (obj/compound-object
-       {summary-reducer-key (reducer-id behavior)
-        summary-source-keys-key source-keys*
-        summary-source-count-key (count source-keys*)
-        summary-retained-count-key (count history-keys)
-        summary-history-keys-key (vec history-keys)})})))
+       {summary-latest-time-key latest-time
+        summary-retained-count-key (count times)
+        summary-retained-interval-key
+        (obj/compound-object {:from first-retained-time
+                              :to latest-time})})})))
 
 (defn- strongest-behavior-view
   [content]
@@ -289,6 +472,14 @@
         (if (= 1 (count strongest))
           (first strongest)
           value/contradiction)))))
+
+(defn strongest-history-view
+  "Select the retained behavior view from cell content.
+
+  This returns the behavior content object, not the strongest summary projection,
+  so history-aware operators can inspect retained records."
+  [content]
+  (strongest-behavior-view content))
 
 (defn strongest-value
   "Project behavior content to its latest value.

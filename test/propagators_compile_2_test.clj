@@ -1,17 +1,25 @@
 (ns propagators-compile-2-test
   (:require [clojure.test :refer [deftest is testing]]
+            [propagators.cells.cell-protocol :as protocol]
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
+            [propagators.compile :as compile]
             [propagators.compiler-2.application :as compiler-app]
             [propagators.compiler-2.application-value :as application-value]
             [propagators.compiler-2.closure-value :as closure-value]
             [propagators.compiler-2.env :as env]
-            [propagators.compiler-2.helpers :refer [default-env dependency-env]]
+            [propagators.compiler-2.helpers :refer [behavior-env
+                                                    default-env
+                                                    dependency-env]]
             [propagators.compiler-2.main :as main]
             [propagators.compiler-2.parser :as parser]
+            [propagators.core :as core]
+            [propagators.datastructures.behavior :as behavior]
+            [propagators.datastructures.behavior-algebra :as hist]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.dependency :as dependency]
             [propagators.ids :as ids]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
@@ -28,6 +36,51 @@
   [n v]
   (let [id (ids/new-node-id)]
     [id (nb/seed-cell (nb/install-cell n id) id v)]))
+
+(defn- behavior-protocol-net
+  []
+  (-> net/empty-net
+      (compile/install-and-run (protocol/install-cell-protocol))
+      (compile/install-and-run (protocol/install-behavior-protocol))))
+
+(defn- behavior-view
+  [records source-keys]
+  (behavior/behavior-value
+   {:history (hist/records->history records)
+    :source-keys source-keys
+    :reducer behavior/event-history-reducer-id}))
+
+(defn- behavior-cell
+  [n v]
+  (let [id (ids/new-node-id)]
+    [id (nb/install-cell n id v (behavior/strongest-value v))]))
+
+(defn- behavior-record-map
+  [record]
+  (cond
+    (hist/point-record? record)
+    {:at (obj/slot-value record :at)
+     :value (obj/slot-value record :value)}
+
+    (hist/interval-record? record)
+    {:from (obj/slot-value record :from)
+     :to (obj/slot-value record :to)
+     :value (obj/slot-value record :value)}))
+
+(defn- behavior-records
+  [v]
+  (mapv behavior-record-map (behavior/history-records v)))
+
+(defn- behavior-current-value
+  [n id]
+  (let [v (strongest n id)]
+    (if (value/unusable? v)
+      v
+      (behavior/base-value v))))
+
+(defn- seed-behavior-message
+  [n id v]
+  (core/eval-cell id (message id v) n))
 
 (defn- parse
   [source]
@@ -95,6 +148,78 @@
       (is (= 1 (count sources)))
       (is (= #{:compiler-2/application}
              (set (map :dependency/type sources)))))))
+
+(deftest compile-2-behavior-env-merges-same-timestamp-values
+  (testing "compiled behavior arithmetic joins retained point histories"
+    (let [left (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
+          right (behavior-view [(hist/point-record 6 7)] #{[:b 6]})
+          [a-id n1] (behavior-cell (behavior-protocol-net) left)
+          [b-id n2] (behavior-cell n1 right)
+          env (-> (behavior-env)
+                  (env/bind 'a (env/cell-binding a-id) 0)
+                  (env/bind 'b (env/cell-binding b-id) 0))
+          compiled (compile-source "(+ a b)" env {:net n2})
+          result-net (run-compiled compiled)
+          out-content (net/network-cell-content result-net (:cell compiled))]
+      (is (= 9 (behavior-current-value result-net (:cell compiled))))
+      (is (= [{:at 6 :value 9}]
+             (behavior-records out-content))))))
+
+(deftest compile-2-behavior-env-does-not-imply-point-continuation
+  (testing "compiled behavior arithmetic does not join different point timestamps"
+    (let [left (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
+          right (behavior-view [(hist/point-record 7 7)] #{[:b 7]})
+          [a-id n1] (behavior-cell (behavior-protocol-net) left)
+          [b-id n2] (behavior-cell n1 right)
+          env (-> (behavior-env)
+                  (env/bind 'a (env/cell-binding a-id) 0)
+                  (env/bind 'b (env/cell-binding b-id) 0))
+          compiled (compile-source "(+ a b)" env {:net n2})
+          result-net (run-compiled compiled)]
+      (is (= value/nothing
+             (strongest result-net (:cell compiled)))))))
+
+(deftest compile-2-behavior-env-synchronizes-interval-overlap
+  (testing "compiled behavior arithmetic emits only the common interval"
+    (let [left (behavior-view [(hist/interval-record 0 10 2)] #{[:a 0]})
+          right (behavior-view [(hist/interval-record 5 12 7)] #{[:b 5]})
+          [a-id n1] (behavior-cell (behavior-protocol-net) left)
+          [b-id n2] (behavior-cell n1 right)
+          env (-> (behavior-env)
+                  (env/bind 'a (env/cell-binding a-id) 0)
+                  (env/bind 'b (env/cell-binding b-id) 0))
+          compiled (compile-source "(+ a b)" env {:net n2})
+          result-net (run-compiled compiled)
+          out-content (net/network-cell-content result-net (:cell compiled))]
+      (is (= 9 (behavior-current-value result-net (:cell compiled))))
+      (is (= [{:from 5 :to 10 :value 9}]
+             (behavior-records out-content))))))
+
+(deftest compile-2-behavior-env-reacts-to-late-shared-timestamp
+  (testing "a compiled behavior application updates when inputs gain a new shared tick"
+    (let [left-6 (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
+          right-6 (behavior-view [(hist/point-record 6 7)] #{[:b 6]})
+          left-6-8 (behavior-view [(hist/point-record 6 2)
+                                   (hist/point-record 8 3)]
+                                  #{[:a 6] [:a 8]})
+          right-6-8 (behavior-view [(hist/point-record 6 7)
+                                    (hist/point-record 8 10)]
+                                   #{[:b 6] [:b 8]})
+          [a-id n1] (behavior-cell (behavior-protocol-net) left-6)
+          [b-id n2] (behavior-cell n1 right-6)
+          env (-> (behavior-env)
+                  (env/bind 'a (env/cell-binding a-id) 0)
+                  (env/bind 'b (env/cell-binding b-id) 0))
+          compiled (compile-source "(+ a b)" env {:net n2})
+          n3 (run-compiled compiled)
+          [_left-tasks n4] (seed-behavior-message n3 a-id left-6-8)
+          [right-tasks n5] (seed-behavior-message n4 b-id right-6-8)
+          result-net (core/run-tasks right-tasks n5)
+          out-content (net/network-cell-content result-net (:cell compiled))]
+      (is (= 13 (behavior-current-value result-net (:cell compiled))))
+      (is (= [{:at 6 :value 9}
+              {:at 8 :value 13}]
+             (behavior-records out-content))))))
 
 (defn- propagator-inputs-writing-to
   [n out-id]
