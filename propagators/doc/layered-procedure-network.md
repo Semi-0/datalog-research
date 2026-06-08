@@ -138,26 +138,46 @@ Default stdlib bootstrap (base + provenance on a fresh `proc`):
 ;; `operator` is the `layered/+` installer for `proc`
 ```
 
-Reactive / manual extension (library boundary):
+Declaration-time extension (library boundary):
 
 ```clojure
-(let [{:keys [net prop]}
+(def plus-units-closure-id (new-node-id))
+
+(let [n0 (nb/install-cell network
+                          plus-units-closure-id
+                          plus-units-closure
+                          plus-units-closure)
+      {:keys [net prop closure]}
       (layered/install-layered-procedure!
-        network
+        n0
         plus-proc
-        :base
-        plus-base-closure)]
-  (nb/run-propagators net [prop]))
+        :units
+        plus-units-closure-id)]
+  net)
 ```
 
-Reactive wiring by hand (same semantics):
+`install-layered-procedure!` declares the topology only. It records that
+`plus-units-closure-id` is the `:units` closure slot for `plus-proc`; it does
+not seed values, enqueue tasks, or run propagation. The returned `prop` is the
+ordinary slot prop id, useful when a caller explicitly wants to materialize the
+procedure cell value, but procedure application does not require declaration-time
+eager activation.
+
+Manual wiring by hand (same declaration semantics):
 
 ```clojure
 (def plus-base-closure-id (new-node-id))
 
-((layered/p:layered-procedure :base plus-base-closure-id plus-proc) network)
-(nb/seed-cell network plus-base-closure-id plus-base-closure)
-(nb/run-propagators network [prop-id])
+(let [n0 (nb/install-cell network
+                          plus-base-closure-id
+                          plus-base-closure
+                          plus-base-closure)
+      [_prop n1] ((layered/p:layered-procedure
+                   :base
+                   plus-base-closure-id
+                   plus-proc)
+                  n0)]
+  n1)
 ```
 
 Later, merge provenance behavior without redefining `p:+`:
@@ -165,16 +185,22 @@ Later, merge provenance behavior without redefining `p:+`:
 ```clojure
 (def plus-provenance-closure-id (new-node-id))
 
-((layered/p:layered-procedure :provenance plus-provenance-closure-id plus-proc)
- network)
-(nb/seed-cell network plus-provenance-closure-id plus-provenance-closure)
-(nb/run-propagators network [prop-id])
+(let [n0 (nb/install-cell network
+                          plus-provenance-closure-id
+                          plus-provenance-closure
+                          plus-provenance-closure)
+      [_prop n1] ((layered/p:layered-procedure
+                   :provenance
+                   plus-provenance-closure-id
+                   plus-proc)
+                  n0)]
+  n1)
 ```
 
-After the returned or manually installed slot prop runs, future
-`(p:+ a b out)` installations use the expanded procedure cell. Already
-installed applications that depend on the procedure cell are also woken by the
-procedure-cell update.
+Future `(p:+ a b out)` installations use the declared slot topology even if the
+procedure cell has not been eagerly materialized. Installed applications can also
+observe a later declared layer after later input evaluation wakes the
+application.
 
 ## Runtime Notes
 
@@ -185,6 +211,19 @@ frames while carrying slot indexes from earlier frames.
 `construct-propagator` preserves the ordered input/output vectors supplied at
 installation time when invoking the activation function. The graph still stores
 sets for adjacency, but compound closures need stable port order.
+
+## Dispatch Benchmark
+
+Use the explicit benchmark alias for layered and generic procedure dispatch:
+
+```bash
+clj -M:dispatch-bench
+clj -M:dispatch-bench 50 51
+```
+
+Recorded local baseline on 2026-06-08: layered base+provenance dispatch took
+2.203 ms median for one application and 81.630 ms median for 51 applications.
+This benchmark is intentionally outside `clj -M:test`.
 
 ## Planned Bootstrap API
 

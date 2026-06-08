@@ -333,17 +333,34 @@ Example:
 The debugger observes dispatch/application state. It does not change merge,
 strongest, or scheduling semantics.
 
+## Dispatch Benchmark
+
+Use the explicit benchmark alias for generic and layered procedure dispatch:
+
+```bash
+clj -M:dispatch-bench
+clj -M:dispatch-bench 50 51
+```
+
+Recorded local baseline on 2026-06-08: generic dispatch with 50 handlers took
+342.616 ms median for one application and 2516.185 ms median for 51 applications.
+The benchmark is intentionally outside `clj -M:test`; regular tests keep only
+correctness and scheduler-order regressions.
+
 ## Current Tests
 
 `test/propagators_generic_procedure_test.clj` covers:
 
 - select-one initialization
 - compound-object method branch storage
+- handler declaration before generic initialization
 - one match, no match, and multiple-match contradiction
 - late method extension affecting later applications
+- installed application observing a late handler after later input evaluation
+- nested generic procedure dispatch from an outer handler
 - operator wrapper
 - debugger events
-- pressure tests with 10 and 50 handlers
+- correctness pressure tests with 10 and 50 handlers
 
 `test/propagators_cell_protocol_test.clj` covers:
 

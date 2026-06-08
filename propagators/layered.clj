@@ -24,12 +24,6 @@
   [layer-name closure-id proc-id]
   (p:layer layer-name closure-id proc-id))
 
-(defn- ensure-cell
-  [n id]
-  (if (contains? (net/net-env n) id)
-    n
-    (nb/install-cell n id)))
-
 (defn install-layered-procedure!
   "Declare a reactive procedure layer.
 
@@ -38,8 +32,8 @@
   `obj/p:slot`. It does not seed values, run propagators, or enqueue tasks."
   [n proc-id layer-name closure-id]
   (let [n0 (-> n
-               (ensure-cell proc-id)
-               (ensure-cell closure-id))
+               (nb/ensure-cell proc-id)
+               (nb/ensure-cell closure-id))
         [prop-id n1] ((p:layered-procedure layer-name closure-id proc-id) n0)]
     {:net n1
      :prop prop-id

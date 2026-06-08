@@ -6,9 +6,11 @@
             [propagators.debugger :as debugger]
             [propagators.ids :refer [new-node-id]]
             [propagators.layered :as layered]
+            [propagators.datastructures.named-network :as named]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
+            [propagators.stdlib.arithmetic.base :as base]
             [propagators.stdlib.arithmetic.provenance :as provenance]
             [propagators.stdlib.layered :as layered-ops]
             [propagators.stdlib.provenance-arithmetic :as prov-arith]
@@ -84,6 +86,20 @@
   (let [closure-id (new-node-id)
         n0 (nb/install-cell n closure-id closure-value closure-value)]
     (layered/install-layered-procedure! n0 proc layer-name closure-id)))
+
+(defn- nested-layered-closure
+  [inner-net inner-operator]
+  (closure/closure
+   (fn [closure-net input-ids output-ids network]
+     (let [[left-id right-id] input-ids
+           [out-id] output-ids
+           inner-out-id (new-node-id)
+           n0 (named/join network closure-net)
+           n1 (nb/install-cell n0 inner-out-id)
+           [_ n2] ((inner-operator left-id right-id inner-out-id) n1)
+           [_ n3] ((layered/p:base out-id inner-out-id) n2)]
+       n3))
+   inner-net))
 
 (defn- install-layered-inputs
   [n a b]
@@ -324,6 +340,31 @@
       (is (nil? (obj/slot-strongest (procedure-object net proc) :provenance)))
       (is (nil? (obj/slot-strongest (procedure-object (:net extended) proc) :units)))
       (is (obj/slot-strongest (procedure-object visible-net proc) :units)))))
+
+(deftest layered-procedure-layer-before-procedure-cell-is-visible-on-apply
+  (testing "layer declaration can create the procedure cell lazily"
+    (let [proc (new-node-id)
+          closure-id (new-node-id)
+          n0 (nb/install-cell net/empty-net
+                              closure-id
+                              base/plus-closure
+                              base/plus-closure)
+          installed (layered/install-layered-procedure! n0 proc :base closure-id)
+          result (run-base-only-application (:net installed) proc 4 5)]
+      (assert-layer (:out-object result) :base 9))))
+
+(deftest nested-layered-procedure-dispatch-is-materialized-during-outer-apply
+  (testing "outer layered procedure can use an inner layered operator declared only as topology"
+    (let [{inner-net :net inner-operator :operator}
+          (prov-arith/+ net/empty-net {:provenance? false})
+          proc (new-node-id)
+          closure-value (nested-layered-closure inner-net inner-operator)
+          installed (install-procedure-layer-value net/empty-net
+                                                   proc
+                                                   :base
+                                                   closure-value)
+          result (run-base-only-application (:net installed) proc 8 9)]
+      (assert-layer (:out-object result) :base 17))))
 
 (deftest layered-operator-reuses-and-observes-procedure-extension
   (testing "layered/+ defined on base-only proc; provenance added later still affects re-apply"

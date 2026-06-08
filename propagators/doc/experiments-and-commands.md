@@ -7,12 +7,18 @@ This file keeps operational notes that used to live in `propagators/NOTES.md`.
 ```bash
 clj -M:test
 clj -M:propagators-test
+clj -M:test propagators
 clj -M:test propagators-named-network-test
 clj -M:test propagators-compound-data-test
 clj -M:test propagators-linked-list-access-test
 clj -M:test propagators-linked-list-schedule-test
 clj -M:test propagators-compound-diagnosis-test
+clj -M:bench-test
 ```
+
+`clj -M:test` intentionally excludes benchmark suites. Use `clj -M:bench-test`
+for the recorded benchmark correctness checks, and use the
+benchmark aliases below for timing runs.
 
 The schedule suite may contain experiments that are expected to fail honestly.
 Use the focused suites when checking a narrow change.
@@ -23,9 +29,24 @@ Use the focused suites when checking a narrow change.
 clj -M:propagators-bench
 clj -M:propagators-bench 10 100 1000 10000
 clj -M:propagators-profile propagate 1000
+clj -M:dispatch-bench
+clj -M:dispatch-bench 50 1
+clj -M:dispatch-bench 50 51
 ```
 
-The benchmark harness is `propagators_chain_bench.clj`.
+The chain benchmark harness is `propagators_chain_bench.clj`. The generic and
+layered procedure dispatch benchmark harness is `propagators_dispatch_bench.clj`.
+
+Recorded local dispatch baseline on 2026-06-08:
+
+| Command | Generic | Layered |
+| --- | ---: | ---: |
+| `clj -M:dispatch-bench` | 50 handlers / 1 dispatch median 342.616 ms | base+provenance / 1 dispatch median 2.203 ms |
+| `clj -M:dispatch-bench 50 51` | 50 handlers / 51 dispatches median 2516.185 ms | base+provenance / 51 dispatches median 81.630 ms |
+
+The default dispatch benchmark checks that a single 50-handler generic dispatch
+does not drift into multi-second territory. The 51-round form is a pressure run,
+not part of `clj -M:test`.
 
 ## Compound Chain Benchmark Context
 

@@ -14,6 +14,13 @@
   ([n id content strongest]
    (net/install-net n (cell/construct-cell id content strongest))))
 
+(defn ensure-cell
+  "Install an empty cell only when `id` is not already present in `n`."
+  [n id]
+  (if (contains? (net/net-env n) id)
+    n
+    (install-cell n id)))
+
 (defn copy-cell
   "Install `id` in `n` with the strongest value from `source-net`."
   [n source-net id]

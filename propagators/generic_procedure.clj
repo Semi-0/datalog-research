@@ -9,7 +9,9 @@
             [propagators.closure :as closure]
             [propagators.datastructures.compound-object :as obj]
             [propagators.dispatch :as dispatch]
+            [propagators.graph :as graph]
             [propagators.ids :as ids]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
@@ -204,6 +206,159 @@
        (filter complete-method-spec?)
        vec))
 
+(defn- normalize-generic-value
+  [v]
+  (obj/compound-object v))
+
+(defn- copy-outer-cell
+  ([n outer-net id]
+   (copy-outer-cell n outer-net id identity))
+  ([n outer-net id normalize]
+   (cond
+     (contains? (net/net-env n) id)
+     n
+
+     (contains? (net/net-env outer-net) id)
+     (let [v (normalize (net/network-cell-strongest outer-net id))]
+       (nb/install-cell n id v v))
+
+     :else
+     (nb/ensure-cell n id))))
+
+(defn- producer-prop-ids
+  [outer-net out-id]
+  (let [g (net/net-graph outer-net)
+        cell-node (get g out-id)]
+    (->> (if cell-node (graph/node-input-ids cell-node) #{})
+         (filter (fn [prop-id]
+                   (let [prop-node (get g prop-id)]
+                     (and prop-node
+                          (prop/prop? (get (net/net-env outer-net) prop-id))
+                          (contains? (graph/node-output-ids prop-node) out-id)
+                          (not (contains? (graph/node-input-ids prop-node) out-id)))))))))
+
+(defn- copy-producer-prop
+  [n outer-net prop-id]
+  (let [prop-node (graph/get-node (net/net-graph outer-net) prop-id)
+        prop-value (net/network-lookup-propagator outer-net prop-id)
+        n0 (reduce #(copy-outer-cell %1 outer-net %2)
+                   n
+                   (into (graph/node-input-ids prop-node)
+                         (graph/node-output-ids prop-node)))]
+    (-> n0
+        (net/assoc-net-node prop-id prop-node)
+        (net/assoc-net-prop prop-id prop-value))))
+
+(defn- install-declared-slot
+  [n collection-id [slot-key parent->declaration]]
+  (reduce
+   (fn [[acc prop-ids] parent-id]
+     (let [[prop-id acc'] ((obj/p:slot slot-key parent-id collection-id) acc)]
+       [acc' (conj prop-ids prop-id)]))
+   [n []]
+   (sort-by pr-str (keys parent->declaration))))
+
+(defn- install-declared-slots
+  [n collection-id declarations]
+  (reduce
+   (fn [[acc prop-ids] declaration]
+     (let [[acc' prop-ids'] (install-declared-slot acc collection-id declaration)]
+       [acc' (into prop-ids prop-ids')]))
+   [n []]
+   (sort-by (comp pr-str key) declarations)))
+
+(defn- declared-method-branches
+  [outer-net generic-id]
+  (->> (obj/slot-declarations-for outer-net generic-id)
+       (keep (fn [[slot-key parent->declaration]]
+               (when (method-slot? slot-key)
+                 {:slot-key slot-key
+                  :method-key (second slot-key)
+                  :branch-ids (sort-by pr-str (keys parent->declaration))})))
+       (sort-by (comp pr-str :method-key))
+       vec))
+
+(defn- materialized-generic?
+  [outer-net generic-id generic-value]
+  (and (not (value/unusable? generic-value))
+       (compound-slot-present? generic-value default-slot)
+       (compound-slot-present? generic-value policy-slot)
+       (= (count (generic-methods generic-value))
+          (count (declared-method-branches outer-net generic-id)))))
+
+(defn- branch-field-parent-ids
+  [outer-net branch-id]
+  (->> (obj/slot-declarations-for outer-net branch-id)
+       vals
+       (mapcat keys)
+       (sort-by pr-str)
+       vec))
+
+(defn- materialize-branch
+  [n outer-net branch-id]
+  (let [declarations (obj/slot-declarations-for outer-net branch-id)
+        parent-ids (branch-field-parent-ids outer-net branch-id)
+        n0 (copy-outer-cell n outer-net branch-id normalize-generic-value)
+        n1 (reduce #(copy-outer-cell %1 outer-net %2) n0 parent-ids)
+        producer-ids (->> parent-ids
+                          (mapcat #(producer-prop-ids outer-net %))
+                          (sort-by pr-str)
+                          vec)
+        n2 (reduce #(copy-producer-prop %1 outer-net %2) n1 producer-ids)
+        [n3 slot-prop-ids] (install-declared-slots n2 branch-id declarations)]
+    {:net n3
+     :prop-ids (into producer-ids slot-prop-ids)}))
+
+(defn- materialize-method-branches
+  [n outer-net generic-id]
+  (reduce
+   (fn [{:keys [net prop-ids]} {:keys [branch-ids]}]
+     (reduce
+      (fn [{:keys [net prop-ids]} branch-id]
+        (let [{net' :net prop-ids' :prop-ids}
+              (materialize-branch net outer-net branch-id)]
+          {:net net'
+           :prop-ids (into prop-ids prop-ids')}))
+      {:net net :prop-ids prop-ids}
+      branch-ids))
+   {:net n :prop-ids []}
+   (declared-method-branches outer-net generic-id)))
+
+(defn- materialize-generic-procedure
+  [outer-net generic-id]
+  (let [current-value (net/network-cell-strongest outer-net generic-id)]
+    (if (materialized-generic? outer-net generic-id current-value)
+      {:value current-value
+       :updated? false}
+      (let [method-branches (declared-method-branches outer-net generic-id)
+            branch-ids (set (mapcat :branch-ids method-branches))
+            generic-declarations (obj/slot-declarations-for outer-net generic-id)
+            generic-parent-ids (->> generic-declarations
+                                    vals
+                                    (mapcat keys)
+                                    (sort-by pr-str)
+                                    vec)
+            n0 (copy-outer-cell net/empty-net outer-net generic-id normalize-generic-value)
+            n1 (reduce (fn [acc id]
+                         (copy-outer-cell acc
+                                          outer-net
+                                          id
+                                          #(if (and (value/nothing? %)
+                                                    (contains? branch-ids id))
+                                             (obj/empty-compound-object)
+                                             %)))
+                       n0
+                       generic-parent-ids)
+            {branch-net :net branch-prop-ids :prop-ids}
+            (materialize-method-branches n1 outer-net generic-id)
+            [slot-net generic-slot-prop-ids]
+            (install-declared-slots branch-net generic-id generic-declarations)
+            materialized-net (nb/run-propagators slot-net
+                                                 (into branch-prop-ids
+                                                       generic-slot-prop-ids))]
+        {:value (net/network-cell-strongest materialized-net generic-id)
+         :updated? true}))))
+
 (defn- install-method-closures
   [n method]
   (let [predicate-ids (vec (repeatedly (count (method-predicates method)) ids/new-node-id))
@@ -246,21 +401,20 @@
    method-specs))
 
 (defn- make-application-context
-  [outer-net generic-id arg-ids]
-  (let [generic-value (net/network-cell-strongest outer-net generic-id)]
-    {:outer-net outer-net
-     :generic-value generic-value
-     :arg-ids arg-ids
-     :default-present? (when-not (value/unusable? generic-value)
-                         (compound-slot-present? generic-value default-slot))
-     :default-value (when-not (value/unusable? generic-value)
-                      (obj/slot-value generic-value default-slot))
-     :policy-present? (when-not (value/unusable? generic-value)
-                        (compound-slot-present? generic-value policy-slot))
-     :policy-value (when-not (value/unusable? generic-value)
-                     (obj/slot-value generic-value policy-slot))
-     :methods (when-not (value/unusable? generic-value)
-                (generic-methods generic-value))}))
+  [outer-net generic-value arg-ids]
+  {:outer-net outer-net
+   :generic-value generic-value
+   :arg-ids arg-ids
+   :default-present? (when-not (value/unusable? generic-value)
+                       (compound-slot-present? generic-value default-slot))
+   :default-value (when-not (value/unusable? generic-value)
+                    (obj/slot-value generic-value default-slot))
+   :policy-present? (when-not (value/unusable? generic-value)
+                      (compound-slot-present? generic-value policy-slot))
+   :policy-value (when-not (value/unusable? generic-value)
+                   (obj/slot-value generic-value policy-slot))
+   :methods (when-not (value/unusable? generic-value)
+              (generic-methods generic-value))})
 
 (defn- context-args-usable?
   [{:keys [outer-net arg-ids]}]
@@ -309,19 +463,25 @@
 (defn- generic-apply-activate
   [generic-id arg-ids out-id]
   (fn [_inputs _outputs outer-net]
-    (let [context (make-application-context outer-net generic-id arg-ids)]
+    (let [{generic-value :value materialized? :updated?}
+          (materialize-generic-procedure outer-net generic-id)
+          materialization-messages (if materialized?
+                                     [(message generic-id generic-value)]
+                                     [])
+          context (make-application-context outer-net generic-value arg-ids)]
       (if-not (generic-application-ready? context)
-        []
+        materialization-messages
         (let [{:keys [reduced-out-id] :as app} (build-generic-application context)
               after (application/run-reduced-application app)]
-          (application/diff-reduced-output outer-net after reduced-out-id out-id))))))
+          (into materialization-messages
+                (application/diff-reduced-output outer-net after reduced-out-id out-id)))))))
 
 (defn p:apply-generic
   [generic-id arg-ids out-id]
   (prop/construct-propagator
    (generic-apply-activate generic-id (vec arg-ids) out-id)
    (into [generic-id] arg-ids)
-   [out-id]))
+   [generic-id out-id]))
 
 (defn apply-generic-value
   "Apply an already-realized generic procedure value to plain argument values.
