@@ -30,9 +30,9 @@
 
 (defn- compile-source
   ([source]
-   (main/compile-expr (parse source)))
+   (main/compile-source source))
   ([source env opts]
-   (main/compile-expr (parse source) env opts)))
+   (main/compile-source source env opts)))
 
 (deftest compile-2-compiles-primitive-application
   (testing "application returns a fresh result cell"
@@ -49,6 +49,16 @@
                (when (and (prop/prop? (get (net/net-env n) id))
                           (contains? (:outputs node) out-id))
                  (:inputs node))))))
+
+(deftest compile-2-parser-supports-network-closure-marker
+  (testing ":: parses into the internal network marker and requires explicit params"
+    (let [parsed (parse "(:: [x] (+ x 1))")]
+      (is (= :network (:ast/type parsed)))
+      (is (= '[x] (:ast/inputs parsed)))
+      (is (= :apply (:ast/type (:ast/body parsed)))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #":: params must be a vector"
+                          (parse "(:: (+ x 1))")))))
 
 (deftest compile-2-env-lookup-uses-nearest-scope-source-shadowing
   (testing "a child binding with a nearer scope source is selected from the compound env"
@@ -112,18 +122,18 @@
     (let [[bias-id base-net] (seeded-cell net/empty-net 10)
           env (env/bind (default-env) 'bias (env/cell-binding bias-id) 0)
           compiled (compile-source
-                    "(let-compound add-bias
-                       (compound [x] out
-                         (+ x bias))
+                    "(let-cell [add-bias]
+                       (<-> add-bias
+                            (:: [x]
+                              (+ x bias)))
                        (add-bias 5))"
                     env
                     {:net base-net})
-          closure-id (:binding/id (env/lookup (:env compiled) 'add-bias))
-          declarations (obj/slot-declarations-for (:net compiled) closure-id)
+          declarations (obj/slot-declarations (:net compiled))
           apply-inputs (propagator-inputs-writing-to (:net compiled)
                                                      (:cell compiled))
           result-net (run-compiled compiled)]
-      (is (contains? declarations main/closure-env-slot))
+      (is (some #(contains? % main/closure-env-slot) (vals declarations)))
       (is (not-any? #(contains? % bias-id) apply-inputs))
       (is (= 15 (strongest result-net (:cell compiled)))))))
 
@@ -132,9 +142,10 @@
     (let [[outer-x-id base-net] (seeded-cell net/empty-net 100)
           env (env/bind (default-env) 'x (env/cell-binding outer-x-id) 0)
           compiled (compile-source
-                    "(let-compound inc-local
-                       (compound [x] out
-                         (+ x 1))
+                    "(let-cell [inc-local]
+                       (<-> inc-local
+                            (:: [x]
+                              (+ x 1)))
                        (inc-local 5))"
                     env
                     {:net base-net})
@@ -146,11 +157,12 @@
     (let [[outer-x-id base-net] (seeded-cell net/empty-net 100)
           env (env/bind (default-env) 'x (env/cell-binding outer-x-id) 0)
           compiled (compile-source
-                    "(let-compound use-local-x
-                       (compound [] out
-                         (let-cell [x]
-                           (do (<-> 7 x)
-                               x)))
+                    "(let-cell [use-local-x]
+                       (<-> use-local-x
+                            (:: []
+                              (let-cell [x]
+                                (<-> 7 x)
+                                x)))
                        (use-local-x))"
                     env
                     {:net base-net})
@@ -161,10 +173,11 @@
 (deftest compile-2-escaped-closure-preserves-lexical-env-through-output
   (testing "a returned closure carries its lexical environment through the declared output"
     (let [compiled (compile-source
-                    "(let-compound make-adder
-                       (compound [bias] out
-                         (compound [x] z
-                           (+ x bias)))
+                    "(let-cell [make-adder]
+                       (<-> make-adder
+                            (:: [bias]
+                              (:: [x]
+                                (+ x bias))))
                        ((make-adder 10) 5))")
           result-net (run-compiled compiled)]
       (is (= 15 (strongest result-net (:cell compiled)))))))
@@ -172,18 +185,21 @@
 (deftest compile-2-supports-multiple-nested-compounds-in-one-compound
   (testing "an outer compound can define and apply nested compound propagators"
     (let [compiled (compile-source
-                    "(let-compound outer
-                       (compound [x] out
-                         (let-compound inc
-                           (compound [y] z
-                             (+ y 1))
-                           (let-compound scale-after-inc
-                             (compound [y] z
-                               (let-compound double
-                                 (compound [v] w
-                                   (* v 2))
-                                 (double (inc y))))
-                             (+ (inc x) (scale-after-inc x)))))
+                    "(let-cell [outer]
+                       (<-> outer
+                            (:: [x]
+                              (let-cell [inc scale-after-inc]
+                                (<-> inc
+                                     (:: [y]
+                                       (+ y 1)))
+                                (<-> scale-after-inc
+                                     (:: [y]
+                                       (let-cell [double]
+                                         (<-> double
+                                              (:: [v]
+                                                (* v 2)))
+                                         (double (inc y)))))
+                                (+ (inc x) (scale-after-inc x)))))
                        (outer 4))")
           result-net (run-compiled compiled)]
       (is (= 15 (strongest result-net (:cell compiled)))))))
@@ -191,19 +207,21 @@
 (deftest compile-2-supports-multiple-compound-declarations-inside-one-compound
   (testing "one compound can declare several local compound propagators and apply them over its arguments"
     (let [compiled (compile-source
-                    "(let-compound pipeline
-                       (compound [a b] out
-                         (let-compound add2
-                           (compound [x y] z
-                             (+ x y))
-                           (let-compound mul2
-                             (compound [x y] z
-                               (* x y))
-                             (let-compound inc
-                               (compound [x] z
-                                 (+ x 1))
-                               (+ (add2 a b)
-                                  (mul2 (inc a) b))))))
+                    "(let-cell [pipeline]
+                       (<-> pipeline
+                            (:: [a b]
+                              (let-cell [add2 mul2 inc]
+                                (<-> add2
+                                     (:: [x y]
+                                       (+ x y)))
+                                (<-> mul2
+                                     (:: [x y]
+                                       (* x y)))
+                                (<-> inc
+                                     (:: [x]
+                                       (+ x 1)))
+                                (+ (add2 a b)
+                                   (mul2 (inc a) b)))))
                        (pipeline 3 4))")
           result-net (run-compiled compiled)]
       (is (= 23 (strongest result-net (:cell compiled)))))))
@@ -228,7 +246,7 @@
       (is (= 9 (strongest result-net (:cell compiled)))))))
 
 (deftest compile-2-propagator-emits-runnable-network-value
-  (testing "AST/env cells can produce a compiled network cell"
+  (testing "source AST/env cells can produce a compiled network cell"
     (let [[x-id n1] (seeded-cell net/empty-net 4)
           expr-id (ids/new-node-id)
           env-id (ids/new-node-id)
@@ -259,9 +277,11 @@
       (is (= value/nothing (strongest n0 (:cell compiled))))
       (is (= 7 (strongest n2 (:cell compiled)))))))
 
-(deftest compile-2-supports-explicit-output-partial-evaluation
-  (testing "app-> wires into a named output cell"
-    (let [compiled (compile-source "(app-> + [a 2] out)")
+(deftest compile-2-supports-naming-application-result-with-sync
+  (testing "application result cells can be synced into named output cells"
+    (let [compiled (compile-source "(let-cell [out]
+                                      (<-> out (+ a 2))
+                                      out)")
           a-id (:binding/id (env/lookup (:env compiled) 'a))
           out-id (:binding/id (env/lookup (:env compiled) 'out))
           n0 (run-compiled compiled)
@@ -273,7 +293,9 @@
 
 (deftest compile-2-supports-late-compound-definition
   (testing "an unresolved operator cell uses the same application propagator when it later receives a closure"
-    (let [compiled (compile-source "(app-> some-net [2] out)")
+    (let [compiled (compile-source "(let-cell [some-net out]
+                                      (<-> out (some-net 2))
+                                      out)")
           some-net-id (:binding/id (env/lookup (:env compiled) 'some-net))
           out-id (:binding/id (env/lookup (:env compiled) 'out))
           closure-compiled
