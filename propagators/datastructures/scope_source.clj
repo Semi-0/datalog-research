@@ -20,14 +20,28 @@
    (UUID/nameUUIDFromBytes
     (.getBytes (pr-str seed) StandardCharsets/UTF_8))))
 
+(defn source-descriptor
+  [source chain]
+  {:scope/id source
+   :scope/chain (vec chain)})
+
+(defn- source-id
+  [source]
+  (if (map? source)
+    (:scope/id source)
+    source))
+
+(defn- source-chain
+  [source]
+  (when (map? source)
+    (:scope/chain source)))
+
 (defn- stable-scope-object
-  [source closure chain payload dependencies]
-  (let [candidate-key [::scope-value source closure chain payload dependencies]
+  [source chain payload]
+  (let [source (source-descriptor source chain)
+        candidate-key [::scope-value source payload]
         slots {base-layer payload
-               source-layer source
-               closure-layer closure
-               chain-layer (vec chain)
-               dependencies-layer (set dependencies)}
+               source-layer source}
         slot-index (zipmap (keys slots) (repeat #{}))]
     (reduce-kv
      (fn [n slot-key slot-value]
@@ -41,17 +55,21 @@
 
 (defn scope-value
   ([source chain payload]
-   (scope-value source (last (vec chain)) chain payload #{}))
+   (stable-scope-object source chain payload))
   ([source closure chain payload]
-   (scope-value source closure chain payload #{}))
+   (scope-value source chain payload))
   ([source closure chain payload dependencies]
-   (stable-scope-object source closure chain payload dependencies)))
+   (scope-value source chain payload)))
 
 (defn base-value [v] (obj/slot-value v base-layer))
-(defn source-scope [v] (obj/slot-value v source-layer))
-(defn closure-scope [v] (obj/slot-value v closure-layer))
-(defn context-chain [v] (obj/slot-value v chain-layer))
-(defn dependencies [v] (or (obj/slot-value v dependencies-layer) #{}))
+(defn source [v] (obj/slot-value v source-layer))
+(defn source-scope [v] (source-id (source v)))
+(defn context-chain
+  [v]
+  (or (source-chain (source v))
+      (obj/slot-value v chain-layer)))
+(defn closure-scope [v] (last (context-chain v)))
+(defn dependencies [_v] #{})
 
 (defn scope-value?
   [v]
@@ -84,9 +102,7 @@
   [a b]
   (and (= (base-value a) (base-value b))
        (= (source-scope a) (source-scope b))
-       (= (closure-scope a) (closure-scope b))
-       (= (context-chain a) (context-chain b))
-       (= (dependencies a) (dependencies b))))
+       (= (context-chain a) (context-chain b))))
 
 (defn merge-content
   [content update]
@@ -138,18 +154,14 @@
 (defn retarget
   [candidate closure chain]
   (scope-value (source-scope candidate)
-               closure
                chain
-               (base-value candidate)
-               (dependencies candidate)))
+               (base-value candidate)))
 
 (defn map-base
   [candidate f]
   (scope-value (source-scope candidate)
-               (closure-scope candidate)
                (context-chain candidate)
-               (f (base-value candidate))
-               (dependencies candidate)))
+               (f (base-value candidate))))
 
 (defn unwrap
   [v]

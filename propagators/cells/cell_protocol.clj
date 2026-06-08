@@ -1,6 +1,7 @@
 (ns propagators.cells.cell-protocol
   "Network-local generic merge/strongest protocol."
   (:require [propagators.cells.value :as value]
+            [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.intensity :as intensity]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.generic-procedure :as generic]
@@ -189,5 +190,32 @@
              (generic/handler-closure
               (fn [content]
                 (protocol-result (scope-source/strongest-value content)))))
+           n1)]
+      [(into (vec merge-props) strongest-props) n2])))
+
+(defn install-dependency-protocol
+  "Install dependency partial-information methods into the network-local
+  merge/strongest generics."
+  []
+  (fn [n]
+    (let [[merge-props n1]
+          ((define-merge-handler
+             (generic/match-cells-pred
+              #(or (empty-content? %)
+                   (dependency/dependency-content? %))
+              dependency/dependency-value?)
+             (generic/handler-closure
+              (fn [content update]
+                (protocol-result
+                 (dependency/merge-content
+                  (if (empty-content? content) value/nothing content)
+                  update)))))
+           n)
+          [strongest-props n2]
+          ((define-strongest-handler
+             (generic/match-cells-pred dependency/dependency-content?)
+             (generic/handler-closure
+              (fn [content]
+                (protocol-result (dependency/strongest-value content)))))
            n1)]
       [(into (vec merge-props) strongest-props) n2])))

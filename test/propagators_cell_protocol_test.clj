@@ -7,6 +7,7 @@
             [propagators.compile :as compile]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.intensity :as intensity]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.generic-procedure :as generic]
@@ -30,6 +31,10 @@
   [n]
   (compile/install-and-run n (protocol/install-scope-source-protocol)))
 
+(defn- install-dependency
+  [n]
+  (compile/install-and-run n (protocol/install-dependency-protocol)))
+
 (defn- protocol-net
   []
   (install-protocol net/empty-net))
@@ -41,6 +46,10 @@
 (defn- scope-source-net
   []
   (install-scope-source (protocol-net)))
+
+(defn- dependency-net
+  []
+  (install-dependency (protocol-net)))
 
 (defn- define-merge-handler
   [n applicability handler]
@@ -173,7 +182,53 @@
     (let [n (scope-source-net)
           unrelated (scope-source/scope-value :other :child [:root :child] :other)
           content (merge/cell-merge value/nothing unrelated n)]
-      (is (= value/nothing (merge/strongest-value content n))))))
+      (is (= value/nothing (merge/strongest-value content n)))))
+
+  (testing "old constructor arities derive closure and chain from structured source"
+    (let [candidate (scope-source/scope-value :root :ignored [:root :child] :same)]
+      (is (= :root (scope-source/source-scope candidate)))
+      (is (= [:root :child] (scope-source/context-chain candidate)))
+      (is (= :child (scope-source/closure-scope candidate)))))
+
+  (testing "scope-source does not store dependency or closure layers"
+    (let [candidate (scope-source/scope-value :root :ignored [:root] :same #{:dep})]
+      (is (nil? (obj/slot-value candidate :scope/dependencies)))
+      (is (nil? (obj/slot-value candidate :scope/closure)))
+      (is (nil? (obj/slot-value candidate :scope/chain)))
+      (is (= #{} (scope-source/dependencies candidate))))))
+
+(deftest dependency-protocol-merges-by-base-and-unions-sources
+  (testing "dependency values expose base and source layers"
+    (let [v (dependency/dependency-value 3 #{:a})]
+      (is (dependency/dependency-value? v))
+      (is (= 3 (dependency/base-value v)))
+      (is (= #{:a} (dependency/sources v)))))
+
+  (testing "same base unions dependency sources"
+    (let [n (dependency-net)
+          left (dependency/dependency-value 3 #{:left})
+          right (dependency/dependency-value 3 #{:right})
+          content (-> value/nothing
+                      (#(merge/cell-merge % left n))
+                      (#(merge/cell-merge % right n)))
+          strongest (merge/strongest-value content n)]
+      (is (= 3 (dependency/base-value strongest)))
+      (is (= #{:left :right} (dependency/sources strongest)))))
+
+  (testing "duplicate update is idempotent"
+    (let [n (dependency-net)
+          update (dependency/dependency-value 3 #{:same})
+          content (merge/cell-merge value/nothing update n)]
+      (is (= content (merge/cell-merge content update n)))))
+
+  (testing "conflicting bases contradict"
+    (let [n (dependency-net)
+          left (dependency/dependency-value 3 #{:left})
+          right (dependency/dependency-value 4 #{:right})
+          content (-> value/nothing
+                      (#(merge/cell-merge % left n))
+                      (#(merge/cell-merge % right n)))]
+      (is (= value/contradiction content)))))
 
 (deftest with-intensity-builds-compound-update-from-cells
   (testing "p:with-intensity writes :intensity and :base layers"

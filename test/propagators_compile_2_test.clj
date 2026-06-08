@@ -1,11 +1,15 @@
 (ns propagators-compile-2-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.value :as value]
+            [propagators.closure :as closure]
+            [propagators.compiler-2.application :as compiler-app]
+            [propagators.compiler-2.closure-value :as closure-value]
             [propagators.compiler-2.env :as env]
-            [propagators.compiler-2.helpers :refer [default-env]]
+            [propagators.compiler-2.helpers :refer [default-env dependency-env]]
             [propagators.compiler-2.main :as main]
             [propagators.compiler-2.parser :as parser]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.dependency :as dependency]
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -42,6 +46,21 @@
       (is (= (:cell compiled) (main/compiled-result (:net compiled))))
       (is (= (:props compiled) (main/compiled-props (:net compiled)))))))
 
+(deftest compile-2-dependency-env-emits-dependency-values
+  (testing "default env remains raw while dependency env wraps arithmetic results"
+    (let [raw-compiled (compile-source "(+ 1 2)")
+          raw (run-compiled raw-compiled)
+          compiled (compile-source "(+ 1 2)" (dependency-env) {})
+          result-net (run-compiled compiled)
+          result (strongest result-net (:cell compiled))
+          sources (dependency/sources result)]
+      (is (= 3 (strongest raw (:cell raw-compiled))))
+      (is (dependency/dependency-value? result))
+      (is (= 3 (dependency/base-value result)))
+      (is (= 1 (count sources)))
+      (is (= #{:compiler-2/application}
+             (set (map :dependency/type sources)))))))
+
 (defn- propagator-inputs-writing-to
   [n out-id]
   (->> (net/net-graph n)
@@ -59,6 +78,36 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #":: params must be a vector"
                           (parse "(:: (+ x 1))")))))
+
+(deftest compile-2-network-closure-is-data-only
+  (testing "closure declaration emits closure info, not a runtime Closure function"
+    (let [compiled (compile-source "(:: [x] (+ x 1))")
+          closure-info (strongest (:net compiled) (:cell compiled))]
+      (is (closure-value/closure-info? closure-info))
+      (is (not (closure/closure? closure-info)))
+      (is (nil? (obj/slot-value closure-info main/closure-runtime-slot)))
+      (is (= '[x] (obj/slot-value closure-info main/closure-inputs-slot)))
+      (is (= :apply
+             (:ast/type (obj/slot-value closure-info
+                                        main/closure-body-slot)))))))
+
+(deftest compile-2-closure-declaration-alone-does-not-evaluate-body
+  (testing "declaring a network closure only installs closure data/slot topology"
+    (let [compiled (compile-source "(:: [x] (+ x 1))")
+          result-net (run-compiled compiled)]
+      (is (= 1 (count (:props compiled))))
+      (is (empty? (net/network-dict-entry result-net
+                                          compiler-app/apply-closure-props-key))))))
+
+(deftest compile-2-application-installs-application-propagator
+  (testing "network closure calls are evaluated by compiler-2 p:apply-closure"
+    (let [compiled (compile-source "((:: [x] (+ x 1)) 4)")
+          apply-props (net/network-dict-entry (:net compiled)
+                                              compiler-app/apply-closure-props-key)
+          result-net (run-compiled compiled)]
+      (is (= 1 (count apply-props)))
+      (is (contains? (set (:props compiled)) (first apply-props)))
+      (is (= 5 (strongest result-net (:cell compiled)))))))
 
 (deftest compile-2-env-lookup-uses-nearest-scope-source-shadowing
   (testing "a child binding with a nearer scope source is selected from the compound env"
@@ -181,6 +230,57 @@
                        ((make-adder 10) 5))")
           result-net (run-compiled compiled)]
       (is (= 15 (strongest result-net (:cell compiled)))))))
+
+(deftest compile-2-dependency-env-uses-active-closure-application-context
+  (testing "nested closure arithmetic records the later inner application context"
+    (let [compiled (compile-source
+                    "(let-cell [make-adder]
+                       (<-> make-adder
+                            (:: [bias]
+                              (:: [x]
+                                (+ x bias))))
+                       ((make-adder 10) 5))"
+                    (dependency-env)
+                    {})
+          result-net (run-compiled compiled)
+          result (strongest result-net (:cell compiled))
+          sources (dependency/sources result)
+          [source] (seq sources)]
+      (is (dependency/dependency-value? result))
+      (is (= 15 (dependency/base-value result)))
+      (is (= 1 (count sources)))
+      (is (= :compiler-2/application (:dependency/type source)))
+      (is (= :symbol (:ast/type (:context/operator source))))
+      (is (= '+ (:ast/name (:context/operator source)))))))
+
+(deftest compile-2-dependency-env-unions-operand-dependencies
+  (testing "operand dependencies are preserved while the result gets the active context"
+    (let [[a-id base-net] (seeded-cell net/empty-net
+                                       (dependency/dependency-value
+                                        10
+                                        #{:outer-source}))
+          env (env/bind (dependency-env) 'a (env/cell-binding a-id) 0)
+          compiled (compile-source
+                    "(let-cell [add-a]
+                       (<-> add-a
+                            (:: [x]
+                              (+ a x)))
+                       (add-a 5))"
+                    env
+                    {:net base-net})
+          result-net (run-compiled compiled)
+          result (strongest result-net (:cell compiled))
+          sources (dependency/sources result)
+          context-sources (filter #(and (map? %)
+                                         (= :compiler-2/application
+                                            (:dependency/type %)))
+                                  sources)]
+      (is (dependency/dependency-value? result))
+      (is (= 15 (dependency/base-value result)))
+      (is (contains? sources :outer-source))
+      (is (= 1 (count context-sources)))
+      (is (= :symbol (:ast/type (:context/operator (first context-sources)))))
+      (is (= '+ (:ast/name (:context/operator (first context-sources))))))))
 
 (deftest compile-2-supports-multiple-nested-compounds-in-one-compound
   (testing "an outer compound can define and apply nested compound propagators"
@@ -310,3 +410,26 @@
                                  (nb/neighbor-propagator-ids n1 some-net-id))]
       (is (= value/nothing (strongest n0 out-id)))
       (is (= 3 (strongest n2 out-id))))))
+
+(deftest compile-2-application-before-closure-waits-for-later-input-fire
+  (testing "an application can exist before the operator closure and evaluate on a later input update"
+    (let [compiled (compile-source "(let-cell [some-net out]
+                                      (<-> out (some-net a))
+                                      out)")
+          some-net-id (:binding/id (env/lookup (:env compiled) 'some-net))
+          a-id (:binding/id (env/lookup (:env compiled) 'a))
+          out-id (:binding/id (env/lookup (:env compiled) 'out))
+          closure-compiled (compile-source "(compound [x] out
+                                             (+ x 1))")
+          closure-info (strongest (:net closure-compiled)
+                                  (:cell closure-compiled))
+          n0 (run-compiled compiled)
+          n1 (nb/seed-cell n0 some-net-id closure-info)
+          n2 (nb/run-propagators n1
+                                 (nb/neighbor-propagator-ids n1 some-net-id))
+          n3 (nb/seed-cell n2 a-id 8)
+          n4 (nb/run-propagators n3
+                                 (nb/neighbor-propagator-ids n3 a-id))]
+      (is (= value/nothing (strongest n0 out-id)))
+      (is (= value/nothing (strongest n2 out-id)))
+      (is (= 9 (strongest n4 out-id))))))
