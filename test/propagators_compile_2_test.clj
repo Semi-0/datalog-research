@@ -3,6 +3,7 @@
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
             [propagators.compiler-2.application :as compiler-app]
+            [propagators.compiler-2.application-value :as application-value]
             [propagators.compiler-2.closure-value :as closure-value]
             [propagators.compiler-2.env :as env]
             [propagators.compiler-2.helpers :refer [default-env dependency-env]]
@@ -45,6 +46,40 @@
       (is (= 3 (strongest result-net (:cell compiled))))
       (is (= (:cell compiled) (main/compiled-result (:net compiled))))
       (is (= (:props compiled) (main/compiled-props (:net compiled)))))))
+
+(deftest compile-2-retains-primitive-application-ir
+  (testing "primitive applications keep an inspectable application object"
+    (let [compiled (compile-source "(+ 1 2)")
+          [app-id] (main/compiled-applications (:net compiled))
+          app-info (strongest (:net compiled) app-id)
+          operator-ast (obj/slot-value app-info
+                                       main/application-operator-ast-slot)]
+      (is (= [app-id] (:applications compiled)))
+      (is (application-value/application-info? app-info))
+      (is (= :primitive
+             (obj/slot-value app-info main/application-lowering-slot)))
+      (is (= :symbol (:ast/type operator-ast)))
+      (is (= '+ (:ast/name operator-ast)))
+      (is (= 2 (count (obj/slot-value app-info
+                                      main/application-arg-cells-slot))))
+      (is (= (:cell compiled)
+             (obj/slot-value app-info main/application-output-slot))))))
+
+(deftest compile-2-retains-nested-primitive-application-ir
+  (testing "nested primitive calls are retained as separate application records"
+    (let [compiled (compile-source "(+ 1 (- 4 2))")
+          app-ids (main/compiled-applications (:net compiled))
+          operators (->> app-ids
+                         (map #(strongest (:net compiled) %))
+                         (map #(obj/slot-value
+                                %
+                                main/application-operator-ast-slot))
+                         (map :ast/name)
+                         set)
+          result-net (run-compiled compiled)]
+      (is (= 2 (count app-ids)))
+      (is (= #{'+ '-} operators))
+      (is (= 3 (strongest result-net (:cell compiled)))))))
 
 (deftest compile-2-dependency-env-emits-dependency-values
   (testing "default env remains raw while dependency env wraps arithmetic results"
@@ -97,15 +132,21 @@
           result-net (run-compiled compiled)]
       (is (= 1 (count (:props compiled))))
       (is (empty? (net/network-dict-entry result-net
-                                          compiler-app/apply-closure-props-key))))))
+                                          compiler-app/apply-application-props-key))))))
 
 (deftest compile-2-application-installs-application-propagator
-  (testing "network closure calls are evaluated by compiler-2 p:apply-closure"
+  (testing "network closure calls are evaluated by compiler-2 p:apply-application"
     (let [compiled (compile-source "((:: [x] (+ x 1)) 4)")
-          apply-props (net/network-dict-entry (:net compiled)
-                                              compiler-app/apply-closure-props-key)
+          apply-props (net/network-dict-entry
+                       (:net compiled)
+                       compiler-app/apply-application-props-key)
+          [app-id] (main/compiled-applications (:net compiled))
+          app-info (strongest (:net compiled) app-id)
           result-net (run-compiled compiled)]
       (is (= 1 (count apply-props)))
+      (is (application-value/application-info? app-info))
+      (is (= :closure-cell
+             (obj/slot-value app-info main/application-lowering-slot)))
       (is (contains? (set (:props compiled)) (first apply-props)))
       (is (= 5 (strongest result-net (:cell compiled)))))))
 
@@ -335,8 +376,11 @@
                   (env/bind 'a (env/cell-binding a-id) 0)
                   (env/bind 'b (env/cell-binding b-id) 0))
           compiled (compile-source "(<-> a b)" env {:net n2})
+          [app-id] (main/compiled-applications (:net compiled))
+          app-info (strongest (:net compiled) app-id)
           result-net (run-compiled compiled)]
       (is (= b-id (:cell compiled)))
+      (is (= b-id (obj/slot-value app-info main/application-output-slot)))
       (is (= 42 (strongest result-net b-id))))))
 
 (deftest compile-2-supports-switch-operator

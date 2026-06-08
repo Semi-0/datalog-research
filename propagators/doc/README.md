@@ -41,6 +41,10 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Generic Procedures, Cell Protocols, And Intensity](generic-cell-protocol-and-intensity.md)
   describes propagator-native generic dispatch, network-local merge/strongest
   generics, layered intensity values, and intensity arithmetic.
+- [Compiler 2](compiler-2.md) describes AST-based compiler-2 network expansion,
+  slot-backed closure data, activation-local application evaluation, contextual
+  dependency arithmetic, and common algebra shared with compound/layered/generic
+  systems.
 - [Recursive Compound Propagator](recursive-compound-propagator.md) describes
   activation-local recursive network expansion, compile DSL wiring, and the
   Fibonacci proof.
