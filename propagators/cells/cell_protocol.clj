@@ -2,6 +2,7 @@
   "Network-local generic merge/strongest protocol."
   (:require [propagators.cells.value :as value]
             [propagators.datastructures.intensity :as intensity]
+            [propagators.datastructures.scope-source :as scope-source]
             [propagators.generic-procedure :as generic]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -31,6 +32,11 @@
     (second v)
     v))
 
+(defn- protocol-result? [v]
+  (and (vector? v)
+       (= result-tag (first v))
+       (= 2 (count v))))
+
 (defn- handled
   [v]
   {handled-key true
@@ -52,7 +58,7 @@
   [network dict-key]
   (let [generic-id (net/network-dict-entry network dict-key)]
     (if (and generic-id (contains? (net/net-env network) generic-id))
-      (net/network-cell-strongest network generic-id)
+      (:value (generic/materialize-generic-procedure network generic-id))
       value/nothing)))
 
 (defn- apply-protocol-generic
@@ -66,6 +72,7 @@
                     arg-values)
             unwrapped (unwrap-protocol-result result)]
         (cond
+          (protocol-result? result) (handled unwrapped)
           (= no-match unwrapped) value/nothing
           (value/nothing? unwrapped) value/nothing
           :else (handled unwrapped))))))
@@ -100,11 +107,11 @@
                  (nb/install-cell strongest-id)
                  (nb/install-cell default-id value/nothing value/nothing))
           [merge-props n1] ((generic/make-generic-propagator merge-id default-id) n0)
-          [strongest-props n2] ((generic/make-generic-propagator strongest-id default-id) n1)
-          n3 (nb/run-propagators n2 (into (vec merge-props) strongest-props))]
-      [[] (-> n3
-              (net/assoc-net-dict-entry merge-generic-key merge-id)
-              (net/assoc-net-dict-entry strongest-generic-key strongest-id))])))
+          [strongest-props n2] ((generic/make-generic-propagator strongest-id default-id) n1)]
+      [(into (vec merge-props) strongest-props)
+       (-> n2
+           (net/assoc-net-dict-entry merge-generic-key merge-id)
+           (net/assoc-net-dict-entry strongest-generic-key strongest-id))])))
 
 (defn- protocol-generic-id
   [n dict-key]
@@ -155,5 +162,32 @@
              (generic/handler-closure
               (fn [content]
                 (protocol-result (intensity/strongest-value content)))))
+           n1)]
+      [(into (vec merge-props) strongest-props) n2])))
+
+(defn install-scope-source-protocol
+  "Install scope-source partial-information methods into the network-local
+  merge/strongest generics."
+  []
+  (fn [n]
+    (let [[merge-props n1]
+          ((define-merge-handler
+             (generic/match-cells-pred
+              #(or (empty-content? %)
+                   (scope-source/scope-content? %))
+              scope-source/scope-value?)
+             (generic/handler-closure
+              (fn [content update]
+                (protocol-result
+                 (scope-source/merge-content
+                  (if (empty-content? content) value/nothing content)
+                  update)))))
+           n)
+          [strongest-props n2]
+          ((define-strongest-handler
+             (generic/match-cells-pred scope-source/scope-content?)
+             (generic/handler-closure
+              (fn [content]
+                (protocol-result (scope-source/strongest-value content)))))
            n1)]
       [(into (vec merge-props) strongest-props) n2])))

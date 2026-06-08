@@ -324,7 +324,12 @@
    {:net n :prop-ids []}
    (declared-method-branches outer-net generic-id)))
 
-(defn- materialize-generic-procedure
+(defn materialize-generic-procedure
+  "Materialize slot-declared generic procedure data into a readable value.
+
+  This is intentionally local evaluation: it does not mutate `outer-net`, but it
+  lets callers such as the cell protocol observe declaration-time slot topology
+  without requiring eager activation of the generic initializer or handlers."
   [outer-net generic-id]
   (let [current-value (net/network-cell-strongest outer-net generic-id)]
     (if (materialized-generic? outer-net generic-id current-value)

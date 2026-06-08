@@ -1,13 +1,15 @@
 (ns propagators-compile-2-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.value :as value]
-            [propagators.compiler-2.ast :as ast]
             [propagators.compiler-2.env :as env]
             [propagators.compiler-2.helpers :refer [default-env]]
             [propagators.compiler-2.main :as main]
+            [propagators.compiler-2.parser :as parser]
+            [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.propagator :as prop]))
 
 (defn- run-compiled
   [compiled]
@@ -22,16 +24,34 @@
   (let [id (ids/new-node-id)]
     [id (nb/seed-cell (nb/install-cell n id) id v)]))
 
+(defn- parse
+  [source]
+  (parser/parse-string source))
+
+(defn- compile-source
+  ([source]
+   (main/compile-expr (parse source)))
+  ([source env opts]
+   (main/compile-expr (parse source) env opts)))
+
 (deftest compile-2-compiles-primitive-application
   (testing "application returns a fresh result cell"
-    (let [compiled (main/compile-expr (ast/app '+ (ast/lit 1) (ast/lit 2)))
+    (let [compiled (compile-source "(+ 1 2)")
           result-net (run-compiled compiled)]
       (is (= 3 (strongest result-net (:cell compiled))))
       (is (= (:cell compiled) (main/compiled-result (:net compiled))))
       (is (= (:props compiled) (main/compiled-props (:net compiled)))))))
 
-(deftest compile-2-env-lookup-uses-intensity-shadowing
-  (testing "a child binding with higher intensity is selected from the compound env"
+(defn- propagator-inputs-writing-to
+  [n out-id]
+  (->> (net/net-graph n)
+       (keep (fn [[id node]]
+               (when (and (prop/prop? (get (net/net-env n) id))
+                          (contains? (:outputs node) out-id))
+                 (:inputs node))))))
+
+(deftest compile-2-env-lookup-uses-nearest-scope-source-shadowing
+  (testing "a child binding with a nearer scope source is selected from the compound env"
     (let [parent-id (ids/new-node-id)
           child-id (ids/new-node-id)
           env (-> (default-env)
@@ -87,56 +107,106 @@
       (is (= parent-y-id
              (:binding/id (env/lookup scoped-env-after-parent-update 'y)))))))
 
-(deftest compile-2-lexical-compound-captures-parent-cell
-  (testing "compound declarations capture parent cells as hidden inputs"
+(deftest compile-2-lexical-compound-uses-env-slot-not-hidden-captures
+  (testing "compound declarations attach lexical env through slots, not hidden application inputs"
     (let [[bias-id base-net] (seeded-cell net/empty-net 10)
           env (env/bind (default-env) 'bias (env/cell-binding bias-id) 0)
-          expr (ast/let-compound
-                'add-bias
-                (ast/compound {:inputs ['x] :output 'out}
-                  (ast/app '+ 'x 'bias))
-                (ast/app 'add-bias (ast/lit 5)))
-          compiled (main/compile-expr expr env {:net base-net})
+          compiled (compile-source
+                    "(let-compound add-bias
+                       (compound [x] out
+                         (+ x bias))
+                       (add-bias 5))"
+                    env
+                    {:net base-net})
+          closure-id (:binding/id (env/lookup (:env compiled) 'add-bias))
+          declarations (obj/slot-declarations-for (:net compiled) closure-id)
+          apply-inputs (propagator-inputs-writing-to (:net compiled)
+                                                     (:cell compiled))
           result-net (run-compiled compiled)]
+      (is (contains? declarations main/closure-env-slot))
+      (is (not-any? #(contains? % bias-id) apply-inputs))
       (is (= 15 (strongest result-net (:cell compiled)))))))
 
 (deftest compile-2-lexical-argument-shadows-parent-binding
-  (testing "input bindings are higher intensity than inherited env bindings"
+  (testing "input bindings use a nearer scope source than inherited env bindings"
     (let [[outer-x-id base-net] (seeded-cell net/empty-net 100)
           env (env/bind (default-env) 'x (env/cell-binding outer-x-id) 0)
-          expr (ast/let-compound
-                'inc-local
-                (ast/compound {:inputs ['x] :output 'out}
-                  (ast/app '+ 'x (ast/lit 1)))
-                (ast/app 'inc-local (ast/lit 5)))
-          compiled (main/compile-expr expr env {:net base-net})
+          compiled (compile-source
+                    "(let-compound inc-local
+                       (compound [x] out
+                         (+ x 1))
+                       (inc-local 5))"
+                    env
+                    {:net base-net})
           result-net (run-compiled compiled)]
       (is (= 6 (strongest result-net (:cell compiled)))))))
 
-(deftest compile-2-supports-multiple-nested-compounds-in-one-compound
-  (testing "an outer compound can define and apply nested compound propagators"
-    (let [expr
-          (ast/let-compound
-           'outer
-           (ast/compound {:inputs ['x] :output 'out}
-             (ast/let-compound
-              'inc
-              (ast/compound {:inputs ['y] :output 'z}
-                (ast/app '+ 'y (ast/lit 1)))
-              (ast/let-compound
-               'scale-after-inc
-               (ast/compound {:inputs ['y] :output 'z}
-                 (ast/let-compound
-                  'double
-                  (ast/compound {:inputs ['v] :output 'w}
-                    (ast/app '* 'v (ast/lit 2)))
-                  (ast/app 'double (ast/app 'inc 'y))))
-               (ast/app '+ (ast/app 'inc 'x)
-                       (ast/app 'scale-after-inc 'x)))))
-           (ast/app 'outer (ast/lit 4)))
-          compiled (main/compile-expr expr)
+(deftest compile-2-inner-local-does-not-write-parent-except-output
+  (testing "a local cell that shadows a parent symbol stays local unless routed to the compound output"
+    (let [[outer-x-id base-net] (seeded-cell net/empty-net 100)
+          env (env/bind (default-env) 'x (env/cell-binding outer-x-id) 0)
+          compiled (compile-source
+                    "(let-compound use-local-x
+                       (compound [] out
+                         (let-cell [x]
+                           (do (<-> 7 x)
+                               x)))
+                       (use-local-x))"
+                    env
+                    {:net base-net})
+          result-net (run-compiled compiled)]
+      (is (= 7 (strongest result-net (:cell compiled))))
+      (is (= 100 (strongest result-net outer-x-id))))))
+
+(deftest compile-2-escaped-closure-preserves-lexical-env-through-output
+  (testing "a returned closure carries its lexical environment through the declared output"
+    (let [compiled (compile-source
+                    "(let-compound make-adder
+                       (compound [bias] out
+                         (compound [x] z
+                           (+ x bias)))
+                       ((make-adder 10) 5))")
           result-net (run-compiled compiled)]
       (is (= 15 (strongest result-net (:cell compiled)))))))
+
+(deftest compile-2-supports-multiple-nested-compounds-in-one-compound
+  (testing "an outer compound can define and apply nested compound propagators"
+    (let [compiled (compile-source
+                    "(let-compound outer
+                       (compound [x] out
+                         (let-compound inc
+                           (compound [y] z
+                             (+ y 1))
+                           (let-compound scale-after-inc
+                             (compound [y] z
+                               (let-compound double
+                                 (compound [v] w
+                                   (* v 2))
+                                 (double (inc y))))
+                             (+ (inc x) (scale-after-inc x)))))
+                       (outer 4))")
+          result-net (run-compiled compiled)]
+      (is (= 15 (strongest result-net (:cell compiled)))))))
+
+(deftest compile-2-supports-multiple-compound-declarations-inside-one-compound
+  (testing "one compound can declare several local compound propagators and apply them over its arguments"
+    (let [compiled (compile-source
+                    "(let-compound pipeline
+                       (compound [a b] out
+                         (let-compound add2
+                           (compound [x y] z
+                             (+ x y))
+                           (let-compound mul2
+                             (compound [x y] z
+                               (* x y))
+                             (let-compound inc
+                               (compound [x] z
+                                 (+ x 1))
+                               (+ (add2 a b)
+                                  (mul2 (inc a) b))))))
+                       (pipeline 3 4))")
+          result-net (run-compiled compiled)]
+      (is (= 23 (strongest result-net (:cell compiled)))))))
 
 (deftest compile-2-supports-bi-sync-operator
   (testing "<-> installs bidirectional sync and returns the second cell"
@@ -146,16 +216,14 @@
           env (-> (default-env)
                   (env/bind 'a (env/cell-binding a-id) 0)
                   (env/bind 'b (env/cell-binding b-id) 0))
-          compiled (main/compile-expr (ast/app '<-> 'a 'b) env {:net n2})
+          compiled (compile-source "(<-> a b)" env {:net n2})
           result-net (run-compiled compiled)]
       (is (= b-id (:cell compiled)))
       (is (= 42 (strongest result-net b-id))))))
 
 (deftest compile-2-supports-switch-operator
   (testing "default env includes switch"
-    (let [compiled (main/compile-expr (ast/app 'switch
-                                               (ast/lit 9)
-                                               (ast/lit true)))
+    (let [compiled (compile-source "(switch 9 true)")
           result-net (run-compiled compiled)]
       (is (= 9 (strongest result-net (:cell compiled)))))))
 
@@ -165,7 +233,7 @@
           expr-id (ids/new-node-id)
           env-id (ids/new-node-id)
           compiled-id (ids/new-node-id)
-          expr (ast/app '+ 'x (ast/lit 1))
+          expr (parse "(+ x 1)")
           env (env/bind (default-env) 'x (env/cell-binding x-id) 0)
           n2 (-> n1
                  (nb/install-cell expr-id)
@@ -183,7 +251,7 @@
 
 (deftest compile-2-supports-late-input-partial-evaluation
   (testing "compiled applications can run before inputs exist and produce output later"
-    (let [compiled (main/compile-expr (ast/app '+ 'a (ast/lit 2)))
+    (let [compiled (compile-source "(+ a 2)")
           a-id (:binding/id (env/lookup (:env compiled) 'a))
           n0 (run-compiled compiled)
           n1 (nb/seed-cell n0 a-id 5)
@@ -193,8 +261,7 @@
 
 (deftest compile-2-supports-explicit-output-partial-evaluation
   (testing "app-> wires into a named output cell"
-    (let [compiled (main/compile-expr
-                    (ast/app-> '+ ['a (ast/lit 2)] 'out))
+    (let [compiled (compile-source "(app-> + [a 2] out)")
           a-id (:binding/id (env/lookup (:env compiled) 'a))
           out-id (:binding/id (env/lookup (:env compiled) 'out))
           n0 (run-compiled compiled)
@@ -205,14 +272,14 @@
       (is (= 7 (strongest n2 out-id))))))
 
 (deftest compile-2-supports-late-compound-definition
-  (testing "an unresolved operator compiles as a deferred closure cell"
-    (let [compiled (main/compile-expr (ast/app-> 'some-net [(ast/lit 2)] 'out))
+  (testing "an unresolved operator cell uses the same application propagator when it later receives a closure"
+    (let [compiled (compile-source "(app-> some-net [2] out)")
           some-net-id (:binding/id (env/lookup (:env compiled) 'some-net))
           out-id (:binding/id (env/lookup (:env compiled) 'out))
           closure-compiled
-          (main/compile-expr
-           (ast/compound {:inputs ['x] :output 'out}
-             (ast/app '+ 'x (ast/lit 1))))
+          (compile-source
+           "(compound [x] out
+              (+ x 1))")
           closure-value (strongest (:net closure-compiled)
                                    (:cell closure-compiled))
           n0 (run-compiled compiled)

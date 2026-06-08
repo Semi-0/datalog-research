@@ -8,6 +8,7 @@
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.intensity :as intensity]
+            [propagators.datastructures.scope-source :as scope-source]
             [propagators.generic-procedure :as generic]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -25,6 +26,10 @@
   [n]
   (compile/install-and-run n (protocol/install-intensity-protocol)))
 
+(defn- install-scope-source
+  [n]
+  (compile/install-and-run n (protocol/install-scope-source-protocol)))
+
 (defn- protocol-net
   []
   (install-protocol net/empty-net))
@@ -32,6 +37,10 @@
 (defn- intensity-net
   []
   (install-intensity (protocol-net)))
+
+(defn- scope-source-net
+  []
+  (install-scope-source (protocol-net)))
 
 (defn- define-merge-handler
   [n applicability handler]
@@ -64,6 +73,10 @@
 (defn- selected-intensity
   [v]
   (obj/slot-value v :intensity))
+
+(defn- selected-source-base
+  [v]
+  (scope-source/base-value v))
 
 (deftest protocol-falls-back-to-built-in-merge-and-strongest
   (testing "without protocol generics, built-in behavior is unchanged"
@@ -125,6 +138,42 @@
           second-content (merge-into n first-content 5 :right)]
       (is (intensity/intensity-content? second-content))
       (is (= value/contradiction (merge/strongest-value second-content n))))))
+
+(deftest scope-source-protocol-merges-and-selects-nearest-source
+  (testing "nearest source in the active scope chain wins"
+    (let [n (scope-source-net)
+          root :root
+          child :child
+          grandchild :grandchild
+          chain [root child grandchild]
+          root-value (scope-source/scope-value root grandchild chain :root-value)
+          child-value (scope-source/scope-value child grandchild chain :child-value)
+          content (-> value/nothing
+                      (#(merge/cell-merge % root-value n))
+                      (#(merge/cell-merge % child-value n)))]
+      (is (= :child-value
+             (selected-source-base (merge/strongest-value content n))))))
+
+  (testing "same semantic candidate is idempotent even with compound-object slots"
+    (let [n (scope-source-net)
+          candidate (scope-source/scope-value :root :root [:root] :same)
+          content (merge/cell-merge value/nothing candidate n)]
+      (is (= content (merge/cell-merge content candidate n)))))
+
+  (testing "equal nearest conflicting candidates contradict"
+    (let [n (scope-source-net)
+          left (scope-source/scope-value :child :child [:root :child] :left)
+          right (scope-source/scope-value :child :child [:root :child] :right)
+          content (-> value/nothing
+                      (#(merge/cell-merge % left n))
+                      (#(merge/cell-merge % right n)))]
+      (is (= value/contradiction (merge/strongest-value content n)))))
+
+  (testing "non-ancestor sources are retained but not strongest"
+    (let [n (scope-source-net)
+          unrelated (scope-source/scope-value :other :child [:root :child] :other)
+          content (merge/cell-merge value/nothing unrelated n)]
+      (is (= value/nothing (merge/strongest-value content n))))))
 
 (deftest with-intensity-builds-compound-update-from-cells
   (testing "p:with-intensity writes :intensity and :base layers"
