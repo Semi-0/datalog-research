@@ -13,10 +13,18 @@
   {'prop/id (requiring-resolve 'propagators.stdlib.prop/id)
    'p:id (requiring-resolve 'propagators.stdlib.prop/id)
    'prop/+ (requiring-resolve 'propagators.stdlib.prop/+)
+   'prop/- (requiring-resolve 'propagators.stdlib.prop/-)
+   'prop/<= (requiring-resolve 'propagators.stdlib.prop/<=)
+   'prop/not (requiring-resolve 'propagators.stdlib.prop/not)
    'prop/switch (requiring-resolve 'propagators.stdlib.prop/switch)
    'closure/p:apply-closure (requiring-resolve 'propagators.closure/p:apply-closure)
+   'closure/p:apply-network (requiring-resolve 'propagators.closure/p:apply-network)
    'recursive/p:recursive-compound
-   (requiring-resolve 'propagators.recursive/p:recursive-compound)})
+   (requiring-resolve 'propagators.recursive/p:recursive-compound)
+   'recursive/p:self-refining-recursive-compound
+   (requiring-resolve 'propagators.recursive/p:self-refining-recursive-compound)
+   'recursive/p:accumulating-recursive-compound
+   (requiring-resolve 'propagators.recursive/p:accumulating-recursive-compound)})
 
 ;; Re-export for manual threading
 (def install-net net/install-net)

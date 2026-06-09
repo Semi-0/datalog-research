@@ -1,6 +1,7 @@
 (ns propagators.datastructures.compound-object
   "Public facade for compound-object slots, reducers, and sequence helpers."
   (:require [propagators.datastructures.compound-object.core :as core]
+            [propagators.datastructures.compound-object.map :as map]
             [propagators.datastructures.compound-object.reduce :as reduce]
             [propagators.datastructures.compound-object.sequence :as sequence]
             [propagators.datastructures.compound-object.slot :as slot]))
@@ -32,3 +33,13 @@
 (def p:slot slot/p:slot)
 
 (def p:reduce reduce/p:reduce)
+(def p:map-slots-with-recursive-closure map/p:map-slots-with-recursive-closure)
+(def p:map-slots-with-recursive-accumulator map/p:map-slots-with-recursive-accumulator)
+(def install-declared-nested-recursive-map-with-closure
+  map/install-declared-nested-recursive-map-with-closure)
+(def install-declared-nested-recursive-map-with-accumulator
+  map/install-declared-nested-recursive-map-with-accumulator)
+(def install-accessor-nested-recursive-map-with-closure
+  map/install-accessor-nested-recursive-map-with-closure)
+(def install-accessor-nested-recursive-map-with-accumulator
+  map/install-accessor-nested-recursive-map-with-accumulator)

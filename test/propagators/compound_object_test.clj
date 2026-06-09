@@ -66,6 +66,42 @@
         (net/assoc-net-dict-entry :update update)
         (net/assoc-net-dict-entry :out out))))
 
+(defn- run-slot-set-reducer
+  [source]
+  (let [coll (new-node-id)
+        merge-net (new-node-id)
+        init (new-node-id)
+        out (new-node-id)
+        n0 (nb/install-cells [coll merge-net init out])
+        [reduce-prop n1] ((obj/p:reduce coll merge-net init out) n0)
+        n2 (-> n1
+               (nb/seed-cell coll source)
+               (nb/seed-cell merge-net (slot-set-merge-net))
+               (nb/seed-cell init #{})
+               (nb/run-propagators [reduce-prop]))]
+    (net/network-cell-value n2 out)))
+
+(defn- compound-reducible?
+  [v]
+  (not (value/contradiction? (obj/compound-object v))))
+
+(defn- nested-slot-set-via-shallow-reducer
+  ([source]
+   (nested-slot-set-via-shallow-reducer [] source))
+  ([path source]
+   (reduce (fn [acc [slot-key slot-value]]
+             (if (= :count slot-key)
+               acc
+               (let [path' (conj path slot-key)]
+                 (if (compound-reducible? slot-value)
+                   (into acc
+                         (nested-slot-set-via-shallow-reducer
+                          path'
+                          slot-value))
+                   (conj acc [path' slot-value])))))
+           #{}
+           (run-slot-set-reducer source))))
+
 (defn- build-nested-with-cons [layers]
   (let [sentinel (new-node-id)
         ids (vec (repeatedly (+ (* 2 layers) 1) new-node-id))
@@ -355,6 +391,55 @@
       (is (= :b (obj/slot-value coll-net 1)))
       (is (= 2 (obj/slot-value coll-net :count))))))
 
+(deftest p-slot-propagates-nested-slot-updates-to-top-object
+  (testing "filling a slot in the second nested object propagates to the top"
+    (let [top (new-node-id)
+          first (new-node-id)
+          first-leaf (new-node-id)
+          second (new-node-id)
+          leaf (new-node-id)
+          n0 (nb/install-cells [top first first-leaf second leaf])
+          [n1 tasks] (nb/install-propagator! n0
+                                             tq/empty-queue
+                                             (obj/p:slot :first first top))
+          [n2 tasks] (nb/install-propagator! n1
+                                             tasks
+                                             (obj/p:slot :value first-leaf first))
+          [n3 tasks] (nb/install-propagator! n2
+                                             tasks
+                                             (obj/p:slot :second second top))
+          [n4 tasks] (nb/install-propagator! n3
+                                             tasks
+                                             (obj/p:slot :value leaf second))
+          [n5 tasks] (nb/seed-cell! n4 tasks first-leaf 1)
+          n6 (core/run-tasks tasks n5)
+          [n7 tasks] (nb/seed-cell! n6 tq/empty-queue leaf 9)
+          n8 (core/run-tasks tasks n7)
+          top-value (net/network-cell-value n8 top)
+          second-value (obj/slot-value top-value :second)]
+      (is (= 9 (obj/slot-value second-value :value)))
+      (is (= 1 (obj/slot-value (obj/slot-value top-value :first) :value)))))
+
+  (testing "conflicting nested slot updates propagate as a localized contradiction"
+    (let [top (new-node-id)
+          second (new-node-id)
+          leaf (new-node-id)
+          n0 (nb/install-cells [top second leaf])
+          [n1 tasks] (nb/install-propagator! n0
+                                             tq/empty-queue
+                                             (obj/p:slot :second second top))
+          [n2 tasks] (nb/install-propagator! n1
+                                             tasks
+                                             (obj/p:slot :value leaf second))
+          [n3 tasks] (nb/seed-cell! n2 tasks leaf 2)
+          n4 (core/run-tasks tasks n3)
+          [n5 tasks] (nb/seed-cell! n4 tq/empty-queue leaf 9)
+          n6 (core/run-tasks tasks n5)
+          top-value (net/network-cell-value n6 top)
+          second-value (obj/slot-value top-value :second)]
+      (is (= value/contradiction
+             (obj/slot-value second-value :value))))))
+
 (deftest p-reduce-folds-all-compound-slots-from-strongest-reducer-subnet
   (testing "empty source returns init"
     (let [coll (new-node-id)
@@ -466,6 +551,28 @@
                  (nb/seed-cell init #{})
                  (nb/run-propagators [reduce-prop]))]
       (is (= #{[0 :a] [1 :b] [:count 2]} (net/network-cell-value n2 out))))))
+
+(deftest p-reduce-folds-nested-compound-values-shallowly
+  (testing "nested maps and vectors are immediate slot values, not recursively folded"
+    (let [source {:a 1
+                  :nested {:b 2
+                           :c [3 4]}}
+          folded (run-slot-set-reducer source)]
+      (is (= #{[:a 1]
+               [:nested {:b 2 :c [3 4]}]}
+             folded))
+      (is (not (contains? folded [:b 2])))
+      (is (not (contains? folded [0 3])))))
+
+  (testing "nested folds require explicit composition of repeated shallow reducers"
+    (let [source {:a 1
+                  :nested {:b 2
+                           :c [3 4]}}]
+      (is (= #{[[:a] 1]
+               [[:nested :b] 2]
+               [[:nested :c 0] 3]
+               [[:nested :c 1] 4]}
+             (nested-slot-set-via-shallow-reducer source))))))
 
 (deftest p-reduce-installs-accessors-and-folds-independent-of-slot-order
   (testing "slotful source that exists before reducer activation is folded"

@@ -13,6 +13,24 @@
 
 (declare strongest-value)
 
+(defn- closure-value?
+  [x]
+  (and (map? x)
+       (contains? x :f)
+       (contains? x :net)))
+
+(defn- compatible-closures?
+  [a b]
+  (and (closure-value? a)
+       (closure-value? b)
+       (= (:f a) (:f b))
+       (= (:boundary a) (:boundary b))))
+
+(defn- closure-net-equivalent?
+  [a b]
+  (and (= true (named/named-network->= (:net a) (:net b)))
+       (= true (named/named-network->= (:net b) (:net a)))))
+
 (defmulti cell-updated?
   (fn [new old _network]
     (cond
@@ -23,6 +41,10 @@
       (or (reducer/reducer-subnet? new)
           (reducer/reducer-subnet? old))
       :reducer-subnet
+
+      (or (closure-value? new)
+          (closure-value? old))
+      :closure
 
       (or (named/named-network? new)
           (named/named-network? old)
@@ -47,6 +69,11 @@
   (not (cell-equal? (strongest-value new network)
                     (strongest-value old network))))
 
+(defmethod cell-updated? :closure
+  [new old _network]
+  (not (and (compatible-closures? new old)
+            (closure-net-equivalent? new old))))
+
 (defn- named-strongest-equal? [new old]
   (cond
     (and (named/named-network? new)
@@ -69,6 +96,8 @@
       (update/compound-sync? update) :compound-sync
       (update/compound-data? update) :compound-data
       (reducer/reducer-subnet? update) :reducer-subnet
+      (or (closure-value? _content)
+          (closure-value? update)) :closure
       (evidence/evidence-set? update) :named-network
       (named/named-network? update) :named-network
       :else :default)))
@@ -149,6 +178,22 @@
          (= true (named/named-network->= (reducer/source content)
                                          (reducer/source update))))
     content
+    :else value/contradiction))
+
+(defmethod built-in-cell-merge :closure
+  [content update _network]
+  (cond
+    (value/nothing? content) update
+    (value/nothing? update) content
+    (value/contradiction? content) value/contradiction
+    (value/contradiction? update) value/contradiction
+
+    (compatible-closures? content update)
+    (let [merged-net (named/join (:net content) (:net update))]
+      (if (value/contradiction? merged-net)
+        value/contradiction
+        (assoc content :net merged-net)))
+
     :else value/contradiction))
 
 (defn- protocol-handled?
