@@ -17,13 +17,11 @@
   "Forward `in-id` to `out-id` when `pred-id` has a usable truthy value."
   [pred-id in-id out-id]
   (prop/construct-propagator
-   (fn [_inputs _outputs network]
+   (prop/concrete-propagator
+    (fn [_inputs _outputs network]
      (let [pred (net/network-cell-strongest network pred-id)
            v (net/network-cell-strongest network in-id)]
-       (cond
-         (or (value/unusable? pred) (value/unusable? v)) []
-         pred [(message out-id v)]
-         :else [])))
+       (if pred [(message out-id v)] []))))
    [pred-id in-id]
    [out-id]))
 
