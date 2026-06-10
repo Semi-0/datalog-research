@@ -1242,3 +1242,73 @@ case: direct nested recursion remained fast enough but failed semantically on
 `[:right :b]` and `[:right :empty]`, while declaration-first network
 accumulation stayed correct with only modest end-to-end cost. That is the main
 reason recursive network accumulation is now the preferred default.
+
+## Follow-up: Demand-driven accessor topology
+
+The next compound-object experiment separates structure from slot values more
+strictly. The current `p:slot` representation keeps durable slot cells inside
+the collection's named network. That is convenient for `obj/slot-value`, but it
+means a normal slot value update also changes the collection value and wakes
+collection dependents.
+
+The experimental `obj/p:network-slot` keeps the collection cell as a structural
+inner network only. The inner network records demanded accessor topology,
+activation-local avatars, and bi-sync wiring. Durable slot values remain in the
+outer accessor cells.
+
+```text
+collection cell
+  strongest = structural/accessor network
+
+outer accessor cells
+  strongest = actual slot values
+
+slot activation
+  fetch collection inner net
+  copy relevant outer cells into avatars
+  run inner net
+  project changed avatars back to outer cells
+```
+
+This is the shape we want for future TMS/switch work: structural conditions can
+rewrite the collection's inner network, while ordinary value updates propagate
+between accessor cells without rewriting the collection.
+
+Focused evidence from `propagators.compound-object-network-slot-test`:
+
+- raw map/vector source values can be projected to accessors without durable
+  internal slot cells;
+- repeated accessor declarations are idempotent;
+- two accessors for the same slot sync through the inner network;
+- after topology exists, a later accessor value update changes peer accessors
+  but leaves the collection value unchanged.
+
+Microbenchmark on `2026-06-10`, averaged over 8 timed runs after 2 warmup runs
+and measuring setup separately from the later value update:
+
+| accessors | strategy | setup ns | update ns | collection changed on update |
+|---:|---|---:|---:|---|
+| 2 | `p:slot` | 741,427 | 872,130 | yes |
+| 2 | `p:network-slot` | 874,171 | 430,140 | no |
+| 10 | `p:slot` | 3,086,526 | 2,492,000 | yes |
+| 10 | `p:network-slot` | 4,432,390 | 3,754,583 | no |
+| 100 | `p:slot` | 60,816,786 | 36,822,453 | yes |
+| 100 | `p:network-slot` | 76,382,999 | 229,525,682 | no |
+
+Second microbenchmark on `2026-06-10`, also averaged over 8 timed runs after 2
+warmup runs, using `200` accessors spread across `200` different slots and then
+updating one accessor:
+
+| shape | strategy | setup ns | update ns | collection changed on update |
+|---|---|---:|---:|---|
+| 200 accessors / 200 slots | `p:slot` | 348,140,156 | 175,827,520 | yes |
+| 200 accessors / 200 slots | `p:network-slot` | 163,628,505 | 388,547 | no |
+
+Conclusion: the experimental model proves the semantic separation we wanted,
+but the performance result depends on shape. For many accessors synced to the
+same slot, `p:network-slot` still does real fan-out work through the inner
+network and loses at `100` accessors. For many independent slots, it wins
+strongly because a value update stays on the one accessor route and does not
+rewrite the collection cell. The optimized version seeds only the activated
+accessor route and projects changed avatars by comparison instead of installing
+activation-local taps.

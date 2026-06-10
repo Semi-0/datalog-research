@@ -18,6 +18,7 @@
     propagators.cell-protocol-test
     propagators.compile-2-test
     propagators.compound-data-test
+    propagators.compound-object-network-slot-test
     propagators.compound-object-test
     propagators.dispatch-test
     propagators.generic-procedure-test

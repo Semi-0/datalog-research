@@ -134,15 +134,32 @@
                   content)]
       (subnet/merge-compound-sync state update network))))
 
+(defn- accessor-network-update?
+  [update]
+  (and (named/named-network? update)
+       (let [accessor-network? (requiring-resolve
+                                'propagators.datastructures.compound-object.network-slot/accessor-network?)]
+         (accessor-network? update))))
+
+(defn- normalize-named-network-content
+  [content update]
+  (if (accessor-network-update? update)
+    (if (evidence/evidence-set? content)
+      content
+      (let [as-accessor-network (requiring-resolve
+                                 'propagators.datastructures.compound-object.network-slot/as-accessor-network)]
+        (as-accessor-network content)))
+    (if (or (value/nothing? content)
+            (named/named-network? content)
+            (evidence/evidence-set? content))
+      content
+      ((requiring-resolve
+        'propagators.datastructures.compound-object/compound-object)
+       content))))
+
 (defmethod built-in-cell-merge :named-network
   [content update _network]
-  (let [content* (if (or (value/nothing? content)
-                         (named/named-network? content)
-                         (evidence/evidence-set? content))
-                   content
-                   ((requiring-resolve
-                     'propagators.datastructures.compound-object/compound-object)
-                    content))]
+  (let [content* (normalize-named-network-content content update)]
     (cond
       (value/contradiction? content*) value/contradiction
       (value/contradiction? update) value/contradiction

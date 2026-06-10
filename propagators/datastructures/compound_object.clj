@@ -2,6 +2,7 @@
   "Public facade for compound-object slots, reducers, and sequence helpers."
   (:require [propagators.datastructures.compound-object.core :as core]
             [propagators.datastructures.compound-object.map :as map]
+            [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.compound-object.reduce :as reduce]
             [propagators.datastructures.compound-object.sequence :as sequence]
             [propagators.datastructures.compound-object.slot :as slot]))
@@ -31,6 +32,15 @@
 (def attach-slot-sync slot/attach-slot-sync)
 (def sync-slot-messages slot/sync-slot-messages)
 (def p:slot slot/p:slot)
+
+(def accessor-network? network-slot/accessor-network?)
+(def as-accessor-network network-slot/as-accessor-network)
+(def empty-accessor-network network-slot/empty-accessor-network)
+(def attach-network-slot-sync network-slot/attach-network-slot-sync)
+(def p:network-slot network-slot/p:network-slot)
+(def p:network-car network-slot/p:network-car)
+(def p:network-cdr network-slot/p:network-cdr)
+(def p:network-cons network-slot/p:network-cons)
 
 (def p:reduce reduce/p:reduce)
 (def p:map-slots-with-recursive-closure map/p:map-slots-with-recursive-closure)
