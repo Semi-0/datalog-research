@@ -11,6 +11,25 @@ Source files:
 
 ## Status
 
+Terminology (canonical):
+
+- Direct recursive activation
+  - `recursive/recursive-closure` + `recursive/p:recursive-compound` path that
+    expands and executes an inner network during activation.
+  - In tests/logs this is the existing `direct recursive activation` behavior.
+
+- Network-valued recursion
+  - `closure/p:apply-network` path that emits a declaration network value without
+    running it; execution is performed by the outer scheduler.
+
+- Self-refining closure
+  - Recursive design where the closure cell is also the accumulator (`p:self-refining-recursive-compound`).
+
+- Explicit accumulator recursion
+  - Recursive design with a separate accumulator net (`p:accumulating-recursive-compound`).
+
+Use these terms consistently in discussion/docs and avoid `directed recursion` as a separate term.
+
 Recursive compound propagation is implemented as activation-local network
 expansion. It does not change the core scheduler contract and does not introduce
 a new primitive data type.
@@ -55,7 +74,7 @@ activation-local network dict key `:recursive/self`, applies the closure, runs
 the inner network to quiescence, and diffs avatar output back to the real output
 cell.
 
-## Experiment Conclusion
+## Current Direction
 
 The current evidence points to network-valued expansion as the default recursion
 direction.
@@ -562,6 +581,44 @@ network is not retained.
   as another accumulator-based higher-order propagator.
 - `obj/p:reduce` is shallow; nested reduction currently requires explicit
   composition of repeated shallow reducers.
+
+## Nested Object Recursion: Why Network Accumulation Became Default
+
+Experiment date: 2026-06-10
+
+Goal:
+- verify whether recursion over nested objects should be implemented as
+  immediate recursive activation or as declaration network accumulation via
+  `closure/p:apply-network`.
+
+Setup:
+- same nested source used across approaches:
+  `{:left [0 1 2] :right {:a 3 :b [4 5] :empty []}}`
+- two mapped operators: recursive Fibonacci and a recursive sum.
+- two recursion styles:
+  - direct recursive activation (`recursive-closure` running an inner network in
+    activation path)
+  - network-valued declaration (`closure/p:apply-network` producing a network
+    that is run by the caller later)
+
+Findings:
+- direct activation maps scalar slots and first-level vectors, and reduces nested
+  numeric leaves correctly;
+- direct activation also sets a localized contradiction on `[:right :b]` and
+  `[:right :empty]` in this mixed nested map/vector case,
+  showing incomplete robustness when nested vectors appear under nested map
+  branches.
+- network-valued declaration produces full nested map and nested reduce topology
+  first, then evaluation of that topology succeeds end-to-end with consistent
+  leaf counts and values for both map and reduce.
+
+Conclusion used for direction:
+- recursive network accumulation is the default for nested object mapping and
+  reduce patterns because declaration and evaluation stay separated and the
+  complete accessor topology is established before propagation runs.
+- direct recursive activation remains supported as an immediate path for
+  simpler recursive shapes and compatibility tests, but is not the default for
+  nested object semantics.
 - Bounded iteration is a design direction and has no public implementation yet.
 
 ## Current Tests
@@ -595,3 +652,593 @@ network is not retained.
 - test-only composition of repeated shallow reducers to fold nested leaves
 - accessor-built nested slot updates propagating from `:second/:value` back to
   the top object
+
+## Chronological Experiment Log
+
+Total executed recursion experiments: `6`
+
+Separate from that total:
+
+- `1` auxiliary non-recursive comparison reused repeated shallow `obj/p:reduce`
+  composition for nested folding.
+- `1` bounded-iteration follow-up exists only as a design direction and was not
+  executed or benchmarked.
+
+Benchmark method for the entries below:
+
+- measured locally on `2026-06-10`
+- warmed up twice, then timed for `8` end-to-end runs
+- Fibonacci timings use `fib(10)`
+- map benchmarks use `{:left [0 1 2 3 4] :right {:a 5 :b [6 7]}}`
+- nested stress benchmarks use
+  `{:left [0 1 2] :right {:a 3 :b [4 5] :empty []}}`
+
+1. `2026-06-04` Plain direct recursive activation.
+   Assumption: recursion can expand and run an activation-local inner network,
+   with concrete input, no retained semantic frame history, and no mutation of
+   the outer graph during `eval-propagator`.
+   Outcome: `recursive/p:recursive-compound` computes Fibonacci, supports lazy
+   base branching, depth guards, compile DSL installation, and wrapping inside a
+   normal compound closure.
+   Benchmark: `fib(10)` averaged `19.76 ms/run` (`14.40` min, `26.32` max).
+
+2. `2026-06-09` Retained semantic frame accumulation.
+   Assumption: recursive progress can be represented as monotone named-network
+   frame facts with deterministic frame ids, merged by `named/join`.
+   Outcome: both self-refining closure and explicit accumulator preserve
+   semantic frames such as `[:fib 5]` and are idempotent by subsumption; the
+   explicit accumulator is materially cheaper on the same Fibonacci workload.
+   Benchmark: self-refining `fib(10)` averaged `212.99 ms/run`; explicit
+   accumulator `fib(10)` averaged `137.71 ms/run`.
+
+3. `2026-06-09` Dynamic higher-order recursive map over compound objects.
+   Assumption: a higher-order recursive map can inspect compound slots during
+   activation and run one recursive leaf application immediately for each slot.
+   Outcome: recursive map works over compound-object structure and retains frame
+   data, but declaration and evaluation are coupled and the implementation pays
+   for activation-local per-leaf runs.
+   Benchmark: dynamic self-refining map averaged `66.06 ms/run`; dynamic
+   accumulator map averaged `47.21 ms/run`; both produced mapped leaf sum `33`.
+
+4. `2026-06-10` Declared accessor topology for nested recursive map.
+   Assumption: nested traversal should be declared up front with `p:slot`
+   accessors, with source and output shape both represented as graph topology
+   instead of rebuilding native Clojure maps/vectors after recursion.
+   Outcome: the declared path keeps declaration separate from evaluation and
+   preserves accessor semantics for later slot updates; it is cleaner than the
+   dynamic path and stays aligned with the scheduler contract.
+   Benchmark: declared self-refining map averaged `55.94 ms/run`; declared
+   accumulator map averaged `56.61 ms/run`; both mapped `8` leaves with total
+   mapped leaf sum `33`.
+
+5. `2026-06-10` Direct nested recursion stress test.
+   Assumption: one direct recursive activation should be able to recurse through
+   nested mixed map/vector structure and also assemble correct nested output in
+   the same activation style.
+   Outcome: nested reduce succeeds and returns `15`, but nested map is not
+   robust for mixed nested map/vector branches and localizes contradiction at
+   `[:right :b]` and `[:right :empty]`.
+   Benchmark: direct nested map averaged `20.74 ms/run`; direct nested sum
+   averaged `10.37 ms/run`.
+
+6. `2026-06-10` Declaration-first network accumulation via
+   `closure/p:apply-network`.
+   Assumption: recursion over nested objects should accumulate declaration
+   topology first, then run the expanded network after the full accessor graph
+   exists.
+   Outcome: nested map and nested reduce both succeed on the same mixed nested
+   source because the complete accessor topology is declared before evaluation;
+   current structural idempotence is still incomplete because repeated expansion
+   creates fresh topology ids.
+   Benchmark: network-valued map averaged `23.80 ms/run`; network-valued sum
+   averaged `8.61 ms/run`; both operated on `6` nested leaves.
+
+Auxiliary comparison: repeated shallow reducer composition.
+Assumption: nested reduction can be approximated by explicitly composing several
+shallow `obj/p:reduce` passes rather than adding recursive reducer topology.
+Outcome: this works as a comparison point and produces the nested leaf set, but
+it is not itself the recursion mechanism and does not replace accessor-based
+recursive traversal.
+Benchmark: averaged `3.15 ms/run` on
+`{:a 1 :nested {:b 2 :c [3 4]}}`.
+
+## Four Strategy Propagation Graphs
+
+These diagrams are generated from the real outer propagation networks installed
+by each strategy. They show the runtime contract each strategy exposes to the
+ordinary scheduler.
+
+Plain direct recursive activation:
+
+```text
+          +---------+        
+          | closure |·+      
+          +---------+ |      
+                      |      
+                      |      
+                      |      
+                      | +---+
+                      | | n |
+                      v +---+
+                      |   |  
+               +·····<+···+  
+               |      |      
++-----+    +-------+  |      
+| out |    | recur |··+      
++-----+    +-------+         
+   |           |             
+   +·····<·····+             
+```
+
+Assumption represented: the closure and argument cells are inputs; only the
+output cell receives the activation result.
+
+Self-refining direct recursion:
+
+```text
+                           +---+
+                           | n |
+                           +---+
+                             |  
+                   +····<····+  
+                   |            
++---------+   +--------+        
+| closure |·>·| refine |        
++---------+   +--------+        
+     |             |            
+     +······<······v            
+                   |            
+               +-----+          
+               | out |          
+               +-----+          
+```
+
+Assumption represented: the closure cell is both input and output, so retained
+frame declarations are merged back into the closure value.
+
+Explicit-accumulator direct recursion:
+
+```text
+      +---+          +-----+ 
+      | n |          | out | 
+      +---+          +-----+ 
+        |               |    
+        +·······>·······^    
+                        |    
+                    +-------+
+                    | accum |
+                    +-------+
+                        |    
+        +·······>·······^    
+        |               |    
+   +---------+       +-----+ 
+   | closure |       | acc | 
+   +---------+       +-----+ 
+```
+
+Assumption represented: the closure remains stable; accumulated frame
+declarations flow through a separate `acc` cell.
+
+Declaration-first network accumulation:
+
+```text
+               +----------+               
+               | expander |·+             
+               +----------+ |             
+                            |             
+                            |             
+                            |             
+                            | +----------+
+                            | | template |
+                            v +----------+
+                            |       |     
+                     +······<·······+     
+                     |      |             
++----------+    +-------+   |             
+| expanded |    | apply |···+             
++----------+    +-------+                 
+      |              |                    
+      +······<·······+                    
+```
+
+Assumption represented: a closure-valued expander and a template network are
+inputs; the output is a larger network value that is evaluated separately.
+
+## Network Graph Snapshots
+
+These ASCII graphs were generated with `graph.vijual` from real network values,
+not hand-simulated sketches.
+
+Fibonacci uses the retained accumulator frame network from
+`run-accumulating-fib 5`. The visualized nodes are the frame facts accumulated
+in that named network; edges are extracted from `[:child ...]` frame facts.
+
+```text
+-----------+   +-----------+   +-----------+  
+| fib 0 = 0 |   | fib 1 = 1 |   | fib 5 = 5 |·+
++-----------+   +-----------+   +-----------+ |
+      |               |               |       |
+      |               +········<······+       |
+      |               ^               v       |
+      +······<········+               |       |
+                      |               |       |
+                +-----------+   +-----------+ |
+                | fib 2 = 1 |   | fib 3 = 2 | v
+                +-----------+   +-----------+ |
+                      |               |       |
+                      +········<······+       |
+                      |               ^       |
+                      +·······<·······+       |
+                                      |       |
+                                +-----------+ |
+                                | fib 4 = 3 |·+
+                                +-----------+  
+```
+
+The cons-cell snapshot uses an installed topology network built from
+`obj/p:cons`, `obj/p:car`, and `obj/p:cdr`. It is intentionally a raw topology
+view: `p:slot`-style accessors synchronize both directions, so the visual graph
+contains paired-looking wiring rather than a single semantic arrow per slot.
+
+```text
+                                +------+
+                                | tail |
+                                +------+
+                                    |   
+                                    ^   
+                                    |   
++----------+                    +-----+ 
+| read car |·+·+                | cdr | 
++----------+ | |                +-----+ 
+      |      | |                    |   
+      +······+·+····<···············+   
+      ^      | |                    |   
+      +······+·+······>·············+   
+      |      | |                        
+  +------+   | | +----------+   +-----+ 
+  | cons |···>·+·| read cdr |   | car | 
+  +------+   v ^ +----------+   +-----+ 
+      |      | |       |            |   
+      +······+<+·······+            |   
+      |      | |       |            |   
+      +······+·+·····<·^············^   
+      |      | |       |            |   
+      +······+·+·····>·+············+   
+             | |       |            |   
++---------+  | | +---------+    +------+
+| car out |··+·+ | cdr out |    | head |
++---------+      +---------+    +------+
+```
+
+## Complete Raw Runtime Networks
+
+The diagrams below are complete `net-graph` renderings from actual runtime
+network values. They are intentionally noisier than the semantic diagrams above.
+
+For Fibonacci, the recursive inner activation networks are not retained after
+activation. What is retained is the closure/accumulator frame network. That
+network is a named network of fact cells, so the complete raw graph has cells
+but no propagator edges. The self-refining closure and explicit accumulator
+produce the same retained fact graph; they differ in where this network is
+stored (`closure` cell versus `acc` cell).
+
+Outer runtime topology for self-refining `fib(5)`:
+
+```text
+                          +---+
+                          | 5 |
+                          +---+
+                            |  
+                  +····<····+  
+                  |            
++---------+   +-------+        
+| closure |·>·| recur |        
++---------+   +-------+        
+     |            |            
+     +······<·····v            
+                  |            
+              +-------+        
+              | out=5 |        
+              +-------+        
+```
+
+Outer runtime topology for explicit-accumulator `fib(5)`:
+
+```text
+              +-----+                 +---+  
+              | acc |···+             | 5 |·+
+              +-----+   |             +---+ |
+                 |      |                   |
+                 +······+·····<·····+<······+
+                        v     |     |        
+                        |     |     |        
+                        |     |     |        
+                        |     |     |        
++-------+   +---------+ | +-------+ |        
+| out=5 |   | closure |·>·| recur |·+        
++-------+   +---------+   +-------+          
+    |                         |              
+    +············<············+              
+```
+
+Internal activation network for self-refining `fib(5)`:
+
+```text
++-----+                +------+                  +---+   
+| out |··+             | prop |                  | 3 |   
++-----+  |             +------+                  +---+   
+         |                 |                       |     
+         |                 +······>····+           |     
+         |                 ^           |           |     
+         |                 +···········<···········+     
+         |                 |           |                 
+         | +------+    +------+     +---+                
+         ^ | prop |·>··| self |     | 2 |···+            
+         | +------+    +------+     +---+   |            
+         |     |           |                |            
+         |     +·····<·····+                |            
+         |     ^                            |            
+         |     +····>······+                |            
+         |     |           |                v            
++------+ |  +---+       +---+               |            
+| prop |·+  | 4 |       | 3 |               |            
++------+    +---+       +---+               |            
+    |                      |                |            
+    ^                      +·····>·····+    |            
+    |                                  |    |            
++------+   +-----+     +------+    +------+ | +---------+
+| out* |   | n=5 |··>··| prop |    | prop |·+ | closure |
++------+   +-----+     +------+    +------+   +---------+
+    |                      |           |                 
+    +················<·····v···········+                 
+                           |                             
+                      +--------+                         
+                      | n-in=5 |                         
+                      +--------+                         
+```
+
+Internal activation network for explicit-accumulator `fib(5)`:
+
+```text
+ +-----+     +-----+                            +------+   +---------+
+ | n=5 |···+ | out |                            | prop |   | closure |
+ +-----+   | +-----+                            +------+   +---------+
+           |     |                                  |                 
+           |     +···············>··················+                 
+           |     |                                  |                 
+           |     +················<·················+                 
+           |     |                                                    
++--------+ | +------+     +------+                                    
+| n-in=5 | | | out* |     | prop |                                    
++--------+ | +------+     +------+                                    
+     |     |     |            |                                       
+     |     |     |            +·····················<····+            
+     |     |     ^            v                          |            
+     +·····v·····+····<·+     |                          |            
+           |     |      |     |                          |            
+           | +------+   | +-----+    +------+    +---+   |            
+           | | prop |·+ | | acc |    | prop |·>··| 3 |   |            
+           | +------+ | | +-----+    +------+ |  +---+   |            
+           |     |    | |                |    |     |    |            
+           |     +····+·+·········<······+····+·····+    |            
+           |          | |                |    |          |            
+           |          | |     +···>······+    |          |            
+           |          | |     |          |    |          |            
+           |          | |     |          +···<+·····+    |            
+           |          | |     |          |    |     |    |            
+           |          | |     |          +·>··+·····+    |            
+           |          | |     |               |     |    |            
+           | +------+ | | +------+   +------+ | +------+ |            
+           +·| prop |·^·+ | self |·>·| prop |·^·| acc* |·+            
+             +------+ |   +------+   +------+ | +------+              
+                      |                  |    |     |                 
+                      |                  +····+·····+·<·········+     
+                      |                  |    |     |           |     
+                      |                  +····<·····+           |     
+                      |                  |    |                 |     
+                 +····+········<·········+    |                 |     
+                 |    |                       |                 |     
+              +---+   |               +---+   |               +---+   
+              | 2 |···+               | 4 |···+               | 3 |   
+              +---+                   +---+                   +---+   
+```
+
+These internal activation graphs are complete network renderings captured from
+the real `run-recursive-frame` path. They are not retained by normal execution;
+normal execution keeps only the outer messages and the retained frame network.
+The boxes labeled `prop` are real propagator nodes, but the runtime propagator
+record currently does not retain a human-readable operator name.
+
+Complete retained frame network for `fib(5)`:
+
+```text
+                                                                                                                    
+                                                                                                                    
+                                                                                                                    
+                 +------------+   +------------+   +------------+                                                   
+                 |     f2     |   |     f3     |   |     f4     |   +------------+   +------------+                 
+                 |  [:child   |   |  [:status  |   |  :combine  |   |     f5     |   |     f0     |                 
+                 |  0] [:fib  |   | :expanded] |   |     :+     |   | :output 5  |   | :output 0  |                 
+                 |     1]     |   |    true    |   +------------+   +------------+   +------------+                 
+                 +------------+   +------------+                                                                    
+                                                                                                                    
+                                                                                                                    
+                                                                                                                    
+                 +------------+                    +------------+   +------------+   +------------+   +------------+
+                 |     f3     |   +------------+   |     f3     |   |     f5     |   |     f1     |   |     f2     |
+                 |  [:child   |   | f5 :input  |   |  [:child   |   |  [:child   |   |  [:status  |   |  [:status  |
+                 |  0] [:fib  |   |     5      |   |  1] [:fib  |   |  0] [:fib  |   |   :done]   |   | :expanded] |
+                 |     2]     |   +------------+   |     1]     |   |     4]     |   |    true    |   |    true    |
+                 +------------+                    +------------+   +------------+   +------------+   +------------+
+                                                                                                                    
+                                                                                                                    
+                                                                                                                    
+                 +------------+                    +------------+   +------------+   +------------+   +------------+
++------------+   |     f2     |   +------------+   |     f5     |   |     f4     |   |     f5     |   |     f4     |
+| f0 :input  |   |  [:child   |   | f3 :input  |   |  [:child   |   |  [:status  |   |  [:status  |   |  [:child   |
+|     0      |   |  1] [:fib  |   |     3      |   |  1] [:fib  |   |   :done]   |   | :expanded] |   |  1] [:fib  |
++------------+   |     0]     |   +------------+   |     3]     |   |    true    |   |    true    |   |     2]     |
+                 +------------+                    +------------+   +------------+   +------------+   +------------+
+                                                                                                                    
+                                                                                                                    
+                                                                                                                    
+                 +------------+                                                                       +------------+
+                 |     f0     |   +------------+   +------------+   +------------+   +------------+   |     f4     |
+                 |  [:status  |   |     f4     |   | f1 :input  |   |     f1     |   | f2 :input  |   |  [:child   |
+                 |   :done]   |   | :output 3  |   |     1      |   | :output 1  |   |     2      |   |  0] [:fib  |
+                 |    true    |   +------------+   +------------+   +------------+   +------------+   |     3]     |
+                 +------------+                                                                       +------------+
+                                                                                                                    
+                                                                                                                    
+                                                                                                                    
+                                  +------------+   +------------+   +------------+   +------------+   +------------+
+                 +------------+   |     f3     |   |     f2     |   |     f5     |   |     f3     |   |     f5     |
+                 |     f2     |   |  :combine  |   |  [:status  |   |  [:status  |   |  [:status  |   |  :combine  |
+                 | :output 1  |   |     :+     |   |   :done]   |   |   :done]   |   |   :done]   |   |     :+     |
+                 +------------+   +------------+   |    true    |   |    true    |   |    true    |   +------------+
+                                                   +------------+   +------------+   +------------+                 
+                                                                                                                    
+                                                                                                                    
+                                                                                                                    
+                                  +------------+   +------------+                                                   
+                                  |     f2     |   |     f4     |   +------------+   +------------+                 
+                                  |  :combine  |   |  [:status  |   |     f3     |   | f4 :input  |                 
+                                  |     :+     |   | :expanded] |   | :output 2  |   |     4      |                 
+                                  +------------+   |    true    |   +------------+   +------------+                 
+                                                   +------------+                                                   
+```
+
+Complete runtime topology for self-refining nested HOP over `{:x [2]}`:
+
+```text
+               +-----+                         +---+               +-----+                     
+           +···| fib |···+·+                   | 2 |··········+    | out |                     
+           |   +-----+   | |                   +---+          |    +-----+                     
+           |      |      | |                      |           |        |                       
+           |      +······+·>······+               |           |        v                       
+           |             | |      |               |           |        +··········<···········+
+           |             | |      |               |           |        |                      |
+           |             ^ v    +---+          +---+          |  +---------+                  |
+           |             | |    | 1 |          | 1 |······+·+ |  | slot :x |                  |
+           ^             | |    +---+          +---+      | | |  +---------+                  |
+           |             | |      |                       | | |        |                      |
+           |             | |      ^               +·······+<+·+········+                      |
+           |             | |      |               |       | | |        |                      |
+           |             | |      |               +·······+·+>+········+                      |
+           |             | |      |               |       | | |                               |
+  +---+    | +---------+ | | +--------+       +-----+     | | | +------------+                |
+  | 2 |    | | closure | | | | slot 0 |       | net |     ^ v | |    slot    |                |
+  +---+····+ +---------+·+·+ +--------+···>···+-----+·····>·+·+·|   :count   |·+·+            |
+     |                            |               |       | | | +------------+ | |            |
+     |                            |               |       | | |        |       | |            |
+     |                            |               |       | | +>·······+·······+·+······+     |
+     |                            |               |       | |          |       | |      |     |
+     ^                            |               +·······+·<··········+       | |      |     |
+     |                            |               |       | |                  | |      |     |
+     |                            +·······<·······+       | |                  | |      |     |
+     |                                                    | |                  | |      |     |
++--------+                     +-----+     +------------+ | |                  | | +--------+ |
+| slot 0 |                     | net |     |    slot    | | |                  | | | slot 0 | |
++--------+                     +-----+     |   :count   |·+·+                  | | +--------+·+
+     |                            |        +------------+                      | |      |      
+     |                            |               |                            | |      |      
+     |                            |               +·····················>······v·^······+      
+     |                            |               |                            | |      |      
+     |                            v               +···················<········+·+······v      
+     |                            |                                            | |      |      
+     +·············<··············+                                            | |      |      
+     |                            |                                            | |      |      
+     +·············>··············+                                            | |      |      
+                                  |                                            | |      |      
+               +-----+       +---------+    +---------+             +---+      | |  +-----+    
+               | net |···>···| slot :x |    | slot :x |             | 1 |······+·+  | net |    
+               +-----+       +---------+    +---------+             +---+           +-----+    
+                  |               |               |                                     |      
+                  |               |               +··················>··················+      
+                  |               |               |                                     |      
+                  |               |               +··················<··················+      
+                  |               |               |                                            
+                  +·······<·······+               |                                            
+                  |                               |                                            
+                  +···············<···············+                                            
+                  |                               |                                            
+                  +···············>···············+                                            
+```
+
+Complete runtime topology for explicit-accumulator nested HOP over `{:x [2]}`:
+
+```text
+                             +-----+       +---------+        +-----+                  
+                             | net |···>···| slot :x |·+·+    | acc |                  
+                             +-----+       +---------+ | |    +-----+                  
+                                 |              |      | |        |                    
+                                 |              +······<·+········+                    
+                                 |              |      | |        |                    
+                                 v              +······+·>········+                    
+                                 |              |      | |                             
+                                 +······<·······+      | |                             
+                                 |              |      | |                             
+             +---+          +--------+       +-----+   | |     +---+        +---------+
+             | 2 |····>·····| slot 0 |       | fib |···+·>·····| 1 |        | closure |
+             +---+          +--------+       +-----+   | |     +---+        +---------+
+               |                 |              |      | |        |              |     
+               |                 |              +······v·^·······<+··············+     
+               |                 |              |      | |        |                    
+               +········<········+              |      | |        |                    
+               |                                |      | |        |                    
+               +················>···············+      | |        |                    
+                                                       | |        |                    
+                                 +·················>···+·+········+                    
+                                 |                     | |        |                    
+                                 +···················<·+·+········+                    
+                                 |                     | |                             
+          +---------+       +--------+       +-----+   | |     +---+                   
+          | slot :x |       | slot 0 |       | net |···+·+     | 1 |                   
+          +---------+       +--------+       +-----+           +---+                   
+               |                 |              |                 |                    
+               +················>+··············+                 |                    
+               |                 |              |                 |                    
+               +················<+··············+                 |                    
+               |                 ^                                ^                    
+               +···············<·+··············+                 |                    
+               |                 |              |                 |                    
+               +·············>···+··············+                 |                    
+                                 |              |                 |                    
++-----+                      +-----+         +-----+       +------------+              
+| out |                      | net |         | net |       |    slot    |              
++-----+·+             +······+-----+·····+   +-----+···>···|   :count   |              
+   |    |             |          |       |      |          +------------+              
+   |    |             |          |       |      |                 |                    
+   |    |             |          v       |      +········<········+                    
+   |    |             |          |       |      v                                      
+   +····+·········<···^·+        |       |      |                                      
+        |             | |        |       |      |                                      
+        v             | | +------------+ | +--------+                                  
+        |             | | |    slot    | | | slot 0 |                                  
+        |             | | |   :count   | | +--------+                                  
+        |             | | +------------+ |      |                                      
+        |             | |        |       |      ^                                      
+        |      +······+·+········^··<····+      |                                      
+        |      |      | |        |              |                                      
+        | +---------+ | |     +---+           +---+                                    
+        +·| slot :x |·+·+     | 1 |           | 2 |                                    
+          +---------+         +---+           +---+                                    
+```
+
+## Final Conclusion
+
+The executed evidence supports three decisions.
+
+- Keep plain direct recursive activation for immediate tree-style recursive
+  computation and compatibility.
+- Use explicit-accumulator, declaration-first network accumulation as the
+  default direction for recursive work over nested compound objects.
+- Keep accessor topology as the representation of nested structure; do not
+  rebuild nested recursive results by collapsing into native Clojure maps or
+  vectors at the end.
+
+The deciding experiment was the `2026-06-10` mixed nested map/vector stress
+case: direct nested recursion remained fast enough but failed semantically on
+`[:right :b]` and `[:right :empty]`, while declaration-first network
+accumulation stayed correct with only modest end-to-end cost. That is the main
+reason recursive network accumulation is now the preferred default.
