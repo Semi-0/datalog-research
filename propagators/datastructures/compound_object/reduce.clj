@@ -3,6 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object.core :as core]
+            [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.reducer-subnet :as reducer]
             [propagators.effectful-sync :as sync]
             [propagators.ids :as ids]
@@ -43,6 +44,59 @@
     (net/net {}
              (select-keys (net/net-env source-net) slot-ids)
              public-dict)))
+
+(defn- declared-accessor-input-ids
+  [n source-id]
+  (->> (get (net/network-dict-entry n core/slot-declarations-key) source-id)
+       vals
+       (mapcat keys)
+       (filter #(and (contains? (net/net-env n) %)
+                     (contains? (net/net-graph n) %)))
+       distinct
+       (sort-by pr-str)
+       vec))
+
+(defn- accessor-slot-value
+  [network source-net slot-key]
+  (let [parent-values (->> (network-slot/accessor-parent-ids source-net slot-key)
+                           (filter #(contains? (net/net-env network) %))
+                           (map #(net/network-cell-strongest network %))
+                           (remove value/unusable?)
+                           vec)]
+    (cond
+      (seq parent-values)
+      (reduce (fn [acc v]
+                (if (= acc v)
+                  acc
+                  value/contradiction))
+              (first parent-values)
+              (rest parent-values))
+
+      (network-slot/source-slot-present? source-net slot-key)
+      (network-slot/source-slot-value source-net slot-key)
+
+      :else value/nothing)))
+
+(defn- add-reducer-source-slot
+  [n slot-key slot-value]
+  (if (value/unusable? slot-value)
+    n
+    (let [slot-id (ids/new-node-id)]
+      (-> n
+          (nb/install-cell slot-id slot-value slot-value)
+          (net/assoc-net-dict-entry slot-key slot-id)
+          (net/update-net-dict-entry core/slot-index-key
+                                     #(assoc (or % {}) slot-key #{}))))))
+
+(defn- reducer-accessor-source
+  [network source-net]
+  (reduce
+   (fn [n slot-key]
+     (add-reducer-source-slot n
+                              slot-key
+                              (accessor-slot-value network source-net slot-key)))
+   (net/net-with-dict net/empty-net {core/slot-index-key {}})
+   (sort-by pr-str (network-slot/accessor-slot-keys source-net))))
 
 (defn- reducer-boundary-ids
   [merge-net-id init-id out-id]
@@ -107,6 +161,52 @@
                 (value/contradiction? init))
     (reducer/reducer-subnet (reducer-public-source source-net) merge-net init)))
 
+(defn- reducer-accessor-output-content
+  [network source-net merge-net init]
+  (when-not (or (value/unusable? merge-net)
+                (value/contradiction? init))
+    (reducer/reducer-subnet (reducer-accessor-source network source-net)
+                            merge-net
+                            init)))
+
+(defn- reduce-activation
+  [reducer-key source-id merge-net-id init-id out-id]
+  (fn [_inputs _outputs network]
+    (let [raw-source (net/network-cell-strongest network source-id)
+          merge-net (net/network-cell-strongest network merge-net-id)
+          init (net/network-cell-strongest network init-id)]
+      (cond
+        (value/contradiction? raw-source)
+        [(message source-id value/contradiction)]
+
+        (network-slot/accessor-network? raw-source)
+        (let [out-content (reducer-accessor-output-content network
+                                                           raw-source
+                                                           merge-net
+                                                           init)]
+          (if out-content [(message out-id out-content)] []))
+
+        :else
+        (let [source (core/compound-object raw-source)]
+          (if (value/contradiction? source)
+            [(message source-id value/contradiction)]
+            (let [stable-net (attach-reducer-accessors source
+                                                       reducer-key
+                                                       merge-net-id
+                                                       init-id
+                                                       out-id)
+                  source-messages (if (sync/strongest-equivalent?
+                                       source
+                                       stable-net
+                                       network)
+                                    []
+                                    [(message source-id stable-net)])
+                  out-content (reducer-output-content stable-net merge-net init)
+                  out-messages (if out-content
+                                 [(message out-id out-content)]
+                                 [])]
+              (into source-messages out-messages))))))))
+
 (defn p:reduce
   "Install reducer accessors in source, then emit reduced source content.
 
@@ -116,28 +216,12 @@
   fixed merge-net dict keys `:acc`, `:update`, and `:out`."
   [source-id merge-net-id init-id out-id]
   (let [reducer-key (ids/new-node-id)]
-    (prop/construct-propagator
-     (fn [_inputs _outputs network]
-       (let [source (core/compound-object (net/network-cell-strongest network source-id))]
-         (if (value/contradiction? source)
-           [(message source-id value/contradiction)]
-           (let [merge-net (net/network-cell-strongest network merge-net-id)
-                 init (net/network-cell-strongest network init-id)
-                 stable-net (attach-reducer-accessors source
-                                                      reducer-key
-                                                      merge-net-id
-                                                      init-id
-                                                      out-id)
-                 source-messages (if (sync/strongest-equivalent?
-                                      source
-                                      stable-net
-                                      network)
-                                   []
-                                   [(message source-id stable-net)])
-                 out-content (reducer-output-content stable-net merge-net init)
-                 out-messages (if out-content
-                                [(message out-id out-content)]
-                                [])]
-             (into source-messages out-messages)))))
-     [source-id merge-net-id init-id]
-     [source-id out-id])))
+    (fn [n]
+      (let [accessor-inputs (declared-accessor-input-ids n source-id)
+            inputs (vec (distinct (concat [source-id merge-net-id init-id]
+                                          accessor-inputs)))]
+        ((prop/construct-propagator
+          (reduce-activation reducer-key source-id merge-net-id init-id out-id)
+          inputs
+          [source-id out-id])
+         n)))))

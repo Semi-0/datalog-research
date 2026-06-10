@@ -61,8 +61,8 @@
   (fn [n]
     (let [policy-id (ids/new-node-id)
           n0 (nb/install-cell n policy-id select-one-policy-tag select-one-policy-tag)
-          [policy-prop n1] ((obj/p:legacy-slot policy-slot policy-id generic-id) n0)
-          [default-prop n2] ((obj/p:legacy-slot default-slot default-id generic-id) n1)]
+          [policy-prop n1] ((obj/p:slot policy-slot policy-id generic-id) n0)
+          [default-prop n2] ((obj/p:slot default-slot default-id generic-id) n1)]
       [[policy-prop default-prop] n2])))
 
 (defn- value-cell
@@ -83,10 +83,10 @@
                (nb/install-cell predicates-id)
                (nb/install-cell branch-id))
         [predicates-prop n1] ((predicate-vector-installer predicate-ids predicates-id) n0)
-        [predicates-slot-prop n2] ((obj/p:legacy-slot :method/predicates predicates-id branch-id) n1)
-        [matcher-slot-prop n3] ((obj/p:legacy-slot :method/matcher matcher-id branch-id) n2)
-        [handler-slot-prop n4] ((obj/p:legacy-slot :method/handler handler-id branch-id) n3)
-        [method-slot-prop n5] ((obj/p:legacy-slot (vector method-tag method-key)
+        [predicates-slot-prop n2] ((obj/p:slot :method/predicates predicates-id branch-id) n1)
+        [matcher-slot-prop n3] ((obj/p:slot :method/matcher matcher-id branch-id) n2)
+        [handler-slot-prop n4] ((obj/p:slot :method/handler handler-id branch-id) n3)
+        [method-slot-prop n5] ((obj/p:slot (vector method-tag method-key)
                                            branch-id
                                            generic-id)
                                n4)]

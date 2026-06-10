@@ -13,7 +13,7 @@
 (defn p:layer
   "Bidirectional sync between a layer value cell and a layered object slot."
   [layer-name layer-value-id layered-object-id]
-  (obj/p:legacy-slot layer-name layer-value-id layered-object-id))
+  (obj/p:slot layer-name layer-value-id layered-object-id))
 
 (defn p:base
   [base-value-id layered-object-id]
@@ -29,7 +29,7 @@
 
   This is topology only: it ensures the procedure and closure cells exist,
   installs the slot propagator, and records the slot declaration through
-  `obj/p:legacy-slot`. It does not seed values, run propagators, or enqueue tasks."
+  `obj/p:slot`. It does not seed values, run propagators, or enqueue tasks."
   [n proc-id layer-name closure-id]
   (let [n0 (-> n
                (nb/ensure-cell proc-id)
@@ -199,11 +199,16 @@
      :branch-prop-ids branch-prop-ids
      :active-layers active-layers}))
 
+(declare materialize-layered-cell-value)
+
 (defn- layered-cell-specs
   [outer-net proc-id arg-ids out-id proc-value]
   (into [(application/value-cell proc-id proc-value)
-         (application/copied-cell outer-net out-id normalize-layered-value)]
-        (map #(application/copied-cell outer-net % normalize-layered-value))
+         (application/value-cell out-id
+                                 (materialize-layered-cell-value outer-net out-id))]
+        (map #(application/value-cell
+               %
+               (materialize-layered-cell-value outer-net %)))
         arg-ids))
 
 (defn- copy-outer-cell
@@ -221,6 +226,12 @@
      :else
      (nb/install-cell n id))))
 
+(defn- strongest-or-nothing
+  [n id]
+  (if (contains? (net/net-env n) id)
+    (net/network-cell-strongest n id)
+    value/nothing))
+
 (defn- declared-procedure-layer-ids
   [outer-net proc-id]
   (->> (obj/slot-declarations-for outer-net proc-id)
@@ -231,26 +242,34 @@
                   [(pr-str layer-name) (pr-str closure-id)]))
        vec))
 
+(defn- materialize-layered-cell-value
+  [outer-net object-id]
+  (let [declared-layers (declared-procedure-layer-ids outer-net object-id)]
+    (if (empty? declared-layers)
+      (normalize-layered-value (strongest-or-nothing outer-net object-id))
+      (let [empty-object (obj/empty-compound-object)
+            n0 (nb/install-cell net/empty-net object-id empty-object empty-object)
+            n1 (reduce (fn [acc [_layer-name layer-value-id]]
+                         (copy-outer-cell acc outer-net layer-value-id))
+                       n0
+                       declared-layers)
+            [slot-prop-ids n2]
+            (reduce
+             (fn [[prop-ids acc] [layer-name layer-value-id]]
+               (let [[prop-id acc'] ((obj/p:legacy-slot layer-name
+                                                         layer-value-id
+                                                         object-id)
+                                     acc)]
+                 [(conj prop-ids prop-id) acc']))
+             [[] n1]
+             declared-layers)
+            materialized-net (nb/run-propagators n2 slot-prop-ids)]
+        (strongest-or-nothing materialized-net object-id)))))
+
 (defn- materialize-procedure
   [outer-net proc-id]
-  (let [declared-layers (declared-procedure-layer-ids outer-net proc-id)
-        n0 (copy-outer-cell net/empty-net outer-net proc-id normalize-layered-value)
-        n1 (reduce (fn [acc [_layer-name closure-id]]
-                     (copy-outer-cell acc outer-net closure-id))
-                   n0
-                   declared-layers)
-        [slot-prop-ids n2]
-        (reduce
-         (fn [[prop-ids acc] [layer-name closure-id]]
-           (let [[prop-id acc'] ((p:layered-procedure layer-name closure-id proc-id)
-                                 acc)]
-             [(conj prop-ids prop-id) acc']))
-         [[] n1]
-         declared-layers)
-        materialized-net (nb/run-propagators n2 slot-prop-ids)
-        proc-value (net/network-cell-strongest materialized-net proc-id)]
-    {:net materialized-net
-     :value proc-value
+  (let [proc-value (materialize-layered-cell-value outer-net proc-id)]
+    {:value proc-value
      :layer-values (layer-values-from-object proc-value)}))
 
 (defn- build-layered-application
@@ -280,10 +299,12 @@
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
   (fn [_input-ids _output-ids outer-net]
-    (let [arg-values (application/cell-values outer-net arg-ids)]
-      (if (apply value/any-unusable-values? arg-values)
+    (let [raw-arg-values (application/cell-values outer-net arg-ids)]
+      (if (apply value/any-unusable-values? raw-arg-values)
         []
-        (let [{proc-value :value layer-values :layer-values}
+        (let [arg-values (mapv #(materialize-layered-cell-value outer-net %)
+                               arg-ids)
+              {proc-value :value layer-values :layer-values}
               (materialize-procedure outer-net proc-id)
               layers (sort-by pr-str (keys layer-values))]
           (if (empty? layers)

@@ -34,15 +34,15 @@
     core/read-only-slots-key #{}
     source-slots-key {}}))
 
-(defn- source-slots
+(defn source-slots
   [n]
   (or (net/network-dict-entry n source-slots-key) {}))
 
-(defn- source-slot-present?
+(defn source-slot-present?
   [n slot-key]
   (contains? (source-slots n) slot-key))
 
-(defn- source-slot-value
+(defn source-slot-value
   [n slot-key]
   (get (source-slots n) slot-key))
 
@@ -106,9 +106,16 @@
   [n slot-key parent-id]
   (net/assoc-net-dict-entry n (canonical-key slot-key) {:parent parent-id}))
 
-(defn- accessor-parent-ids
+(defn accessor-parent-ids
   [n slot-key]
   (net/network-indexed-ids n core/slot-index-key slot-key))
+
+(defn accessor-slot-keys
+  "Slot keys represented by source values or declared accessor routes."
+  [n]
+  (let [slot-index (or (net/network-dict-entry n core/slot-index-key) {})]
+    (set (concat (keys (source-slots n))
+                 (keys slot-index)))))
 
 (defn- sync-marker-key
   [slot-key parent-id canonical-id direction]
@@ -170,6 +177,11 @@
   (let [dict (net/net-dict-or-empty subnet)]
     (vec (keep #(get dict %) parent-ids))))
 
+(defn- network-cell-present?
+  [n id]
+  (and (contains? (net/net-env n) id)
+       (contains? (net/net-graph n) id)))
+
 (defn- run-accessor-inner-net
   [stable-net slot-key parent-net seed-parent-ids]
   (let [exec-net (seed-accessor-avatars stable-net
@@ -201,7 +213,7 @@
       (if (value/unusable? v)
         []
         (->> (accessor-parent-ids collection-net slot-key)
-             (filter #(contains? (net/net-env parent-net) %))
+             (filter #(network-cell-present? parent-net %))
              (remove #(equivalent-to-parent? parent-net % v))
              (mapv #(message % v)))))))
 
@@ -210,7 +222,8 @@
   (let [dict (net/net-dict-or-empty executed-net)]
     (->> parent-ids
          (keep (fn [parent-id]
-                 (when-let [avatar-id (get dict parent-id)]
+                 (when-let [avatar-id (and (network-cell-present? parent-net parent-id)
+                                           (get dict parent-id))]
                    (let [v (net/network-cell-strongest executed-net avatar-id)]
                      (when-not (equivalent-to-parent? parent-net parent-id v)
                        (message parent-id v))))))
@@ -223,7 +236,7 @@
 
 (defn- accessor-synced?
   [collection-net slot-key parent-net]
-  (let [parent-ids (filter #(contains? (net/net-env parent-net) %)
+  (let [parent-ids (filter #(network-cell-present? parent-net %)
                            (accessor-parent-ids collection-net slot-key))]
     (or (empty? parent-ids)
         (let [baseline (net/network-cell-strongest parent-net (first parent-ids))]

@@ -220,8 +220,10 @@
           right (install-event n1 history-id 6 :right)
           result (run (:net right) [(:prop right)])
           source (strongest result history-id)]
-      (is (= value/contradiction
-             (obj/slot-value source (behavior/event-slot-key 6)))))))
+      (is (obj/accessor-network? source))
+      (is (contains? (obj/accessor-slot-keys source)
+                     (behavior/event-slot-key 6)))
+      (is (nil? (obj/slot-value source (behavior/event-slot-key 6)))))))
 
 (deftest behavior-history-reducers-are-explicit-about-continuation
   (testing "event history emits point records and does not imply infinity"

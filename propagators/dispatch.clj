@@ -114,7 +114,7 @@
              [handler-prop n3] ((apply closure/p:apply-closure handler-id
                                        (conj filtered-ids handler-out-id))
                                 n2)
-             [slot-prop n4] ((obj/p:legacy-slot slot-key handler-out-id result-bank-id) n3)]
+             [slot-prop n4] ((obj/p:slot slot-key handler-out-id result-bank-id) n3)]
          [(into (vec match-props) (concat filter-props [handler-prop slot-prop]))
           n4]))}))
 

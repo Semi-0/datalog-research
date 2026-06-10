@@ -312,7 +312,7 @@
 ;; --- Special case: reactive `install-layered-procedure!` / late layers
 
 (deftest layered-procedure-attachment-is-a-slot-propagator
-  (testing "raw layered procedure attachment is visible after running its slot prop"
+  (testing "raw layered procedure attachment declares topology without materializing"
     (let [proc (new-node-id)
           closure-id (new-node-id)
           closure-value (units-closure-value)
@@ -321,8 +321,9 @@
           n2 (nb/seed-cell n1 closure-id closure-value)
           n3 (nb/run-propagators n2 [slot-prop])]
       (is (nil? (obj/slot-value (procedure-object n2 proc) :units)))
-      (is (= closure-value
-             (obj/slot-strongest (procedure-object n3 proc) :units))))))
+      (is (obj/accessor-network? (procedure-object n3 proc)))
+      (is (contains? (obj/accessor-slot-keys (procedure-object n3 proc)) :units))
+      (is (nil? (obj/slot-strongest (procedure-object n3 proc) :units))))))
 
 (deftest layered-procedure-builds-and-extends-slot-object
   (testing "reactive extension declares topology without materializing procedure state"
@@ -339,7 +340,10 @@
       (is (nil? (obj/slot-strongest (procedure-object net proc) :base)))
       (is (nil? (obj/slot-strongest (procedure-object net proc) :provenance)))
       (is (nil? (obj/slot-strongest (procedure-object (:net extended) proc) :units)))
-      (is (obj/slot-strongest (procedure-object visible-net proc) :units)))))
+      (is (obj/accessor-network? (procedure-object visible-net proc)))
+      (is (contains? (obj/accessor-slot-keys (procedure-object visible-net proc))
+                     :units))
+      (is (nil? (obj/slot-strongest (procedure-object visible-net proc) :units))))))
 
 (deftest layered-procedure-layer-before-procedure-cell-is-visible-on-apply
   (testing "layer declaration can create the procedure cell lazily"

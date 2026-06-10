@@ -1319,3 +1319,85 @@ strongly because a value update stays on the one accessor route and does not
 rewrite the collection cell. The optimized version seeds only the activated
 accessor route and projects changed avatars by comparison instead of installing
 activation-local taps.
+
+## Follow-up: Accessor-first subsystem migration
+
+On `2026-06-10`, the live compound subsystems were migrated to treat
+`obj/p:slot` as the default network-slot accessor declaration:
+
+- dispatch result banks now write handler results through accessor routes;
+- `obj/p:reduce` can fold either materialized public slots or network-slot
+  accessor routes;
+- generic procedures store policy/default/method branches through accessors and
+  keep local materialization only for inspecting method declarations;
+- behavior events use accessor routes, and event source enumeration reads
+  accessor slot keys instead of only materialized `public-slot-keys`;
+- layered procedure layers use network-slot topology for live declarations, then
+  materialize only inside transient application frames and debug/reporting
+  boundaries;
+- compiler-2 closure env attachment uses accessors, while closure application
+  materializes clean transient values from accessor source slots plus declared
+  accessor routes before evaluation;
+- constructors that intentionally return inspectable record values, such as
+  `intensity/p:with-intensity`, still use the legacy materialized slot bridge.
+
+The important split is now explicit:
+
+```text
+live declaration path
+  obj/p:slot -> network-slot accessor topology
+
+evaluation / inspection boundary
+  local materialization bridge -> legacy slot cells in a temporary frame
+```
+
+This keeps normal updates monotone and mostly value-local, while preserving the
+older inspectable record APIs where callers intentionally read `obj/slot-value`.
+The full propagator test suite passed after the migration:
+
+```text
+clojure -M:test propagators
+TOTAL: 802 pass, 0 fail, 0 error
+```
+
+Subsystem benchmark against the recorded `2026-06-08` dispatch baseline:
+
+| Command | Case | Baseline median | Accessor-first median | Result |
+| --- | --- | ---: | ---: | ---: |
+| `clj -M:dispatch-bench` | generic, 50 handlers / 1 dispatch | 342.616 ms | 401.269 ms | 1.17x slower |
+| `clj -M:dispatch-bench` | layered, base+provenance / 1 dispatch | 2.203 ms | 1.998 ms | 1.10x faster |
+| `clj -M:dispatch-bench 50 51` | generic, 50 handlers / 51 dispatches | 2516.185 ms | 1167.847 ms | 2.15x faster |
+| `clj -M:dispatch-bench 50 51` | layered, base+provenance / 51 dispatches | 81.630 ms | 72.831 ms | 1.12x faster |
+
+The dispatch subsystem result matches the slot microbenchmark shape. One-shot
+generic declaration has a little more overhead, but repeated dispatch benefits
+from reusing accessor topology instead of rewriting the compound collection
+cell. Layered dispatch improves slightly in both measured cases.
+
+Compiler-2 was migrated too, but only on the declaration side:
+
+- closure environment attachment now declares `closure-env-slot` with
+  `obj/p:slot`, so the live closure record uses network-slot accessor topology;
+- closure and application argument extraction still materialize a clean
+  transient compound value at the evaluation boundary;
+- the transient materialization bridge intentionally uses `obj/p:legacy-slot`,
+  because compiler-2 application still evaluates a concrete closure body against
+  concrete argument cells.
+
+There was no earlier recorded compiler-2 benchmark, so the first compiler
+comparison was taken on `2026-06-11` against a clean temporary worktree at
+pre-migration commit `c7c07c3`. Each entry compiles the source and runs the
+resulting network, averaged over 8 timed runs after 3 warmups:
+
+| Source | Pre-migration median | Accessor-first median | Result |
+| --- | ---: | ---: | ---: |
+| `(+ 1 (- 4 2))` | 2.879 ms | 2.940 ms | 1.02x slower |
+| `((:: [x] (+ x 1)) 4)` | 3.972 ms | 5.277 ms | 1.33x slower |
+| `((:: [x] ((:: [y] (+ y x)) 4)) 5)` | 5.026 ms | 6.432 ms | 1.28x slower |
+
+The compiler result is expected from the current boundary design: the migrated
+compiler stores closure environment slots through accessors, but every closure
+application still materializes a transient inspectable closure/argument object
+before evaluating the body. That preserves correctness and keeps declaration
+separate from evaluation, but it does not yet get the reuse win seen in repeated
+generic dispatch.

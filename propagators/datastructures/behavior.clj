@@ -615,15 +615,18 @@
   (when-not (integer? tick)
     (throw (ex-info "behavior event tick must be an integer" {:tick tick})))
   (fn [n]
-    ((obj/p:legacy-slot (event-slot-key tick) value-id history-id)
+    ((obj/p:slot (event-slot-key tick) value-id history-id)
      (-> n
          (nb/ensure-cell value-id)
          (nb/ensure-cell history-id)))))
 
 (defn- source-event-keys
   [source]
-  (set (map decode-event-slot-key
-            (obj/public-slot-keys (obj/compound-object source)))))
+  (let [source* (obj/as-accessor-network source)
+        slot-keys (if (obj/accessor-network? source*)
+                    (obj/accessor-slot-keys source*)
+                    (obj/public-slot-keys (obj/compound-object source)))]
+    (set (map decode-event-slot-key slot-keys))))
 
 (defn- reducer-id-from-merge-net
   [merge-net]
