@@ -221,6 +221,18 @@
   (when-not (sync/strongest-equivalent? before after parent-net)
     (message collection-id after)))
 
+(defn- accessor-synced?
+  [collection-net slot-key parent-net]
+  (let [parent-ids (filter #(contains? (net/net-env parent-net) %)
+                           (accessor-parent-ids collection-net slot-key))]
+    (or (empty? parent-ids)
+        (let [baseline (net/network-cell-strongest parent-net (first parent-ids))]
+          (every? #(sync/strongest-equivalent?
+                    baseline
+                    (net/network-cell-strongest parent-net %)
+                    parent-net)
+                  (rest parent-ids))))))
+
 (defn attach-network-slot-sync
   [collection-net slot-key parent-id _parent-net]
   (ensure-accessor-route (as-accessor-network collection-net) slot-key parent-id))
@@ -240,21 +252,27 @@
               seed-parent-ids (if known-parent?
                                 [parent-id]
                                 (vec (distinct [parent-id canonical-id])))
-              {:keys [executed-net parent-ids]}
-              (run-accessor-inner-net stable-net
-                                      slot-key
-                                      parent-net
-                                      seed-parent-ids)
-              accessor-messages (into (source-slot-messages stable-net slot-key parent-net)
-                                      (projected-accessor-messages executed-net
-                                                                   parent-ids
-                                                                   parent-net))
+              source-messages (source-slot-messages stable-net slot-key parent-net)
               collection-message (topology-message collection-id
                                                    collection-net
                                                    stable-net
                                                    parent-net)]
-          (cond-> accessor-messages
-            collection-message (conj collection-message)))))))
+          (if (and known-parent?
+                   (empty? source-messages)
+                   (nil? collection-message)
+                   (accessor-synced? stable-net slot-key parent-net))
+            []
+            (let [{:keys [executed-net parent-ids]}
+                  (run-accessor-inner-net stable-net
+                                          slot-key
+                                          parent-net
+                                          seed-parent-ids)
+                  accessor-messages (into source-messages
+                                          (projected-accessor-messages executed-net
+                                                                       parent-ids
+                                                                       parent-net))]
+              (cond-> accessor-messages
+                collection-message (conj collection-message)))))))))
 
 (defn- record-network-slot-declaration
   [n collection-id slot-key parent-id prop-id]

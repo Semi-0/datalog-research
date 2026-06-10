@@ -113,7 +113,7 @@
        (let [h (head-ids i)
              c (coll-ids i)
              t (if (< i (dec layers)) (coll-ids (inc i)) sentinel)
-             [[car-prop cdr-prop] n'] ((obj/p:cons h t c) net)]
+             [[car-prop cdr-prop] n'] ((obj/p:legacy-cons h t c) net)]
          (assoc acc :net n' :props (conj props car-prop cdr-prop))))
      {:net n :head-ids head-ids :coll-ids coll-ids :sentinel sentinel :props []}
      (range layers))))
@@ -128,9 +128,9 @@
                    (fn [[n tasks] installer]
                      (nb/install-propagator! n tasks installer))
                    [n tq/empty-queue]
-                   [(obj/p:cdr coll1 coll0)
-                    (obj/p:cdr coll2 coll1)
-                    (obj/p:car out coll2)])]
+                   [(obj/p:legacy-cdr coll1 coll0)
+                    (obj/p:legacy-cdr coll2 coll1)
+                    (obj/p:legacy-car out coll2)])]
     {:net n
      :tasks tasks
      :props props
@@ -144,7 +144,7 @@
 
 (deftest p-car-syncs-parent-value-into-collection-network
   (testing "parent value enters the collection named-network :car slot"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:legacy-car)
           n' (-> net
                  (nb/seed-cell parent 10)
                  (nb/run-propagators [prop-id]))
@@ -158,7 +158,7 @@
 
 (deftest p-car-syncs-collection-slot-out-to-parent
   (testing "collection slot value dispatches through tapped avatar to parent"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:legacy-car)
           exec-net (obj/attach-slot-sync (obj/empty-cons-net) :car parent net)
           slot (net/network-dict-entry exec-net :car)
           coll-value (net/assoc-net-cell exec-net slot (cell/cell 42 42))
@@ -173,7 +173,7 @@
           p2 (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [p1 p2 coll])
-          [prop-id n0] ((obj/p:car p1 coll) n0)
+          [prop-id n0] ((obj/p:legacy-car p1 coll) n0)
           n0 (-> n0 (nb/seed-cell p1 value/nothing) (nb/seed-cell p2 value/nothing))
           exec-net (obj/attach-slot-sync (obj/empty-cons-net) :car p1 n0)
           exec-net (obj/attach-slot-sync exec-net :car p2 n0)
@@ -187,7 +187,7 @@
 
 (deftest p-car-reuses-existing-avatar
   (testing "repeated equivalent parent updates reuse the same avatar and sync props"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:legacy-car)
           n1 (-> net (nb/seed-cell parent 1) (nb/run-propagators [prop-id]))
           coll-net1 (net/network-cell-value n1 coll)
           avatar1 (get (net/net-dict-or-empty coll-net1) parent)
@@ -202,7 +202,7 @@
 
 (deftest p-car-creates-missing-slot-before-attach
   (testing "slot sync can establish a missing slot cell"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:legacy-car)
           sparse (net/net-with-dict net/empty-net {:slot-index {}})
           n' (-> net
                  (nb/seed-cell parent 5)
@@ -214,7 +214,7 @@
 
 (deftest p-car-accepts-subsuming-named-network-update
   (testing "subsuming named-network values replace weaker slot evidence"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:legacy-car)
           weak (nb/named-cell-net [[:x true]])
           strong (nb/add-named-cell weak :y false)
           n1 (-> net (nb/seed-cell parent weak) (nb/run-propagators [prop-id]))
@@ -238,7 +238,7 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [parent coll])
-          [prop-id n0] ((obj/p:car parent coll) n0)
+          [prop-id n0] ((obj/p:legacy-car parent coll) n0)
           coll-net (obj/empty-cons-net)
           n0 (net/assoc-net-cell n0 coll (cell/cell coll-net coll-net))
           [tasks _n'] (core/eval-cell coll (message coll coll-net) n0)]
@@ -247,7 +247,7 @@
 
 (deftest repeated-equivalent-slot-activation-skips-subnet
   (testing "once slot and parent agree, rerunning the slot prop emits no messages"
-    (let [{:keys [net parent prop-id]} (build-slot-net obj/p:car)
+    (let [{:keys [net parent prop-id]} (build-slot-net obj/p:legacy-car)
           n1 (-> net
                  (nb/seed-cell parent 10)
                  (nb/run-propagators [prop-id]))
@@ -257,7 +257,7 @@
 
 (deftest unchanged-empty-slot-registration-emits-only-topology
   (testing "a new nothing-valued accessor registers topology without subnet execution"
-    (let [{:keys [net prop-id]} (build-slot-net obj/p:car)
+    (let [{:keys [net prop-id]} (build-slot-net obj/p:legacy-car)
           f (prop/prop-f (net/network-lookup-propagator net prop-id))
           messages (f nil nil net)]
       (is (= 1 (count messages))))))
@@ -267,7 +267,7 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [parent coll])
-          [prop-id n1] ((obj/p:slot :car parent coll) n0)
+          [prop-id n1] ((obj/p:legacy-slot :car parent coll) n0)
           declarations (obj/slot-declarations-for n1 coll)]
       (is (= #{:car} (set (keys declarations))))
       (is (= #{parent} (set (keys (get declarations :car)))))
@@ -279,8 +279,8 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [parent coll])
-          [_prop-id n1] ((obj/p:slot :car parent coll) n0)
-          [prop-id* n2] ((obj/p:slot :car parent coll) n1)
+          [_prop-id n1] ((obj/p:legacy-slot :car parent coll) n0)
+          [prop-id* n2] ((obj/p:legacy-slot :car parent coll) n1)
           declarations (obj/slot-declarations-for n2 coll)]
       (is (= #{:car} (set (keys declarations))))
       (is (= #{parent} (set (keys (get declarations :car)))))
@@ -292,7 +292,7 @@
           tail (new-node-id)
           coll (new-node-id)
           n (nb/install-cells [head tail coll])
-          [[car-prop cdr-prop] n] ((obj/p:cons head tail coll) n)
+          [[car-prop cdr-prop] n] ((obj/p:legacy-cons head tail coll) n)
           n' (-> n
                  (nb/seed-cell head 10)
                  (nb/seed-cell tail 20)
@@ -328,7 +328,7 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [parent coll])
-          [prop-id n1] ((obj/p:slot :left parent coll) n0)
+          [prop-id n1] ((obj/p:legacy-slot :left parent coll) n0)
           n2 (-> n1
                  (nb/seed-cell coll {:left 1 :right 2})
                  (nb/run-propagators [prop-id]))
@@ -344,7 +344,7 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [parent coll])
-          [prop-id n1] ((obj/p:slot :left parent coll) n0)
+          [prop-id n1] ((obj/p:legacy-slot :left parent coll) n0)
           n2 (-> n1
                  (nb/seed-cell coll {:right 2})
                  (nb/seed-cell parent 10)
@@ -357,7 +357,7 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [parent coll])
-          [prop-id n1] ((obj/p:slot :right parent coll) n0)
+          [prop-id n1] ((obj/p:legacy-slot :right parent coll) n0)
           n2 (-> n1
                  (nb/seed-cell coll (->ExampleRecord 3 4))
                  (nb/run-propagators [prop-id]))]
@@ -367,7 +367,7 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [parent coll])
-          [prop-id n1] ((obj/p:slot 1 parent coll) n0)
+          [prop-id n1] ((obj/p:legacy-slot 1 parent coll) n0)
           n2 (-> n1
                  (nb/seed-cell coll [:a :b])
                  (nb/run-propagators [prop-id]))]
@@ -377,7 +377,7 @@
     (let [parent (new-node-id)
           coll (new-node-id)
           n0 (nb/install-cells [parent coll])
-          [prop-id n1] ((obj/p:slot :count parent coll) n0)
+          [prop-id n1] ((obj/p:legacy-slot :count parent coll) n0)
           n2 (-> n1
                  (nb/seed-cell coll [:a :b])
                  (nb/run-propagators [prop-id]))
@@ -401,16 +401,16 @@
           n0 (nb/install-cells [top first first-leaf second leaf])
           [n1 tasks] (nb/install-propagator! n0
                                              tq/empty-queue
-                                             (obj/p:slot :first first top))
+                                             (obj/p:legacy-slot :first first top))
           [n2 tasks] (nb/install-propagator! n1
                                              tasks
-                                             (obj/p:slot :value first-leaf first))
+                                             (obj/p:legacy-slot :value first-leaf first))
           [n3 tasks] (nb/install-propagator! n2
                                              tasks
-                                             (obj/p:slot :second second top))
+                                             (obj/p:legacy-slot :second second top))
           [n4 tasks] (nb/install-propagator! n3
                                              tasks
-                                             (obj/p:slot :value leaf second))
+                                             (obj/p:legacy-slot :value leaf second))
           [n5 tasks] (nb/seed-cell! n4 tasks first-leaf 1)
           n6 (core/run-tasks tasks n5)
           [n7 tasks] (nb/seed-cell! n6 tq/empty-queue leaf 9)
@@ -427,10 +427,10 @@
           n0 (nb/install-cells [top second leaf])
           [n1 tasks] (nb/install-propagator! n0
                                              tq/empty-queue
-                                             (obj/p:slot :second second top))
+                                             (obj/p:legacy-slot :second second top))
           [n2 tasks] (nb/install-propagator! n1
                                              tasks
-                                             (obj/p:slot :value leaf second))
+                                             (obj/p:legacy-slot :value leaf second))
           [n3 tasks] (nb/seed-cell! n2 tasks leaf 2)
           n4 (core/run-tasks tasks n3)
           [n5 tasks] (nb/seed-cell! n4 tq/empty-queue leaf 9)
@@ -463,8 +463,8 @@
           init (new-node-id)
           out (new-node-id)
           n0 (nb/install-cells [coll car cdr merge-net init out])
-          [car-prop n1] ((obj/p:slot :car car coll) n0)
-          [cdr-prop n2] ((obj/p:slot :cdr cdr coll) n1)
+          [car-prop n1] ((obj/p:legacy-slot :car car coll) n0)
+          [cdr-prop n2] ((obj/p:legacy-slot :cdr cdr coll) n1)
           [reduce-prop n3] ((obj/p:reduce coll merge-net init out) n2)
           n4 (-> n3
                  (nb/seed-cell merge-net (slot-set-merge-net))
@@ -485,8 +485,8 @@
           init (new-node-id)
           out (new-node-id)
           n0 (nb/install-cells [coll car cdr merge-net init out])
-          [car-prop n1] ((obj/p:slot :car car coll) n0)
-          [cdr-prop n2] ((obj/p:slot :cdr cdr coll) n1)
+          [car-prop n1] ((obj/p:legacy-slot :car car coll) n0)
+          [cdr-prop n2] ((obj/p:legacy-slot :cdr cdr coll) n1)
           [reduce-prop n3] ((obj/p:reduce coll merge-net init out) n2)
           n4 (-> n3
                  (nb/seed-cell merge-net (slot-set-merge-net))
@@ -582,7 +582,7 @@
           init (new-node-id)
           out (new-node-id)
           n0 (nb/install-cells [coll car merge-net init out])
-          [car-prop n1] ((obj/p:slot :car car coll) n0)
+          [car-prop n1] ((obj/p:legacy-slot :car car coll) n0)
           n2 (-> n1
                  (nb/seed-cell car 10)
                  (nb/run-propagators [car-prop]))
@@ -603,7 +603,7 @@
           init (new-node-id)
           out (new-node-id)
           n0 (nb/install-cells [coll car merge-net init out])
-          [car-prop n1] ((obj/p:slot :car car coll) n0)
+          [car-prop n1] ((obj/p:legacy-slot :car car coll) n0)
           [reduce-prop n2] ((obj/p:reduce coll merge-net init out) n1)
           n3 (-> n2
                  (nb/seed-cell merge-net (slot-set-merge-net))
@@ -652,7 +652,7 @@
           new-tail (new-node-id)
           new-coll (new-node-id)
           new-net (nb/install-cells [new-head new-tail new-coll])
-          [[car-prop cdr-prop] new-net] ((obj/p:cons new-head new-tail new-coll) new-net)
+          [[car-prop cdr-prop] new-net] ((obj/p:legacy-cons new-head new-tail new-coll) new-net)
           new-net (-> new-net
                       (nb/seed-cell new-head 10)
                       (nb/seed-cell new-tail 20)
@@ -694,7 +694,7 @@
 
 (deftest collection-value-does-not-persist-effect-taps
   (testing "collection named-network may store declarative sync structure, but not effect taps"
-    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:car)
+    (let [{:keys [net parent coll prop-id]} (build-slot-net obj/p:legacy-car)
           n' (-> net
                  (nb/seed-cell parent 10)
                  (nb/run-propagators [prop-id]))
@@ -710,7 +710,7 @@
           tail (new-node-id)
           coll (new-node-id)
           n (nb/install-cells [head tail coll])
-          [[car-prop cdr-prop] n] ((obj/p:cons head tail coll) n)]
+          [[car-prop cdr-prop] n] ((obj/p:legacy-cons head tail coll) n)]
       (is (= 2 (count (filter prop/prop? (vals (net/net-env n))))))
       (is (prop/prop? (net/network-lookup-propagator n car-prop)))
       (is (prop/prop? (net/network-lookup-propagator n cdr-prop))))))
@@ -758,10 +758,10 @@
                                 a-base a-prov b-base b-prov])
           [base-prop n1] ((layered/p:layered-procedure :base base-closure proc) n0)
           [prov-prop n2] ((layered/p:layered-procedure :provenance prov-closure proc) n1)
-          [a-base-prop n3] ((obj/p:slot :base a-base a) n2)
-          [a-prov-prop n4] ((obj/p:slot :provenance a-prov a) n3)
-          [b-base-prop n5] ((obj/p:slot :base b-base b) n4)
-          [b-prov-prop n6] ((obj/p:slot :provenance b-prov b) n5)
+          [a-base-prop n3] ((obj/p:legacy-slot :base a-base a) n2)
+          [a-prov-prop n4] ((obj/p:legacy-slot :provenance a-prov a) n3)
+          [b-base-prop n5] ((obj/p:legacy-slot :base b-base b) n4)
+          [b-prov-prop n6] ((obj/p:legacy-slot :provenance b-prov b) n5)
           p:+ (layered-ops/+ proc)
           [apply-prop n7] ((p:+ a b out) n6)
           n8 (-> n7

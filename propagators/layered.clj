@@ -13,7 +13,7 @@
 (defn p:layer
   "Bidirectional sync between a layer value cell and a layered object slot."
   [layer-name layer-value-id layered-object-id]
-  (obj/p:slot layer-name layer-value-id layered-object-id))
+  (obj/p:legacy-slot layer-name layer-value-id layered-object-id))
 
 (defn p:base
   [base-value-id layered-object-id]
@@ -29,7 +29,7 @@
 
   This is topology only: it ensures the procedure and closure cells exist,
   installs the slot propagator, and records the slot declaration through
-  `obj/p:slot`. It does not seed values, run propagators, or enqueue tasks."
+  `obj/p:legacy-slot`. It does not seed values, run propagators, or enqueue tasks."
   [n proc-id layer-name closure-id]
   (let [n0 (-> n
                (nb/ensure-cell proc-id)

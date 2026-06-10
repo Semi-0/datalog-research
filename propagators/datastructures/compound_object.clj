@@ -23,15 +23,15 @@
 
 (def empty-cons-net sequence/empty-cons-net)
 (def ensure-cons-net sequence/ensure-cons-net)
-(def p:car sequence/p:car)
-(def p:cdr sequence/p:cdr)
-(def p:cons sequence/p:cons)
+(def ^:deprecated p:legacy-car sequence/p:car)
+(def ^:deprecated p:legacy-cdr sequence/p:cdr)
+(def ^:deprecated p:legacy-cons sequence/p:cons)
 
 (def slot-declarations slot/slot-declarations)
 (def slot-declarations-for slot/slot-declarations-for)
 (def attach-slot-sync slot/attach-slot-sync)
 (def sync-slot-messages slot/sync-slot-messages)
-(def p:slot slot/p:slot)
+(def ^:deprecated p:legacy-slot slot/p:slot)
 
 (def accessor-network? network-slot/accessor-network?)
 (def as-accessor-network network-slot/as-accessor-network)
@@ -41,6 +41,10 @@
 (def p:network-car network-slot/p:network-car)
 (def p:network-cdr network-slot/p:network-cdr)
 (def p:network-cons network-slot/p:network-cons)
+(def p:slot network-slot/p:network-slot)
+(def p:car network-slot/p:network-car)
+(def p:cdr network-slot/p:network-cdr)
+(def p:cons network-slot/p:network-cons)
 
 (def p:reduce reduce/p:reduce)
 (def p:map-slots-with-recursive-closure map/p:map-slots-with-recursive-closure)

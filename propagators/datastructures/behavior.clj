@@ -615,7 +615,7 @@
   (when-not (integer? tick)
     (throw (ex-info "behavior event tick must be an integer" {:tick tick})))
   (fn [n]
-    ((obj/p:slot (event-slot-key tick) value-id history-id)
+    ((obj/p:legacy-slot (event-slot-key tick) value-id history-id)
      (-> n
          (nb/ensure-cell value-id)
          (nb/ensure-cell history-id)))))

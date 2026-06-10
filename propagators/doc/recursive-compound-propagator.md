@@ -1288,12 +1288,12 @@ and measuring setup separately from the later value update:
 
 | accessors | strategy | setup ns | update ns | collection changed on update |
 |---:|---|---:|---:|---|
-| 2 | `p:slot` | 741,427 | 872,130 | yes |
-| 2 | `p:network-slot` | 874,171 | 430,140 | no |
-| 10 | `p:slot` | 3,086,526 | 2,492,000 | yes |
-| 10 | `p:network-slot` | 4,432,390 | 3,754,583 | no |
-| 100 | `p:slot` | 60,816,786 | 36,822,453 | yes |
-| 100 | `p:network-slot` | 76,382,999 | 229,525,682 | no |
+| 2 | `p:legacy-slot` | 646,994 | 1,000,687 | yes |
+| 2 | `p:network-slot` / `p:slot` | 757,734 | 344,067 | no |
+| 10 | `p:legacy-slot` | 2,515,619 | 2,279,473 | yes |
+| 10 | `p:network-slot` / `p:slot` | 4,294,234 | 1,299,890 | no |
+| 100 | `p:legacy-slot` | 64,787,208 | 38,845,703 | yes |
+| 100 | `p:network-slot` / `p:slot` | 77,206,369 | 33,355,682 | no |
 
 Second microbenchmark on `2026-06-10`, also averaged over 8 timed runs after 2
 warmup runs, using `200` accessors spread across `200` different slots and then
@@ -1301,8 +1301,15 @@ updating one accessor:
 
 | shape | strategy | setup ns | update ns | collection changed on update |
 |---|---|---:|---:|---|
-| 200 accessors / 200 slots | `p:slot` | 348,140,156 | 175,827,520 | yes |
-| 200 accessors / 200 slots | `p:network-slot` | 163,628,505 | 388,547 | no |
+| 200 accessors / 200 slots | `p:legacy-slot` | 334,783,843 | 170,275,536 | yes |
+| 200 accessors / 200 slots | `p:network-slot` / `p:slot` | 155,213,739 | 366,062 | no |
+
+After this benchmark, the public compound-object facade was moved so
+`obj/p:slot`, `obj/p:car`, `obj/p:cdr`, and `obj/p:cons` use the network-slot
+strategy by default. The old durable slot-cell implementation remains available
+as `obj/p:legacy-slot`, `obj/p:legacy-car`, `obj/p:legacy-cdr`, and
+`obj/p:legacy-cons` for compatibility tests and APIs that intentionally inspect
+materialized slot cells inside the collection value.
 
 Conclusion: the experimental model proves the semantic separation we wanted,
 but the performance result depends on shape. For many accessors synced to the

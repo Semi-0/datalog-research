@@ -99,6 +99,49 @@
       (is (obj/accessor-network? (net/network-cell-value n5 top)))
       (is (obj/accessor-network? (net/network-cell-value n5 second))))))
 
+(deftest public-slot-defaults-use-network-slot
+  (testing "deprecated p:slot facade now delegates to network-slot behavior"
+    (let [parent (new-node-id)
+          coll (new-node-id)
+          n0 (nb/install-cells [parent coll])
+          [slot-prop n1] ((obj/p:slot :x parent coll) n0)
+          n2 (-> n1
+                 (nb/seed-cell parent 10)
+                 (nb/run-propagators [slot-prop]))
+          coll-value (net/network-cell-value n2 coll)]
+      (is (= 10 (net/network-cell-value n2 parent)))
+      (is (obj/accessor-network? coll-value))
+      (is (nil? (obj/slot-value coll-value :x))))))
+
+(deftest network-cons-chain-routes-nested-car-cdr-accessors
+  (testing "new public p:cons/p:car/p:cdr route (car (cdr (cdr coll0)))"
+    (let [head0 (new-node-id)
+          head1 (new-node-id)
+          head2 (new-node-id)
+          coll0 (new-node-id)
+          coll1 (new-node-id)
+          coll2 (new-node-id)
+          sentinel (new-node-id)
+          c1 (new-node-id)
+          c2 (new-node-id)
+          out (new-node-id)
+          n0 (nb/install-cells [head0 head1 head2 coll0 coll1 coll2
+                                sentinel c1 c2 out])
+          [[car0 cdr0] n1] ((obj/p:cons head0 coll1 coll0) n0)
+          [[car1 cdr1] n2] ((obj/p:cons head1 coll2 coll1) n1)
+          [[car2 cdr2] n3] ((obj/p:cons head2 sentinel coll2) n2)
+          [path1 n4] ((obj/p:cdr c1 coll0) n3)
+          [path2 n5] ((obj/p:cdr c2 c1) n4)
+          [path3 n6] ((obj/p:car out c2) n5)
+          props [car0 cdr0 car1 cdr1 car2 cdr2 path1 path2 path3]
+          n7 (-> n6
+                 (nb/seed-cell head2 30)
+                 (nb/run-propagators props))]
+      (is (= 30 (net/network-cell-value n7 out)))
+      (is (obj/accessor-network? (net/network-cell-value n7 coll0)))
+      (is (obj/accessor-network? (net/network-cell-value n7 c1)))
+      (is (obj/accessor-network? (net/network-cell-value n7 c2))))))
+
 (defn network-slot-benchmark
   "Small comparison helper for REPL/manual runs. Returns shape metrics and
   elapsed nanoseconds for the current slot strategy and network-slot strategy."
@@ -136,7 +179,7 @@
                      :last-value (net/network-cell-value n2 (last parents)))))]
     {:accessors accessor-count
      :slot (select-keys (run-case (fn [slot-key parent coll]
-                                    (obj/p:slot slot-key parent coll)))
+                                    (obj/p:legacy-slot slot-key parent coll)))
                         [:setup-elapsed-ns :update-elapsed-ns
                          :cell-count :prop-count :collection-changed-on-update?
                          :first-value :last-value])

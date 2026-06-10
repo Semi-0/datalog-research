@@ -482,12 +482,12 @@
     (vector? source)
     (let [count-id (ids/new-node-id)
           n0 (nb/install-cell network count-id (count source) (count source))
-          [count-prop n1] ((obj/p:slot :count count-id source-id) n0)]
+          [count-prop n1] ((obj/p:legacy-slot :count count-id source-id) n0)]
       (reduce-kv
        (fn [{:keys [net prop-ids leaf-ids]} slot-key child-value]
          (let [child-id (ids/new-node-id)
                n2 (nb/install-cell net child-id)
-               [slot-prop n3] ((obj/p:slot slot-key child-id source-id) n2)
+               [slot-prop n3] ((obj/p:legacy-slot slot-key child-id source-id) n2)
                {n4 :net child-props :prop-ids child-leaves :leaf-ids}
                (install-source-object n3 child-id child-value)]
            {:net n4
@@ -507,7 +507,7 @@
        (fn [{:keys [net prop-ids leaf-ids]} [slot-key child-value]]
          (let [child-id (ids/new-node-id)
                n0 (nb/install-cell net child-id)
-               [slot-prop n1] ((obj/p:slot slot-key child-id source-id) n0)
+               [slot-prop n1] ((obj/p:legacy-slot slot-key child-id source-id) n0)
                {n2 :net child-props :prop-ids child-leaves :leaf-ids}
                (install-source-object n1 child-id child-value)]
            {:net n2
@@ -577,7 +577,7 @@
                               n0 (-> net
                                      (nb/install-cell child-in-id)
                                      (nb/install-cell child-out-id))
-                              [slot-prop n1] ((obj/p:slot slot-key
+                              [slot-prop n1] ((obj/p:legacy-slot slot-key
                                                           child-in-id
                                                           source-id)
                                               n0)
@@ -671,7 +671,7 @@
                                      (nb/install-cell child-in-id)
                                      (nb/install-cell child-out-id))
                               [source-slot-prop n1]
-                              ((obj/p:slot slot-key child-in-id source-id) n0)
+                              ((obj/p:legacy-slot slot-key child-in-id source-id) n0)
                               [child-prop n2]
                               ((recursive/p:recursive-compound
                                 self-id
@@ -708,13 +708,13 @@
                                               count-id
                                               count-value
                                               count-value)
-                          [count-prop n1] ((obj/p:slot :count count-id out-id)
+                          [count-prop n1] ((obj/p:legacy-slot :count count-id out-id)
                                            n0)]
                       {:net n1 :prop-ids [count-prop]}))
                   {n1 :net output-props* :prop-ids}
                   (reduce (fn [{:keys [net prop-ids]} [slot-key child-out-id]]
                             (let [[out-slot-prop n1]
-                                  ((obj/p:slot slot-key child-out-id out-id) net)]
+                                  ((obj/p:legacy-slot slot-key child-out-id out-id) net)]
                               {:net n1
                                :prop-ids (conj prop-ids out-slot-prop)}))
                           {:net n0
@@ -755,7 +755,7 @@
      (fn [{:keys [net prop-ids leaf-ids]} slot-key child-value]
        (let [child-id (ids/new-node-id)
              n0 (nb/install-cell net child-id)
-             [slot-prop n1] ((obj/p:slot slot-key child-id source-id) n0)
+             [slot-prop n1] ((obj/p:legacy-slot slot-key child-id source-id) n0)
              {n2 :net child-props :prop-ids child-leaves :leaf-ids}
              (collect-accessor-leaves n1 child-id child-value)]
          {:net n2
@@ -771,7 +771,7 @@
      (fn [{:keys [net prop-ids leaf-ids]} [slot-key child-value]]
        (let [child-id (ids/new-node-id)
              n0 (nb/install-cell net child-id)
-             [slot-prop n1] ((obj/p:slot slot-key child-id source-id) n0)
+             [slot-prop n1] ((obj/p:legacy-slot slot-key child-id source-id) n0)
              {n2 :net child-props :prop-ids child-leaves :leaf-ids}
              (collect-accessor-leaves n1 child-id child-value)]
          {:net n2
