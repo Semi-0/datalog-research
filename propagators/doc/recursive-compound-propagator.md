@@ -1521,9 +1521,12 @@ means a normal slot value update also changes the collection value and wakes
 collection dependents.
 
 The experimental `obj/p:network-slot` keeps the collection cell as a structural
-inner network only. The inner network records demanded accessor topology,
-activation-local avatars, and bi-sync wiring. Durable slot values remain in the
-outer accessor cells.
+inner network. As of 2026-06-12 this inner value is a plain named network; the
+old accessor marker is compatibility metadata, not a required wrapper. The inner
+network records demanded accessor topology, activation-local avatars, and
+bi-sync wiring. Durable slot values usually remain in the outer accessor cells,
+while preexisting public slot cells in a preserved named network remain readable
+as source values.
 
 ```text
 collection cell
@@ -1542,6 +1545,11 @@ slot activation
 This is the shape we want for future TMS/switch work: structural conditions can
 rewrite the collection's inner network, while ordinary value updates propagate
 between accessor cells without rewriting the collection.
+
+This refactor preserves arbitrary internal named-network content, but it does
+not make general unbounded recursion over nested compound data work by itself.
+That still needs the planned kernel boundary work for dispatching messages into
+inner recursive subenvs.
 
 Focused evidence from `propagators.compound-object-network-slot-test`:
 
@@ -1572,6 +1580,19 @@ updating one accessor:
 |---|---|---:|---:|---|
 | 200 accessors / 200 slots | `p:legacy-slot` | 334,783,843 | 170,275,536 | yes |
 | 200 accessors / 200 slots | `p:network-slot` / `p:slot` | 155,213,739 | 366,062 | no |
+
+Rerun after plain named-network preservation on `2026-06-12`, with the same
+shape and timing method:
+
+| shape | strategy | setup ns | update ns | collection changed on update |
+|---|---|---:|---:|---|
+| 200 accessors / 200 slots | `p:legacy-slot` | 298,543,583 | 150,788,917 | yes |
+| 200 accessors / 200 slots | `p:network-slot` / `p:slot` | 143,394,791 | 316,500 | no |
+
+Against the previous network-slot row, the current code is about `1.08x` faster
+on setup and about `1.16x` faster on the single accessor update. The important
+semantic result is unchanged: independent-slot updates do not rewrite the
+collection value.
 
 After this benchmark, the public compound-object facade was moved so
 `obj/p:slot`, `obj/p:car`, `obj/p:cdr`, and `obj/p:cons` use the network-slot

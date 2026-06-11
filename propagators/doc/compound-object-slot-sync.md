@@ -102,6 +102,57 @@ it. `cell-merge` normalizes named-network values into evidence sets and
 `cell-updated?` is named-network aware so equivalent strongest collection
 networks do not re-wake slot sync just because raw evidence shape changed.
 
+## Plain Named Network Accessors
+
+Date: 2026-06-12
+
+`obj/p:slot` now uses the demand-driven `p:network-slot` path by default, and
+that path treats a collection value as a plain named network. The old
+`:compound/internal :accessor-network` marker is still written/read so existing
+merge and debugger paths can recognize normalized accessor values, but it is
+compatibility metadata rather than the semantic boundary.
+
+The normalization rules are:
+
+- a plain named network is preserved and only missing slot-support metadata is
+  added;
+- raw maps and vectors are still imported through `source-slots`, because they
+  have no internal network to preserve;
+- source projection reads either explicit `source-slots` or existing public slot
+  cells in the preserved named network;
+- arbitrary internal cells, propagators, and dict entries in the named network
+  remain in the collection value.
+
+The observed pre-refactor problem was that unmarked named networks were
+converted into source-slot-only accessor networks. That made public slot values
+readable, but discarded unrelated internal network content and treated the marker
+as the model boundary.
+
+After the refactor, `p:network-slot` can read a public slot from a preserved
+plain named network while retaining unrelated internal cells and dict entries.
+`source-slots` are now only the raw-data import format. Compiler-2's local
+materialization bridge was also adjusted so accessor networks with empty
+`source-slots` fall back to the preserved named network instead of materializing
+an empty object.
+
+This is still not the kernel subenv dispatch change. General unbounded recursion
+over nested compound data remains limited because an inner recursive network
+cannot yet receive full bidirectional outer accessor dispatch through the kernel
+boundary.
+
+Verification:
+
+- `clojure -M:test propagators-compound-object-network-slot-test`
+  - `29` pass, `0` fail, `0` error
+- `clojure -M:test propagators-compound-object-test`
+  - `103` pass, `0` fail, `0` error
+- `clojure -M:test propagators-behavior-test`
+  - `56` pass, `0` fail, `0` error
+- `clojure -M:test propagators-compile-2-test`
+  - `88` pass, `0` fail, `0` error
+- `clojure -M:test propagators`
+  - `871` pass, `0` fail, `0` error
+
 ## Current Tests
 
 `test/propagators_compound_object_test.clj` covers:

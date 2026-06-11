@@ -1,7 +1,9 @@
 (ns propagators.datastructures.compound-object.network-slot
   "Demand-driven compound-object slots backed by a structural inner network."
-  (:require [propagators.cells.value :as value]
+  (:require [propagators.cells.cell :as cell]
+            [propagators.cells.value :as value]
             [propagators.datastructures.compound-object.core :as core]
+            [propagators.datastructures.named-network :as named]
             [propagators.effectful-execution :as effect]
             [propagators.effectful-sync :as sync]
             [propagators.ids :as ids]
@@ -37,53 +39,69 @@
   [n]
   (or (net/network-dict-entry n source-slots-key) {}))
 
+(defn- network-cell-entry
+  [n id]
+  (when (ids/node-id? id)
+    (get (net/net-env n) id)))
+
+(defn- slot-cell-id
+  [n slot-key]
+  (let [id (net/network-dict-entry n slot-key)]
+    (when (cell/cell? (network-cell-entry n id))
+      id)))
+
+(defn- public-slot-present?
+  [n slot-key]
+  (some? (slot-cell-id n slot-key)))
+
 (defn source-slot-present?
   [n slot-key]
-  (contains? (source-slots n) slot-key))
+  (or (contains? (source-slots n) slot-key)
+      (public-slot-present? n slot-key)))
 
 (defn source-slot-value
   [n slot-key]
-  (get (source-slots n) slot-key))
+  (if (contains? (source-slots n) slot-key)
+    (get (source-slots n) slot-key)
+    (if-let [id (slot-cell-id n slot-key)]
+      (net/network-cell-strongest n id)
+      value/nothing)))
+
+(defn- ensure-accessor-metadata
+  [n]
+  (-> n
+      (net/assoc-net-dict-entry accessor-network-key true)
+      (net/update-net-dict-entry core/slot-index-key #(or % {}))
+      (net/update-net-dict-entry core/read-only-slots-key #(or % #{}))
+      (net/update-net-dict-entry source-slots-key #(or % {}))))
 
 (defn- with-source-slots
   ([source-slots]
    (with-source-slots source-slots #{}))
   ([source-slots read-only-slots]
-   (net/net-with-dict
-    net/empty-net
-    {accessor-network-key true
-     core/slot-index-key {}
-     core/read-only-slots-key read-only-slots
-     source-slots-key source-slots})))
+   (ensure-accessor-metadata
+    (net/net-with-dict
+     net/empty-net
+     {core/read-only-slots-key read-only-slots
+      source-slots-key source-slots}))))
 
 (defn- vector-source-slots
   [v]
   (assoc (into {} (map-indexed vector v)) :count (count v)))
-
-(defn- old-compound->accessor-network
-  [n]
-  (let [source (into {}
-                     (keep (fn [slot-key]
-                             (let [v (core/slot-value n slot-key)]
-                               (when-not (value/unusable? v)
-                                 [slot-key v]))))
-                     (core/public-slot-keys n))]
-    (with-source-slots source
-      (or (net/network-dict-entry n core/read-only-slots-key) #{}))))
 
 (defn as-accessor-network
   "Normalize collection content into the experimental accessor topology value."
   [x]
   (cond
     (value/contradiction? x) value/contradiction
-    (accessor-network? x) x
+    (accessor-network? x) (ensure-accessor-metadata x)
     (value/nothing? x) (empty-accessor-network)
 
+    (named/named-network? x)
+    (ensure-accessor-metadata x)
+
     (net/net? x)
-    (let [compound (core/compound-object x)]
-      (if (value/contradiction? compound)
-        value/contradiction
-        (old-compound->accessor-network compound)))
+    value/contradiction
 
     (vector? x)
     (with-source-slots (vector-source-slots x) #{:count})
@@ -114,7 +132,9 @@
   [n]
   (let [slot-index (or (net/network-dict-entry n core/slot-index-key) {})]
     (set (concat (keys (source-slots n))
-                 (keys slot-index)))))
+                 (keys slot-index)
+                 (filter #(public-slot-present? n %)
+                         (core/public-slot-keys n))))))
 
 (defn- sync-marker-key
   [slot-key parent-id canonical-id direction]

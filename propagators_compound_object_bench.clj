@@ -9,6 +9,7 @@
             [propagators.cells.value :as value]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.effectful-execution :as effect]
             [propagators.effectful-sync :as sync]
             [propagators.graph :as graph]
@@ -130,6 +131,21 @@
 (defn- seed! [n id v]
   (nb/seed-cell n id v))
 
+(defn- slot-workload-ok?
+  [variant n coll head tail]
+  (let [coll-net (net/network-cell-value n coll)]
+    (case variant
+      :baseline
+      (and (= 10 (obj/slot-strongest coll-net :car))
+           (= 20 (obj/slot-strongest coll-net :cdr)))
+
+      :optimized
+      (and (= 10 (net/network-cell-value n head))
+           (= 20 (net/network-cell-value n tail))
+           (obj/accessor-network? coll-net)
+           (nil? (obj/slot-strongest coll-net :car))
+           (nil? (obj/slot-strongest coll-net :cdr))))))
+
 (defn- install-prop! [[n tasks prop-ids prop-collections] [installer collection-id]]
   (let [[prop-id n'] (nb/install-propagator n installer)]
     [n'
@@ -160,7 +176,7 @@
   (let [stats (atom {})
         coll-ids (set collection-ids)
         orig-eval-cell core/eval-cell
-        execute-slot-subnet-var #'obj/execute-slot-subnet
+        execute-slot-subnet-var #'network-slot/run-accessor-inner-net
         orig-execute-slot-subnet @execute-slot-subnet-var
         run (fn []
               (with-redefs [core/eval-cell
@@ -262,10 +278,8 @@
     {:collection-ids [coll]
      :prop-collection-ids prop-collections
      :run (fn []
-            (let [n' (nth (iterate #(run-props % props) converged) repeats)
-                  coll-net (net/network-cell-value n' coll)]
-              {:ok (and (= 10 (obj/slot-strongest coll-net :car))
-                        (= 20 (obj/slot-strongest coll-net :cdr)))}))}))
+            (let [n' (nth (iterate #(run-props % props) converged) repeats)]
+              {:ok (slot-workload-ok? variant n' coll head tail)}))}))
 
 (defn- build-deep-accessor [variant depth]
   (let [{:keys [p:cons p:car p:cdr]} (variants variant)
@@ -350,10 +364,8 @@
                   n2 (-> n1
                          (seed! head 10)
                          (run-props props))
-                  n3 (run-props n2 props)
-                  coll-net (net/network-cell-value n3 coll)]
-              {:ok (and (= 10 (obj/slot-strongest coll-net :car))
-                        (= 20 (obj/slot-strongest coll-net :cdr)))}))}))
+                  n3 (run-props n2 props)]
+              {:ok (slot-workload-ok? variant n3 coll head tail)}))}))
 
 (defn- run-scenario [scenario size]
   (let [workload (case scenario

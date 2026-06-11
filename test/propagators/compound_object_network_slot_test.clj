@@ -47,6 +47,32 @@
       (is (= :b (:parent-value idx)))
       (is (= 2 (:parent-value cnt))))))
 
+(deftest network-slot-preserves-plain-named-network-values-and-internals
+  (testing "plain named networks are preserved instead of converted to source slots"
+    (let [slot-id (new-node-id)
+          internal-id (new-node-id)
+          internal-key (obj/internal-metadata-key :plain-network :internal-cell)
+          source (-> net/empty-net
+                     (nb/install-cell slot-id 42 42)
+                     (net/assoc-net-dict-entry :x slot-id)
+                     (nb/install-cell internal-id :kept :kept)
+                     (net/assoc-net-dict-entry internal-key internal-id)
+                     (net/assoc-net-dict-entry :plain-tag {:kept? true}))
+          {:keys [parent-value collection-value]} (run-network-slot :x
+                                                                    source
+                                                                    ::none)]
+      (is (= 42 parent-value))
+      (is (obj/accessor-network? collection-value))
+      (is (= 42 (obj/slot-value collection-value :x)))
+      (is (empty? (obj/accessor-source-slots collection-value)))
+      (is (contains? (obj/accessor-slot-keys collection-value) :x))
+      (is (not (contains? (obj/accessor-slot-keys collection-value)
+                          :plain-tag)))
+      (is (= internal-id (net/network-dict-entry collection-value internal-key)))
+      (is (= :kept (net/network-cell-value collection-value internal-id)))
+      (is (= {:kept? true}
+             (net/network-dict-entry collection-value :plain-tag))))))
+
 (deftest network-slot-keeps-value-updates-off-the-collection-cell
   (testing "after topology exists, an accessor value update syncs peers only"
     (let [p1 (new-node-id)
