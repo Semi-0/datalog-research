@@ -25,6 +25,7 @@
     propagators.layered-procedure-test
     propagators.linked-list-access-test
     propagators.named-network-test
+    propagators.primitive-basis-test
     propagators.recursive-compound-test
     propagators.network-test
     propagators.structural-records-test])

@@ -351,6 +351,144 @@ The old compile DSL can thread it like other installers:
   (closure/p:when-network ready expander template expanded))
 ```
 
+### Primitive Basis For Derived Reducers
+
+2026-06-11 update: the recursive compound expansion sketch should not use a
+host-side `compound-shape?` branch, an external `enabled?` cell, or a reducer
+primitive. The reducer is a derived language pattern built from smaller
+primitives:
+
+```clojure
+prop/nothing?
+prop/when
+cursor/p:car
+cursor/p:cdr
+obj/p:slot-cursor
+closure/p:bind-network
+closure/p:apply-network
+closure/p:when-apply-network
+```
+
+The control shape is two one-way exits:
+
+```clojure
+(prop/nothing? cursor done?)
+(prop/not done? more?)
+
+;; completion branch
+(prop/when result done? out)
+
+;; expansion branch
+(closure/p:when-apply-network more? next-step result expanded-network)
+```
+
+`p:when-network` remains useful when false should pass the accumulator through.
+Derived reducers should use `p:when-apply-network`, because the inactive branch
+must emit no network value.
+
+Concise nested compound reducer sketch:
+
+```clojure
+;; acc holds declaration-network data, not a live graph mutation.
+(let-cell [source slots acc step out]
+  (seed acc net/empty-net)
+  (seed source source-object)
+
+  ;; Project the compound object to a pure cursor. Empty means done.
+  (obj/p:slot-cursor source slots)
+
+  ;; The step expander reads the current cursor item through
+  ;; closure/current-item, declares one slot's topology, and returns a larger
+  ;; declaration network.
+  (seed step
+        (decl/closure
+         (decl/compose
+          (decl/slot-accessor
+           (fn [item] (stable-cell-id [:source-slot (:path item)]))
+           :declared/source-slot-props)
+          (decl/record :declared/slot-step :declared))))
+
+  ;; Derived, not primitive: internally this declares the two-exit reducer frame
+  ;; from cursor access, nothing?, when, bind-network, and when-apply-network.
+  (decl/reduce-cursor slots step acc out))
+```
+
+`stable-cell-id` above stands for the existing semantic-id discipline: repeated
+expansion for the same slot path should name the same declaration cells.
+
+Read it as a loop over declaration data:
+
+```text
+slot cursor + step expander + acc network value
+-> if cursor is nothing, send acc to out
+-> otherwise bind car(cursor) as current item
+-> apply the bound step to acc
+-> recurse on cdr(cursor)
+-> caller later evaluates declared prop ids from the emitted network
+```
+
+### Linked-list reducer first
+
+Later on 2026-06-11, the reducer plan was narrowed again: do not use
+`obj/p:slot-cursor` as the first reducer target. Looping through compound slots
+and reducing a linked list are two different experiments. The next reducer
+experiment should reduce the compound-object linked-list shape first, and only
+then generalize the same control basis over other data structures.
+
+The linked-list reducer should use the current compound-object sequence
+accessors:
+
+```clojure
+obj/p:car
+obj/p:cdr
+obj/p:cons
+```
+
+The terminator is `value/nothing`. The current frame tests the current list
+cell, and only the non-empty branch declares `obj/p:car` / `obj/p:cdr`
+topology:
+
+```clojure
+(prop/nothing? list done?)
+(prop/not done? more?)
+
+;; completion branch
+(prop/when acc done? out)
+
+;; expansion branch
+(closure/p:when-apply-network more? next-frame acc branch-network)
+```
+
+The `next-frame` expander declares exactly one list step:
+
+```clojure
+(obj/p:car item list)
+(obj/p:cdr rest list)
+(closure/p:bind-network step item bound-step)
+(closure/p:apply-network bound-step acc next-acc)
+(decl/reduce-list rest step next-acc out)
+```
+
+This keeps nil-list termination from creating accessor topology. It also keeps
+the reducer derived: there is no reducer primitive, no map primitive, and no
+external `enabled?` cell. Branch choice remains ordinary propagator dataflow.
+
+For trampoline-style expansion, each frame may emit a tiny continuation record
+as compound-object data:
+
+```clojure
+{:state :continue
+ :next-network-id branch-network}
+
+{:state :done
+ :out-id out}
+```
+
+Those records are selected through `prop/when`; host code should only read the
+selected continuation to know whether to tail-call the next emitted network or
+return the finished network. Any frame handle used by the trampoline is an
+execution entry point, not semantic branch control.
+
 ## Fibonacci Proof
 
 `test/propagators/recursive_compound_test.clj` implements Fibonacci as a
@@ -782,6 +920,19 @@ Benchmark method for the entries below:
    expansion.
    Boundary: this remains declaration lazy expansion, not lazy evaluation of
    already-declared topology.
+
+8. `2026-06-11` Primitive basis for linked-list reducers.
+   Assumption: reducer control should first be proven on compound-object linked
+   lists, not on `obj/p:slot-cursor` traversal of arbitrary compound slots.
+   Outcome: the planned reducer shape is `nothing?`/`not` plus two one-way
+   exits: `prop/when` sends the accumulator to `out` when the list is done, and
+   `closure/p:when-apply-network` expands one `obj/p:car` / `obj/p:cdr` frame
+   when the list is non-empty. The reducer remains derived from propagator
+   combinators; `map`, `reduce`, and generic slot traversal are explicitly left
+   for later generalization.
+   Boundary: trampoline continuation records may be compound-object data, but
+   they are execution entry handles only. Branch semantics stay in propagator
+   gates.
 
 Auxiliary comparison: repeated shallow reducer composition.
 Assumption: nested reduction can be approximated by explicitly composing several

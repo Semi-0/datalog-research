@@ -1,9 +1,11 @@
 (ns propagators.stdlib.prop
   "Primitive propagator installers (`prop/+`, `prop/id`, …)."
-  (:refer-clojure :exclude [+ - * / <= not])
+  (:refer-clojure :exclude [+ - * / <= not when])
   (:require [clojure.core :as core]
             [propagators.cells.bool4 :as bool4]
             [propagators.cells.value :as value]
+            [propagators.message :refer [message]]
+            [propagators.network :as net]
             [propagators.propagator :as prop]))
 
 (def id
@@ -42,6 +44,14 @@
 (def not
   (prop/primitive-propagator bool4/not))
 
+(def nothing?
+  (prop/primitive-propagator
+   (fn [x]
+     (cond
+       (value/contradiction? x) value/contradiction
+       (value/nothing? x) true
+       :else false))))
+
 (def switch
   (prop/primitive-propagator
    (fn [x enabled?]
@@ -49,6 +59,29 @@
        (value/contradiction? enabled?) value/contradiction
        (= true enabled?) x
        :else value/nothing))))
+
+(defn when
+  "One-armed value gate. Emits `value-id` to `out-id` only when condition is true."
+  [value-id condition-id out-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs network]
+     (let [v (net/network-cell-strongest network value-id)
+           condition (net/network-cell-strongest network condition-id)]
+       (cond
+         (value/contradiction? condition)
+         [(message out-id value/contradiction)]
+
+         (= true condition)
+         [(message out-id v)]
+
+         (core/or (= false condition)
+                  (value/nothing? condition))
+         []
+
+         :else
+         [(message out-id value/contradiction)])))
+   [value-id condition-id]
+   [out-id]))
 
 (defn nothing
   "Topology-only link: wires ports without merge/messages when the propagator runs."

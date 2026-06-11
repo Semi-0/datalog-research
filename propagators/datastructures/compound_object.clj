@@ -1,6 +1,7 @@
 (ns propagators.datastructures.compound-object
   "Public facade for compound-object slots, reducers, and sequence helpers."
   (:require [propagators.datastructures.compound-object.core :as core]
+            [propagators.datastructures.compound-object.cursor :as cursor]
             [propagators.datastructures.compound-object.map :as map]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.compound-object.reduce :as reduce]
@@ -50,6 +51,8 @@
 (def p:car network-slot/p:network-car)
 (def p:cdr network-slot/p:network-cdr)
 (def p:cons network-slot/p:network-cons)
+(def p:slot-cursor cursor/p:slot-cursor)
+(def slot-cursor-value cursor/slot-cursor-value)
 
 (def p:reduce reduce/p:reduce)
 (def p:map-slots-with-recursive-closure map/p:map-slots-with-recursive-closure)
