@@ -153,6 +153,94 @@
               :reducer behavior/event-history-reducer-id}
              (update (behavior-slots out-content) :history #(mapv record-map %)))))))
 
+(deftest behavior-values-survive-compound-network-slot-accessors
+  (testing "a behavior value stored in a source collection slot reaches an accessor as full behavior content"
+    (let [coll (new-node-id)
+          out-id (new-node-id)
+          slot-value (behavior/behavior-value
+                      {:history {1 (behavior/point-event 1 :a)
+                                 2 (behavior/point-event 2 :b)}
+                       :source-keys #{1 2}
+                       :reducer behavior/event-history-reducer-id})
+          n0 (-> (behavior-net)
+                 (nb/install-cell coll)
+                 (nb/install-cell out-id))
+          [slot-prop n1] ((obj/p:slot :value out-id coll) n0)
+          result (-> n1
+                     (nb/seed-cell coll {:value slot-value})
+                     (nb/run-propagators [slot-prop]))
+          out-content (content result out-id)]
+      (is (= :b (current-value result out-id)))
+      (is (behavior/behavior-value? out-content))
+      (is (= [{:at 1 :value :a}
+              {:at 2 :value :b}]
+             (records out-content)))
+      (is (= #{1 2} (behavior/source-keys out-content)))))
+
+  (testing "peer accessors preserve behavior content rather than copying only strongest"
+    (let [writer-id (new-node-id)
+          coll (new-node-id)
+          out-id (new-node-id)
+          slot-value (behavior/behavior-value
+                      {:history {1 (behavior/point-event 1 :a)
+                                 2 (behavior/point-event 2 :b)}
+                       :source-keys #{1 2}
+                       :reducer behavior/event-history-reducer-id})
+          n0 (-> (behavior-net)
+                 (nb/install-cell writer-id)
+                 (nb/install-cell coll)
+                 (nb/install-cell out-id))
+          [writer-prop n1] ((obj/p:slot :value writer-id coll) n0)
+          [reader-prop n2] ((obj/p:slot :value out-id coll) n1)
+          result (-> n2
+                     (nb/seed-cell writer-id slot-value)
+                     (nb/run-propagators [writer-prop reader-prop]))
+          out-content (content result out-id)]
+      (is (= :b (current-value result out-id)))
+      (is (behavior/behavior-value? out-content))
+      (is (= [{:at 1 :value :a}
+              {:at 2 :value :b}]
+             (records out-content)))
+      (is (= #{1 2} (behavior/source-keys out-content)))))
+
+  (testing "later behavior events reactively update an accessor reader through compound slot topology"
+    (let [history-id (new-node-id)
+          merge-id (new-node-id)
+          init-id (new-node-id)
+          behavior-id (new-node-id)
+          coll (new-node-id)
+          out-id (new-node-id)
+          value-1 (new-node-id)
+          value-2 (new-node-id)
+          n0 (-> (behavior-net)
+                 (nb/install-cell history-id)
+                 (nb/install-cell merge-id)
+                 (nb/install-cell init-id)
+                 (nb/install-cell behavior-id)
+                 (nb/install-cell coll)
+                 (nb/install-cell out-id)
+                 (nb/install-cell value-1)
+                 (nb/install-cell value-2)
+                 (nb/seed-cell merge-id (behavior/event-history-reducer-net))
+                 (nb/seed-cell init-id (behavior/empty-history-state))
+                 (nb/seed-cell value-1 :a)
+                 (nb/seed-cell value-2 :b))
+          [behavior-props n1] ((behavior/p:behavior history-id merge-id init-id behavior-id) n0)
+          [writer-prop n2] ((obj/p:slot :value behavior-id coll) n1)
+          [reader-prop n3] ((obj/p:slot :value out-id coll) n2)
+          [event-1 n4] ((behavior/p:event 1 value-1 history-id) n3)
+          first-result (run n4 (into [event-1 writer-prop reader-prop] behavior-props))
+          [event-2 n5] ((behavior/p:event 2 value-2 history-id) first-result)
+          result (run n5 [event-2])
+          out-content (content result out-id)]
+      (is (= :a (current-value first-result out-id)))
+      (is (= :b (current-value result out-id)))
+      (is (behavior/behavior-value? out-content))
+      (is (= [{:at 1 :value :a}
+              {:at 2 :value :b}]
+             (records out-content)))
+      (is (= #{1 2} (behavior/source-keys out-content))))))
+
 (deftest behavior-late-out-of-order-event-reorders-retained-history
   (testing "source keys grow monotonically while the retained point history is sorted"
     (let [history-id (new-node-id)

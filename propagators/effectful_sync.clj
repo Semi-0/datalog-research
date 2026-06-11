@@ -6,6 +6,7 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
+            [propagators.propagator :as prop]
             [propagators.stdlib.boundary :as boundary]))
 
 (defn strongest-equivalent?
@@ -72,6 +73,32 @@
       subnet
       (let [[[from->to to->from] subnet'] (boundary/fast-bi-sync subnet from-id to-id)]
         (-> subnet'
+            (net/assoc-net-dict-entry from->to-key from->to)
+            (net/assoc-net-dict-entry to->from-key to->from))))))
+
+(defn content-copy
+  "Install one directional sync that copies cell content, not strongest.
+
+  This preserves partial-information payloads such as retained behavior history
+  while still moving data through ordinary messages."
+  [from-id to-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs network]
+     [(message to-id
+               (cell/cell-content (net/network-env-lookup network from-id)))])
+   [from-id]
+   [to-id]))
+
+(defn attach-content-bi-sync
+  "Install bidirectional content-copy sync between `from-id` and `to-id`, if absent."
+  [subnet from-id to-id from->to-key to->from-key]
+  (let [dict (net/net-dict-or-empty subnet)]
+    (if (and (contains? dict from->to-key)
+             (contains? dict to->from-key))
+      subnet
+      (let [[from->to subnet'] ((content-copy from-id to-id) subnet)
+            [to->from subnet''] ((content-copy to-id from-id) subnet')]
+        (-> subnet''
             (net/assoc-net-dict-entry from->to-key from->to)
             (net/assoc-net-dict-entry to->from-key to->from))))))
 

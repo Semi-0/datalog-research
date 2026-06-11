@@ -8,8 +8,7 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]
-            [propagators.stdlib.boundary :as boundary]))
+            [propagators.propagator :as prop]))
 
 (def accessor-network-key
   (core/internal-metadata-key :accessor-network))
@@ -129,7 +128,11 @@
     (if (and (contains? dict from-key)
              (contains? dict to-key))
       n
-      (let [[_ n'] (boundary/fast-bi-sync n parent-avatar-id canonical-avatar-id)]
+      (let [n' (sync/attach-content-bi-sync n
+                                            parent-avatar-id
+                                            canonical-avatar-id
+                                            from-key
+                                            to-key)]
         (-> n'
             (net/assoc-net-dict-entry from-key #{:installed})
             (net/assoc-net-dict-entry to-key #{:installed}))))))

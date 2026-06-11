@@ -371,6 +371,60 @@ payload still carries its lexical env and scope metadata, so an updated closure
 version is applied with its own retained lexical environment rather than the
 caller's accidental bindings.
 
+## Compound Accessor Reactivity Experiment
+
+Experiment date: 2026-06-11
+
+Goal:
+- verify that behavior values can move through the current compound-object
+  accessor path, `obj/p:slot` / `p:network-slot`, without collapsing retained
+  behavior content into only the current strongest projection.
+
+Setup:
+- source-slot projection: a collection source contains one behavior value under
+  a map slot, and an accessor reads that slot;
+- peer accessor sync: one accessor writes a behavior value into a compound slot
+  and another accessor reads the same slot;
+- event pipeline: `p:event -> p:behavior -> compound slot writer -> accessor
+  reader`, then a later event updates the original behavior source.
+
+Observed pre-fix failure:
+- direct source-slot projection worked because `source-slot-messages` emitted
+  the full source value;
+- peer accessor sync failed with a `Long`/`Keyword` sort error in
+  `behavior/latest-record`, because generic `p:id` sync copied the behavior
+  strongest summary into another behavior cell's content. That mixed temporal
+  history keys with summary/layer keys and broke retained-history projection.
+
+Implementation result:
+- demand-driven accessor peer sync now uses content-copy bi-sync for accessor
+  avatars. It copies cell content through ordinary messages instead of copying
+  strongest values through `p:id`.
+- Declaration and evaluation remain decoupled: accessor declarations still store
+  durable route/sync topology in the collection network; evaluation still runs
+  activation-local accessor frames; results still leave through messages; taps
+  and task frontiers are not persisted.
+- Behavior-valued accessors now preserve retained behavior content and source
+  evidence while the accessor cell's strongest still exposes the current/base
+  projection.
+
+Verification:
+- `clojure -M:test propagators-behavior-test`
+  - `56` pass, `0` fail, `0` error
+- `clojure -M:test propagators-compound-object-network-slot-test`
+  - `20` pass, `0` fail, `0` error
+- `clojure -M:test propagators-compound-object-test`
+  - `103` pass, `0` fail, `0` error
+- `clojure -M:test propagators`
+  - `815` pass, `0` fail, `0` error
+
+Remaining limits:
+- this proves behavior-valued accessor projection and peer sync; it does not add
+  a general dependence-tracked slot boundary;
+- deprecated `compound_data.clj` remains unchanged;
+- content-copy sync is intentionally used for demand-driven network-slot
+  accessors, not as a global replacement for every primitive `p:id` relation.
+
 ## Kernel Boundary
 
 This design intentionally does not change `propagators/core.clj`.
@@ -398,6 +452,8 @@ introduced as a hidden behavior change.
 - reducer state is slot-addressable via compound-object layers
 - event before reducer installation
 - reducer before later event
+- behavior values moving through compound-object accessors without losing
+  retained history
 - late out-of-order events updating retained history without changing latest
 - duplicate and conflicting same-tick events
 - point-event histories do not imply continuation
