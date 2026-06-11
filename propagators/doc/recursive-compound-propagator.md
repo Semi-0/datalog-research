@@ -1444,6 +1444,68 @@ case: direct nested recursion remained fast enough but failed semantically on
 accumulation stayed correct with only modest end-to-end cost. That is the main
 reason recursive network accumulation is now the preferred default.
 
+## Correction: nested accessor dispatch boundary
+
+2026-06-11 clarification: the evidence above should not be read as proof that
+general unbounded recursion over nested compound data already works by letting a
+recursive activation build accessor topology inside an inner network.
+
+What has been shown:
+
+- direct recursive activation works for Fibonacci and for a nested numeric
+  reduce;
+- direct recursive nested map is not robust for mixed nested map/vector output;
+- declared network-valued expansion can produce nested map/reduce topology and
+  run that topology later;
+- older declared nested-map tests still use materialized/legacy slot accessors
+  in parts of the builder;
+- the newer public `obj/p:slot`, `obj/p:car`, and `obj/p:cdr` path is
+  demand-driven `p:network-slot` accessor topology.
+
+The important dispatch boundary is that a nested accessor only wakes when its
+outer cell receives an ordinary message. If recursion creates accessor topology
+inside an activation-local inner network, that topology does not by itself wake
+outer nested accessor propagators. The inner network must either project a
+changed boundary cell back to the outer graph as a message, or the whole nested
+accessor chain must be declared in the outer network before evaluation.
+
+For the current `p:network-slot` path, nested dispatch is therefore:
+
+```text
+outer collection cell
+  -> outer slot accessor propagator emits child collection/accessor value
+  -> child cell wakes its own outer slot accessor propagators
+  -> child accessor activation uses the child's own structural inner network
+```
+
+It is not:
+
+```text
+recursive activation creates inner accessor topology
+  -> inner topology directly dispatches arbitrary outer child cells
+```
+
+This suggests a kernel-level design question for truly general unbounded
+recursion over nested compound data. We may need an explicit mechanism that
+allows a propagator running an inner network to dispatch selected inner cell
+changes across the boundary as ordinary outer messages, without mutating the
+outer graph and without persisting activation-local taps/frontiers as durable
+data. In other words, the kernel may need a first-class inner-cell dispatch
+boundary, rather than expecting recursive inner networks to implicitly wake
+nested outer accessor topology.
+
+Until that exists, the safe framing is narrower:
+
+- use declared network accumulation when the full nested accessor topology is
+  known or can be emitted before evaluation;
+- use direct recursive activation for immediate tree-shaped computations and
+  tested reductions;
+- prove linked-list recursion next with public `obj/p:car` / `obj/p:cdr`, where
+  each recursive step advances only after `cdr` is visible as an outer cell
+  value;
+- do not claim general nested compound recursion through inner accessor
+  dispatch yet.
+
 ## Follow-up: Demand-driven accessor topology
 
 The next compound-object experiment separates structure from slot values more
