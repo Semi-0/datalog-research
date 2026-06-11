@@ -444,6 +444,8 @@
 (def ^:private expansion-out-id-key [:experiment :out-id])
 (def ^:private expansion-acc-id-key [:experiment :acc-id])
 (def ^:private expansion-leaf-count-key [:experiment :leaf-count])
+(def ^:private expansion-child-prop-id-key [:experiment :child-prop-id])
+(def ^:private expansion-child-out-id-key [:experiment :child-out-id])
 
 (defn- slot-path-value
   [v path]
@@ -870,6 +872,69 @@
      :leaf-count (net/network-dict-entry expanded expansion-leaf-count-key)
      :value (strongest after out-id)}))
 
+(defn- when-network-expander
+  [frame slot-values]
+  (closure/closure
+   (fn [_closure-net _input-ids _output-ids declaration-net]
+     (named/join declaration-net
+                 (recursive/frame-fragment frame slot-values)))
+   net/empty-net))
+
+(defn- run-when-network
+  [condition expander acc-net]
+  (let [condition-id (ids/new-node-id)
+        expander-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell condition-id condition condition)
+               (nb/install-cell expander-id expander expander)
+               (nb/install-cell acc-id acc-net acc-net)
+               (nb/install-cell out-id))
+        [prop-id n1] ((closure/p:when-network condition-id expander-id acc-id out-id)
+                      n0)
+        n2 (run-installed n1 [prop-id])]
+    {:net n2
+     :out-id out-id
+     :value (strongest n2 out-id)}))
+
+(defn- recursive-when-frame-expander
+  [frame child-enabled?]
+  (closure/closure
+   (fn [_closure-net _input-ids _output-ids declaration-net]
+     (let [base (named/join declaration-net
+                            (recursive/frame-fragment
+                             frame
+                             {:input frame
+                              [:status :declared] true}))
+           child-condition-id (ids/new-node-id)
+           child-expander-id (ids/new-node-id)
+           child-acc-id (ids/new-node-id)
+           child-out-id (ids/new-node-id)
+           child-expander (when-network-expander
+                           [:child frame]
+                           {:input [:child frame]
+                            [:status :declared] true})
+           n0 (-> base
+                  (nb/install-cell child-condition-id
+                                   child-enabled?
+                                   child-enabled?)
+                  (nb/install-cell child-expander-id
+                                   child-expander
+                                   child-expander)
+                  (nb/install-cell child-acc-id base base)
+                  (nb/install-cell child-out-id))
+           [child-prop-id n1] ((closure/p:when-network
+                                child-condition-id
+                                child-expander-id
+                                child-acc-id
+                                child-out-id)
+                               n0)]
+       (-> n1
+           (net/assoc-net-dict-entry expansion-child-prop-id-key child-prop-id)
+           (net/assoc-net-dict-entry expansion-child-out-id-key child-out-id))))
+   net/empty-net))
+
 (deftest recursive-fibonacci-values
   (testing "concrete numeric fibonacci values"
     (is (= 0 (:value (run-fib 0))))
@@ -943,6 +1008,117 @@
                                      [:frame :demo]
                                      [:status :declared])))
       (is (named-idempotent? expanded)))))
+
+(deftest when-network-conditionally-expands-network-as-data
+  (testing "false condition passes through the accumulator without invoking expander"
+    (let [called? (atom false)
+          acc (recursive/frame-fragment [:frame :base] {:output 1})
+          expander (closure/closure
+                    (fn [_closure-net _input-ids _output-ids declaration-net]
+                      (reset! called? true)
+                      (named/join declaration-net
+                                  (recursive/frame-fragment
+                                   [:frame :expanded]
+                                   {:output 2})))
+                    net/empty-net)
+          result (run-when-network false expander acc)
+          out (:value result)]
+      (is (= false @called?))
+      (is (= 1 (named-frame-value out [:frame :base] :output)))
+      (is (nil? (named-frame-value out [:frame :expanded] :output)))))
+
+  (testing "nothing condition waits without emitting an output"
+    (let [acc (recursive/frame-fragment [:frame :base] {:output 1})
+          expander (when-network-expander [:frame :expanded] {:output 2})
+          result (run-when-network value/nothing expander acc)]
+      (is (= value/nothing (:value result)))))
+
+  (testing "true condition applies the expander"
+    (let [acc (recursive/frame-fragment [:frame :base] {:output 1})
+          expander (when-network-expander [:frame :expanded] {:output 2})
+          result (run-when-network true expander acc)
+          out (:value result)]
+      (is (= 1 (named-frame-value out [:frame :base] :output)))
+      (is (= 2 (named-frame-value out [:frame :expanded] :output)))))
+
+  (testing "contradiction and non-network results contradict"
+    (let [expander (when-network-expander [:frame :expanded] {:output 2})
+          bad-expander (closure/closure
+                        (fn [_closure-net _input-ids _output-ids _declaration-net]
+                          :not-a-network)
+                        net/empty-net)
+          contradiction-result (run-when-network value/contradiction
+                                                 expander
+                                                 net/empty-net)
+          non-network-acc-result (run-when-network true expander :not-a-network)
+          non-network-expanded-result (run-when-network true
+                                                        bad-expander
+                                                        net/empty-net)]
+      (is (= value/contradiction (:value contradiction-result)))
+      (is (= value/contradiction (:value non-network-acc-result)))
+      (is (= value/contradiction (:value non-network-expanded-result))))))
+
+(deftest when-network-is-available-from-compile-dsl
+  (testing "old compile DSL can install conditional network expansion"
+    (let [expander (when-network-expander [:frame :expanded] {:output 42})
+          template (recursive/frame-fragment [:frame :base] {:output 1})
+          ctx (eval-and-run
+               net/empty-net
+               {'ready-value true
+                'expander-value expander
+                'template-value template}
+               '(do
+                  (let-cell [ready expander template out]
+                    (seed ready ready-value)
+                    (seed expander expander-value)
+                    (seed template template-value)
+                    (closure/p:when-network ready expander template out))))
+          out-id (compile/cell-ref ctx 'out)
+          expanded (strongest (:net ctx) out-id)]
+      (is (= 1 (named-frame-value expanded [:frame :base] :output)))
+      (is (= 42 (named-frame-value expanded [:frame :expanded] :output))))))
+
+(deftest when-network-supports-lazy-recursive-frame-expansion
+  (testing "child declaration is absent until a guarded child expander runs"
+    (let [root-expander (recursive-when-frame-expander [:root] true)
+          root-expanded (:value (run-when-network true root-expander net/empty-net))
+          child-prop-id (net/network-dict-entry root-expanded expansion-child-prop-id-key)
+          child-out-id (net/network-dict-entry root-expanded expansion-child-out-id-key)]
+      (is (= true (named-frame-value root-expanded [:root] [:status :declared])))
+      (is (nil? (named-frame-value root-expanded
+                                   [:child [:root]]
+                                   [:status :declared])))
+      (let [after-child (run-installed root-expanded [child-prop-id])
+            child-expanded (strongest after-child child-out-id)]
+        (is (= true (named-frame-value child-expanded
+                                       [:child [:root]]
+                                       [:status :declared]))))))
+
+  (testing "false child guard passes the frame accumulator through unchanged"
+    (let [root-expander (recursive-when-frame-expander [:root] false)
+          root-expanded (:value (run-when-network true root-expander net/empty-net))
+          child-prop-id (net/network-dict-entry root-expanded expansion-child-prop-id-key)
+          child-out-id (net/network-dict-entry root-expanded expansion-child-out-id-key)
+          after-child (run-installed root-expanded [child-prop-id])
+          child-expanded (strongest after-child child-out-id)]
+      (is (= true (named-frame-value child-expanded [:root] [:status :declared])))
+      (is (nil? (named-frame-value child-expanded
+                                   [:child [:root]]
+                                   [:status :declared]))))))
+
+(deftest when-network-can-guard-nested-compound-map-expansion
+  (testing "guarded expander emits nested map topology only when enabled"
+    (let [source {:left [0 1]
+                  :right {:a 2}}
+          expander (network-expansion-map-expander source)
+          disabled (:value (run-when-network false expander net/empty-net))
+          enabled (:value (run-when-network true expander net/empty-net))
+          result (run-expanded-network enabled)]
+      (is (nil? (net/network-dict-entry disabled expansion-prop-ids-key)))
+      (is (= 3 (:leaf-count result)))
+      (is (= {:left [0 1]
+              :right {:a 1}}
+             (compound->data (:value result)))))))
 
 (deftest recursive-fibonacci-lazy-base-branch
   (testing "base branch fills output without building recursive topology"

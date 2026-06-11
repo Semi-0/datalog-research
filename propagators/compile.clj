@@ -19,6 +19,7 @@
    'prop/switch (requiring-resolve 'propagators.stdlib.prop/switch)
    'closure/p:apply-closure (requiring-resolve 'propagators.closure/p:apply-closure)
    'closure/p:apply-network (requiring-resolve 'propagators.closure/p:apply-network)
+   'closure/p:when-network (requiring-resolve 'propagators.closure/p:when-network)
    'recursive/p:recursive-compound
    (requiring-resolve 'propagators.recursive/p:recursive-compound)
    'recursive/p:self-refining-recursive-compound

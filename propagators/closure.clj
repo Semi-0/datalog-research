@@ -98,6 +98,55 @@
    [closure-id network-id]
    [out-id]))
 
+(defn p:when-network
+  "Conditionally apply a declaration closure to a network-valued cell.
+
+  This is declaration-only. A true condition expands `acc-net-id` through the
+  closure-valued `expander-id` and emits the expanded network to `out-net-id`.
+  A false condition passes the accumulator network through unchanged. Nothing
+  waits; contradiction emits contradiction.
+  "
+  [condition-id expander-id acc-net-id out-net-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs network]
+     (let [condition (network-cell-strongest network condition-id)
+           acc-net (network-cell-strongest network acc-net-id)]
+       (cond
+         (value/nothing? condition)
+         []
+
+         (value/contradiction? condition)
+         [(message out-net-id value/contradiction)]
+
+         (not (net/network? acc-net))
+         [(message out-net-id value/contradiction)]
+
+         (= false condition)
+         [(message out-net-id acc-net)]
+
+         (= true condition)
+         (let [expander-cv (network-cell-strongest network expander-id)
+               expander-value (value/value-payload expander-cv)]
+           (cond
+             (or (value/nothing? expander-cv)
+                 (nil? expander-value))
+             []
+
+             (value/contradiction? expander-cv)
+             [(message out-net-id value/contradiction)]
+
+             :else
+             (let [expanded (apply-network-closure expander-value acc-net)]
+               [(message out-net-id
+                         (if (net/network? expanded)
+                           expanded
+                           value/contradiction))])))
+
+         :else
+         [(message out-net-id value/contradiction)])))
+   [condition-id expander-id acc-net-id]
+   [out-net-id]))
+
 (defn primitive-closure
   "Build a closure that installs one primitive propagator from all inputs to one output."
   [f]

@@ -256,6 +256,7 @@ prop/not
 prop/switch
 closure/p:apply-closure
 closure/p:apply-network
+closure/p:when-network
 recursive/p:recursive-compound
 recursive/p:self-refining-recursive-compound
 recursive/p:accumulating-recursive-compound
@@ -316,6 +317,39 @@ frame request + frame-template closure + prior declaration network
 ```
 
 That keeps "what topology should exist" separate from "run this topology now."
+
+### Conditional Network Expansion
+
+`closure/p:when-network` is the declaration-level conditional counterpart to
+`closure/p:apply-network`:
+
+```clojure
+(closure/p:when-network condition expander accumulator out)
+```
+
+Semantics:
+
+- `true` applies the closure-valued expander to the accumulator network and
+  emits the expanded network.
+- `false` emits the accumulator network unchanged.
+- `nothing` waits and emits no message.
+- contradiction, non-network accumulator values, and non-network expansion
+  results emit contradiction.
+
+This is different from `prop/switch`: `prop/switch` gates a value after topology
+may already exist, while `p:when-network` gates declaration expansion itself.
+It still does not mutate the live outer graph. The result is a network value,
+and evaluation remains a later explicit scheduler run.
+
+The old compile DSL can thread it like other installers:
+
+```clojure
+(let-cell [ready expander template expanded]
+  (seed ready true)
+  (seed expander expander-value)
+  (seed template template-value)
+  (closure/p:when-network ready expander template expanded))
+```
 
 ## Fibonacci Proof
 
@@ -642,6 +676,9 @@ Conclusion used for direction:
   source and output slot accessors
 - direct recursive nested reduce over accessor-built compound objects
 - network-valued expansion for nested map and nested reduce
+- conditional network expansion with `closure/p:when-network`, including old
+  compile DSL wiring, lazy recursive frame expansion, and guarded nested map
+  topology
 - the current direct nested-map limitation for vector children inside a nested
   map
 
@@ -732,6 +769,19 @@ Benchmark method for the entries below:
    creates fresh topology ids.
    Benchmark: network-valued map averaged `23.80 ms/run`; network-valued sum
    averaged `8.61 ms/run`; both operated on `6` nested leaves.
+
+7. `2026-06-11` Conditional declaration expansion via
+   `closure/p:when-network`.
+   Assumption: recursive and nested-object declaration should be guardable
+   before expansion, rather than using `prop/switch` after branch topology has
+   already been declared.
+   Outcome: `p:when-network` emits network values only. `true` expands,
+   `false` passes the accumulator network through, `nothing` waits, and invalid
+   network shapes contradict. The old compile DSL can install the combinator,
+   and tests cover lazy child-frame declaration plus guarded nested compound map
+   expansion.
+   Boundary: this remains declaration lazy expansion, not lazy evaluation of
+   already-declared topology.
 
 Auxiliary comparison: repeated shallow reducer composition.
 Assumption: nested reduction can be approximated by explicitly composing several
