@@ -4,6 +4,8 @@
 
 (defrecord Net [graph env dict])
 
+;; in net dict shall store link to sub-env
+
 (defn net?
   [x]
   (and (map? x)
