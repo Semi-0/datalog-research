@@ -1,40 +1,41 @@
-(ns propagators.cursor
-  "Pure finite cursor values and accessors.
+(ns propagators.deprecated.cursor
+  "Deprecated pure finite cursor values and accessors.
 
-  Cursor access is intentionally separate from compound-object accessors: reading
-  `car` or `cdr` from `value/nothing` means end-of-cursor and must not create
-  compound slot topology."
+  This was an experiment for reducing a finite sequence of already-known items.
+  It is not the compound-object linked-list reducer path and should not be used
+  for recursive nested compound traversal. Prefer public compound-object
+  accessors such as `obj/p:car` and `obj/p:cdr` for linked-list work."
   (:refer-clojure :exclude [cons])
   (:require [propagators.cells.value :as value]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
-(def cursor-key :cursor/cons)
-(def car-key :cursor/car)
-(def cdr-key :cursor/cdr)
+(def ^:deprecated cursor-key :cursor/cons)
+(def ^:deprecated car-key :cursor/car)
+(def ^:deprecated cdr-key :cursor/cdr)
 
-(defn cons
+(defn ^:deprecated cons
   [item rest]
   {cursor-key true
    car-key item
    cdr-key rest})
 
-(defn cons?
+(defn ^:deprecated cons?
   [x]
   (and (map? x)
        (true? (get x cursor-key))
        (contains? x car-key)
        (contains? x cdr-key)))
 
-(defn cursor
+(defn ^:deprecated cursor
   "Build a finite cursor from `items`."
   [items]
   (reduce (fn [rest item] (cons item rest))
           value/nothing
           (reverse items)))
 
-(defn car-value
+(defn ^:deprecated car-value
   [cursor-value]
   (cond
     (value/nothing? cursor-value) value/nothing
@@ -42,7 +43,7 @@
     (cons? cursor-value) (get cursor-value car-key)
     :else value/contradiction))
 
-(defn cdr-value
+(defn ^:deprecated cdr-value
   [cursor-value]
   (cond
     (value/nothing? cursor-value) value/nothing
@@ -50,7 +51,7 @@
     (cons? cursor-value) (get cursor-value cdr-key)
     :else value/contradiction))
 
-(defn p:car
+(defn ^:deprecated p:car
   [item-id cursor-id]
   (prop/construct-propagator
    (fn [_inputs _outputs network]
@@ -58,7 +59,7 @@
    [cursor-id]
    [item-id]))
 
-(defn p:cdr
+(defn ^:deprecated p:cdr
   [rest-id cursor-id]
   (prop/construct-propagator
    (fn [_inputs _outputs network]

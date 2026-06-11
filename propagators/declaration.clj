@@ -2,7 +2,7 @@
   "Derived declaration combinators built from primitive propagators."
   (:require [propagators.cells.value :as value]
             [propagators.closure :as closure]
-            [propagators.cursor :as cursor]
+            [propagators.deprecated.cursor :as cursor]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -125,12 +125,15 @@
            (net/assoc-net-dict-entry reducer-next-result-key next-result-id))))
    net/empty-net))
 
-(defn reduce-cursor
-  "Derived cursor reducer installer.
+(defn ^:deprecated reduce-cursor
+  "Deprecated derived cursor reducer installer.
 
   This installs the two-exit reducer frame from primitive propagators:
   `done?` sends the accumulator to `out-id`; `more?` applies a next-step
   expander and emits the branch network under `reducer-branch-key`.
+
+  This belongs to the deprecated finite-cursor experiment. Use the planned
+  linked-list reducer over `obj/p:car` / `obj/p:cdr` for compound recursion.
   "
   [cursor-id step-id acc-id out-id]
   (fn [n]
@@ -157,15 +160,15 @@
                                       #(into (vec (or % [])) prop-ids))
            (net/assoc-net-dict-entry reducer-branch-key branch-id))])))
 
-(defn for-each-cursor
+(defn ^:deprecated for-each-cursor
   [cursor-id step-id acc-id out-id]
   (reduce-cursor cursor-id step-id acc-id out-id))
 
-(defn map-cursor
+(defn ^:deprecated map-cursor
   [cursor-id step-id acc-id out-id]
   (reduce-cursor cursor-id step-id acc-id out-id))
 
-(defn reduce-slots
+(defn ^:deprecated reduce-slots
   [source-id step-id acc-id out-id]
   (fn [n]
     (let [cursor-id (ids/new-node-id)
@@ -179,6 +182,6 @@
        (net/update-net-dict-entry n2 reducer-props-key
                                   #(into (vec (or % [])) prop-ids))])))
 
-(defn map-slots
+(defn ^:deprecated map-slots
   [source-id step-id acc-id out-id]
   (reduce-slots source-id step-id acc-id out-id))

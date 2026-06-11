@@ -51,8 +51,8 @@
 (def p:car network-slot/p:network-car)
 (def p:cdr network-slot/p:network-cdr)
 (def p:cons network-slot/p:network-cons)
-(def p:slot-cursor cursor/p:slot-cursor)
-(def slot-cursor-value cursor/slot-cursor-value)
+(def ^:deprecated p:slot-cursor cursor/p:slot-cursor)
+(def ^:deprecated slot-cursor-value cursor/slot-cursor-value)
 
 (def p:reduce reduce/p:reduce)
 (def p:map-slots-with-recursive-closure map/p:map-slots-with-recursive-closure)

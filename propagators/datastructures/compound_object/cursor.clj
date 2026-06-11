@@ -1,7 +1,7 @@
 (ns propagators.datastructures.compound-object.cursor
-  "Project compound-object slots into pure cursor values."
+  "Deprecated projection of compound-object slots into pure cursor values."
   (:require [propagators.cells.value :as value]
-            [propagators.cursor :as cursor]
+            [propagators.deprecated.cursor :as cursor]
             [propagators.datastructures.compound-object.core :as core]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.message :refer [message]]
@@ -54,7 +54,7 @@
        sorted-slot-keys
        (mapv #(compound-slot-entry source-id source-net %))))
 
-(defn slot-cursor-value
+(defn ^:deprecated slot-cursor-value
   [source-id source-value]
   (cond
     (value/contradiction? source-value)
@@ -69,8 +69,8 @@
         value/contradiction
         (cursor/cursor (compound-slot-entries source-id source-net))))))
 
-(defn p:slot-cursor
-  "Project a compound/accessor object to a pure finite cursor of slot entries."
+(defn ^:deprecated p:slot-cursor
+  "Deprecated. Project a compound/accessor object to a pure finite cursor of slot entries."
   [source-id cursor-id]
   (prop/construct-propagator
    (fn [_inputs _outputs network]

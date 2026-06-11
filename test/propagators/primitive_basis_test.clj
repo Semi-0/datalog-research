@@ -3,7 +3,7 @@
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
             [propagators.compile :as compile]
-            [propagators.cursor :as cursor]
+            [propagators.deprecated.cursor :as cursor]
             [propagators.declaration :as decl]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :refer [new-node-id]]

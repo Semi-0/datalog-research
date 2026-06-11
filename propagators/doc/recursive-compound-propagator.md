@@ -355,19 +355,24 @@ The old compile DSL can thread it like other installers:
 
 2026-06-11 update: the recursive compound expansion sketch should not use a
 host-side `compound-shape?` branch, an external `enabled?` cell, or a reducer
-primitive. The reducer is a derived language pattern built from smaller
-primitives:
+primitive. The first reducer sketch used a finite cursor experiment built from
+smaller primitives:
 
 ```clojure
 prop/nothing?
 prop/when
-cursor/p:car
-cursor/p:cdr
-obj/p:slot-cursor
+cursor/p:car        ;; now deprecated
+cursor/p:cdr        ;; now deprecated
+obj/p:slot-cursor   ;; now deprecated
 closure/p:bind-network
 closure/p:apply-network
 closure/p:when-apply-network
 ```
+
+That cursor path has now been moved under `propagators.deprecated.cursor`.
+It remains useful as a record of the finite-cursor reduction experiment, but it
+is not the linked-list reducer path and should not be used as evidence for
+recursive nested compound traversal.
 
 The control shape is two one-way exits:
 
@@ -431,7 +436,8 @@ slot cursor + step expander + acc network value
 
 Later on 2026-06-11, the reducer plan was narrowed again: do not use
 `obj/p:slot-cursor` as the first reducer target. Looping through compound slots
-and reducing a linked list are two different experiments. The next reducer
+and reducing a linked list are two different experiments. The finite cursor
+namespace and cursor-derived forms are therefore deprecated. The next reducer
 experiment should reduce the compound-object linked-list shape first, and only
 then generalize the same control basis over other data structures.
 
