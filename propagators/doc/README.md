@@ -20,6 +20,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 
 ## Map
 
+- [Propagators As A Coordination Language](coordination-language-kernel.md)
+  frames the experiment as a self-reflective, multi-projectional coordination
+  language and defines the minimal-kernel scope.
 - [Four Core Features](four-core-features.md) — canonical checklist and progress
 - [Core Runtime Model](core-runtime.md) describes the graph/env split,
   installer shape, scheduler, compiler surface, and current assumptions.
