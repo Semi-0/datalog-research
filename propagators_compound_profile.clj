@@ -10,7 +10,7 @@
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
             [propagators.core :as core :refer [run-tasks]]
-            [propagators.datastructures.compound_data :as cd]
+            [propagators.deprecated.compound-data :as cd]
             [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]

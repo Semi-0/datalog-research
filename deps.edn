@@ -14,28 +14,28 @@
            {:main-opts ["-m" "bench-compare" "verify"]}
            :bench-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "bench-compare-test"]}
+            :main-opts ["-m" "run-tests" "differential-dataflow.bench-compare-test"]}
            :differential-dataflow-v1-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "differential-dataflow-v1-test"]}
+            :main-opts ["-m" "run-tests" "differential-dataflow.v1-test"]}
            :multiset-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "differential-dataflow-multiset-test"]}
+            :main-opts ["-m" "run-tests" "differential-dataflow.multiset-test"]}
            :graph-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "differential-dataflow-graph-test"]}
+            :main-opts ["-m" "run-tests" "differential-dataflow.graph-test"]}
            :stream-ops-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "differential-dataflow-stream-ops-test"]}
+            :main-opts ["-m" "run-tests" "differential-dataflow.stream-ops-test"]}
            :frontier-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "differential-dataflow-frontier-test"]}
+            :main-opts ["-m" "run-tests" "differential-dataflow.frontier-test"]}
            :differential-leapfrog-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "differential-leapfrog-test"]}
+            :main-opts ["-m" "run-tests" "leapfrog.differential-test"]}
            :leapfrog-pure-test
            {:extra-paths ["test"]
-            :main-opts ["-m" "run-tests" "leapfrog-pure-test"]}
+            :main-opts ["-m" "run-tests" "leapfrog.pure-test"]}
            :propagators-test
            {:extra-paths ["test"]
             :main-opts ["-m" "run-tests" "propagators"]}

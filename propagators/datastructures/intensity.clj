@@ -5,8 +5,7 @@
   `:intensity` layers. Merge content is either one intensity value or a vector
   of intensity values; strongest picks the highest intensity candidate."
   (:require [propagators.cells.value :as value]
-            [propagators.datastructures.compound-object :as obj]
-            [propagators.layered :as layered]))
+            [propagators.datastructures.compound-object :as obj]))
 
 (def base-layer :base)
 (def intensity-layer :intensity)
@@ -82,6 +81,6 @@
   "Build a layered intensity value from an intensity cell and base-value cell."
   [intensity-id value-id out-id]
   (fn [n]
-    (let [[base-prop n1] ((layered/p:base value-id out-id) n)
-          [intensity-prop n2] ((layered/p:layer intensity-layer intensity-id out-id) n1)]
+    (let [[base-prop n1] ((obj/p:legacy-slot base-layer value-id out-id) n)
+          [intensity-prop n2] ((obj/p:legacy-slot intensity-layer intensity-id out-id) n1)]
       [[base-prop intensity-prop] n2])))

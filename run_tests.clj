@@ -1,46 +1,78 @@
 (ns run-tests
   "Run all project test namespaces. Usage:
   clojure -M:test                          ; default non-benchmark suites
+  clojure -M:test graph                    ; graph/vijual suites
+  clojure -M:test differential-dataflow    ; differential dataflow suites
+  clojure -M:test leapfrog                 ; leapfrog suites
   clojure -M:test propagators              ; stable propagator suites
-  clojure -M:test propagators-network-test ; one suite"
-  (:require [clojure.test :refer [run-tests]]))
+  clojure -M:test propagators.network-test ; one suite"
+  (:require [clojure.string :as str]
+            [clojure.test :refer [run-tests]]))
 
 (def propagators-test-namespaces
-  '[propagators-bool4-test
-    propagators-cell-protocol-test
-    propagators-compile-2-test
-    propagators-compound-data-test
-    propagators-compound-object-test
-    propagators-dispatch-test
-    propagators-generic-procedure-test
-    propagators-layered-procedure-test
-    propagators-linked-list-access-test
-    propagators-named-network-test
-    propagators-recursive-compound-test
-    propagators-network-test
-    propagators-structural-records-test])
+  '[propagators.bool4-test
+    propagators.behavior-algebra-test
+    propagators.behavior-arithmetic-test
+    propagators.behavior-compiler-test
+    propagators.behavior-test
+    propagators.cell-protocol-test
+    propagators.compile-2-test
+    propagators.compound-data-test
+    propagators.compound-object-network-slot-test
+    propagators.compound-object-test
+    propagators.dispatch-test
+    propagators.generic-procedure-test
+    propagators.layered-procedure-test
+    propagators.linked-list-access-test
+    propagators.named-network-test
+    propagators.primitive-basis-test
+    propagators.recursive-compound-test
+    propagators.network-test
+    propagators.structural-records-test])
+
+(def graph-test-namespaces
+  '[graph.vijual.math-test
+    graph.vijual.scan-test
+    graph.vijual.layout-test
+    graph.vijual.compiler-2-demo-test
+    graph.vijual.render-test])
+
+(def leapfrog-test-namespaces
+  '[leapfrog.pure-test
+    leapfrog.differential-test])
+
+(def differential-dataflow-test-namespaces
+  '[differential-dataflow.frontier-test
+    differential-dataflow.stream-ops-test
+    differential-dataflow.v1-test
+    differential-dataflow.graph-test
+    differential-dataflow.multiset-test])
 
 (def all-test-namespaces
-  '[propagators-bool4-test
-    propagators-cell-protocol-test
-    propagators-compile-2-test
-    propagators-compound-data-test
-    propagators-compound-object-test
-    propagators-dispatch-test
-    propagators-generic-procedure-test
-    propagators-layered-procedure-test
-    propagators-linked-list-access-test
-    propagators-named-network-test
-    propagators-recursive-compound-test
-    propagators-network-test
-    propagators-structural-records-test
-    leapfrog-pure-test
-    differential-leapfrog-test
-    differential-dataflow-frontier-test
-    differential-dataflow-stream-ops-test
-    differential-dataflow-v1-test
-    differential-dataflow-graph-test
-    differential-dataflow-multiset-test])
+  (vec (concat propagators-test-namespaces
+               leapfrog-test-namespaces
+               differential-dataflow-test-namespaces
+               graph-test-namespaces)))
+
+(def suite-aliases
+  {"propagators" propagators-test-namespaces
+   "graph" graph-test-namespaces
+   "leapfrog" leapfrog-test-namespaces
+   "differential-dataflow" differential-dataflow-test-namespaces
+   "bench-compare-test" '[differential-dataflow.bench-compare-test]
+   "differential-dataflow-frontier-test" '[differential-dataflow.frontier-test]
+   "differential-dataflow-stream-ops-test" '[differential-dataflow.stream-ops-test]
+   "differential-dataflow-v1-test" '[differential-dataflow.v1-test]
+   "differential-dataflow-graph-test" '[differential-dataflow.graph-test]
+   "differential-dataflow-multiset-test" '[differential-dataflow.multiset-test]
+   "differential-leapfrog-test" '[leapfrog.differential-test]
+   "leapfrog-pure-test" '[leapfrog.pure-test]})
+
+(defn- legacy-propagators-suite [arg]
+  (if (str/starts-with? arg "propagators-")
+    [(symbol (str "propagators."
+                  (subs arg (count "propagators-"))))]
+    nil))
 
 (defn- run-suite [ns-sym]
   (require ns-sym)
@@ -50,9 +82,9 @@
 
 (defn- requested-suites [args]
   (if (seq args)
-    (mapcat #(if (= "propagators" %)
-               propagators-test-namespaces
-               [(symbol %)])
+    (mapcat #(or (suite-aliases %)
+                 (legacy-propagators-suite %)
+                 [(symbol %)])
             args)
     all-test-namespaces))
 
