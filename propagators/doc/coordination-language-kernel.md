@@ -212,6 +212,48 @@ inner accessor topology still needs either:
 So this refactor is a small evaluator substrate, not the final recursion
 primitive.
 
+## 2026-06-14 Lexical Pointer Dispatch
+
+The next increment adds the missing indirection layer: a sparse evaluator
+lexical environment table plus cell/name references into that table.
+
+The important shape is:
+
+```clojure
+{:lexical-envs
+ {[:right :b] child-network}}
+
+(io/name-ref [:right :b] :source)
+(io/cell-ref [:right :b] some-cell-id)
+```
+
+This lets recursive expansion create a new child frame, store it under a stable
+scope id, and send the next message to that frame without mutating the parent
+graph. The evaluator fetches the child net, merges the message into the child
+cell, runs the child continuation, and writes the updated child net back to the
+same scope id.
+
+A focused regression now walks a nested compound value dynamically:
+
+```clojure
+{:left [0 1 2]
+ :right {:a 3
+         :b [4 5]
+         :empty []}}
+```
+
+The walk creates lexical frames for paths such as `[:left 2]`,
+`[:right :b 1]`, and `[:right :empty]` during evaluation. That proves the
+kernel can address recursive nested compound frames through pointers rather
+than through a fixed list of parent-declared IO ports.
+
+This solves the core dispatch problem we identified: later recursive frames can
+receive messages through stable lexical pointers. It does not yet define the
+whole high-level recursive map/reducer library. In particular, automatic output
+assembly for arbitrary nested compound maps still needs derived declaration
+forms that create the parent-frame aggregation cells and propagators. The kernel
+now has the pointer substrate those derived forms need.
+
 ## TODO: Unbounded Procedure Definitions
 
 2026-06-12 note: layered procedures and generic procedures currently work by a

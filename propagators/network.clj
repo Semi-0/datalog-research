@@ -19,7 +19,10 @@
            (map? (:io x)))))
 
 (def empty-dict {})
-(def empty-io {:queue [] :queued-props #{} :inbox [] :outbox []})
+(def empty-io {:queue []
+               :queued-props #{}
+               :inbox []
+               :outbox []})
 
 (defn- normalize-io [io]
   (merge empty-io (if (map? io) io empty-io)))

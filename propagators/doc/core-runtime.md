@@ -175,6 +175,38 @@ This is a lexical child-network evaluation path, not hidden parent mutation.
 The parent only changes when returned messages are merged through ordinary
 cells.
 
+## Lexical Cell References
+
+2026-06-14 follow-up: evaluator IO can also carry a sparse lexical environment
+table. This is the pointer layer needed for recursive child networks whose cells
+are discovered after the parent topology was declared.
+
+The table lives only in evaluator IO:
+
+```clojure
+{:lexical-envs {scope-id child-net}}
+```
+
+Messages may target lexical references:
+
+```clojure
+(io/cell-ref scope-id cell-id)
+(io/name-ref scope-id dict-key)
+```
+
+When `core/continue` sees a message to a lexical ref, it:
+
+1. looks up `scope-id` in the evaluator lexical env table
+2. resolves the target cell directly or through the child net `dict`
+3. merges the message into that child net
+4. continues the child net
+5. stores the updated child net back under `scope-id`
+6. re-enqueues escaped child outbox messages in the caller
+
+Normal propagator activation and merge views hide `:lexical-envs`; the table is
+evaluator state, not semantic network content. `reality.in/out` still see
+inbox/outbox records because those are explicit declared boundary ports.
+
 ## Compiler Surface
 
 `compile-net` lowers a small quoted DSL into the same graph/env representation:

@@ -168,21 +168,17 @@
     (is (= 3 (strongest n2 parent-a)))))
 
 (deftest lexical-compound-writes-nested-slot-through-bidirectional-accessor
-  (let [{child :net source :source right :right a :a} (child-nested-bidirectional-slot-net)
+  (let [{child :net right :right a :a} (child-nested-bidirectional-slot-net)
         child-id (ids/new-node-id)
-        parent-source (ids/new-node-id)
         parent-a (ids/new-node-id)
         parent-right (ids/new-node-id)
-        initial-source {:right {}}
         n0 (-> net/empty-net
                (nb/install-cell child-id child child)
-               (nb/install-cell parent-source initial-source initial-source)
                (nb/install-cell parent-a 9 9)
                (nb/install-cell parent-right))
         [compound n1] ((lexical/p:lexical-compound
                         child-id
-                        [[:source parent-source source]
-                         [:a parent-a a]]
+                        [[:a parent-a a]]
                         [[:right-out parent-right]])
                        n0)
         n2 (core/run-tasks [compound] n1)]

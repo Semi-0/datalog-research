@@ -7,13 +7,13 @@
             [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
             [propagators.io :as io]
-            [propagators.message :refer [message-id message-value]]
+            [propagators.message :refer [message message-id message-value]]
             [propagators.network :as net]
             [propagators.propagator :as prop]
             [propagators.runtime :as runtime]))
 
 (defn eval-cell [id msg n]
-  (let [merge-net (io/clear-queue n)
+  (let [merge-net (io/clear-activation-state n)
         old (net/env-get (net/net-env n) id)
         old-strongest (merge/strongest-value old merge-net)
         content' (merge/cell-merge (cell/cell-content old) (message-value msg) merge-net)
@@ -28,6 +28,30 @@
         [next-tasks n'])
       [tq/empty-queue n])))
 
+(declare continue)
+
+(defn- eval-lexical-cell [ref msg n]
+  (let [scope (io/ref-scope ref)
+        child-net (io/lexical-env n scope)]
+    (if-not (net/network? child-net)
+      [tq/empty-queue
+       (io/append-outbox n (io/escaped-record msg))]
+      (if-let [cell-id (io/resolve-ref-cell child-net ref)]
+        (let [child0 (-> child-net
+                         (io/with-lexical-envs (io/lexical-envs n))
+                         (io/enqueue-message (message cell-id
+                                                      (message-value msg))))
+              child1 (continue child0)
+              [records child2] (io/drain-outbox child1)
+              child-envs (assoc (io/lexical-envs child2)
+                                scope
+                                (io/stored-lexical-env child2))
+              n' (io/with-lexical-envs n child-envs)]
+          [tq/empty-queue
+           (io/enqueue-deliveries n' (mapv :message records))])
+        [tq/empty-queue
+         (io/append-outbox n (io/escaped-record msg))]))))
+
 (defn eval-cells [messages n]
   (loop [ms messages
          tasks tq/empty-queue
@@ -38,11 +62,13 @@
             id (message-id msg)
             [poped new-n] (if (contains? (net/net-env n') id)
                             (eval-cell id msg n')
-                            [tq/empty-queue
-                             (io/append-outbox n' (io/escaped-record msg))])]
+                            (if (io/lexical-ref? id)
+                              (eval-lexical-cell id msg n')
+                              [tq/empty-queue
+                               (io/append-outbox n' (io/escaped-record msg))]))]
         (recur (rest ms) (tq/merge-queues tasks poped) new-n)))))
 
-(declare continue eval-propagator)
+(declare eval-propagator)
 
 (defn eval-delivery [delivery n]
   (match [(io/normalize-delivery delivery)]
@@ -71,7 +97,7 @@
         inputs (graph/node-input-ids current-node)
         outputs (graph/node-output-ids current-node)
         f (prop/prop-f (net/env-get e current-id))
-        activation-net (io/clear-queue n)
+        activation-net (io/clear-activation-state n)
         deliveries (binding [runtime/*continue* continue]
                      (f inputs outputs activation-net))
         [poped new-net] (eval-deliveries deliveries n)]

@@ -7,6 +7,46 @@
             [propagators.message :as message]
             [propagators.network :as net]))
 
+(defrecord LexicalCellRef [scope cell])
+(defrecord LexicalNameRef [scope name])
+
+(defn cell-ref
+  [scope cell]
+  (->LexicalCellRef scope cell))
+
+(defn name-ref
+  [scope name]
+  (->LexicalNameRef scope name))
+
+(defn cell-ref?
+  [x]
+  (instance? LexicalCellRef x))
+
+(defn name-ref?
+  [x]
+  (instance? LexicalNameRef x))
+
+(defn lexical-ref?
+  [x]
+  (or (cell-ref? x)
+      (name-ref? x)))
+
+(defn ref-scope
+  [ref]
+  (:scope ref))
+
+(defn resolve-ref-cell
+  [n ref]
+  (cond
+    (cell-ref? ref)
+    (:cell ref)
+
+    (name-ref? ref)
+    (net/network-dict-entry n (:name ref))
+
+    :else
+    nil))
+
 (defn io
   [n]
   (net/net-io n))
@@ -22,6 +62,39 @@
 (defn clear-queue
   [n]
   (update-io n assoc :queue [] :queued-props #{}))
+
+(defn clear-activation-state
+  "Hide evaluator scheduler/lexical state from normal merge and activation code.
+
+  Inbox/outbox stay visible because reality boundary propagators are declared in
+  ordinary networks and read/write those records explicitly."
+  [n]
+  (update-io n #(dissoc (assoc % :queue [] :queued-props #{}) :lexical-envs)))
+
+(defn lexical-envs
+  [n]
+  (or (:lexical-envs (io n)) {}))
+
+(defn lexical-env
+  [n scope]
+  (get (lexical-envs n) scope))
+
+(defn with-lexical-envs
+  [n envs]
+  (update-io n assoc :lexical-envs (or envs {})))
+
+(defn stored-lexical-env
+  "Strip evaluator-local IO before a lexical subenv is stored in the env table."
+  [n]
+  (net/clear-io n))
+
+(defn assoc-lexical-env
+  [n scope child-net]
+  (update-io n assoc-in [:lexical-envs scope] (stored-lexical-env child-net)))
+
+(defn merge-lexical-envs
+  [n envs]
+  (update-io n update :lexical-envs merge (or envs {})))
 
 (defn message-delivery [msg] [:message msg])
 (defn prop-delivery [prop-id] [:prop prop-id])
@@ -160,6 +233,16 @@
 
     :drain-inbox-records
     (drain-inbox-records n payload)
+
+    :assoc-lexical-env
+    (let [[scope child-net] payload]
+      (assoc-lexical-env n scope child-net))
+
+    :merge-lexical-envs
+    (merge-lexical-envs n payload)
+
+    :replace-lexical-envs
+    (with-lexical-envs n payload)
 
     (throw (ex-info "unknown IO delivery operation"
                     {:op op :payload payload}))))

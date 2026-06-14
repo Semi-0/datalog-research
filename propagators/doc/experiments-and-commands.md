@@ -129,11 +129,46 @@ Remaining limits:
 - lexical compound is experimental and explicit-port based
 - nested bidirectional network-slot writer over arbitrary unbounded recursion is
   not solved by this refactor alone
-- general subenv/named-cell dispatch remains future kernel work
+- high-level recursive map/reducer forms still need to use the new subenv/name
+  dispatch substrate for automatic output assembly
 - wide fan-out is still expensive because each accessor gets its own parent
   message, even though the optimized path avoids repeated subnet execution
 - dependence tracking and backtracking remain merge-time work, not scheduler
   work
+
+## 2026-06-14 Lexical Pointer Dispatch Follow-Up
+
+The follow-up adds the evaluator pointer layer that was missing from the first
+lexical compound experiment:
+
+- `io/cell-ref scope cell` targets a concrete cell in a lexical subenv
+- `io/name-ref scope key` resolves a cell through the subenv `dict`
+- evaluator IO carries a sparse `:lexical-envs` table
+- messages to lexical refs are dispatched into the referenced child network
+- normal activation/merge views hide `:lexical-envs` so evaluator state does
+  not become semantic cell content
+
+The focused dynamic recursion regression is in
+`propagators.kernel-io-test/lexical-name-ref-supports-dynamic-recursion-over-nested-compound`.
+It walks a nested compound object and creates child lexical frames at paths such
+as `[:right :b 1]`. The assertions read the generated lexical env table, proving
+that recursive frames can now be addressed by pointer rather than by a fixed
+manual `reality.in/out` route list.
+
+Test and benchmark output after the follow-up:
+
+| Command | Result |
+| --- | ---: |
+| `clojure -M:test propagators-kernel-io-test propagators-lexical-compound-test` | 38 pass, 0 fail |
+| `clojure -M:test propagators` | 931 pass, 0 fail |
+| `clojure -M:kernel-io-bench` | lexical IO bisync median 0.928 ms |
+| `clojure -M:propagators-bench 10 100` | chain 10/100 middle inject median 1.436 ms / 8.701 ms |
+| `clojure -M:compound-object-bench wide 10` | optimized median 2.463 ms, baseline median 11.245 ms |
+
+This should be read as a kernel substrate result. It solves recursive subenv
+addressability. It does not yet replace the higher-level declared nested
+map/reducer forms, and it does not yet provide automatic arbitrary nested output
+assembly.
 
 ## Compound Chain Benchmark Context
 

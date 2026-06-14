@@ -50,13 +50,20 @@
       (let [child-value (net/network-cell-strongest parent-net child-net-id)]
         (if-not (net/network? child-value)
           [(message/message child-net-id value/contradiction)]
-          (let [child0 (reduce #(inject-input %1 parent-net %2)
+          (let [scope child-net-id
+                child0 (reduce #(inject-input %1 parent-net %2)
                                child-value
                                inputs)
                 child1 (runtime/continue child0)
                 [records child2] (io/drain-outbox child1)]
-            (conj (vec (translate-outbox outputs records))
-                  (message/message child-net-id child2))))))))
+            (into (vec (translate-outbox outputs records))
+                  [(message/message child-net-id
+                                    (io/stored-lexical-env child2))
+                   (io/io-delivery
+                    :replace-lexical-envs
+                    (assoc (io/lexical-envs parent-net)
+                           scope
+                           (io/stored-lexical-env child2)))])))))))
 
 (defn p:lexical-compound
   "Run a child network through declared IO boundary routes.
