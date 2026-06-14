@@ -24,7 +24,10 @@
     propagators.generic-procedure-test
     propagators.layered-procedure-test
     propagators.linked-list-access-test
+    propagators.kernel-io-test
+    propagators.lexical-compound-test
     propagators.named-network-test
+    propagators.network-protocol-test
     propagators.primitive-basis-test
     propagators.recursive-compound-test
     propagators.network-test

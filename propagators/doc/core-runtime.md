@@ -11,6 +11,8 @@ Source files:
 
 - `propagators/graph.clj`
 - `propagators/network.clj`
+- `propagators/io.clj`
+- `propagators/runtime.clj`
 - `propagators/propagator.clj`
 - `propagators/core.clj`
 - `propagators/compile.clj`
@@ -26,18 +28,19 @@ That means a network can itself become data. It can be stored in a cell, merged
 as partial information, inspected, and passed to compound propagators without
 requiring evaluation to be hidden inside construction.
 
-The runtime separates topology from state:
+The runtime separates topology from state and evaluator IO:
 
 | Piece | Shape | Role |
 |-------|-------|------|
 | graph | `id -> Node` | wiring: input and output node ids |
 | env | `id -> Cell or Propagator` | runtime content and behavior |
 | dict | `name -> id` | optional named interface |
+| io | `{:queue ... :queued-props ... :inbox ... :outbox ...}` | evaluator-local deliveries and network boundary IO |
 
-`Net` stores all three:
+`Net` stores all four:
 
 ```clojure
-(net graph env dict)
+(net graph env dict io)
 ```
 
 This is different from a monolithic network object. A caller can construct a
@@ -95,18 +98,21 @@ propagator env entry.
 
 ## Scheduler
 
-`run-tasks` drains an explicit FIFO queue of propagator ids:
+`run-tasks` accepts an explicit FIFO queue of propagator ids, converts it into
+network-carried IO deliveries, and then drains the network's own `:io/:queue`:
 
 ```text
-task queue -> eval-propagator -> messages -> eval-cells -> maybe enqueue outputs
+task ids -> io queue -> eval-propagator -> messages/io deliveries -> eval-cells -> maybe enqueue outputs
 ```
 
 `eval-propagator`:
 
 1. reads the propagator node from `graph`
 2. reads the propagator function from `env`
-3. calls the function with input ids, output ids, and the network
-4. merges returned messages into cells
+3. clears activation-local queue state from the network view
+4. binds the evaluator continuation as `runtime/*continue*`
+5. calls the function with input ids, output ids, and the network
+6. merges returned messages into cells or applies returned IO deliveries
 
 `eval-cell`:
 
@@ -118,6 +124,56 @@ task queue -> eval-propagator -> messages -> eval-cells -> maybe enqueue outputs
 Dependence tracking (when it exists) attaches at step 1 inside **`cell-merge`**, not in the scheduler loop above.
 
 Task queue entries are propagator node ids. Message targets are cell node ids.
+Propagator activations may also return IO deliveries such as "append this
+record to the outbox" or "drain these inbox records." Those deliveries are data
+inside the network value; the core scheduler does not know about reality ports,
+compound slots, recursion, or domain-specific boundary policy.
+
+## IO-Carrying Continuation Evaluation
+
+2026-06-14 experiment: the primitive network now carries evaluator IO while the
+core stays small.
+
+`propagators.io` owns the queue/inbox/outbox shape:
+
+```clojure
+{:queue []
+ :queued-props #{}
+ :inbox []
+ :outbox []}
+```
+
+`core/continue` repeatedly pops one delivery from `:io/:queue`, evaluates it,
+and enqueues any downstream propagator ids as new IO deliveries. `run-tasks` is
+now compatibility sugar over that continuation:
+
+```clojure
+(defn run-tasks [tasks n]
+  (continue (io/enqueue-props n tasks)))
+```
+
+The important guardrail is that propagator activation receives
+`(io/clear-queue n)`, not the parent network with its pending scheduler queue.
+Without that, child or compound networks can accidentally inherit the parent's
+pending tasks when network values are copied through messages. The recursive
+compound benchmark exposed this as an exponential runtime blow-up; clearing the
+activation queue restored the old bounded behavior.
+
+`propagators.runtime/*continue*` exposes the evaluator continuation to
+propagators without making the core domain-aware. A compound-like propagator can
+push messages into a child network's inbox, call `(runtime/continue child-net)`,
+drain the child outbox, and return ordinary parent messages.
+
+Boundary IO is declared outside the core:
+
+- `reality/p:reality-in` drains matching inbox records into a child cell
+- `reality/p:reality-out` records selected child cell messages in the outbox
+- `lexical/p:compound` wires parent cells to child reality ports and stores the
+  updated child network back into its network-valued cell
+
+This is a lexical child-network evaluation path, not hidden parent mutation.
+The parent only changes when returned messages are merged through ordinary
+cells.
 
 ## Compiler Surface
 
@@ -159,6 +215,8 @@ immaterial at quiescence; flush **placement** is not — see
 - dependence tracking is not implemented (intended hook: `cell-merge` only)
 - backtracking is not implemented (depends on merge-time dependence subsystem)
 - richer domains need explicit `cell-merge` and `strongest-value` methods
+- lexical child-network evaluation is experimental; existing runtime compounds
+  and legacy slot paths still exist for compatibility
 
 The design favors explicit data flow over hidden runtime mutation. That makes
 tests slightly verbose, but it keeps each scheduler step reproducible.

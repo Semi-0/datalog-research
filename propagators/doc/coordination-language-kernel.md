@@ -159,6 +159,59 @@ These are kernel-adjacent design problems. They should be solved by tightening
 the declaration, merge, projection, and boundary model, not by turning the
 propagator language into a process language.
 
+## 2026-06-14 Lexical Continuation Boundary
+
+The current kernel refactor keeps the coordination-language framing but changes
+where evaluator state lives. A primitive network now carries an IO record:
+
+```clojure
+{:queue []
+ :queued-props #{}
+ :inbox []
+ :outbox []}
+```
+
+`core/continue` drains the queue stored in the network value. Propagator
+activation receives the evaluator continuation through
+`runtime/*continue*`. This lets a compound-like propagator run a child network
+without asking the kernel to understand compound objects, recursive frames, or
+named slots.
+
+The lexical compound experiment uses that continuation as a small subenv
+boundary:
+
+```text
+parent cell -> child inbox -> reality.in -> child cell
+child cell -> reality.out -> child outbox -> parent message
+```
+
+The parent does not mutate the child env directly. It stores the updated child
+network value back in the child-network cell, and any visible parent result
+leaves through ordinary messages. This keeps declaration and evaluation
+separate:
+
+- declaration stores the child topology, reality ports, and durable cells
+- evaluation pushes activation-local inbox records and drains queue work
+- projection back to the parent is explicit outbox data translated to messages
+- no activation-local queue, frontier, or tap is persisted as declaration facts
+
+This makes `diff-cells` less central. For a child network with explicit
+`reality.out` ports, the outbox is the boundary contract and no diff is needed.
+But `diff-cells` is not deleted: old runtime compounds and some legacy
+compound-object compatibility paths still use it.
+
+The experiment also clarifies the remaining nested-recursion issue. A lexical
+child network can run existing recursive nested compound code when the needed
+boundary ports are already declared. It does not by itself solve general
+unbounded recursion over nested network-slot accessors, because newly discovered
+inner accessor topology still needs either:
+
+- explicit child reality boundaries declared by the recursion primitive, or
+- a later kernel-level subenv/named-cell dispatch mechanism.
+
+So this refactor is a small evaluator substrate, not the final recursion
+primitive.
+
 ## TODO: Unbounded Procedure Definitions
 
 2026-06-12 note: layered procedures and generic procedures currently work by a

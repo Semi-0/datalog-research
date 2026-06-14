@@ -73,10 +73,12 @@
 
 (defn- semantic-closure-net
   [closure-net]
-  (net/net-with-dict closure-net
-                     (apply dissoc
-                            (net/net-dict-or-empty closure-net)
-                            runtime-closure-dict-keys)))
+  (-> closure-net
+      net/clear-io
+      (net/net-with-dict
+       (apply dissoc
+              (net/net-dict-or-empty closure-net)
+              runtime-closure-dict-keys))))
 
 (defn- join-fragments
   [& fragments]

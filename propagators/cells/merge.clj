@@ -7,7 +7,8 @@
             [propagators.datastructures.compound_update :as update]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.datastructures.named-network :as named]
-            [propagators.datastructures.reducer-subnet :as reducer]))
+            [propagators.datastructures.reducer-subnet :as reducer]
+            [propagators.network-protocol :as np]))
 
 (def cell-equal? value/cell-value-equal?)
 
@@ -28,8 +29,10 @@
 
 (defn- closure-net-equivalent?
   [a b]
-  (and (= true (named/named-network->= (:net a) (:net b)))
-       (= true (named/named-network->= (:net b) (:net a)))))
+  (let [a-net (np/network-view a)
+        b-net (np/network-view b)]
+    (and (= true (named/named-network->= a-net b-net))
+         (= true (named/named-network->= b-net a-net)))))
 
 (defmulti cell-updated?
   (fn [new old _network]

@@ -1,23 +1,27 @@
 (ns propagators.core
   "Propagation scheduler (eval cells/propagators, run task queue)."
-  (:require [propagators.cells.cell :as cell]
+  (:require [clojure.core.match :refer [match]]
+            [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
+            [propagators.io :as io]
             [propagators.message :refer [message-id message-value]]
             [propagators.network :as net]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.runtime :as runtime]))
 
 (defn eval-cell [id msg n]
-  (let [old (net/env-get (net/net-env n) id)
-        old-strongest (merge/strongest-value old n)
-        content' (merge/cell-merge (cell/cell-content old) (message-value msg) n)
-        strongest' (merge/strongest-value content' n)
+  (let [merge-net (io/clear-queue n)
+        old (net/env-get (net/net-env n) id)
+        old-strongest (merge/strongest-value old merge-net)
+        content' (merge/cell-merge (cell/cell-content old) (message-value msg) merge-net)
+        strongest' (merge/strongest-value content' merge-net)
         n' (net/assoc-net-cell n id (cell/cell content' strongest'))
         node (graph/get-node (net/net-graph n') id)
         next-tasks (tq/enqueue-all tq/empty-queue (graph/node-output-ids node))]
-    (if (merge/cell-updated? strongest' old-strongest n)
+    (if (merge/cell-updated? strongest' old-strongest merge-net)
       (if (value/contradiction? strongest')
         (let [[tasks env] (merge/handle-contradiction next-tasks id (net/net-env n'))]
           [tasks (net/net-with-env n' env)])
@@ -31,8 +35,34 @@
     (if (empty? ms)
       [tasks n']
       (let [msg (first ms)
-            [poped new-n] (eval-cell (message-id msg) msg n')]
+            id (message-id msg)
+            [poped new-n] (if (contains? (net/net-env n') id)
+                            (eval-cell id msg n')
+                            [tq/empty-queue
+                             (io/append-outbox n' (io/escaped-record msg))])]
         (recur (rest ms) (tq/merge-queues tasks poped) new-n)))))
+
+(declare continue eval-propagator)
+
+(defn eval-delivery [delivery n]
+  (match [(io/normalize-delivery delivery)]
+    [[:message msg]]
+    (eval-cells [msg] n)
+
+    [[:prop prop-id]]
+    (eval-propagator prop-id tq/empty-queue n)
+
+    [[:io op payload]]
+    [tq/empty-queue (io/apply-io-delivery n op payload)]))
+
+(defn eval-deliveries [deliveries n]
+  (loop [xs deliveries
+         tasks tq/empty-queue
+         n' n]
+    (if (empty? xs)
+      [tasks n']
+      (let [[poped new-n] (eval-delivery (first xs) n')]
+        (recur (rest xs) (tq/merge-queues tasks poped) new-n)))))
 
 (defn eval-propagator [current-id tasks n]
   (let [g (net/net-graph n)
@@ -41,15 +71,18 @@
         inputs (graph/node-input-ids current-node)
         outputs (graph/node-output-ids current-node)
         f (prop/prop-f (net/env-get e current-id))
-        messages (f inputs outputs n)
-        [poped new-net] (eval-cells messages n)]
+        activation-net (io/clear-queue n)
+        deliveries (binding [runtime/*continue* continue]
+                     (f inputs outputs activation-net))
+        [poped new-net] (eval-deliveries deliveries n)]
     [(tq/merge-queues tasks poped) new-net]))
 
+(defn continue [n]
+  (loop [n' n]
+    (if-let [[delivery n''] (io/pop-delivery n')]
+      (let [[tasks new-net] (eval-delivery delivery n'')]
+        (recur (io/enqueue-props new-net tasks)))
+      n')))
+
 (defn run-tasks [tasks n]
-  (loop [ts (tq/into-queue tasks)
-         n' n]
-    (if (tq/queue-empty? ts)
-      n'
-      (let [[current-id remaining] (tq/pop-task ts)
-            [*t *n] (eval-propagator current-id remaining n')]
-        (recur *t *n)))))
+  (continue (io/enqueue-props n tasks)))

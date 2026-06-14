@@ -2,7 +2,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.graph :as graph]))
 
-(defrecord Net [graph env dict])
+(defrecord Net [graph env dict io])
 
 ;; in net dict shall store link to sub-env
 
@@ -14,13 +14,25 @@
        (contains? x :dict)
        (map? (:graph x))
        (map? (:env x))
-       (map? (:dict x))))
+       (map? (:dict x))
+       (or (not (contains? x :io))
+           (map? (:io x)))))
 
 (def empty-dict {})
+(def empty-io {:queue [] :queued-props #{} :inbox [] :outbox []})
+
+(defn- normalize-io [io]
+  (merge empty-io (if (map? io) io empty-io)))
+
 (defn net
-  ([graph env] (->Net graph env empty-dict))
+  ([graph env] (net graph env empty-dict empty-io))
   ([graph env dict]
-   (->Net graph env (if (map? dict) dict empty-dict))))
+   (net graph env dict empty-io))
+  ([graph env dict io]
+   (->Net graph
+          env
+          (if (map? dict) dict empty-dict)
+          (normalize-io io))))
 (def empty-net (net {} {}))
 (def empty-network empty-net)
 (defn network? [x] (net? x))
@@ -28,9 +40,12 @@
 (defn net-graph [n] (:graph n))
 (defn net-env [n] (:env n))
 (defn net-dict [n] (:dict n))
-(defn net-with-graph [n graph] (net graph (net-env n) (net-dict n)))
-(defn net-with-env [n env] (net (net-graph n) env (net-dict n)))
-(defn net-with-dict [n dict] (net (net-graph n) (net-env n) dict))
+(defn net-io [n] (normalize-io (:io n)))
+(defn net-with-graph [n graph] (net graph (net-env n) (net-dict n) (net-io n)))
+(defn net-with-env [n env] (net (net-graph n) env (net-dict n) (net-io n)))
+(defn net-with-dict [n dict] (net (net-graph n) (net-env n) dict (net-io n)))
+(defn net-with-io [n io] (net (net-graph n) (net-env n) (net-dict n) io))
+(defn clear-io [n] (net-with-io n empty-io))
 
 (defn as-net
   "Coerce network-shaped input to net record."
@@ -39,19 +54,20 @@
     (net? x)
     (let [d0 (net-dict x)
           d (if (map? d0) d0 empty-dict)]
-      (net (net-graph x) (net-env x) d))
+      (net (net-graph x) (net-env x) d (net-io x)))
 
     (and (map? x) (contains? x :graph) (contains? x :env))
     (let [d0 (:dict x)
           d (if (map? d0) d0 empty-dict)]
-      (net (:graph x) (:env x) d))
+      (net (:graph x) (:env x) d (:io x)))
 
     (and (sequential? x) (<= 2 (count x)))
     (let [g (first x)
           e (second x)
           d0 (nth x 2 nil)
-          d (if (map? d0) d0 empty-dict)]
-      (net g e d))
+          d (if (map? d0) d0 empty-dict)
+          io (nth x 3 nil)]
+      (net g e d io))
 
     :else
     (throw (ex-info "cannot coerce to network"

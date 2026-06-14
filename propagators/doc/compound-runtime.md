@@ -3,6 +3,9 @@
 Source files:
 
 - `propagators/closure.clj`
+- `propagators/lexical_compound.clj`
+- `propagators/reality.clj`
+- `propagators/io.clj`
 - `propagators/stdlib.clj`
 - `propagators/propagator.clj`
 - `propagators/core.clj`
@@ -86,6 +89,46 @@ Promotion will need:
 - generation/version tags on expanded nodes
 - demotion or garbage collection when the closure changes
 - protection against duplicate wiring in hybrid runtime/compiled graphs
+
+## Lexical IO Compound Experiment
+
+2026-06-14 experiment: `lexical/p:compound` adds a second runtime compound path
+that does not use avatar diffs for its boundary.
+
+The shape is:
+
+1. the parent stores a child `Net` in a normal cell
+2. parent input cells are copied into the child network as inbox records
+3. child `reality/p:reality-in` propagators publish inbox records to child cells
+4. the child network runs by calling the evaluator continuation
+5. child `reality/p:reality-out` propagators append selected cell messages to
+   the child outbox
+6. the compound activation translates outbox records into ordinary parent
+   messages and stores the updated child network back into its cell
+
+The core evaluator remains generic. It sees only messages, propagator ids, and
+IO deliveries; it does not know about compound objects, slots, recursion, or
+reality ports.
+
+This path is lexical because the child network keeps its own graph/env/dict/io
+identity across activations. It is not a mutation of the parent env. Parent
+state changes only through messages returned by the compound propagator and
+merged by the parent scheduler.
+
+Current proof tests cover:
+
+- parent-to-child-to-parent value propagation without `diff-cells`
+- bidirectional child topology through two reality ports
+- nested compound object read through accessors
+- nested bidirectional slot write through the legacy slot compatibility path
+- recursive nested compound map running inside the child continuation
+
+This does not remove the old runtime compound or `diff-cells` path yet. It
+proves that a declared IO boundary can replace diffing for child networks that
+explicitly expose their inputs and outputs through reality propagators. General
+unbounded recursion over nested network-slot accessors still needs the later
+subenv/named-cell dispatch work, or a derived recursion primitive that declares
+the necessary child boundaries.
 
 ## Historical Performance Notes
 

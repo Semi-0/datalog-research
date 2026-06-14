@@ -6,6 +6,7 @@
             [propagators.network :as net]
             [propagators.network :refer [network-cell-strongest
                                          inner-ids-in inner-ids-out]]
+            [propagators.network-protocol :as np]
             [propagators.propagator :as prop]))
 
 (defrecord Closure [f net boundary])
@@ -23,6 +24,12 @@
 
 (defn closure-f [c] (:f c))
 (defn closure-net [c] (:net c))
+
+(extend-type Closure
+  np/Network
+  (network? [_] true)
+  (network-view [x]
+    (net/clear-io (net/as-net (closure-net x)))))
 
 (defn current-item
   "Activation-local item bound by `p:bind-network`."
