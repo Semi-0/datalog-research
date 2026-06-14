@@ -30,6 +30,10 @@
    'cursor/p:car (requiring-resolve 'propagators.deprecated.cursor/p:car)
    'cursor/p:cdr (requiring-resolve 'propagators.deprecated.cursor/p:cdr)
    'obj/p:slot (requiring-resolve 'propagators.datastructures.compound-object/p:slot)
+   'obj/p:nested-recursive-map
+   (requiring-resolve 'propagators.datastructures.compound-object/p:nested-recursive-map)
+   'obj/p:accessor-recursive-map
+   (requiring-resolve 'propagators.datastructures.compound-object/p:accessor-recursive-map)
    'obj/p:slot-cursor (requiring-resolve 'propagators.datastructures.compound-object/p:slot-cursor)
    'decl/reduce-cursor (requiring-resolve 'propagators.declaration/reduce-cursor)
    'decl/reduce-slots (requiring-resolve 'propagators.declaration/reduce-slots)

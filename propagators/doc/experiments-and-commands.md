@@ -160,7 +160,7 @@ Test and benchmark output after the follow-up:
 | Command | Result |
 | --- | ---: |
 | `clojure -M:test propagators-kernel-io-test propagators-lexical-compound-test` | 38 pass, 0 fail |
-| `clojure -M:test propagators` | 931 pass, 0 fail |
+| `clojure -M:test propagators` | 966 pass, 0 fail |
 | `clojure -M:kernel-io-bench` | lexical IO bisync median 0.928 ms |
 | `clojure -M:propagators-bench 10 100` | chain 10/100 middle inject median 1.436 ms / 8.701 ms |
 | `clojure -M:compound-object-bench wide 10` | optimized median 2.463 ms, baseline median 11.245 ms |
@@ -169,6 +169,80 @@ This should be read as a kernel substrate result. It solves recursive subenv
 addressability. It does not yet replace the higher-level declared nested
 map/reducer forms, and it does not yet provide automatic arbitrary nested output
 assembly.
+
+## 2026-06-14 Lexical Nested Recursive Map
+
+The first higher-level form on the lexical pointer substrate is
+`obj/p:nested-recursive-map`.
+
+- the installed outer propagator keeps the live graph fixed
+- root and child frames are fixed-shape lexical network values
+- frame inputs are sent through `io/name-ref`
+- child outputs return to the active caller through concrete caller-owned
+  child-result cells, avoiding stale stored lexical frame updates
+- each parent frame accumulates child output fragments as a named network and
+  assembles its immediate compound-object output once children are available
+- leaf frames run `recursive/p:accumulating-recursive-compound` and forward
+  monotone frame facts to the explicit accumulator cell
+
+Test output after the implementation:
+
+| Command | Result |
+| --- | ---: |
+| `clojure -M:test propagators-recursive-compound-test` | 150 pass, 0 fail |
+| `clojure -M:test propagators-kernel-io-test propagators-lexical-compound-test` | 38 pass, 0 fail |
+| `clojure -M:test propagators-compound-object-test propagators-compound-object-network-slot-test` | 132 pass, 0 fail |
+| `clojure -M:test propagators` | 966 pass, 0 fail |
+
+## 2026-06-14 Accessor Recursive List Map
+
+`obj/p:accessor-recursive-map` is the accessor-native comparison path for live
+`p:cons` / `p:car` / `p:cdr` lists.
+
+- declaration walks `core/slot-declarations-key`, not nested slot payloads
+- each list node maps its `:car`; scalar cars become
+  `recursive/p:accumulating-recursive-compound` leaves, and cars with visible
+  `:car`/`:cdr` topology become nested accessor maps
+- recursion follows the visible `:cdr` cell
+- output assembly is `p:cons` accessor topology, so consumers read it through
+  `p:car` / `p:cdr`
+- a terminal cdr installs a lazy `closure/p:when-apply-network` continuation
+  that emits the next frame when a later shell update installs `:car`/`:cdr`
+  topology
+- the emitted branch is a network value; `gur/p:run-frame` runs it through
+  `reality.in` / `reality.out` and translates child outbox records to parent
+  messages instead of rewriting the live graph during activation
+- accessor-network outputs are synchronized with source-slot snapshots for
+  branch-local route values, so parent readers can observe nested computed
+  slots without installing child branch cells into the parent graph
+
+This is the current GUR path. The kernel changes are already committed as
+`d1cce22` and `444cdc6`; the GUR runner and accessor-recursive map changes are
+the current uncommitted experiment on top of that substrate.
+
+Focused test output:
+
+| Command | Result |
+| --- | ---: |
+| `clojure -M:test propagators-recursive-compound-test` | 150 pass, 0 fail |
+| `clojure -M:test propagators-compound-object-network-slot-test propagators-kernel-io-test propagators-lexical-compound-test propagators-recursive-compound-test` | 217 pass, 0 fail |
+| `clojure -M:test propagators` | 966 pass, 0 fail |
+
+Local benchmark output from `2026-06-14`, after the GUR experiment:
+
+| Command | Case | Median |
+| --- | --- | ---: |
+| `clojure -M:kernel-io-bench` | legacy runtime compound bisync | 0.927 ms |
+| `clojure -M:kernel-io-bench` | lexical IO compound bisync | 0.807 ms |
+| `clojure -M:kernel-io-bench` | lexical IO nested accessor read | 1.323 ms |
+| `clojure -M:propagators-bench 10 100` | chain 10 middle inject | 1.545 ms |
+| `clojure -M:propagators-bench 10 100` | chain 100 middle inject | 11.223 ms |
+| `clojure -M:compound-object-bench wide 10` | optimized wide 10 | 2.533 ms |
+| `clojure -M:compound-object-bench wide 10` | baseline wide 10 | 9.970 ms |
+
+These timings are subsystem evidence, not a dedicated GUR benchmark. They show
+that the continuation and accessor substrate remain in the expected performance
+range while the GUR correctness regressions pass.
 
 ## Compound Chain Benchmark Context
 

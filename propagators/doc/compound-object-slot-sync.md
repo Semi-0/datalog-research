@@ -135,10 +135,29 @@ materialization bridge was also adjusted so accessor networks with empty
 `source-slots` fall back to the preserved named network instead of materializing
 an empty object.
 
-This is still not the kernel subenv dispatch change. General unbounded recursion
-over nested compound data remains limited because an inner recursive network
-cannot yet receive full bidirectional outer accessor dispatch through the kernel
-boundary.
+This was originally separate from the kernel subenv dispatch change. With the
+later IO continuation and lexical pointer commits, the current GUR experiment
+can run late accessor frames through `reality.in` / `reality.out` without
+rewriting the live graph. Broader arbitrary bidirectional writer semantics over
+all nested compound shapes are still open.
+
+2026-06-14 recursive accessor experiment:
+`obj/p:accessor-recursive-map` uses `p:network-slot` declarations and collection
+shell topology as its traversal source for `p:cons` lists. It declares recursive
+leaf work from scalar `:car` parent cells, recursively declares nested `:car`
+cells that already expose `:car`/`:cdr` topology, follows visible `:cdr` parent
+cells, and assembles mapped output with `p:cons` accessor topology. Terminal cdr
+cells also receive a lazy continuation: a shell watcher,
+`closure/p:when-apply-network`, and `gur/p:run-frame`.
+
+If a later slot update installs `:car`/`:cdr` topology into a terminal cdr
+shell, the watcher emits the next frame as a network value recorded under
+`obj/accessor-map-branches-key`. `gur/p:run-frame` then evaluates that branch
+through declared `reality.in` / `reality.out` ports and translates child outbox
+records back into ordinary parent messages. Accessor-network outputs carry
+source-slot snapshots for branch-local route values, so parent `p:car` /
+`p:cdr` readers can observe computed child slots without installing the branch
+graph into the live outer graph.
 
 Verification:
 
@@ -151,7 +170,7 @@ Verification:
 - `clojure -M:test propagators-compile-2-test`
   - `88` pass, `0` fail, `0` error
 - `clojure -M:test propagators`
-  - `871` pass, `0` fail, `0` error
+  - `966` pass, `0` fail, `0` error
 
 ## Current Tests
 

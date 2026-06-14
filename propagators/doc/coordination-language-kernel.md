@@ -210,7 +210,8 @@ inner accessor topology still needs either:
 - a later kernel-level subenv/named-cell dispatch mechanism.
 
 So this refactor is a small evaluator substrate, not the final recursion
-primitive.
+primitive. The later GUR work uses this substrate as a library-level frame
+runner rather than changing the scheduler.
 
 ## 2026-06-14 Lexical Pointer Dispatch
 
@@ -254,6 +255,40 @@ assembly for arbitrary nested compound maps still needs derived declaration
 forms that create the parent-frame aggregation cells and propagators. The kernel
 now has the pointer substrate those derived forms need.
 
+The first derived form is now `obj/p:nested-recursive-map`. It keeps the live
+outer graph fixed after installation, creates fixed frame networks as evaluator
+values, sends source/closure inputs with lexical refs, and returns child
+results through caller-owned boundary cells. This preserves the rule that
+network declaration is explicit data and evaluation is message-shaped; the
+scheduler still does not learn compound-object or recursion semantics.
+
+The accessor-native comparison is `obj/p:accessor-recursive-map`. It does not
+use lexical value walking. Instead it accumulates ordinary network declarations
+over visible `p:car` / `p:cdr` list topology and assembles output with
+`p:cons`. A `car` cell with its own visible `p:car` / `p:cdr` topology is
+declared as a nested accessor map; scalar `car` cells become ordinary recursive
+leaf applications.
+
+A terminal cdr now installs a `when-apply-network` continuation plus a
+`gur/p:run-frame` runner. This is the current **GUR** approach: a later
+collection-shell topology update emits the next frame as a branch network, and
+the runner evaluates that frame through declared `reality.in` / `reality.out`
+ports. The branch graph is still not installed into the live outer graph during
+activation. Synchronization happens through parent messages translated from the
+branch outbox, with accessor output shells carrying source-slot snapshots for
+branch-local slot values.
+
+The kernel boundary is therefore:
+
+```text
+parent values -> child inbox -> reality.in -> child frame
+child frame -> reality.out -> child outbox -> parent messages
+```
+
+The GUR code supplies the recursive frame protocol and accessor-specific output
+projection. The scheduler remains a queue/continuation evaluator over network
+data.
+
 ## TODO: Unbounded Procedure Definitions
 
 2026-06-12 note: layered procedures and generic procedures currently work by a
@@ -286,8 +321,8 @@ The next design sequence should be:
 3. Table general unbounded recursion and iteration implementation work until
    the primitive and boundary contract are specified. Without that contract,
    recursive inner networks cannot consistently dispatch newly discovered nested
-   compound/accessor state, and pure declaration-first expansion only remains
-   incremental over already-declared topology.
+   compound/accessor state, and pure declaration-first expansion remains
+   incremental over already-declared or explicitly observed shell topology.
 4. Rebuild layered procedures and generic procedures as derived definitions over
    that primitive. Layered procedures become recursion/iteration over layer
    slots; generic procedures become recursion/iteration over method slots plus

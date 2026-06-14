@@ -55,6 +55,8 @@ The experiment on 2026-06-09 added retained semantic frame declarations:
 
 (obj/p:map-slots-with-recursive-closure closure-id source-id out-id)
 (obj/p:map-slots-with-recursive-accumulator closure-id acc-id source-id out-id)
+(obj/p:nested-recursive-map closure-id acc-id source-id out-id)
+(obj/p:accessor-recursive-map closure-id acc-id source-id out-id)
 (obj/p:reduce source-id merge-net-id init-id out-id)
 
 (obj/install-declared-nested-recursive-map-with-closure
@@ -94,6 +96,166 @@ interleaves topology expansion with evaluation. In the mixed nested map/vector
 experiment, that interleaving can produce localized contradictions for nested
 vector outputs. Network-valued expansion avoided that failure by declaring the
 complete accessor topology before evaluation.
+
+2026-06-14 follow-up: `obj/p:nested-recursive-map` is the first public
+lexical-pointer implementation of arbitrary nested recursive map. Its installed
+outer propagator does not rewrite the live graph during activation. Instead it
+creates fixed-shape lexical frame networks as values, addresses them through
+`io/name-ref`, and lets frames exchange child results as ordinary messages.
+Each frame accumulates child output fragments in a named-network cell and
+assembles one compound-object output when the immediate children are available.
+The explicit accumulator cell receives monotone frame facts from leaf recursive
+applications.
+
+2026-06-14 accessor follow-up: `obj/p:accessor-recursive-map` is a separate
+declaration-first experiment for live `p:cons` / `p:car` / `p:cdr` lists. It
+walks accessor topology from either the network declaration table or the
+collection shell value. Scalar `:car` cells become recursive leaf applications;
+`:car` cells that already expose `:car`/`:cdr` topology are declared as nested
+accessor maps; visible `:cdr` cells continue the list traversal. Output is
+assembled with `p:cons` accessor topology. It does not read nested slot payloads
+with `obj/slot-value` and does not rebuild host Clojure maps/vectors.
+
+Late `cdr` discovery now has a declaration-level continuation. When recursion
+reaches a terminal cdr, the installer leaves a watcher on that cdr collection
+shell plus a `closure/p:when-apply-network` branch. The guard waits silently
+while the shell has no `:car`/`:cdr` topology; it does not publish `false`,
+because an empty tail may later grow. When a later `obj/p:cons`, `obj/p:car`,
+or `obj/p:cdr` update installs those slots into the shell, the watcher emits a
+branch network under `obj/accessor-map-branches-key`. `gur/p:run-frame`
+evaluates that branch through `reality.in` / `reality.out` and translates child
+outbox records back to parent messages.
+
+This proves lazy cdr frame declaration through normal shell updates. It still
+does not splice the emitted branch network back into the live outer graph; the
+continuation tunnel synchronizes values back across the existing boundary.
+
+## 2026-06-14 GUR Experiment Log
+
+GUR means **General Unbounded Recursion** in this experiment. The implementation
+namespace is currently `propagators.gur`, but the design note uses GUR for the
+approach: recursive frame declaration is ordinary network data, and recursive
+frame evaluation is an explicit continuation through network IO.
+
+### Kernel substrate
+
+The current GUR path depends on two committed kernel updates:
+
+- `d1cce22 Add IO continuation kernel experiment` added evaluator IO state,
+  `runtime/*continue*`, `reality/p:reality-in`, `reality/p:reality-out`, and
+  `lexical/p:compound`. This made child network evaluation communicate by
+  inbox/outbox records instead of by outer graph mutation or `diff`.
+- `444cdc6 Add lexical pointer dispatch for recursive subenvs` added
+  `io/name-ref` and sparse lexical env dispatch. This made recursive subenvs
+  addressable by stable pointers instead of fixed manual route lists.
+
+Those commits are the kernel boundary. The current GUR implementation is a
+library-level use of that boundary; it does not add recursion or compound-object
+semantics to the scheduler.
+
+### Attempts and assumptions
+
+The earlier attempts established the constraints:
+
+- direct recursive activation computes Fibonacci and some reductions, but mixed
+  nested map/vector output can contradict because declaration and evaluation are
+  interleaved;
+- declaration-first network accumulation fixes that by building accessor
+  topology as data before evaluation;
+- terminal `cdr` cells need a lazy continuation because an initially empty tail
+  can later receive `:car`/`:cdr` topology;
+- propagator activation is intentional not to rewrite its own live graph unless
+  a graph is an argument;
+- network declaration must stay decoupled from network evaluation.
+
+The successful current approach keeps those assumptions. A terminal `cdr`
+watcher emits a branch frame network value when its collection shell becomes
+list-ready. `gur/p:run-frame` injects parent values through `reality.in`, runs
+the frame with the evaluator continuation, drains `reality.out`, and translates
+child outbox records back to parent messages. For accessor-network outputs, the
+runner also exports source-slot snapshots for branch-local route values so that
+parent `p:car` / `p:cdr` readers can observe nested computed slots without
+installing the child branch graph into the parent.
+
+### Current GUR topology
+
+The following drawing was regenerated on `2026-06-14` with the
+`graph.vijual` stress-majorized directed layout from the real late-cdr accessor
+topology used by the regression test. The layout used a wider spacing target
+and longer solve:
+
+```clojure
+{:stress-node-spacing 3.2
+ :stress-iterations 420
+ :stress-refine-iterations 420
+ :routing :shortest-path}
+```
+
+This is the focused continuation slice of the real `net-graph`: unrelated
+first-car and scalar fib internals are omitted, but every shown dependency is
+drawn from the installed topology.
+
+```text
++------------+        +---------------+        +------------+
+| late car=3 | -----> |  terminal cdr | -----> |  late end  |
++------------+        +---------------+        +------------+
+                              |
+                              v
+                       +---------------+
+                       | ready watcher |
+                       +---------------+
+                         |           |
+                         v           v
+                    +--------+   +----------+
+                    | ready? |   | expander |
+                    +--------+   +----------+
+                         |           |
+                         v           v
+                       +----------------+
+                       |   when-apply   |
+                       +----------------+
+                         |            ^
+                         v            |
+                   +-------------+    |
+                   | branch frame | <--+
+                   +-------------+
+                         |
+                         v
+                    +------------+
+                    | GUR runner |
+                    +------------+
+                      |        |
+                      v        v
+             +-------------+  +----------+
+             | mapped root |  | out :cdr |
+             +-------------+  +----------+
+                |       |           ^
+                v       v           |
+        +------------+ +------------+
+        | reader :car0 | reader :car1 |
+        +------------+ +------------+
+```
+
+### Solved and unsolved
+
+Solved in the current experiment:
+
+- general frame execution through `reality.in` / `reality.out`;
+- late `cdr` expansion after new `:car` / `:cdr` slots are installed;
+- nested cons cells in `car` positions using recursive accessor topology;
+- synchronization back through the continuation tunnel without changing the
+  kernel or splicing branch declarations into the parent graph.
+
+Still open:
+
+- GUR is proven for the current accessor list/map cases, not yet packaged as
+  the final compile-2 iteration primitive;
+- there is no dedicated GUR benchmark harness yet, so current timings are
+  subsystem-level evidence;
+- arbitrary bidirectional writer semantics over all nested compound shapes need
+  more design;
+- route-list and frame-boilerplate ergonomics still need a derived API before
+  compile-2 should target this directly.
 
 ## Runtime Invariants
 
@@ -260,6 +422,8 @@ closure/p:when-network
 recursive/p:recursive-compound
 recursive/p:self-refining-recursive-compound
 recursive/p:accumulating-recursive-compound
+obj/p:nested-recursive-map
+obj/p:accessor-recursive-map
 ```
 
 That lets recursive branch topology be written with the same DSL as other
@@ -301,6 +465,20 @@ It is declaration-only:
 
 - It does not run the expanded network.
 - It does not install the expanded network into the outer graph.
+
+`propagators.gur/p:run-frame` is the corresponding evaluation boundary for
+these frame values. A frame records its own propagator ids plus declared
+`reality.in` / `reality.out` ports. The runner injects parent input values into
+the child inbox, invokes the existing evaluator continuation on the child
+network, drains the child outbox, and translates matching outbox records back
+to parent messages. The child frame value can be written back to its frame
+cell, but no branch declarations are spliced into the live outer graph during
+activation.
+
+For accessor-network outputs, GUR also exports source-slot snapshots for slot
+route values that live only inside the child frame. This is what lets a parent
+`p:car` / `p:cdr` reader observe a branch-local mapped car after a late cdr
+frame runs, without installing the branch's internal graph in the parent.
 - It is intended for declaration closures that add deterministic named-network
   facts or deterministic topology.
 - If the closure creates fresh random ids on every activation, repeated
@@ -568,6 +746,11 @@ There are now two map implementations:
   returns `:prop-ids`, and does not run the network. The caller runs the
   returned propagators from the outside. This is the stricter
   declaration/evaluation split.
+- Accessor-recursive list map:
+  `obj/p:accessor-recursive-map` walks live `p:cons` topology. Scalar cars
+  become recursive leaves, cars that already expose `p:car` / `p:cdr` topology
+  become nested accessor maps, cdrs continue the list traversal, and terminal
+  cdrs install a lazy GUR frame runner for later slot installation.
 
 The test input:
 

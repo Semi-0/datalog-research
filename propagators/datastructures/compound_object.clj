@@ -57,6 +57,11 @@
 (def p:reduce reduce/p:reduce)
 (def p:map-slots-with-recursive-closure map/p:map-slots-with-recursive-closure)
 (def p:map-slots-with-recursive-accumulator map/p:map-slots-with-recursive-accumulator)
+(def p:nested-recursive-map map/p:nested-recursive-map)
+(def p:accessor-recursive-map map/p:accessor-recursive-map)
+(def accessor-map-props-key map/accessor-map-props-key)
+(def accessor-map-branches-key map/accessor-map-branches-key)
+(def accessor-map-output-key map/accessor-map-output-key)
 (def install-declared-nested-recursive-map-with-closure
   map/install-declared-nested-recursive-map-with-closure)
 (def install-declared-nested-recursive-map-with-accumulator

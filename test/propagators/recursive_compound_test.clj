@@ -6,7 +6,9 @@
             [propagators.compile :as compile]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.named-network :as named]
+            [propagators.gur :as gur]
             [propagators.ids :as ids]
+            [propagators.io :as io]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.recursive :as recursive]
@@ -348,6 +350,135 @@
      :out-id out-id
      :value (strongest n2 out-id)
      :frame-net (strongest n2 acc-id)}))
+
+(defn- run-nested-recursive-map-fib
+  [source]
+  (let [closure-value (fib-frame-closure :accumulating {})
+        closure-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        source-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell closure-id closure-value closure-value)
+               (nb/install-cell acc-id)
+               (nb/install-cell source-id source source)
+               (nb/install-cell out-id))
+        [prop-id n1] ((obj/p:nested-recursive-map
+                       closure-id
+                       acc-id
+                       source-id
+                       out-id)
+                      n0)
+        n2 (run-installed n1 [prop-id])]
+    {:net n2
+     :acc-id acc-id
+     :out-id out-id
+     :value (strongest n2 out-id)
+     :frame-net (strongest n2 acc-id)}))
+
+(defn- install-cons-list
+  [network values]
+  (let [heads (mapv (fn [v]
+                      [(ids/new-node-id) v])
+                    values)
+        colls (mapv (fn [_] (ids/new-node-id)) values)
+        sentinel (ids/new-node-id)
+        n0 (reduce (fn [n [id v]]
+                     (nb/install-cell n id v v))
+                   (reduce nb/install-cell
+                           (nb/install-cell network
+                                            sentinel
+                                            (obj/empty-compound-object)
+                                            (obj/empty-compound-object))
+                           colls)
+                   heads)]
+    (loop [n n0
+           i 0
+           props []]
+      (if (= i (count values))
+        {:net n
+         :props props
+         :root (first colls)
+         :sentinel sentinel}
+        (let [head-id (first (nth heads i))
+              coll-id (nth colls i)
+              tail-id (if (= i (dec (count values)))
+                        sentinel
+                        (nth colls (inc i)))
+              [[car-prop cdr-prop] n1] ((obj/p:cons head-id tail-id coll-id) n)]
+          (recur n1
+                 (inc i)
+                 (into props [car-prop cdr-prop])))))))
+
+(defn- install-list-readers
+  [network root length]
+  (let [cars (mapv (fn [_] (ids/new-node-id)) (range length))
+        tails (mapv (fn [_] (ids/new-node-id)) (range length))
+        n0 (reduce nb/install-cell network (into cars tails))]
+    (loop [n n0
+           i 0
+           coll root
+           props []]
+      (if (= i length)
+        {:net n
+         :props props
+         :cars cars
+         :tail (last tails)}
+        (let [car-id (nth cars i)
+              tail-id (nth tails i)
+              [car-prop n1] ((obj/p:car car-id coll) n)
+              [cdr-prop n2] ((obj/p:cdr tail-id coll) n1)]
+          (recur n2
+                 (inc i)
+                 tail-id
+                 (into props [car-prop cdr-prop])))))))
+
+(defn- run-accessor-recursive-list-map-fib
+  [values]
+  (let [closure-value (fib-frame-closure :accumulating {})
+        closure-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell closure-id closure-value closure-value)
+               (nb/install-cell acc-id)
+               (nb/install-cell out-id))
+        {n1 :net input-props :props source-id :root}
+        (install-cons-list n0 values)
+        [map-props n2] ((obj/p:accessor-recursive-map
+                         closure-id
+                         acc-id
+                         source-id
+                         out-id)
+                        n1)
+        {n3 :net reader-props :props car-ids :cars tail-id :tail}
+        (install-list-readers n2 out-id (count values))
+        all-props (into (vec input-props)
+                        (into (vec map-props) reader-props))
+        n4 (run-installed n3 all-props)]
+    {:net n4
+     :acc-id acc-id
+     :out-id out-id
+     :car-ids car-ids
+     :tail-id tail-id
+     :values (mapv #(strongest n4 %) car-ids)
+     :tail-value (strongest n4 tail-id)
+     :frame-net (strongest n4 acc-id)}))
+
+(defn- install-tail-cons
+  [network tail-id value]
+  (let [head-id (ids/new-node-id)
+        next-tail-id (ids/new-node-id)
+        n0 (-> network
+               (nb/install-cell head-id value value)
+               (nb/install-cell next-tail-id
+                                (obj/empty-compound-object)
+                                (obj/empty-compound-object)))
+        [[car-prop cdr-prop] n1] ((obj/p:cons head-id next-tail-id tail-id) n0)]
+    {:net n1
+     :props [car-prop cdr-prop]
+     :head-id head-id
+     :tail-id next-tail-id}))
 
 (defn- run-declared-self-refining-map-fib
   [xs]
@@ -1270,6 +1401,236 @@
         (is (= 12 (reduce-compound-leaves + 0 value)))
         (is (contains? (recursive/frame-index frame-net) [:fib 5]))
         (is (named-idempotent? frame-net))))))
+
+(deftest lexical-nested-recursive-map-handles-general-nested-compound
+  (testing "scalar root maps as one recursive leaf"
+    (let [{:keys [value frame-net]} (run-nested-recursive-map-fib 6)]
+      (is (= 8 value))
+      (is (contains? (recursive/frame-index frame-net) [:fib 6]))))
+
+  (testing "empty compound roots are preserved"
+    (is (= {} (compound->data (:value (run-nested-recursive-map-fib {})))))
+    (is (= [] (compound->data (:value (run-nested-recursive-map-fib []))))))
+
+  (testing "mixed map/vector shape is traversed through lexical child frames"
+    (let [source {:left [0 1 2]
+                  :right {:a 3
+                          :b [4 5]
+                          :empty []}}
+          {:keys [net value frame-net]} (run-nested-recursive-map-fib source)
+          scopes (set (keys (io/lexical-envs net)))]
+      (assert-nested-fib-map value)
+      (is (contains? (recursive/frame-index frame-net) [:fib 5]))
+      (is (named-idempotent? frame-net))
+      (is (some #(= [:right :b] (vec (take-last 2 %))) scopes))
+      (is (some #(= [:right :empty] (vec (take-last 2 %))) scopes)))))
+
+(deftest compile-dsl-exposes-lexical-nested-recursive-map
+  (let [closure-value (fib-frame-closure :accumulating {})
+        source {:left [0 1]
+                :right {:a 2}}
+        ctx (eval-and-run
+             net/empty-net
+             {'closure-value closure-value
+              'source-value source}
+             '(do
+                (let-cell [f acc source out]
+                  (seed f closure-value)
+                  (seed source source-value)
+                  (obj/p:nested-recursive-map f acc source out))))
+        out-id (compile/cell-ref ctx 'out)]
+    (is (= {:left [0 1]
+            :right {:a 1}}
+           (compound->data (strongest (:net ctx) out-id))))))
+
+(deftest gur-frame-runner-synchronizes-through-reality-io
+  (testing "a network-valued frame evaluates through the continuation tunnel"
+    (let [frame-id (ids/new-node-id)
+          parent-in-id (ids/new-node-id)
+          parent-out-id (ids/new-node-id)
+          child-in-id (ids/new-node-id)
+          child-one-id (ids/new-node-id)
+          child-out-id (ids/new-node-id)
+          child0 (-> net/empty-net
+                     (nb/install-cell child-in-id)
+                     (nb/install-cell child-one-id 1 1)
+                     (nb/install-cell child-out-id))
+          [plus-prop child1] ((stdlib-prop/+ child-in-id
+                                             child-one-id
+                                             child-out-id)
+                              child0)
+          {child2 :net boundary-props :prop-ids}
+          (gur/install-boundary child1
+                                {:inputs [[:in child-in-id]]
+                                 :outputs [[:out child-out-id]]})
+          child-frame (net/update-net-dict-entry
+                       child2
+                       gur/prop-ids-key
+                       #(into [plus-prop] (vec (or % boundary-props))))
+          parent0 (-> net/empty-net
+                      (nb/install-cell frame-id child-frame child-frame)
+                      (nb/install-cell parent-in-id 4 4)
+                      (nb/install-cell parent-out-id))
+          [runner-prop parent1]
+          ((gur/p:run-frame frame-id
+                            [[:in parent-in-id child-in-id]]
+                            [[:out parent-out-id]])
+           parent0)
+          parent2 (run-installed parent1 [runner-prop])]
+      (is (= 5 (strongest parent2 parent-out-id)))
+      (is (net/network? (strongest parent2 frame-id))))))
+
+(deftest accessor-recursive-map-declares-over-live-cons-accessors
+  (testing "maps a live cons chain through accessor topology"
+    (let [{:keys [net out-id values tail-value frame-net]}
+          (run-accessor-recursive-list-map-fib [1 2 3])]
+      (is (= [1 1 2] values))
+      (is (= {} (compound->data tail-value)))
+      (is (obj/accessor-network? (strongest net out-id)))
+      (is (nil? (obj/slot-value (strongest net out-id) :car)))
+      (is (contains? (recursive/frame-index frame-net) [:fib 3]))
+      (is (named-idempotent? frame-net)))))
+
+(deftest accessor-recursive-map-recurses-through-nested-car-cdr-accessors
+  (testing "nested cons cells in a car slot are declared as nested accessor maps"
+    (let [closure-value (fib-frame-closure :accumulating {})
+          closure-id (ids/new-node-id)
+          acc-id (ids/new-node-id)
+          out-id (ids/new-node-id)
+          n0 (-> net/empty-net
+                 (nb/install-cell closure-id closure-value closure-value)
+                 (nb/install-cell acc-id)
+                 (nb/install-cell out-id))
+          {n1 :net inner-props :props inner-root :root}
+          (install-cons-list n0 [2 3])
+          outer-head-id (ids/new-node-id)
+          outer-root-id (ids/new-node-id)
+          outer-tail-id (ids/new-node-id)
+          outer-sentinel-id (ids/new-node-id)
+          n2 (-> n1
+                 (nb/install-cell outer-head-id 4 4)
+                 (nb/install-cell outer-root-id)
+                 (nb/install-cell outer-tail-id)
+                 (nb/install-cell outer-sentinel-id
+                                  (obj/empty-compound-object)
+                                  (obj/empty-compound-object)))
+          [[outer-car-prop outer-cdr-prop] n3]
+          ((obj/p:cons inner-root outer-tail-id outer-root-id) n2)
+          [[tail-car-prop tail-cdr-prop] n4]
+          ((obj/p:cons outer-head-id outer-sentinel-id outer-tail-id) n3)
+          [map-props n5] ((obj/p:accessor-recursive-map
+                           closure-id
+                           acc-id
+                           outer-root-id
+                           out-id)
+                          n4)
+          nested-out-id (ids/new-node-id)
+          outer-tail-out-id (ids/new-node-id)
+          outer-second-id (ids/new-node-id)
+          outer-end-id (ids/new-node-id)
+          inner-first-id (ids/new-node-id)
+          inner-tail-id (ids/new-node-id)
+          inner-second-id (ids/new-node-id)
+          inner-end-id (ids/new-node-id)
+          n6 (reduce nb/install-cell
+                     n5
+                     [nested-out-id
+                      outer-tail-out-id
+                      outer-second-id
+                      outer-end-id
+                      inner-first-id
+                      inner-tail-id
+                      inner-second-id
+                      inner-end-id])
+          [out-car-prop n7] ((obj/p:car nested-out-id out-id) n6)
+          [out-cdr-prop n8] ((obj/p:cdr outer-tail-out-id out-id) n7)
+          [outer-second-prop n9]
+          ((obj/p:car outer-second-id outer-tail-out-id) n8)
+          [outer-end-prop n10]
+          ((obj/p:cdr outer-end-id outer-tail-out-id) n9)
+          [inner-first-prop n11]
+          ((obj/p:car inner-first-id nested-out-id) n10)
+          [inner-cdr-prop n12]
+          ((obj/p:cdr inner-tail-id nested-out-id) n11)
+          [inner-second-prop n13]
+          ((obj/p:car inner-second-id inner-tail-id) n12)
+          [inner-end-prop n14]
+          ((obj/p:cdr inner-end-id inner-tail-id) n13)
+          input-props (into (vec inner-props)
+                            [outer-car-prop outer-cdr-prop
+                             tail-car-prop tail-cdr-prop])
+          reader-props [out-car-prop
+                        out-cdr-prop
+                        outer-second-prop
+                        outer-end-prop
+                        inner-first-prop
+                        inner-cdr-prop
+                        inner-second-prop
+                        inner-end-prop]
+          n15 (run-installed n14
+                             (into input-props
+                                   (into (vec map-props) reader-props)))]
+      (is (= [1 2] [(strongest n15 inner-first-id)
+                    (strongest n15 inner-second-id)]))
+      (is (= 3 (strongest n15 outer-second-id)))
+      (is (= {} (compound->data (strongest n15 inner-end-id))))
+      (is (= {} (compound->data (strongest n15 outer-end-id)))))))
+
+(deftest accessor-recursive-map-lazily-expands-late-cdr-topology
+  (testing "a terminal cdr watcher emits the next frame after a new slot is installed"
+    (let [closure-value (fib-frame-closure :accumulating {})
+          closure-id (ids/new-node-id)
+          acc-id (ids/new-node-id)
+          out-id (ids/new-node-id)
+          n0 (-> net/empty-net
+                 (nb/install-cell closure-id closure-value closure-value)
+                 (nb/install-cell acc-id)
+                 (nb/install-cell out-id))
+          {n1 :net input-props :props source-id :root sentinel-id :sentinel}
+          (install-cons-list n0 [2])
+          [map-props n2] ((obj/p:accessor-recursive-map
+                           closure-id
+                           acc-id
+                           source-id
+                           out-id)
+                          n1)
+          {n2a :net reader-props :props car-ids :cars tail-id :tail}
+          (install-list-readers n2 out-id 2)
+          n3 (run-installed n2a
+                            (into (vec input-props)
+                                  (into (vec map-props) reader-props)))
+          [branch-id] (net/network-dict-entry n3 obj/accessor-map-branches-key)
+          {n4 :net late-props :props}
+          (install-tail-cons n3 sentinel-id 3)
+          n5 (run-installed n4 late-props)]
+      (is (= value/nothing (strongest n3 branch-id)))
+      (is (net/network? (strongest n5 branch-id)))
+      (is (= [1 2] (mapv #(strongest n5 %) car-ids)))
+      (is (= {} (compound->data (strongest n5 tail-id)))))))
+
+(deftest compile-dsl-exposes-accessor-recursive-map
+  (let [closure-value (fib-frame-closure :accumulating {})
+        closure-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell closure-id closure-value closure-value)
+               (nb/install-cell acc-id)
+               (nb/install-cell out-id))
+        {n1 :net input-props :props source-id :root}
+        (install-cons-list n0 [2 3])
+        ctx (eval-dsl n1
+                      {'f closure-id
+                       'acc acc-id
+                       'source source-id
+                       'out out-id}
+                      '(obj/p:accessor-recursive-map f acc source out))
+        {n2 :net reader-props :props car-ids :cars}
+        (install-list-readers (:net ctx) out-id 2)
+        n3 (run-installed n2
+                          (into (vec input-props)
+                                (into (vec (:props ctx)) reader-props)))]
+    (is (= [1 2] (mapv #(strongest n3 %) car-ids)))))
 
 (deftest direct-recursive-activation-handles-nested-map-and-reduce
   (let [source {:left [0 1 2]
