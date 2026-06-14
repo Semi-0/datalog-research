@@ -399,7 +399,9 @@
         {:net n
          :props props
          :root (first colls)
-         :sentinel sentinel}
+         :sentinel sentinel
+         :heads (mapv first heads)
+         :colls colls}
         (let [head-id (first (nth heads i))
               coll-id (nth colls i)
               tail-id (if (= i (dec (count values)))
@@ -423,6 +425,7 @@
         {:net n
          :props props
          :cars cars
+         :tails tails
          :tail (last tails)}
         (let [car-id (nth cars i)
               tail-id (nth tails i)
@@ -443,7 +446,7 @@
                (nb/install-cell closure-id closure-value closure-value)
                (nb/install-cell acc-id)
                (nb/install-cell out-id))
-        {n1 :net input-props :props source-id :root}
+        {n1 :net input-props :props source-id :root source-colls :colls}
         (install-cons-list n0 values)
         [map-props n2] ((obj/p:accessor-recursive-map
                          closure-id
@@ -459,6 +462,7 @@
     {:net n4
      :acc-id acc-id
      :out-id out-id
+     :source-colls source-colls
      :car-ids car-ids
      :tail-id tail-id
      :values (mapv #(strongest n4 %) car-ids)
@@ -479,6 +483,15 @@
      :props [car-prop cdr-prop]
      :head-id head-id
      :tail-id next-tail-id}))
+
+(defn- install-car-writer
+  [network coll-id]
+  (let [writer-id (ids/new-node-id)
+        n0 (nb/install-cell network writer-id)
+        [prop-id n1] ((obj/p:car writer-id coll-id) n0)]
+    {:net n1
+     :prop prop-id
+     :writer-id writer-id}))
 
 (defn- run-declared-self-refining-map-fib
   [xs]
@@ -1599,14 +1612,51 @@
           n3 (run-installed n2a
                             (into (vec input-props)
                                   (into (vec map-props) reader-props)))
-          [branch-id] (net/network-dict-entry n3 obj/accessor-map-branches-key)
+          branch-ids (net/network-dict-entry n3 obj/accessor-map-branches-key)
+          pending-branch-id (first (filter #(= value/nothing (strongest n3 %))
+                                           branch-ids))
           {n4 :net late-props :props}
           (install-tail-cons n3 sentinel-id 3)
           n5 (run-installed n4 late-props)]
-      (is (= value/nothing (strongest n3 branch-id)))
-      (is (net/network? (strongest n5 branch-id)))
+      (is (some? pending-branch-id))
+      (is (net/network? (strongest n5 pending-branch-id)))
       (is (= [1 2] (mapv #(strongest n5 %) car-ids)))
       (is (= {} (compound->data (strongest n5 tail-id)))))))
+
+(deftest accessor-recursive-map-updates-second-cons-through-public-car-accessor
+  (testing "a branch-local accessor subscription reacts to a later parent car update"
+    (let [{:keys [net source-colls car-ids values]}
+          (run-accessor-recursive-list-map-fib [1 value/nothing])
+          {:keys [net prop writer-id]}
+          (install-car-writer net (second source-colls))
+          n1 (run-installed net [prop])
+          n2 (-> n1
+                 (nb/seed-cell writer-id 7)
+                 (run-installed [prop]))]
+      (is (= [1 value/nothing] values))
+      (is (= 13 (strongest n2 (second car-ids))))
+      (is (= 1 (strongest n2 (first car-ids)))))))
+
+(deftest accessor-recursive-map-updates-100-cons-chain-through-public-car-accessor
+  (testing "a deep branch frame receives the slot update without mutating the list shell"
+    (let [length 100
+          index 50
+          source-values (assoc (vec (repeat length 1)) index value/nothing)
+          {:keys [net source-colls car-ids values]}
+          (run-accessor-recursive-list-map-fib source-values)
+          target-coll (nth source-colls index)
+          {:keys [net prop writer-id]}
+          (install-car-writer net target-coll)
+          n1 (run-installed net [prop])
+          coll-before (strongest n1 target-coll)
+          n2 (-> n1
+                 (nb/seed-cell writer-id 7)
+                 (run-installed [prop]))
+          coll-after (strongest n2 target-coll)]
+      (is (= length (count values)))
+      (is (= value/nothing (nth values index)))
+      (is (= 13 (strongest n2 (nth car-ids index))))
+      (is (= coll-before coll-after)))))
 
 (deftest compile-dsl-exposes-accessor-recursive-map
   (let [closure-value (fib-frame-closure :accumulating {})

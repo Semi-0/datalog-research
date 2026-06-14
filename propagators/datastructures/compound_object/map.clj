@@ -967,7 +967,8 @@
         [(message out-id source-value)]))))
 
 (declare install-accessor-recursive-list-map
-         install-accessor-recursive-value-map)
+         install-accessor-recursive-value-map
+         install-accessor-recursive-leaf-map)
 
 (defn- accessor-list-reachable-ids
   ([network source-id]
@@ -1011,25 +1012,47 @@
 
 (defn- accessor-frame-expander-f
   [closure-net _input-ids _output-ids declaration-net]
-  (let [{:keys [closure-id acc-id source-id out-id visited]}
+  (let [{:keys [closure-id acc-id source-id out-id visited scope]}
         (net/network-dict-entry closure-net accessor-map-frame-spec-key)
+        kind (or (:kind (net/network-dict-entry closure-net
+                                                accessor-map-frame-spec-key))
+                 :list)
         snapshots (net/network-dict-entry closure-net
                                           :accessor-recursive-map/cell-snapshots)
         n0 (install-snapshot-cells declaration-net snapshots)
         {:keys [net prop-ids]}
-        (install-accessor-recursive-list-map n0
-                                             closure-id
-                                             acc-id
-                                             source-id
-                                             out-id
-                                             (set visited))
+        (case kind
+          :leaf
+          (install-accessor-recursive-leaf-map n0
+                                               closure-id
+                                               acc-id
+                                               source-id
+                                               out-id)
+
+          :value
+          (install-accessor-recursive-value-map n0
+                                                closure-id
+                                                acc-id
+                                                source-id
+                                                out-id
+                                                (set visited)
+                                                scope)
+
+          (install-accessor-recursive-list-map n0
+                                               closure-id
+                                               acc-id
+                                               source-id
+                                               out-id
+                                               (set visited)
+                                               scope))
         {n1 :net boundary-props :prop-ids}
         (gur/install-boundary net
                               {:inputs [[:source source-id]
                                         [:closure closure-id]
                                         [:acc acc-id]]
                                :outputs [[:out out-id]
-                                         [:acc-out acc-id]]})
+                                         [:acc-out acc-id]
+                                         [:source source-id]]})
         all-props (into (vec prop-ids) boundary-props)]
     (-> n1
         (net/update-net-dict-entry accessor-map-props-key
@@ -1070,9 +1093,108 @@
                     :acc-id acc-id
                     :source-id source-id
                     :out-id out-id
-                    :visited (vec visited)}]
+                    :visited (vec visited)
+                    :scope (gur/frame-scope branch-id)
+                    :kind :list}]
           [(message condition-id true)
            (message expander-id (accessor-frame-expander spec snapshots))])))))
+
+(defn- accessor-network-value?
+  [v]
+  (and (not (value/unusable? v))
+       (let [shell (network-slot/as-accessor-network v)]
+         (and (not (value/contradiction? shell))
+              (network-slot/accessor-network? shell)))))
+
+(defn- value-accessor-frame-activation
+  [closure-id acc-id source-id out-id branch-id condition-id expander-id visited]
+  (fn [_inputs _outputs network]
+    (let [source-value (strongest-or-nothing network source-id)
+          branch-value (strongest-or-nothing network branch-id)]
+      (cond
+        (net/network? branch-value)
+        []
+
+        (value/nothing? source-value)
+        []
+
+        (value/contradiction? source-value)
+        [(message out-id value/contradiction)]
+
+        (list-ready-value? source-value)
+        (let [reachable (distinct
+                         (into [closure-id acc-id out-id]
+                               (accessor-list-reachable-ids network source-id)))
+              snapshots (cell-snapshots network reachable)
+              spec {:closure-id closure-id
+                    :acc-id acc-id
+                    :source-id source-id
+                    :out-id out-id
+                    :visited (vec visited)
+                    :scope (gur/frame-scope branch-id)
+                    :kind :list}]
+          [(message condition-id true)
+           (message expander-id (accessor-frame-expander spec snapshots))])
+
+        (accessor-network-value? source-value)
+        [(message out-id source-value)]
+
+        :else
+        (let [snapshots (cell-snapshots network [closure-id acc-id source-id out-id])
+              spec {:closure-id closure-id
+                    :acc-id acc-id
+                    :source-id source-id
+                    :out-id out-id
+                    :visited (vec visited)
+                    :scope (gur/frame-scope branch-id)
+                    :kind :leaf}]
+          [(message condition-id true)
+           (message expander-id (accessor-frame-expander spec snapshots))])))))
+
+(defn- install-accessor-value-dispatch-continuation
+  [network closure-id acc-id source-id out-id visited]
+  (let [condition-id (ids/new-node-id)
+        expander-id (ids/new-node-id)
+        template-id (ids/new-node-id)
+        branch-id (ids/new-node-id)
+        n0 (-> network
+               (nb/install-cell condition-id)
+               (nb/install-cell expander-id)
+               (nb/install-cell template-id net/empty-net net/empty-net)
+               (nb/install-cell branch-id))
+        [condition-prop n1]
+        ((prop/construct-propagator
+          (value-accessor-frame-activation closure-id
+                                           acc-id
+                                           source-id
+                                           out-id
+                                           branch-id
+                                           condition-id
+                                           expander-id
+                                           visited)
+          [closure-id acc-id source-id branch-id]
+          [condition-id expander-id out-id])
+         n0)
+        [branch-prop n2]
+        ((closure/p:when-apply-network condition-id
+                                       expander-id
+                                       template-id
+                                       branch-id)
+         n1)
+        [runner-prop n3]
+        ((gur/p:run-frame branch-id
+                          [[:source source-id source-id]
+                           [:closure closure-id closure-id]
+                           [:acc acc-id acc-id]]
+                          [[:out out-id]
+                           [:acc-out acc-id]
+                           [:source source-id]])
+         n2)]
+    {:net (-> n3
+              (net/update-net-dict-entry accessor-map-branches-key
+                                         (fnil conj []) branch-id))
+     :prop-ids [condition-prop branch-prop runner-prop]
+     :branch-id branch-id}))
 
 (defn- install-lazy-accessor-continuation
   [network closure-id acc-id source-id out-id visited]
@@ -1110,7 +1232,8 @@
                            [:closure closure-id closure-id]
                            [:acc acc-id acc-id]]
                           [[:out out-id]
-                           [:acc-out acc-id]])
+                           [:acc-out acc-id]
+                           [:source source-id]])
          n2)]
     {:net (-> n3
               (net/update-net-dict-entry accessor-map-branches-key
@@ -1119,7 +1242,7 @@
      :branch-id branch-id}))
 
 (defn- install-accessor-recursive-value-map
-  [network closure-id acc-id source-id out-id visited]
+  [network closure-id acc-id source-id out-id visited scope]
   (if (and (not (contains? visited source-id))
            (list-node? network source-id))
     (install-accessor-recursive-list-map network
@@ -1127,18 +1250,41 @@
                                          acc-id
                                          source-id
                                          out-id
-                                         visited)
-    (let [[leaf-prop n1] ((recursive/p:accumulating-recursive-compound
-                           closure-id
-                           source-id
-                           acc-id
-                           out-id)
-                          network)]
-      {:net n1
-       :prop-ids [leaf-prop]})))
+                                         visited
+                                         scope)
+    (if scope
+      (install-accessor-value-dispatch-continuation network
+                                                    closure-id
+                                                    acc-id
+                                                    source-id
+                                                    out-id
+                                                    visited)
+      (install-accessor-recursive-leaf-map network
+                                           closure-id
+                                           acc-id
+                                           source-id
+                                           out-id))))
+
+(defn- install-accessor-recursive-leaf-map
+  [network closure-id acc-id source-id out-id]
+  (let [[leaf-prop n1] ((recursive/p:accumulating-recursive-compound
+                         closure-id
+                         source-id
+                         acc-id
+                         out-id)
+                        network)]
+    {:net n1
+     :prop-ids [leaf-prop]}))
+
+(defn- slot-subscriber-opts
+  [scope cell-id]
+  (if scope
+    {:subscriber-refs [(io/cell-ref scope cell-id)]
+     :notify-subscribers? false}
+    {}))
 
 (defn- install-accessor-recursive-list-map
-  [network closure-id acc-id source-id out-id visited]
+  [network closure-id acc-id source-id out-id visited scope]
   (cond
     (contains? visited source-id)
     (let [[prop-id n1] ((stdlib-prop/id source-id out-id) network)]
@@ -1146,31 +1292,59 @@
        :prop-ids [prop-id]})
 
     (list-node? network source-id)
-    (let [car-id (list-slot-parent-id network source-id :car)
-          cdr-id (list-slot-parent-id network source-id :cdr)
+    (let [car-id (if scope
+                   (ids/new-node-id)
+                   (list-slot-parent-id network source-id :car))
+          cdr-id (if scope
+                   (ids/new-node-id)
+                   (list-slot-parent-id network source-id :cdr))
           mapped-car-id (ids/new-node-id)
           mapped-cdr-id (ids/new-node-id)
-          n0 (-> network
-                 (nb/install-cell mapped-car-id)
-                 (nb/install-cell mapped-cdr-id))
+          n0 (cond-> network
+               scope (nb/install-cell car-id)
+               scope (nb/install-cell cdr-id)
+               true (nb/install-cell mapped-car-id)
+               true (nb/install-cell mapped-cdr-id))
+          [source-car-prop n0a]
+          (if scope
+            ((network-slot/p:network-slot :car
+                                          car-id
+                                          source-id
+                                          (slot-subscriber-opts scope car-id))
+             n0)
+            [nil n0])
+          [source-cdr-prop n0b]
+          (if scope
+            ((network-slot/p:network-slot :cdr
+                                          cdr-id
+                                          source-id
+                                          (slot-subscriber-opts scope cdr-id))
+             n0a)
+            [nil n0a])
           {n1 :net car-props :prop-ids}
-          (install-accessor-recursive-value-map n0
+          (install-accessor-recursive-value-map n0b
                                                 closure-id
                                                 acc-id
                                                 car-id
                                                 mapped-car-id
-                                                (conj visited source-id))
+                                                (conj visited source-id)
+                                                scope)
           {n2 :net cdr-props :prop-ids}
           (install-accessor-recursive-list-map n1
                                                closure-id
                                                acc-id
                                                cdr-id
                                                mapped-cdr-id
-                                               (conj visited source-id))
+                                               (conj visited source-id)
+                                               scope)
           [[car-prop cdr-prop] n3]
           ((network-slot/p:network-cons mapped-car-id mapped-cdr-id out-id) n2)]
       {:net n3
-       :prop-ids (into (vec car-props) (into cdr-props [car-prop cdr-prop]))})
+       :prop-ids (into (cond-> []
+                          source-car-prop (conj source-car-prop)
+                          source-cdr-prop (conj source-cdr-prop))
+                       (into (vec car-props)
+                             (into cdr-props [car-prop cdr-prop])))})
 
     :else
     (let [[prop-id n1] ((prop/construct-propagator
@@ -1205,5 +1379,6 @@
                                                acc-id
                                                source-id
                                                out-id
-                                               #{})]
+                                               #{}
+                                               nil)]
       [prop-ids net])))

@@ -238,6 +238,12 @@
     (let [[scope child-net] payload]
       (assoc-lexical-env n scope child-net))
 
+    :assoc-lexical-env-if-absent
+    (let [[scope child-net] payload]
+      (if (contains? (lexical-envs n) scope)
+        n
+        (assoc-lexical-env n scope child-net)))
+
     :merge-lexical-envs
     (merge-lexical-envs n payload)
 

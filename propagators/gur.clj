@@ -3,6 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
+            [propagators.datastructures.compound-object.core :as compound-core]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.io :as io]
             [propagators.message :as message]
@@ -15,6 +16,12 @@
 (def prop-ids-key :gur/prop-ids)
 (def input-routes-key :gur/input-routes)
 (def output-routes-key :gur/output-routes)
+(def frame-scope-key :gur/frame)
+
+(defn frame-scope
+  "Stable lexical scope for a network-valued GUR frame cell."
+  [frame-net-id]
+  [frame-scope-key frame-net-id])
 
 (defn- input-route
   [[io-id parent-id child-id]]
@@ -64,7 +71,7 @@
 
 (defn- externalize-network-value
   [frame-net seen value-net]
-  (externalize-accessor-source-slots frame-net seen value-net))
+  (network-slot/externalize-accessor-value frame-net value-net))
 
 (defn- externalize-value*
   [frame-net seen v]
@@ -78,6 +85,35 @@
 (defn- externalize-value
   [frame-net v]
   (externalize-value* frame-net #{} v))
+
+(defn- p:frame-out
+  "Publish a frame output, preserving child-local accessor slot values."
+  [io-id cell-id watch-ids]
+  (fn [network]
+    (let [[prop-id n]
+          ((prop/construct-propagator
+            (fn [_inputs _outputs n]
+              (let [v (net/network-cell-strongest n cell-id)]
+                [(io/io-delivery :append-outbox
+                                 (io/io-record
+                                  io-id
+                                  cell-id
+                                  (message/message cell-id
+                                                   (externalize-value n v))))]))
+            (vec (distinct (cons cell-id watch-ids)))
+            [])
+           network)]
+      [prop-id
+       (net/assoc-net-dict-entry n [:reality/out-cell io-id] cell-id)])))
+
+(defn- output-watch-ids
+  [network cell-id]
+  (->> (get (net/network-dict-entry network compound-core/slot-declarations-key)
+            cell-id)
+       vals
+       (mapcat keys)
+       (sort-by pr-str)
+       vec))
 
 (defn- prop-ids
   [frame-net]
@@ -124,13 +160,13 @@
                           frame-net
                           parent-net))))
 
-(defn p:run-frame
+(defn p:run-frame*
   "Run a network-valued frame cell and write its updated frame value back.
 
   `input-routes` are `[io-id parent-cell-id child-cell-id]`.
   `output-routes` are `[io-id parent-cell-id]`.
   "
-  [frame-net-id input-routes output-routes]
+  [scope frame-net-id input-routes output-routes]
   (let [inputs (mapv input-route input-routes)
         parent-inputs (mapv :parent-id inputs)
         parent-outputs (mapv second output-routes)]
@@ -147,11 +183,23 @@
            :else
            (let [{:keys [messages frame-net]}
                  (run-frame frame-value parent-net input-routes output-routes)]
-             (cond-> messages
+             (cond-> (into [(io/io-delivery :assoc-lexical-env-if-absent
+                                            [scope frame-net])]
+                           messages)
                (compatible-frame-update? parent-net frame-net-id frame-net)
                (conj (message/message frame-net-id frame-net)))))))
      (into [frame-net-id] parent-inputs)
      (into [frame-net-id] parent-outputs))))
+
+(defn p:run-frame
+  "Run a network-valued frame cell and expose the updated frame as a lexical env."
+  ([frame-net-id input-routes output-routes]
+   (p:run-frame* (frame-scope frame-net-id)
+                 frame-net-id
+                 input-routes
+                 output-routes))
+  ([scope frame-net-id input-routes output-routes]
+   (p:run-frame* scope frame-net-id input-routes output-routes)))
 
 (defn install-boundary
   "Install reality IO ports into a frame network and record their prop ids."
@@ -168,7 +216,8 @@
         {n2 :net output-props :prop-ids}
         (reduce
          (fn [{:keys [net prop-ids]} [io-id child-id]]
-           (let [[prop-id n] ((reality/p:reality-out io-id child-id)
+           (let [watch-ids (output-watch-ids net child-id)
+                 [prop-id n] ((p:frame-out io-id child-id watch-ids)
                               (nb/ensure-cell net child-id))]
              {:net n
               :prop-ids (conj prop-ids prop-id)}))

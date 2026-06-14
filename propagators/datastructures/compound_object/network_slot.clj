@@ -21,6 +21,9 @@
 (def accessor-sync-key
   (core/internal-metadata-key :accessor-sync))
 
+(def accessor-subscribers-key
+  (core/internal-metadata-key :accessor-subscribers))
+
 (defn accessor-network?
   [x]
   (and (net/net? x)
@@ -33,7 +36,8 @@
    {accessor-network-key true
     core/slot-index-key {}
     core/read-only-slots-key #{}
-    source-slots-key {}}))
+    source-slots-key {}
+    accessor-subscribers-key {}}))
 
 (defn source-slots
   [n]
@@ -73,7 +77,8 @@
       (net/assoc-net-dict-entry accessor-network-key true)
       (net/update-net-dict-entry core/slot-index-key #(or % {}))
       (net/update-net-dict-entry core/read-only-slots-key #(or % #{}))
-      (net/update-net-dict-entry source-slots-key #(or % {}))))
+      (net/update-net-dict-entry source-slots-key #(or % {}))
+      (net/update-net-dict-entry accessor-subscribers-key #(or % {}))))
 
 (defn- with-source-slots
   ([source-slots]
@@ -133,8 +138,133 @@
   (let [slot-index (or (net/network-dict-entry n core/slot-index-key) {})]
     (set (concat (keys (source-slots n))
                  (keys slot-index)
+                 (keys (or (net/network-dict-entry n accessor-subscribers-key)
+                           {}))
                  (filter #(public-slot-present? n %)
                          (core/public-slot-keys n))))))
+
+(declare externalize-accessor-value*)
+
+(def ^:private externalize-missing ::externalize-missing)
+
+(defn- usable-or-missing
+  [v]
+  (if (value/unusable? v)
+    externalize-missing
+    v))
+
+(defn- cell-value-or-missing
+  [n id]
+  (if (and (net/net? n)
+           (contains? (net/net-env n) id))
+    (usable-or-missing (net/network-cell-strongest n id))
+    externalize-missing))
+
+(defn- public-slot-value-or-missing
+  [n slot-key]
+  (if-let [id (slot-cell-id n slot-key)]
+    (cell-value-or-missing n id)
+    externalize-missing))
+
+(defn- source-slot-value-or-missing
+  [n slot-key]
+  (if (contains? (source-slots n) slot-key)
+    (usable-or-missing (get (source-slots n) slot-key))
+    externalize-missing))
+
+(defn- parent-slot-value-or-missing
+  [parent-net accessor-net slot-key]
+  (loop [parent-ids (seq (sort-by pr-str
+                                   (accessor-parent-ids accessor-net
+                                                        slot-key)))]
+    (if-not parent-ids
+      externalize-missing
+      (let [v (cell-value-or-missing parent-net (first parent-ids))]
+        (if (= externalize-missing v)
+          (recur (next parent-ids))
+          v)))))
+
+(defn- externalized-slot-value
+  [parent-net seen accessor-net slot-key]
+  (let [parent-v (parent-slot-value-or-missing parent-net accessor-net slot-key)]
+    (if-not (= externalize-missing parent-v)
+      (externalize-accessor-value* parent-net seen parent-v)
+      (let [public-v (public-slot-value-or-missing accessor-net slot-key)]
+        (if-not (= externalize-missing public-v)
+          (externalize-accessor-value* parent-net seen public-v)
+          (let [source-v (source-slot-value-or-missing accessor-net slot-key)]
+            (if (= externalize-missing source-v)
+              externalize-missing
+              (externalize-accessor-value* parent-net seen source-v))))))))
+
+(defn- externalized-source-slots
+  [parent-net seen accessor-net]
+  (into {}
+        (keep (fn [slot-key]
+                (let [v (externalized-slot-value parent-net
+                                                 seen
+                                                 accessor-net
+                                                 slot-key)]
+                  (when-not (= externalize-missing v)
+                    [slot-key v]))))
+        (accessor-slot-keys accessor-net)))
+
+(defn externalize-accessor-value*
+  [parent-net seen v]
+  (if-not (accessor-network? v)
+    v
+    (let [token (System/identityHashCode v)]
+      (if (contains? seen token)
+        v
+        (let [accessor-net (ensure-accessor-metadata v)
+              source-values (externalized-source-slots parent-net
+                                                       (conj seen token)
+                                                       accessor-net)]
+          (if (empty? source-values)
+            accessor-net
+            (net/update-net-dict-entry accessor-net
+                                       source-slots-key
+                                       #(merge (or % {}) source-values))))))))
+
+(defn externalize-accessor-value
+  "Return `v` with accessor-network slot values snapshotted into source slots.
+
+  This is an explicit boundary operation for moving an accessor shell as a
+  detached value. Live accessor propagation remains cell-based; this only makes
+  a copied accessor network self-contained enough for later public slot reads.
+  "
+  [parent-net v]
+  (externalize-accessor-value* parent-net #{} v))
+
+(defn externalize-accessor-network
+  [parent-net accessor-net]
+  (externalize-accessor-value parent-net accessor-net))
+
+(defn externalize-accessor-cell
+  [parent-net collection-id]
+  (externalize-accessor-value parent-net
+                              (net/network-cell-strongest parent-net
+                                                           collection-id)))
+
+(defn accessor-subscriber-refs
+  [n slot-key]
+  (get-in (net/net-dict-or-empty n)
+          [accessor-subscribers-key slot-key]
+          #{}))
+
+(defn attach-accessor-subscriber
+  [collection-net slot-key subscriber-ref]
+  (-> collection-net
+      ensure-accessor-metadata
+      (net/update-net-dict-entry
+       accessor-subscribers-key
+       #(update (or % {}) slot-key (fnil conj #{}) subscriber-ref))))
+
+(defn- attach-accessor-subscribers
+  [collection-net slot-key subscriber-refs]
+  (reduce #(attach-accessor-subscriber %1 slot-key %2)
+          collection-net
+          subscriber-refs))
 
 (defn- sync-marker-key
   [slot-key parent-id canonical-id direction]
@@ -238,7 +368,8 @@
         (->> (accessor-parent-ids collection-net slot-key)
              (filter #(network-cell-present? parent-net %))
              (remove #(equivalent-to-parent? parent-net % v))
-             (mapv #(message % v)))))))
+             (mapv #(message % (externalize-accessor-value parent-net
+                                                            v))))))))
 
 (defn- projected-accessor-messages
   [executed-net parent-ids parent-net]
@@ -249,8 +380,59 @@
                                            (get dict parent-id))]
                    (let [v (net/network-cell-strongest executed-net avatar-id)]
                      (when-not (equivalent-to-parent? parent-net parent-id v)
-                       (message parent-id v))))))
+                       (message parent-id
+                                (externalize-accessor-value parent-net
+                                                            v)))))))
          vec)))
+
+(def ^:private missing-slot-value ::missing-slot-value)
+
+(defn- first-usable-value
+  [values]
+  (loop [xs (seq values)]
+    (cond
+      (nil? xs)
+      missing-slot-value
+
+      (value/unusable? (first xs))
+      (recur (next xs))
+
+      :else
+      (first xs))))
+
+(defn- executed-slot-value
+  [executed-net parent-ids]
+  (let [dict (net/net-dict-or-empty executed-net)]
+    (first-usable-value
+     (keep (fn [parent-id]
+             (when-let [avatar-id (get dict parent-id)]
+               (net/network-cell-strongest executed-net avatar-id)))
+           (sort-by pr-str parent-ids)))))
+
+(defn- source-slot-value*
+  [collection-net slot-key]
+  (if-not (source-slot-present? collection-net slot-key)
+    missing-slot-value
+    (let [v (source-slot-value collection-net slot-key)]
+      (if (value/unusable? v)
+        missing-slot-value
+        v))))
+
+(defn- subscriber-slot-value
+  [stable-net executed-net slot-key parent-ids]
+  (let [v (executed-slot-value executed-net parent-ids)]
+    (if (= missing-slot-value v)
+      (source-slot-value* stable-net slot-key)
+      v)))
+
+(defn- subscriber-messages
+  [stable-net executed-net slot-key parent-ids parent-net]
+  (let [v (subscriber-slot-value stable-net executed-net slot-key parent-ids)]
+    (if (= missing-slot-value v)
+      []
+      (mapv #(message % (externalize-accessor-value parent-net v))
+            (sort-by pr-str
+                     (accessor-subscriber-refs stable-net slot-key))))))
 
 (defn- topology-message
   [collection-id before after parent-net]
@@ -274,7 +456,7 @@
   (ensure-accessor-route (as-accessor-network collection-net) slot-key parent-id))
 
 (defn network-slot-activation
-  [slot-key parent-id collection-id]
+  [slot-key parent-id collection-id subscriber-refs notify-subscribers?]
   (fn [_inputs _outputs parent-net]
     (let [collection-net (-> parent-net
                              (net/network-cell-strongest collection-id)
@@ -283,7 +465,9 @@
         [(message collection-id value/contradiction)]
         (let [known-parent? (contains? (accessor-parent-ids collection-net slot-key)
                                        parent-id)
-              stable-net (ensure-accessor-route collection-net slot-key parent-id)
+              stable-net (-> collection-net
+                             (ensure-accessor-route slot-key parent-id)
+                             (attach-accessor-subscribers slot-key subscriber-refs))
               canonical-id (canonical-parent-id stable-net slot-key)
               seed-parent-ids (if known-parent?
                                 [parent-id]
@@ -292,10 +476,14 @@
               collection-message (topology-message collection-id
                                                    collection-net
                                                    stable-net
-                                                   parent-net)]
+                                                   parent-net)
+              subscribers? (and notify-subscribers?
+                                (seq (accessor-subscriber-refs stable-net
+                                                               slot-key)))]
           (if (and known-parent?
                    (empty? source-messages)
                    (nil? collection-message)
+                   (not subscribers?)
                    (accessor-synced? stable-net slot-key parent-net))
             []
             (let [{:keys [executed-net parent-ids]}
@@ -306,8 +494,16 @@
                   accessor-messages (into source-messages
                                           (projected-accessor-messages executed-net
                                                                        parent-ids
-                                                                       parent-net))]
+                                                                       parent-net))
+                  subscriber-messages (if notify-subscribers?
+                                        (subscriber-messages stable-net
+                                                             executed-net
+                                                             slot-key
+                                                             parent-ids
+                                                             parent-net)
+                                        [])]
               (cond-> accessor-messages
+                (seq subscriber-messages) (into subscriber-messages)
                 collection-message (conj collection-message)))))))))
 
 (defn- record-network-slot-declaration
@@ -328,18 +524,26 @@
    network))
 
 (defn p:network-slot
-  [slot-key parent-id collection-id]
-  (let [prop-id (ids/new-node-id)
-        activate (network-slot-activation slot-key parent-id collection-id)]
-    (fn [network]
-      (let [[installed-id network']
-            (register-network-slot-propagator network prop-id activate parent-id collection-id)]
-        [installed-id
-         (record-network-slot-declaration network'
-                                          collection-id
-                                          slot-key
-                                          parent-id
-                                          installed-id)]))))
+  ([slot-key parent-id collection-id]
+   (p:network-slot slot-key parent-id collection-id {}))
+  ([slot-key parent-id collection-id {:keys [subscriber-refs]
+                                      :or {subscriber-refs []}
+                                      :as opts}]
+   (let [prop-id (ids/new-node-id)
+         activate (network-slot-activation slot-key
+                                           parent-id
+                                           collection-id
+                                           subscriber-refs
+                                           (get opts :notify-subscribers? true))]
+     (fn [network]
+       (let [[installed-id network']
+             (register-network-slot-propagator network prop-id activate parent-id collection-id)]
+         [installed-id
+          (record-network-slot-declaration network'
+                                           collection-id
+                                           slot-key
+                                           parent-id
+                                           installed-id)])))))
 
 (defn p:network-car [elem-id collection-id]
   (p:network-slot :car elem-id collection-id))

@@ -1,9 +1,11 @@
 (ns propagators.compound-object-network-slot-test
   (:require [clojure.test :refer [deftest is testing]]
+            [propagators.cells.value :as value]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
+            [propagators.io :as io]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
@@ -90,6 +92,65 @@
       (is (= 10 (net/network-cell-value n4 p1)))
       (is (= 10 (net/network-cell-value n4 p2)))
       (is (= coll-before coll-after)))))
+
+(deftest network-slot-subscriber-dispatches-parent-value-to-lexical-child
+  (testing "a subscriber ref observes later accessor value updates without shell rewrite"
+    (let [scope [:slot-subscriber]
+          child-in (new-node-id)
+          parent (new-node-id)
+          coll (new-node-id)
+          child (nb/install-cell net/empty-net child-in)
+          n0 (-> (nb/install-cells [parent coll])
+                 (io/assoc-lexical-env scope child))
+          [slot-prop n1] ((obj/p:network-slot
+                           :x
+                           parent
+                           coll
+                           {:subscriber-refs [(io/cell-ref scope child-in)]})
+                          n0)
+          n2 (-> n1
+                 (nb/seed-cell coll (obj/empty-compound-object))
+                 (nb/run-propagators [slot-prop]))
+          coll-before (net/network-cell-value n2 coll)
+          n3 (-> n2
+                 (nb/seed-cell parent 2)
+                 (nb/run-propagators [slot-prop]))
+          coll-after (net/network-cell-value n3 coll)]
+      (is (= value/nothing
+             (net/network-cell-value (io/lexical-env n2 scope) child-in)))
+      (is (= 2 (net/network-cell-value (io/lexical-env n3 scope) child-in)))
+      (is (= coll-before coll-after)))))
+
+(deftest externalized-accessor-shell-is-readable-after-detach
+  (testing "source slots snapshot live accessor values when a shell leaves its source network"
+    (let [head (new-node-id)
+          coll (new-node-id)
+          end (new-node-id)
+          raw-reader (new-node-id)
+          snapshot-reader (new-node-id)
+          source0 (-> net/empty-net
+                      (nb/install-cell head 7 7)
+                      (nb/install-cell coll)
+                      (nb/install-cell end
+                                       (obj/empty-compound-object)
+                                       (obj/empty-compound-object)))
+          [[car-prop cdr-prop] source1] ((obj/p:cons head end coll) source0)
+          source2 (nb/run-propagators source1 [car-prop cdr-prop])
+          raw-shell (net/network-cell-value source2 coll)
+          snapshot-shell (obj/externalize-accessor-cell source2 coll)
+          raw0 (-> net/empty-net
+                   (nb/install-cell coll raw-shell raw-shell)
+                   (nb/install-cell raw-reader))
+          [raw-prop raw1] ((obj/p:car raw-reader coll) raw0)
+          raw2 (nb/run-propagators raw1 [raw-prop])
+          snapshot0 (-> net/empty-net
+                        (nb/install-cell coll snapshot-shell snapshot-shell)
+                        (nb/install-cell snapshot-reader))
+          [snapshot-prop snapshot1] ((obj/p:car snapshot-reader coll) snapshot0)
+          snapshot2 (nb/run-propagators snapshot1 [snapshot-prop])]
+      (is (= value/nothing (net/network-cell-value raw2 raw-reader)))
+      (is (= 7 (net/network-cell-value snapshot2 snapshot-reader)))
+      (is (= 7 (obj/accessor-source-slot-value snapshot-shell :car))))))
 
 (deftest network-slot-repeated-accessor-declaration-is-idempotent
   (testing "duplicate declarations reuse the same collection topology"
