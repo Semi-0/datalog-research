@@ -7,95 +7,417 @@ Source files:
 - `propagators/datastructures/compound_object/map.clj`
 - `propagators/datastructures/compound_object/reduce.clj`
 - `propagators/datastructures/reducer_subnet.clj`
+- `propagators/gur.clj`
+- `propagators/gur_routed.clj`
 - `test/propagators/recursive_compound_test.clj`
+- `test/propagators/gur_routed_test.clj`
 
-## Status
+## Current Conclusion
 
-Terminology (canonical):
+The current direction is **network accumulation through accessor topology**.
+Recursive work should declare network topology first, then let the ordinary
+scheduler evaluate that topology. Direct recursive activation remains as a
+compatibility path, but it is not the preferred model for general nested
+compound objects.
 
-- Direct recursive activation
-  - `recursive/recursive-closure` + `recursive/p:recursive-compound` path that
-    expands and executes an inner network during activation.
-  - In tests/logs this is the existing `direct recursive activation` behavior.
+The strongest current result is the routed GUR experiment:
 
-- Network-valued recursion
-  - `closure/p:apply-network` path that emits a declaration network value without
-    running it; execution is performed by the outer scheduler.
+```text
+child frame discovers next recursive topology
+-> child emits a topology declaration through an outbox route
+-> parent-side route installs that declaration idempotently
+-> ordinary propagation evaluates the installed topology
+```
 
-- Self-refining closure
-  - Recursive design where the closure cell is also the accumulator (`p:self-refining-recursive-compound`).
+That split is cleaner than making lexical envs own recursive topology. The
+kernel supplies queue/IO/continuation primitives; compound data supplies live
+accessor routes; GUR supplies a frame protocol and topology declarations.
 
-- Explicit accumulator recursion
-  - Recursive design with a separate accumulator net (`p:accumulating-recursive-compound`).
+## Core Concepts
 
-Use these terms consistently in discussion/docs and avoid `directed recursion` as a separate term.
+- **Direct recursive activation**:
+  `recursive/recursive-closure` plus `recursive/p:recursive-compound`. The
+  activation builds and runs an inner network immediately.
+- **Frame**:
+  one recursive step with stable input/output cells, optional semantic facts,
+  and optionally a child network value.
+- **Accumulator network**:
+  a named network that retains monotone facts discovered by recursive frames.
+- **Network-valued declaration**:
+  a network value emitted as data, usually by `closure/p:apply-network`, before
+  the caller chooses when to evaluate it.
+- **Accessor topology**:
+  live `obj/p:slot`, `obj/p:car`, `obj/p:cdr`, and `obj/p:cons` routes. Nested
+  compound data is represented by demanded accessor routes, not by rebuilding
+  host Clojure maps or vectors.
+- **Continuation tunnel**:
+  the evaluator continuation exposed by `runtime/*continue*`, used to run a
+  child network value through declared IO boundaries.
+- **Topology ownership**:
+  a child frame may report discovered topology, but the live parent network
+  owns whether and how that topology is installed.
 
-Recursive compound propagation is implemented as activation-local network
-expansion. It does not change the core scheduler contract and does not introduce
-a new primitive data type.
+## Kernel Extension
 
-The original propagator remains the compatibility path:
+The kernel extension is deliberately small. It does not teach the scheduler
+about recursion, compound objects, or GUR.
+
+The committed kernel substrate:
+
+- `d1cce22 Add IO continuation kernel experiment` added evaluator IO state,
+  `runtime/*continue*`, `reality/p:reality-in`, `reality/p:reality-out`, and
+  `lexical/p:compound`.
+- `444cdc6 Add lexical pointer dispatch for recursive subenvs` added
+  `io/cell-ref`, `io/name-ref`, and sparse lexical env dispatch.
+- `cca0b94 Add routed GUR experiment` added `:apply-topology-installer`, an
+  idempotent IO delivery that applies a parent-side topology installer and
+  enqueues the installed propagators.
+
+The IO route shape is:
+
+```text
+parent value -> child inbox -> reality.in -> child cell
+child cell -> reality.out -> child outbox -> parent message or declaration
+```
+
+The routed installer delivery keeps ownership explicit:
+
+```clojure
+(defn example-topology-delivery [id installer]
+  (io/io-delivery
+   :apply-topology-installer
+   {:id id
+    :installed-key gur-routed/installed-declarations-key
+    :installer installer}))
+```
+
+## Experiment Matrix
+
+| Experiment | Hypothesis | Mechanism | Result | Decision |
+| --- | --- | --- | --- | --- |
+| Direct recursive activation | Recursion can expand and run an inner network during activation. | `recursive/p:recursive-compound` with boundary avatars and output diff. | Works for Fibonacci and simpler reductions; fragile for mixed nested map/vector output. | Keep for compatibility/prototypes. |
+| Retained frame accumulation | Recursive calls can retain semantic frame facts. | self-refining closure or explicit accumulator named network. | Works; explicit accumulator is cleaner. | Keep accumulator path. |
+| Network-valued expansion | Recursion can declare topology first and evaluate later. | `closure/p:apply-network` emits expanded network values. | Works better for nested map/reduce because declaration and evaluation are separated. | Default direction. |
+| Declared accessor recursive map | Nested compound traversal can be represented by accessor routes. | `obj/p:accessor-recursive-map` over visible `p:cons` topology. | Works when topology is visible up front. | Keep as accessor baseline. |
+| Lexical-pointer GUR | Dynamic frames can be addressed through lexical env refs. | `io/name-ref` / `io/cell-ref` into stored child envs. | Works for dispatch, but topology ownership leaks into lexical scope. | Investigate only; not preferred. |
+| Accessor GUR | Lazy terminal cdr expansion can run as child frame values. | `gur/p:run-frame` plus branch network values and accessor snapshots. | Works for current cases, but needs snapshots/subscribers/lexical env coupling. | Keep as comparison. |
+| Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Preferred GUR direction. |
+
+## Experiments
+
+The snippets in this section are mechanism pseudocode. They are written in
+Clojure shape to expose the control/data movement, not to duplicate the exact
+implementation helpers.
+
+### Experiment A: Direct Recursive Activation
+
+Hypothesis: a recursive propagator can expand and execute an activation-local
+inner network, then publish boundary output messages.
+
+Mechanism: the propagator activation creates an inner boundary, lets the
+recursive closure install more topology into that activation-local network,
+runs that inner network to quiescence immediately, then diffs only boundary
+outputs back to the outer network.
+
+```clojure
+(defn direct-activation [outer closure arg out]
+  (let [inner (make-boundary outer [arg] [out])
+        self  (install-self-call closure inner)
+        frame (closure self inner)
+        done  (run-to-fixpoint frame)]
+    (diff-boundary done outer [out])))
+```
+
+Evidence: Fibonacci tests, max-depth contradiction, lazy base branches, and
+normal compound wrapper tests pass.
+
+Limit: topology expansion and evaluation are interleaved inside activation, and
+the mixed nested map/vector experiment can produce localized contradictions.
+
+Decision: keep as compatibility and fast prototyping path.
+
+### Experiment B: Retained Frame Accumulation
+
+Hypothesis: recursive expansion can retain stable semantic facts about each
+frame.
+
+Mechanism: each recursive frame emits a named-network fragment. The accumulator
+cell merges that fragment with earlier facts. Re-emitting the same frame fact
+is idempotent because frame fact cell ids are deterministic.
+
+```clojure
+(defn retain-frame [acc frame facts]
+  (let [fragment (named-network frame facts)
+        merged   (named/join acc fragment)]
+    (if (contradiction? merged)
+      contradiction
+      merged)))
+```
+
+Evidence: self-refining and explicit accumulator tests retain frames such as
+`[:fib 5]`; named-network subsumption and idempotence tests pass.
+
+Limit: self-refining closure couples closure identity to retained history.
+
+Decision: keep explicit accumulator as the default retained-state shape.
+
+### Experiment C: Network-Valued Expansion
+
+Hypothesis: recursive topology can be emitted as a network value and evaluated
+later by the ordinary scheduler.
+
+Mechanism: expansion is only a network transformation. The closure receives a
+template declaration network, adds more cells/propagators, and returns a larger
+network value. A later caller chooses when to enqueue the declared propagators.
+
+```clojure
+(defn declare-then-run [template expander]
+  (let [declared (expander template)
+        props    (declared-propagators declared)]
+    (run-propagators declared props)))
+```
+
+Evidence: declared nested map and nested reduce topology run correctly after
+the expanded network is evaluated.
+
+Limit: the caller must still decide when to run the emitted network and how to
+install or compose it.
+
+Decision: use as the default declaration/evaluation split.
+
+### Experiment D: Declared Accessor Recursive Map
+
+Hypothesis: nested compound traversal should use accessor topology instead of
+materialized values.
+
+Mechanism: a cons cell is recognized by visible `:car` and `:cdr` accessor
+routes. The map declares a mapped `car`, recursively declares the mapped `cdr`,
+and assembles output through `p:cons`. It does not read the whole list into a
+host value.
+
+```clojure
+(defn declare-accessor-map [source out]
+  (if (cons-topology? source)
+    (let [car' (fresh-cell)
+          cdr' (fresh-cell)]
+      (map-leaf-or-nested (:car source) car')
+      (declare-accessor-map (:cdr source) cdr')
+      (install-cons car' cdr' out))
+    (wait-for-later-topology source out)))
+```
+
+Evidence: live cons-list map, nested cons in car positions, and public accessor
+update tests pass.
+
+Limit: it can only walk topology that is already visible, unless paired with a
+lazy frame strategy.
+
+Decision: keep as the accessor baseline.
+
+### Experiment E: Lexical-Pointer GUR
+
+Hypothesis: dynamic recursive frames can be addressed by stable lexical refs.
+
+Mechanism: the parent stores child networks in a lexical env table. A message
+whose target is `io/cell-ref` or `io/name-ref` is dispatched into the child
+network, the child continuation runs, and child outbox messages return to the
+parent.
+
+```clojure
+(defn lexical-dispatch [parent scope msg]
+  (let [child  (get-in parent [:lexical-envs scope])
+        local  (resolve-ref child (:id msg))
+        child' (continue (enqueue child (retarget msg local)))]
+    (-> parent
+        (assoc-in [:lexical-envs scope] (clear-io child'))
+        (enqueue-all (:outbox child')))))
+```
+
+Evidence: kernel IO tests show nested lexical frames can be created and
+messaged by scope.
+
+Limit: lexical scope starts carrying topology ownership, which creates pressure
+for snapshots, subscribers, and frame-env synchronization.
+
+Decision: useful evidence, but not the preferred GUR ownership model.
+
+### Experiment F: Accessor GUR In `propagators.gur`
+
+Hypothesis: a lazy terminal cdr can emit a branch frame network and evaluate it
+through a continuation boundary.
+
+Mechanism: the outer graph stores a branch frame as a cell value. The runner
+injects parent inputs through `reality.in`, runs the frame continuation, drains
+`reality.out`, externalizes accessor outputs so detached shells remain readable,
+and writes the updated frame back.
+
+```clojure
+(defn accessor-gur-run [parent frame-id]
+  (let [frame   (strongest parent frame-id)
+        child   (inject-route-inputs frame parent)
+        child'  (continue child)
+        records (drain-outbox child')]
+    (concat (externalized-parent-messages records child')
+            [(message frame-id (store-frame child'))])))
+```
+
+Evidence: current `obj/p:accessor-recursive-map` tests cover late cdr frame
+declaration and nested cons cells.
+
+Limit: branch-local accessor outputs need source-slot externalization, and the
+lexical env table becomes part of frame synchronization.
+
+Decision: keep as the comparison path and evidence for boundary requirements.
+
+### Experiment G: Routed GUR In `propagators.gur-routed`
+
+Hypothesis: child frames can emit topology declarations, while the parent owns
+installation.
+
+Mechanism: the child frame still runs through reality IO, but topology is not
+hidden in lexical env mutation. Records on the `:topology` route are interpreted
+as declarations, and a parent-side installer applies each declaration once.
+
+```clojure
+(defn routed-gur-run [parent frame-id]
+  (let [child   (inject-route-inputs (strongest parent frame-id) parent)
+        child'  (continue child)
+        records (drain-outbox child')]
+    (-> parent
+        (merge-messages (normal-records records))
+        (install-once-each (topology-records records))
+        (seed frame-id (clear-io child')))))
+```
+
+Evidence: `propagators.gur-routed-test` covers route IO, idempotent topology
+installation, prebuilt cons-list map, Fibonacci-style leaf mapping, late cdr
+expansion, nested cons-in-car traversal, and depth-stable public accessor
+updates.
+
+Limit: still experimental and not yet the compile-2 target API.
+
+Decision: preferred direction for GUR.
+
+## Current APIs
 
 ```clojure
 (recursive/recursive-closure step-f)
-(recursive/recursive-closure step-f {:max-depth 1024})
 (recursive/p:recursive-compound closure-id arg-id out-id)
-(recursive/p:recursive-compound closure-id [arg-id ...] out-id)
-```
-
-The experiment on 2026-06-09 added retained semantic frame declarations:
-
-```clojure
-(recursive/frame-fragment frame slot-values)
-(recursive/frame-index frame-net)
-
-(recursive/p:self-refining-recursive-compound closure-id arg-id out-id)
 (recursive/p:accumulating-recursive-compound closure-id arg-id acc-id out-id)
 (closure/p:apply-network closure-id network-id out-id)
-
-(obj/p:map-slots-with-recursive-closure closure-id source-id out-id)
-(obj/p:map-slots-with-recursive-accumulator closure-id acc-id source-id out-id)
-(obj/p:reduce source-id merge-net-id init-id out-id)
-
-(obj/install-declared-nested-recursive-map-with-closure
- network closure-id source-value out-id)
-(obj/install-declared-nested-recursive-map-with-accumulator
- network closure-id acc-id source-value out-id)
-
-(obj/install-accessor-nested-recursive-map-with-closure
- network closure-id source-id source-shape out-id)
-(obj/install-accessor-nested-recursive-map-with-accumulator
- network closure-id acc-id source-id source-shape out-id)
+(obj/p:accessor-recursive-map closure-id acc-id source-id out-id)
+(gur/p:run-frame frame-net-id input-routes output-routes)
+(gur-routed/p:routed-run-frame frame-net-id input-routes output-routes :topology)
+(gur-routed/p:routed-accessor-recursive-map closure-id acc-id source-id out-id)
 ```
 
-`p:recursive-compound` is a normal propagator installer. Its activation reads a
-closure-valued cell, creates boundary avatars, exposes a self closure under the
-activation-local network dict key `:recursive/self`, applies the closure, runs
-the inner network to quiescence, and diffs avatar output back to the real output
-cell.
+## Test Evidence
 
-## Current Direction
+Current behavior is covered by:
 
-The current evidence points to network-valued expansion as the default recursion
-direction.
+- `test/propagators/recursive_compound_test.clj` for Fibonacci, retained frame
+  accumulation, nested map/reduce, accessor-recursive map, late cdr expansion,
+  and compile DSL wiring.
+- `test/propagators/kernel_io_test.clj` for evaluator IO, reality routes, and
+  lexical ref dispatch.
+- `test/propagators/compound_object_network_slot_test.clj` for accessor route
+  semantics, detached shell snapshots, and subscriber dispatch.
+- `test/propagators/gur_routed_test.clj` for routed GUR and route-owned
+  topology installation.
 
-The default recursion shape should be:
+## Open Problems
+
+- package routed GUR into an ergonomic compile-2 target;
+- decide whether lexical-pointer GUR should be retired or kept only as kernel
+  evidence;
+- define bidirectional nested writer semantics over arbitrary compound shapes;
+- add a dedicated GUR benchmark harness;
+- derive compact route declarations so compile-2 does not emit verbose frame
+  boilerplate.
+
+## Design Details
+
+### Accessor GUR Topology Snapshot
+
+The following drawing was regenerated on `2026-06-14` with the
+`graph.vijual` stress-majorized directed layout from the real late-cdr accessor
+topology used by the regression test. The layout used a wider spacing target
+and longer solve:
+
+```clojure
+{:stress-node-spacing 3.2
+ :stress-iterations 420
+ :stress-refine-iterations 420
+ :routing :shortest-path}
+```
+
+This is the focused continuation slice of the real `net-graph`: unrelated
+first-car and scalar fib internals are omitted, but every shown dependency is
+drawn from the installed topology.
 
 ```text
-recursive request
--> closure/p:apply-network expands declaration network
--> expanded network contains stable named declarations and accessor topology
--> caller runs the expanded topology through the ordinary scheduler
++------------+        +---------------+        +------------+
+| late car=3 | -----> |  terminal cdr | -----> |  late end  |
++------------+        +---------------+        +------------+
+                              |
+                              v
+                       +---------------+
+                       | ready watcher |
+                       +---------------+
+                         |           |
+                         v           v
+                    +--------+   +----------+
+                    | ready? |   | expander |
+                    +--------+   +----------+
+                         |           |
+                         v           v
+                       +----------------+
+                       |   when-apply   |
+                       +----------------+
+                         |            ^
+                         v            |
+                   +-------------+    |
+                   | branch frame | <--+
+                   +-------------+
+                         |
+                         v
+                    +------------+
+                    | GUR runner |
+                    +------------+
+                      |        |
+                      v        v
+             +-------------+  +----------+
+             | mapped root |  | out :cdr |
+             +-------------+  +----------+
+                |       |           ^
+                v       v           |
+        +------------+ +------------+
+        | reader :car0 | reader :car1 |
+        +------------+ +------------+
 ```
 
-Direct recursive activation remains useful as a compatibility and prototyping
-path. It works for Fibonacci and the nested reduce accessor experiment, but it
-interleaves topology expansion with evaluation. In the mixed nested map/vector
-experiment, that interleaving can produce localized contradictions for nested
-vector outputs. Network-valued expansion avoided that failure by declaring the
-complete accessor topology before evaluation.
+### Accessor GUR Solved And Unsolved
 
-## Runtime Invariants
+Solved in the current experiment:
+
+- general frame execution through `reality.in` / `reality.out`;
+- late `cdr` expansion after new `:car` / `:cdr` slots are installed;
+- nested cons cells in `car` positions using recursive accessor topology;
+- synchronization back through the continuation tunnel without changing the
+  kernel or splicing branch declarations into the parent graph.
+
+Still open:
+
+- GUR is proven for the current accessor list/map cases, not yet packaged as
+  the final compile-2 iteration primitive;
+- there is no dedicated GUR benchmark harness yet, so current timings are
+  subsystem-level evidence;
+- arbitrary bidirectional writer semantics over all nested compound shapes need
+  more design;
+- route-list and frame-boilerplate ergonomics still need a derived API before
+  compile-2 should target this directly.
+
+### Runtime Invariants
 
 The experiment keeps these constraints explicit:
 
@@ -117,7 +439,7 @@ The experiment keeps these constraints explicit:
   recursive combine. Direct writes are reserved for evidence seeding and failure
   boundaries such as contradiction or max-depth overflow.
 
-## Why This Fits The Runtime
+### Runtime Fit
 
 Normal propagators return messages, not graph edits. Recursive propagation
 therefore cannot mutate the outer graph during `eval-propagator` without
@@ -137,7 +459,7 @@ outer cells
 This keeps recursive work isolated from the outer scheduler. The recursive
 network can expand and resume because a network is ordinary immutable data.
 
-## Recursive Closure Step
+### Recursive Closure Step
 
 `recursive-closure` wraps a step function. The step receives:
 
@@ -169,7 +491,7 @@ Each recursive activation increments `:recursive/depth` in the closure net. If
 the configured `:max-depth` is reached, the recursive closure writes
 `contradiction` to its output avatars.
 
-## Named Frame Declarations
+### Named Frame Declarations
 
 A recursive frame is named by semantic data, for example:
 
@@ -198,9 +520,9 @@ Status uses separate monotone facts such as `[:status :expanded]` and
 These fragments are normal named networks. Subsumption is checked with
 `named/named-network->=`, and merging is `named/join`.
 
-## Two Accumulation Designs
+### Two Accumulation Designs
 
-### Self-Refining Closure
+#### Self-Refining Closure
 
 `p:self-refining-recursive-compound` treats the closure cell as both input and
 output. Recursive calls update the retained closure net, and closure cell merge
@@ -216,7 +538,7 @@ It is expressive when the closure itself should remember its semantic expansion.
 The cost is that closure values now need a structural merge rule, and the
 closure cell changes as semantic frames accumulate.
 
-### Explicit Accumulator
+#### Explicit Accumulator
 
 `p:accumulating-recursive-compound` keeps the closure stable and sends retained
 frame declarations through a separate named-network accumulator cell.
@@ -231,7 +553,7 @@ This makes dataflow more explicit and keeps closure identity simpler. It is the
 better default for higher-order compound-object operations because map/reduce
 style operators can thread one accumulator through many recursive applications.
 
-### Comparison
+#### Comparison
 
 | Design | Retained state | Merge path | Expressiveness | Main cost |
 | --- | --- | --- | --- | --- |
@@ -243,7 +565,7 @@ The chosen direction for further higher-order work is the explicit accumulator.
 The self-refining closure remains useful as a compact comparison and for cases
 where a closure should intentionally retain its own declaration history.
 
-## Compile DSL Support
+### Compile DSL Support
 
 The default compile installer vocabulary includes:
 
@@ -260,6 +582,8 @@ closure/p:when-network
 recursive/p:recursive-compound
 recursive/p:self-refining-recursive-compound
 recursive/p:accumulating-recursive-compound
+obj/p:nested-recursive-map
+obj/p:accessor-recursive-map
 ```
 
 That lets recursive branch topology be written with the same DSL as other
@@ -288,7 +612,7 @@ recursion: each recursive frame must get fresh `n-1`, `fib-1`, and similar
 scratch cells instead of reusing prior frame bindings from the network dict.
 Plain symbol references outside `let-cell` still resolve through the dict.
 
-## Network-Valued Expansion
+### Network-Valued Expansion
 
 `closure/p:apply-network` applies a closure to a network-valued cell and emits
 the expanded network as a value:
@@ -301,6 +625,135 @@ It is declaration-only:
 
 - It does not run the expanded network.
 - It does not install the expanded network into the outer graph.
+
+`propagators.gur/p:run-frame` is the corresponding evaluation boundary for
+these frame values. A frame records its own propagator ids plus declared
+`reality.in` / `reality.out` ports. The runner injects parent input values into
+the child inbox, invokes the existing evaluator continuation on the child
+network, drains the child outbox, and translates matching outbox records back
+to parent messages. The child frame value can be written back to its frame
+cell, but no branch declarations are spliced into the live outer graph during
+activation.
+
+For accessor-network outputs, GUR also exports source-slot snapshots for slot
+route values that live only inside the child frame. This is what lets a parent
+`p:car` / `p:cdr` reader observe a branch-local mapped car after a late cdr
+frame runs, without installing the branch's internal graph in the parent.
+
+#### GUR Frame Runner Logic
+
+`propagators.gur` is the lexical-frame implementation. It treats a branch frame
+as a network value with declared `reality.in` / `reality.out` ports, then stores
+the updated child frame as both the frame-cell value and a lexical env entry.
+The live parent graph is still not rewritten by the child activation.
+
+The boundary declaration is small: install reality ports inside the frame and
+remember their propagator ids so the runner can wake them.
+
+```clojure
+(defn example-gur-boundary [frame source out]
+  (gur/install-boundary
+   frame
+   {:inputs [[:source source]]
+    :outputs [[:out out] [:source source]]}))
+```
+
+The runner injects parent values, runs the child continuation, translates
+outbox records, and writes the updated frame back through the frame cell.
+
+```clojure
+(defn example-gur-runner [frame-id source out]
+  (gur/p:run-frame
+   frame-id
+   [[:source source source]]
+   [[:out out] [:source source]]))
+```
+
+The accessor-specific part is output externalization. When a child frame emits
+an accessor shell, GUR snapshots live slot values into `source-slots` at the
+boundary so parent readers can inspect a detached branch output.
+
+```clojure
+(defn example-gur-detached-output [parent coll]
+  (obj/externalize-accessor-cell parent coll))
+```
+
+The current `obj/p:accessor-recursive-map` path uses this runner for lazy
+terminal cdr frames: an initially empty tail waits; a later slot update creates
+a branch network; `gur/p:run-frame` evaluates that branch and publishes mapped
+values through declared outputs.
+
+#### Routed GUR Experiment
+
+`propagators.gur-routed` is the parallel 2026-06-15 experiment. It keeps the
+old `d1cce22` route-boundary style: child frames emit ordinary outbox records,
+including a dedicated topology route such as `:topology`. The parent runner
+interprets topology records as declarations and applies parent-side installers
+idempotently. This tests whether GUR can avoid lexical env mutation while still
+accumulating new recursive topology.
+
+The route declaration is just data. The child can emit it through
+`reality/p:reality-out`; the parent decides how to install it.
+
+```clojure
+(defn example-routed-declaration [source out]
+  (gur-routed/topology-declaration
+   [:map source out]
+   :install-accessor-map
+   {:source-id source :out-id out}))
+```
+
+The routed frame runner has the same value IO shape as `gur/p:run-frame`, plus
+one explicit topology channel.
+
+```clojure
+(defn example-routed-runner [frame-id source out]
+  (gur-routed/p:routed-run-frame
+   frame-id
+   [[:source source source]]
+   [[:out out]]
+   :topology))
+```
+
+A topology declaration becomes an idempotent parent-side install. The installed
+declaration id is recorded under `gur-routed/installed-declarations-key`, and
+newly installed propagators are enqueued.
+
+```clojure
+(defn example-routed-frame-install [net frame-id frame]
+  (gur-routed/install-routed-frame
+   net
+   {:frame-id frame-id
+    :frame-net frame
+    :input-routes []
+    :output-routes []}))
+```
+
+The routed accessor map is the comparable user-facing prototype. It walks live
+`p:cons` accessor topology, leaves waiting frames at terminal cdrs, and expands
+the next recursive frame when a later public accessor update installs `:car`
+and `:cdr`.
+
+```clojure
+(defn example-routed-accessor-map [f acc source out]
+  (gur-routed/p:routed-accessor-recursive-map
+   f acc source out))
+```
+
+The important contrast is ownership:
+
+| Path | Child can emit | Parent graph changes during child activation? | State written back |
+| --- | --- | --- | --- |
+| `propagators.gur` | normal outbox values | no branch splicing | frame cell + lexical env table |
+| `propagators.gur-routed` | normal values + topology declarations | only via parent-side installer delivery | frame cell + installed declaration set |
+
+The routed experiment currently passes the focused route tests, prebuilt cons
+map, Fibonacci-style leaf map, late cdr expansion, nested cons-in-car traversal,
+and depth-stable public accessor update probe in
+`propagators.gur-routed-test`.
+
+For all network-valued expansion paths:
+
 - It is intended for declaration closures that add deterministic named-network
   facts or deterministic topology.
 - If the closure creates fresh random ids on every activation, repeated
@@ -318,7 +771,7 @@ frame request + frame-template closure + prior declaration network
 
 That keeps "what topology should exist" separate from "run this topology now."
 
-### Conditional Network Expansion
+#### Conditional Network Expansion
 
 `closure/p:when-network` is the declaration-level conditional counterpart to
 `closure/p:apply-network`:
@@ -351,7 +804,7 @@ The old compile DSL can thread it like other installers:
   (closure/p:when-network ready expander template expanded))
 ```
 
-### Primitive Basis For Derived Reducers
+#### Primitive Basis For Derived Reducers
 
 2026-06-11 update: the recursive compound expansion sketch should not use a
 host-side `compound-shape?` branch, an external `enabled?` cell, or a reducer
@@ -432,7 +885,7 @@ slot cursor + step expander + acc network value
 -> caller later evaluates declared prop ids from the emitted network
 ```
 
-### Linked-list reducer first
+#### Linked-list reducer first
 
 Later on 2026-06-11, the reducer plan was narrowed again: do not use
 `obj/p:slot-cursor` as the first reducer target. Looping through compound slots
@@ -495,7 +948,9 @@ selected continuation to know whether to tail-call the next emitted network or
 return the finished network. Any frame handle used by the trampoline is an
 execution entry point, not semantic branch control.
 
-## Fibonacci Proof
+## Appendix: Detailed Experiment Notes
+
+### Fibonacci Proof
 
 `test/propagators/recursive_compound_test.clj` implements Fibonacci as a
 test-local recursive closure.
@@ -519,7 +974,7 @@ n -- prop/switch(base?) --> out
 If `out` is no longer `the-nothing` after that branch runs, no recursive
 topology is built for that activation.
 
-## Wrapped In A Normal Compound
+### Wrapped In A Normal Compound
 
 The tests also wrap the recursive propagator inside a normal compound closure:
 
@@ -531,7 +986,7 @@ The wrapper installs `recursive/p:recursive-compound` in its own closure body.
 This proves the recursive helper can be used as a one-time recursive compound
 inside the existing runtime compound mechanism.
 
-## Compound Object Experiment
+### Compound Object Experiment
 
 `propagators/datastructures/compound_object/map.clj` adds experimental
 higher-order map installers over compound-object public slots:
@@ -568,6 +1023,11 @@ There are now two map implementations:
   returns `:prop-ids`, and does not run the network. The caller runs the
   returned propagators from the outside. This is the stricter
   declaration/evaluation split.
+- Accessor-recursive list map:
+  `obj/p:accessor-recursive-map` walks live `p:cons` topology. Scalar cars
+  become recursive leaves, cars that already expose `p:car` / `p:cdr` topology
+  become nested accessor maps, cdrs continue the list traversal, and terminal
+  cdrs install a lazy GUR frame runner for later slot installation.
 
 The test input:
 
@@ -618,7 +1078,7 @@ A public recursive reducer installer is still future work; it should reuse the
 same accessor/accumulator pattern rather than introduce a separate recursion
 data structure.
 
-## Existing Reducer Cell
+### Existing Reducer Cell
 
 `obj/p:reduce` is already a useful compound-object reducer:
 
@@ -657,7 +1117,7 @@ That proves the reducer can be reused as a building block for nested reduction,
 but a public propagator-native nested reducer still needs explicit traversal
 topology or bounded iteration.
 
-## Benchmark Snapshot
+### Benchmark Snapshot
 
 Local benchmark on 2026-06-09, source:
 
@@ -685,7 +1145,7 @@ network evaluation. The two declared accumulation styles are close on this small
 input because both share the same leaf topology and deterministic frame
 fragments.
 
-## Four Approach Assessment
+### Four Approach Assessment
 
 | Approach | Performance | Expressiveness | Conciseness | Practicality | Robustness |
 | --- | --- | --- | --- | --- | --- |
@@ -715,7 +1175,7 @@ Evidence:
 - Bounded iteration is not implemented yet, so its performance entry is a design
   expectation, not a measured result.
 
-## Bounded Iteration Direction
+### Bounded Iteration Direction
 
 Bounded iteration is the TCO-inspired path for cheap linear recursion:
 
@@ -736,7 +1196,7 @@ loop is a fixed graph of `max-steps` copies, so it avoids recursive runtime
 expansion and keeps intermediate execution cells collectable when the loop
 network is not retained.
 
-## Current Limits
+### Current Limits
 
 - V1 is concrete-input only; it does not implement relational Fibonacci or
   backward propagation from output to input.
@@ -760,7 +1220,7 @@ network is not retained.
 - `obj/p:reduce` is shallow; nested reduction currently requires explicit
   composition of repeated shallow reducers.
 
-## Nested Object Recursion: Why Network Accumulation Became Default
+### Nested Object Recursion: Why Network Accumulation Became Default
 
 Experiment date: 2026-06-10
 
@@ -799,7 +1259,7 @@ Conclusion used for direction:
   nested object semantics.
 - Bounded iteration is a design direction and has no public implementation yet.
 
-## Current Tests
+### Historical Test Inventory
 
 `test/propagators/recursive_compound_test.clj` covers:
 
@@ -834,7 +1294,7 @@ Conclusion used for direction:
 - accessor-built nested slot updates propagating from `:second/:value` back to
   the top object
 
-## Chronological Experiment Log
+## Appendix: Chronological Experiment Log
 
 Total executed recursion experiments: `6`
 
@@ -949,7 +1409,7 @@ recursive traversal.
 Benchmark: averaged `3.15 ms/run` on
 `{:a 1 :nested {:b 2 :c [3 4]}}`.
 
-## Four Strategy Propagation Graphs
+## Appendix: Four Strategy Propagation Graphs
 
 These diagrams are generated from the real outer propagation networks installed
 by each strategy. They show the runtime contract each strategy exposes to the
@@ -1051,7 +1511,7 @@ Declaration-first network accumulation:
 Assumption represented: a closure-valued expander and a template network are
 inputs; the output is a larger network value that is evaluated separately.
 
-## Network Graph Snapshots
+## Appendix: Network Graph Snapshots
 
 These ASCII graphs were generated with `graph.vijual` from real network values,
 not hand-simulated sketches.
@@ -1117,7 +1577,7 @@ contains paired-looking wiring rather than a single semantic arrow per slot.
 +---------+      +---------+    +------+
 ```
 
-## Complete Raw Runtime Networks
+## Appendix: Complete Raw Runtime Networks
 
 The diagrams below are complete `net-graph` renderings from actual runtime
 network values. They are intentionally noisier than the semantic diagrams above.
@@ -1432,7 +1892,7 @@ Complete runtime topology for explicit-accumulator nested HOP over `{:x [2]}`:
           +---------+         +---+           +---+                                    
 ```
 
-## Final Conclusion
+## Appendix: Historical Conclusion Before Routed GUR
 
 The executed evidence supports three decisions.
 
@@ -1450,7 +1910,7 @@ case: direct nested recursion remained fast enough but failed semantically on
 accumulation stayed correct with only modest end-to-end cost. That is the main
 reason recursive network accumulation is now the preferred default.
 
-## Correction: nested accessor dispatch boundary
+## Appendix: Nested Accessor Dispatch Boundary Correction
 
 2026-06-11 clarification: the evidence above should not be read as proof that
 general unbounded recursion over nested compound data already works by letting a
@@ -1512,7 +1972,7 @@ Until that exists, the safe framing is narrower:
 - do not claim general nested compound recursion through inner accessor
   dispatch yet.
 
-## Follow-up: Demand-driven accessor topology
+## Appendix: Demand-Driven Accessor Topology
 
 The next compound-object experiment separates structure from slot values more
 strictly. The current `p:slot` representation keeps durable slot cells inside
@@ -1610,7 +2070,7 @@ rewrite the collection cell. The optimized version seeds only the activated
 accessor route and projects changed avatars by comparison instead of installing
 activation-local taps.
 
-## Follow-up: Accessor-first subsystem migration
+## Appendix: Accessor-First Subsystem Migration
 
 On `2026-06-10`, the live compound subsystems were migrated to treat
 `obj/p:slot` as the default network-slot accessor declaration:
