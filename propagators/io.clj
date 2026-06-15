@@ -216,6 +216,45 @@
     (update-io n update :inbox
                #(vec (remove records* %)))))
 
+(defn- normalize-topology-installer-result
+  [result]
+  (cond
+    (and (map? result) (contains? result :net))
+    {:net (:net result)
+     :prop-ids (vec (:prop-ids result))}
+
+    (and (vector? result)
+         (= 2 (count result))
+         (net/network? (second result)))
+    {:net (second result)
+     :prop-ids [(first result)]}
+
+    (net/network? result)
+    {:net result
+     :prop-ids []}
+
+    :else
+    (throw (ex-info "topology installer returned unsupported result"
+                    {:result result}))))
+
+(defn- apply-topology-installer
+  [n {:keys [id installed-key installer]}]
+  (when-not (ifn? installer)
+    (throw (ex-info "topology installer payload must include an installer fn"
+                    {:id id :installed-key installed-key})))
+  (let [installed (when installed-key
+                    (or (net/network-dict-entry n installed-key) #{}))]
+    (if (and installed-key (contains? installed id))
+      n
+      (let [{n' :net prop-ids :prop-ids}
+            (normalize-topology-installer-result (installer n))
+            n'' (if installed-key
+                  (net/update-net-dict-entry n'
+                                             installed-key
+                                             #(conj (or % #{}) id))
+                  n')]
+        (enqueue-deliveries n'' (map prop-delivery prop-ids))))))
+
 (defn apply-io-delivery
   [n op payload]
   (case op
@@ -233,6 +272,9 @@
 
     :drain-inbox-records
     (drain-inbox-records n payload)
+
+    :apply-topology-installer
+    (apply-topology-installer n payload)
 
     :assoc-lexical-env
     (let [[scope child-net] payload]

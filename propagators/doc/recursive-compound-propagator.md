@@ -7,7 +7,10 @@ Source files:
 - `propagators/datastructures/compound_object/map.clj`
 - `propagators/datastructures/compound_object/reduce.clj`
 - `propagators/datastructures/reducer_subnet.clj`
+- `propagators/gur.clj`
+- `propagators/gur_routed.clj`
 - `test/propagators/recursive_compound_test.clj`
+- `test/propagators/gur_routed_test.clj`
 
 ## Status
 
@@ -57,6 +60,9 @@ The experiment on 2026-06-09 added retained semantic frame declarations:
 (obj/p:map-slots-with-recursive-accumulator closure-id acc-id source-id out-id)
 (obj/p:nested-recursive-map closure-id acc-id source-id out-id)
 (obj/p:accessor-recursive-map closure-id acc-id source-id out-id)
+(gur/p:run-frame frame-net-id input-routes output-routes)
+(gur-routed/p:routed-run-frame frame-net-id input-routes output-routes :topology)
+(gur-routed/p:routed-accessor-recursive-map closure-id acc-id source-id out-id)
 (obj/p:reduce source-id merge-net-id init-id out-id)
 
 (obj/install-declared-nested-recursive-map-with-closure
@@ -479,6 +485,121 @@ For accessor-network outputs, GUR also exports source-slot snapshots for slot
 route values that live only inside the child frame. This is what lets a parent
 `p:car` / `p:cdr` reader observe a branch-local mapped car after a late cdr
 frame runs, without installing the branch's internal graph in the parent.
+
+### GUR Frame Runner Logic
+
+`propagators.gur` is the lexical-frame implementation. It treats a branch frame
+as a network value with declared `reality.in` / `reality.out` ports, then stores
+the updated child frame as both the frame-cell value and a lexical env entry.
+The live parent graph is still not rewritten by the child activation.
+
+The boundary declaration is small: install reality ports inside the frame and
+remember their propagator ids so the runner can wake them.
+
+```clojure
+(defn example-gur-boundary [frame source out]
+  (gur/install-boundary
+   frame
+   {:inputs [[:source source]]
+    :outputs [[:out out] [:source source]]}))
+```
+
+The runner injects parent values, runs the child continuation, translates
+outbox records, and writes the updated frame back through the frame cell.
+
+```clojure
+(defn example-gur-runner [frame-id source out]
+  (gur/p:run-frame
+   frame-id
+   [[:source source source]]
+   [[:out out] [:source source]]))
+```
+
+The accessor-specific part is output externalization. When a child frame emits
+an accessor shell, GUR snapshots live slot values into `source-slots` at the
+boundary so parent readers can inspect a detached branch output.
+
+```clojure
+(defn example-gur-detached-output [parent coll]
+  (obj/externalize-accessor-cell parent coll))
+```
+
+The current `obj/p:accessor-recursive-map` path uses this runner for lazy
+terminal cdr frames: an initially empty tail waits; a later slot update creates
+a branch network; `gur/p:run-frame` evaluates that branch and publishes mapped
+values through declared outputs.
+
+### Routed GUR Experiment
+
+`propagators.gur-routed` is the parallel 2026-06-15 experiment. It keeps the
+old `d1cce22` route-boundary style: child frames emit ordinary outbox records,
+including a dedicated topology route such as `:topology`. The parent runner
+interprets topology records as declarations and applies parent-side installers
+idempotently. This tests whether GUR can avoid lexical env mutation while still
+accumulating new recursive topology.
+
+The route declaration is just data. The child can emit it through
+`reality/p:reality-out`; the parent decides how to install it.
+
+```clojure
+(defn example-routed-declaration [source out]
+  (gur-routed/topology-declaration
+   [:map source out]
+   :install-accessor-map
+   {:source-id source :out-id out}))
+```
+
+The routed frame runner has the same value IO shape as `gur/p:run-frame`, plus
+one explicit topology channel.
+
+```clojure
+(defn example-routed-runner [frame-id source out]
+  (gur-routed/p:routed-run-frame
+   frame-id
+   [[:source source source]]
+   [[:out out]]
+   :topology))
+```
+
+A topology declaration becomes an idempotent parent-side install. The installed
+declaration id is recorded under `gur-routed/installed-declarations-key`, and
+newly installed propagators are enqueued.
+
+```clojure
+(defn example-routed-frame-install [net frame-id frame]
+  (gur-routed/install-routed-frame
+   net
+   {:frame-id frame-id
+    :frame-net frame
+    :input-routes []
+    :output-routes []}))
+```
+
+The routed accessor map is the comparable user-facing prototype. It walks live
+`p:cons` accessor topology, leaves waiting frames at terminal cdrs, and expands
+the next recursive frame when a later public accessor update installs `:car`
+and `:cdr`.
+
+```clojure
+(defn example-routed-accessor-map [f acc source out]
+  (gur-routed/p:routed-accessor-recursive-map
+   f acc source out))
+```
+
+The important contrast is ownership:
+
+| Path | Child can emit | Parent graph changes during child activation? | State written back |
+| --- | --- | --- | --- |
+| `propagators.gur` | normal outbox values | no branch splicing | frame cell + lexical env table |
+| `propagators.gur-routed` | normal values + topology declarations | only via parent-side installer delivery | frame cell + installed declaration set |
+
+The routed experiment currently passes the focused route tests, prebuilt cons
+map, Fibonacci-style leaf map, late cdr expansion, nested cons-in-car traversal,
+and depth-stable public accessor update probe in
+`propagators.gur-routed-test`.
+
+For all network-valued expansion paths:
+
 - It is intended for declaration closures that add deterministic named-network
   facts or deterministic topology.
 - If the closure creates fresh random ids on every activation, repeated
