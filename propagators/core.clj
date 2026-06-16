@@ -9,12 +9,19 @@
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
+(defn- maybe-register-subenv
+  [n id strongest]
+  (let [register (requiring-resolve 'propagators.gur.subenv/maybe-register-subenv)]
+    (register n id strongest)))
+
 (defn eval-cell [id msg n]
   (let [old (net/env-get (net/net-env n) id)
         old-strongest (merge/strongest-value old n)
         content' (merge/cell-merge (cell/cell-content old) (message-value msg) n)
         strongest' (merge/strongest-value content' n)
-        n' (net/assoc-net-cell n id (cell/cell content' strongest'))
+        n' (-> n
+               (net/assoc-net-cell id (cell/cell content' strongest'))
+               (maybe-register-subenv id strongest'))
         node (graph/get-node (net/net-graph n') id)
         next-tasks (tq/enqueue-all tq/empty-queue (graph/node-output-ids node))]
     (if (merge/cell-updated? strongest' old-strongest n)
@@ -24,6 +31,16 @@
         [next-tasks n'])
       [tq/empty-queue n])))
 
+(defn eval-cell*
+  "Evaluate `msg`, routing lexical sub-env refs through the current network dict.
+
+  For ordinary node ids this delegates to `eval-cell`. For sub-env dispatch keys
+  the owner network-valued cell is the only parent cell evaluated.
+  "
+  [directory msg n]
+  (let [dispatch-eval (requiring-resolve 'propagators.gur.subenv/eval-cell*)]
+    (dispatch-eval directory msg n)))
+
 (defn eval-cells [messages n]
   (loop [ms messages
          tasks tq/empty-queue
@@ -31,7 +48,7 @@
     (if (empty? ms)
       [tasks n']
       (let [msg (first ms)
-            [poped new-n] (eval-cell (message-id msg) msg n')]
+            [poped new-n] (eval-cell* (net/net-dict-or-empty n') msg n')]
         (recur (rest ms) (tq/merge-queues tasks poped) new-n)))))
 
 (defn eval-propagator [current-id tasks n]

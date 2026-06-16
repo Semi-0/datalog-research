@@ -9,18 +9,21 @@ Source files:
 - `propagators/datastructures/reducer_subnet.clj`
 - `propagators/gur.clj`
 - `propagators/gur_routed.clj`
+- `propagators/gur/subenv.clj`
 - `test/propagators/recursive_compound_test.clj`
 - `test/propagators/gur_routed_test.clj`
+- `test/propagators/gur_subenv_test.clj`
 
 ## Current Conclusion
 
-The current direction is **network accumulation through accessor topology**.
-Recursive work should declare network topology first, then let the ordinary
-scheduler evaluate that topology. Direct recursive activation remains as a
-compatibility path, but it is not the preferred model for general nested
+The current direction is **network accumulation through accessor topology**,
+with lexical sub-env dispatch used as a general routing substrate. Recursive
+work should declare or accumulate ordinary network topology, then let the
+ordinary scheduler evaluate that topology. Direct recursive activation remains
+as a compatibility path, but it is not the preferred model for general nested
 compound objects.
 
-The strongest current result is the routed GUR experiment:
+The strongest previous ownership result is the routed GUR experiment:
 
 ```text
 child frame discovers next recursive topology
@@ -29,9 +32,22 @@ child frame discovers next recursive topology
 -> ordinary propagation evaluates the installed topology
 ```
 
-That split is cleaner than making lexical envs own recursive topology. The
-kernel supplies queue/IO/continuation primitives; compound data supplies live
-accessor routes; GUR supplies a frame protocol and topology declarations.
+The newer lexical sub-env GUR experiment keeps that ownership split, but moves
+the routing into a generalized parent dict model:
+
+```text
+parent scoped message
+-> parent dict resolves owner network cell
+-> eval-cell* seeds a child-local message
+-> only the owner cell is evaluated in the parent network
+-> contextual apply/recur propagators advance recursion inside the child env
+-> child-to-parent compound outputs return through diff-internal-output-cells
+```
+
+This is not yet a compile-2 target or a source DSL. It is a working experiment
+that validates the proposal's dispatch shape, contextual apply/recur
+accumulation, Fibonacci, flat compound recursion, and nested bidirectional
+compound recursion over cons-style objects.
 
 ## Core Concepts
 
@@ -56,13 +72,21 @@ accessor routes; GUR supplies a frame protocol and topology declarations.
 - **Topology ownership**:
   a child frame may report discovered topology, but the live parent network
   owns whether and how that topology is installed.
+- **Lexical sub-env dispatch**:
+  a parent network dict may resolve scoped names or local ids to the owner cell
+  whose strongest value is a child named network. `eval-cell*` only routes the
+  message to that owner; it does not own recursive expansion.
+- **Contextual apply/recur**:
+  recursive expansion is done by propagators watching the owner child network.
+  The closure receives contextual `apply` and `recur` functions that accumulate
+  applied frames into the inner network.
 
 ## Kernel Extension
 
 The kernel extension is deliberately small. It does not teach the scheduler
 about recursion, compound objects, or GUR.
 
-The committed kernel substrate:
+The kernel substrate now includes:
 
 - `d1cce22 Add IO continuation kernel experiment` added evaluator IO state,
   `runtime/*continue*`, `reality/p:reality-in`, `reality/p:reality-out`, and
@@ -72,6 +96,10 @@ The committed kernel substrate:
 - `cca0b94 Add routed GUR experiment` added `:apply-topology-installer`, an
   idempotent IO delivery that applies a parent-side topology installer and
   enqueues the installed propagators.
+- The current lexical sub-env GUR experiment adds `core/eval-cell*` as the
+  kernel routing hook. The hook delegates the experimental dispatch cases to
+  `propagators.gur.subenv`, so the core scheduler still does not know
+  recursion semantics.
 
 The IO route shape is:
 
@@ -101,7 +129,8 @@ The routed installer delivery keeps ownership explicit:
 | Declared accessor recursive map | Nested compound traversal can be represented by accessor routes. | `obj/p:accessor-recursive-map` over visible `p:cons` topology. | Works when topology is visible up front. | Keep as accessor baseline. |
 | Lexical-pointer GUR | Dynamic frames can be addressed through lexical env refs. | `io/name-ref` / `io/cell-ref` into stored child envs. | Works for dispatch, but topology ownership leaks into lexical scope. | Investigate only; not preferred. |
 | Accessor GUR | Lazy terminal cdr expansion can run as child frame values. | `gur/p:run-frame` plus branch network values and accessor snapshots. | Works for current cases, but needs snapshots/subscribers/lexical env coupling. | Keep as comparison. |
-| Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Preferred GUR direction. |
+| Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Best previous ownership baseline. |
+| Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, parent dict vector keys, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat/nested map-list, and bidirectional late nested cdr through diff output. | Current proposal validation; continue, but not compile target yet. |
 
 ## Experiments
 
@@ -296,7 +325,122 @@ updates.
 
 Limit: still experimental and not yet the compile-2 target API.
 
-Decision: preferred direction for GUR.
+Decision: previous preferred direction and current comparison baseline for
+ownership boundaries.
+
+### Experiment H: Lexical Sub-Env GUR In `propagators.gur.subenv`
+
+Hypothesis: routed GUR's owner/child split can be lifted into a generalized
+lexical sub-env dispatch model. `eval-cell*` should route a parent message into
+the named-network cell that owns the child env, but recursion should still be
+advanced by contextual `apply` / `recur` propagators watching that owner cell.
+
+Mechanism: when a normal parent cell merge makes a cell's strongest value a
+named network with `[:env/scope]`, the parent dict registers the child scope
+and its lexical bindings with plain vector keys:
+
+```clojure
+[:env/scope scope]             ;; parent dict -> owner cell id
+[:env/ref scope name]          ;; parent dict -> [:dispatch/subenv owner local]
+[:env/cell-ref scope local]    ;; parent dict -> [:dispatch/subenv owner local]
+[:env/bind name]               ;; child dict -> local cell id
+[:gur/applied frame-key]       ;; child dict -> idempotence guard
+```
+
+Nested child scopes are lifted as `[:dispatch/subenv-ref owner target]`, so a
+parent-visible message can be routed through the owning child network and then
+resolved again by the child dict. The important constraint is that the parent
+still evaluates only the owner network cell.
+
+```clojure
+(defn eval-cell* [directory msg parent-net]
+  (match (lookup directory (message-id msg))
+    [:dispatch/local cell-id]
+    (eval-cell cell-id (message cell-id (message-value msg)) parent-net)
+
+    [:dispatch/subenv owner-id local-id]
+    (let [child-net  (strongest parent-net owner-id)
+          child-msg  (message local-id (message-value msg))
+          child-net' (eval-child-local child-net child-msg)
+          tasks      (queued-child-props child-net')]
+      (eval-cell owner-id
+                 (message owner-id (queue-child-props child-net' tasks))
+                 parent-net))
+
+    [:dispatch/subenv-ref owner-id target-id]
+    (let [child-net  (strongest parent-net owner-id)
+          child-msg  (message target-id (message-value msg))
+          child-net' (eval-cell* (net-dict child-net) child-msg child-net)
+          tasks      (queued-child-props child-net')]
+      (eval-cell owner-id
+                 (message owner-id (queue-child-props child-net' tasks))
+                 parent-net))))
+```
+
+Child-to-parent compound output deliberately does not use lexical dispatch.
+Child-local accessors write to child-local output cells. The owner-cell watcher
+runs the queued child propagators and projects selected outputs with the
+existing diff path:
+
+```clojure
+(defn p:run-subenv-frame [owner-id external-output-ids]
+  (construct-propagator
+   (fn [_inputs _outputs parent-net]
+     (let [child0 (network-cell-strongest parent-net owner-id)
+           child1 (run-child-queue child0)
+           output-msgs
+           (diff/diff-internal-output-cells
+            child1
+            parent-net
+            external-output-ids)]
+       (conj output-msgs
+             (message owner-id (clear-child-queue child1)))))
+   [owner-id]
+   (into [owner-id] external-output-ids)))
+```
+
+Contextual recursion is represented as ordinary propagators. The implemented
+`def-recursive` is a runtime constructor function, not a source-level macro. It
+passes contextual `apply` and `recur` functions into the closure; applying a
+closure extends and accumulates the child network with an applied-frame fact.
+
+```clojure
+(defn apply-closure [closure args inner-net]
+  (when (and (ready? args)
+             (not (applied? inner-net closure args)))
+    (let [frame-net ((:body closure)
+                     {:apply contextual-apply
+                      :recur  contextual-recur
+                      :args   args})]
+      (-> inner-net
+          (merge-frame frame-net)
+          (mark-applied closure args)))))
+```
+
+Evidence: `propagators.gur-subenv-test` covers:
+
+- owner-only `eval-cell*` routing, proving the parent local/avatar cell is not
+  evaluated directly;
+- registration of `[:env/scope]`, `[:env/ref]`, and `[:env/cell-ref]` after a
+  named child network is merged into an owner cell;
+- child-to-parent output through `diff/diff-internal-output-cells`;
+- Fibonacci values `0`, `1`, `5`, and `8`, with applied closure facts retained
+  in the child network;
+- `map-list` over `[0 1 2 3 4 5]`, mapping Fibonacci to `[0 1 1 2 3 5]`;
+- nested cons-style compound recursion over `[[0 1] 2 [3 [4 5]]]`;
+- bidirectional nested dispatch where a late nested `cdr` delivery is routed
+  into the owning child env, and the updated compound output returns only by
+  the diff-cell path.
+
+Limit: this is not a compiler target, not the exact source syntax sketched for
+`def-recursive`, and not a general nested map/vector writer. It does not
+redesign `p:slot` or the existing nested `p:car` / `p:cdr` accessor behavior.
+The kernel hook currently delegates to the experiment namespace rather than
+moving every dispatch case into `propagators.core`.
+
+Decision: continue this as the current generalized GUR proposal validation. It
+does not replace the routed ownership lesson; it lifts that lesson into the
+lexical sub-env dispatch model.
 
 ## Current APIs
 
@@ -309,6 +453,10 @@ Decision: preferred direction for GUR.
 (gur/p:run-frame frame-net-id input-routes output-routes)
 (gur-routed/p:routed-run-frame frame-net-id input-routes output-routes :topology)
 (gur-routed/p:routed-accessor-recursive-map closure-id acc-id source-id out-id)
+(core/eval-cell* directory msg network)
+(gur-subenv/def-recursive name closure)
+(gur-subenv/p:apply-closure closure-id arg-ids out-id)
+(gur-subenv/p:run-subenv-frame owner-id external-output-ids)
 ```
 
 ## Test Evidence
@@ -324,13 +472,18 @@ Current behavior is covered by:
   semantics, detached shell snapshots, and subscriber dispatch.
 - `test/propagators/gur_routed_test.clj` for routed GUR and route-owned
   topology installation.
+- `test/propagators/gur_subenv_test.clj` for lexical sub-env GUR dispatch,
+  contextual apply/recur, Fibonacci, nested compound recursion, and
+  bidirectional late nested cdr delivery through the diff path.
 
 ## Open Problems
 
-- package routed GUR into an ergonomic compile-2 target;
-- decide whether lexical-pointer GUR should be retired or kept only as kernel
-  evidence;
-- define bidirectional nested writer semantics over arbitrary compound shapes;
+- decide how routed GUR and lexical sub-env GUR should relate in the final
+  compile-2 target;
+- promote `def-recursive` from a runtime constructor experiment into source
+  syntax or compile output, if the model holds;
+- define bidirectional nested writer semantics over arbitrary compound shapes,
+  beyond the current cons-style compound/list tests;
 - add a dedicated GUR benchmark harness;
 - derive compact route declarations so compile-2 does not emit verbose frame
   boilerplate.
@@ -751,6 +904,39 @@ The routed experiment currently passes the focused route tests, prebuilt cons
 map, Fibonacci-style leaf map, late cdr expansion, nested cons-in-car traversal,
 and depth-stable public accessor update probe in
 `propagators.gur-routed-test`.
+
+#### Lexical Sub-Env GUR Experiment
+
+`propagators.gur.subenv` is the newer generalized-subenv experiment. It keeps
+the owner-cell rule from routed GUR: a parent-scoped message never evaluates a
+child avatar as if it were a parent cell. Instead, the parent dict resolves the
+message target to the owner cell, the child network receives the local message,
+and the parent evaluates only that owner cell with the updated child network.
+
+The registration boundary is a normal cell merge. When the owner cell's
+strongest value is a named network with `[:env/scope]`, the parent dict is
+extended with the child scope, child name refs, child local refs, and lifted
+nested refs. This is why the child env is registered at the merge boundary
+rather than when a local accessor is read.
+
+The output boundary is intentionally not symmetric. Parent-to-child messages use
+lexical sub-env dispatch. Child-to-parent compound outputs use
+`diff/diff-internal-output-cells`, so inner accessors do not route "up" through
+lexical dispatch. This preserves the existing nested `p:car` / `p:cdr` behavior
+and confines the new bidirectional recursion logic to the frame boundary.
+
+The current tests validate both scalar and compound recursion:
+
+- Fibonacci uses composed propagators for `n - 1`, `n - 2`, recursive calls, and
+  the final sum.
+- `map-list` maps Fibonacci over flat and nested cons-style compound data.
+- A late nested `cdr` update can be routed through a parent-visible lifted
+  sub-env ref and then projected back to the parent output by the diff path.
+
+The experiment is deliberately still below the final language surface. It has
+the dispatch substrate, frame watcher, contextual apply/recur, and idempotent
+applied-frame accumulation. It does not yet have the exact `def-recursive`
+source syntax, arbitrary nested map/vector writers, or compile-2 lowering.
 
 For all network-valued expansion paths:
 
@@ -1296,7 +1482,7 @@ Conclusion used for direction:
 
 ## Appendix: Chronological Experiment Log
 
-Total executed recursion experiments: `6`
+Total executed recursion experiments described here: `9`
 
 Separate from that total:
 
@@ -1305,14 +1491,15 @@ Separate from that total:
 - `1` bounded-iteration follow-up exists only as a design direction and was not
   executed or benchmarked.
 
-Benchmark method for the entries below:
+Benchmark method for the benchmarked entries below:
 
-- measured locally on `2026-06-10`
+- entries `1` through `6` were measured locally on `2026-06-10`
 - warmed up twice, then timed for `8` end-to-end runs
 - Fibonacci timings use `fib(10)`
 - map benchmarks use `{:left [0 1 2 3 4] :right {:a 5 :b [6 7]}}`
 - nested stress benchmarks use
   `{:left [0 1 2] :right {:a 3 :b [4 5] :empty []}}`
+- later experiments record test evidence but do not yet have benchmark numbers
 
 1. `2026-06-04` Plain direct recursive activation.
    Assumption: recursion can expand and run an activation-local inner network,
@@ -1399,6 +1586,21 @@ Benchmark method for the entries below:
    Boundary: trampoline continuation records may be compound-object data, but
    they are execution entry handles only. Branch semantics stay in propagator
    gates.
+
+9. `2026-06-17` Lexical sub-env GUR with contextual apply/recur.
+   Assumption: routed GUR's owner/child split can be generalized as parent dict
+   dispatch into named child networks. `eval-cell*` should seed child-local
+   messages and evaluate only the owner cell, while recursive expansion is
+   owned by contextual `apply` / `recur` propagators inside the child network.
+   Outcome: the experiment adds kernel-level `eval-cell*` routing, sub-env
+   registration at owner-cell merge time, owner-cell frame watchers,
+   idempotent applied-frame accumulation, Fibonacci, flat `map-list`, nested
+   cons-style compound recursion, and a bidirectional late nested `cdr` test
+   where parent-to-child dispatch uses lifted lexical refs and child-to-parent
+   output returns through `diff/diff-internal-output-cells`.
+   Boundary: this is not compile-2 lowering, not the final `def-recursive`
+   source syntax, not arbitrary nested map/vector writer semantics, and not a
+   redesign of existing nested `p:car` / `p:cdr` accessor behavior.
 
 Auxiliary comparison: repeated shallow reducer composition.
 Assumption: nested reduction can be approximated by explicitly composing several
