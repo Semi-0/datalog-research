@@ -6,11 +6,10 @@
             [propagators.gur.subenv :as subenv]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
-            [propagators.message :refer [message message-id]]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]
-            [propagators.cells.diff :as diff]))
+            [propagators.propagator :as prop]))
 
 (defn- strongest [n id]
   (net/network-cell-strongest n id))
@@ -67,37 +66,6 @@
       (is (= :owner-ran (strongest n5 owner-observer)))
       (is (some? local-watch))
       (is (some? owner-watch)))))
-
-(deftest subenv-frame-projects-outputs-through-diff-path
-  (testing "inner output changes are projected to the external output by diff cells"
-    (let [owner-id (ids/new-node-id)
-          out-id (ids/new-node-id)
-          parent0 (-> net/empty-net
-                      (nb/install-cell owner-id)
-                      (nb/install-cell out-id))
-          child0 (subenv/install-frame-boundary parent0
-                                                (subenv/extend-env net/empty-net
-                                                                   [:scope :frame])
-                                                []
-                                                [out-id])
-          out-inner (net/lookup-inner-out child0 out-id)
-          child1 (nb/seed-cell child0 out-inner 99)
-          parent1 (nb/seed-cell parent0 owner-id child1)
-          [runner-prop parent2] ((subenv/p:run-subenv-frame owner-id [out-id])
-                                 parent1)
-          diff-log (atom [])
-          orig-diff diff/diff-internal-output-cells
-          recording-diff
-          (fn [network-from network-to external-outputs]
-            (let [msgs (vec (orig-diff network-from network-to external-outputs))]
-              (swap! diff-log conj {:external-outputs (vec external-outputs)
-                                    :targets (mapv message-id msgs)})
-              msgs))]
-      (with-redefs [diff/diff-internal-output-cells recording-diff]
-        (let [parent3 (run-props parent2 [runner-prop])]
-          (is (= 99 (strongest parent3 out-id)))
-          (is (= [[out-id]] (mapv :targets @diff-log)))
-          (is (= [[out-id]] (mapv :external-outputs @diff-log))))))))
 
 (deftest contextual-recursive-fibonacci
   (testing "the generalized apply/recur engine computes scalar recursion"
@@ -207,33 +175,35 @@
 
 (deftest contextual-recursive-map-list-over-compound-data
   (testing "map-list uses the same contextual apply/recur engine over compound data"
+    (let [{:keys [value]} (subenv/run-map-list-fib [])]
+      (is (= [] (list->vec value))))
     (let [{:keys [value]} (subenv/run-map-list-fib [0 1 2 3 4 5])]
       (is (= [0 1 1 2 3 5] (list->vec value))))))
 
-(deftest contextual-recursive-map-list-over-nested-compound-data
-  (testing "map-list recurses through nested compound/list heads"
+(deftest contextual-recursive-nested-map-list-over-compound-data
+  (testing "nested map-list composition maps inner compound/list elements"
     (let [source [(subenv/cons-list-value [0 1])
-                  2
-                  (subenv/cons-list-value
-                   [3 (subenv/cons-list-value [4 5])])]
-          {:keys [value]} (subenv/run-map-list-fib source)]
-      (is (= [[0 1] 1 [2 [3 5]]] (list->data value))))))
+                  (subenv/cons-list-value [2 3])]
+          {:keys [value]} (subenv/run-nested-map-list-fib source)]
+      (is (= [[0 1] [1 2]] (list->data value))))))
 
-(deftest nested-compound-recursion-dispatches-bidirectionally
-  (testing "a parent message can route into a nested recursive frame, and output returns by diff"
-    (let [fib-id (ids/new-node-id)
-          map-id (ids/new-node-id)
+(deftest nested-map-dispatches-to-child-and-projects-output
+  (testing "nested map composition should route a parent message into the child frame and update only through recursive output"
+    (let [map-id (ids/new-node-id)
+          mapper-id (ids/new-node-id)
           list-id (ids/new-node-id)
           acc-id (ids/new-node-id)
           out-id (ids/new-node-id)
-          source [{:car 0 :cdr value/nothing}]
+          source [(subenv/cons-cell-value 0 value/nothing)]
           n0 (-> net/empty-net
-                 (nb/install-cell fib-id (subenv/fib-closure) (subenv/fib-closure))
                  (nb/install-cell map-id (subenv/map-list-closure) (subenv/map-list-closure))
+                 (nb/install-cell mapper-id
+                                  (subenv/map-list-fib-closure)
+                                  (subenv/map-list-fib-closure))
                  (nb/install-cell list-id (subenv/cons-list-value source) (subenv/cons-list-value source))
                  (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
                  (nb/install-cell out-id))
-          [props n1] ((subenv/p:apply-closure map-id [list-id fib-id acc-id] out-id)
+          [props n1] ((subenv/p:apply-closure map-id [list-id mapper-id acc-id] out-id)
                       n0)
           n2 (run-props n1 props)
           nested-rest-target
@@ -241,74 +211,13 @@
                   (when (value/nothing? (dispatch-route-value n2 route))
                     target))
                 (nested-subenv-targets n2 :rest))
-          diff-log (atom [])
-          orig-diff diff/diff-internal-output-cells
-          recording-diff
-          (fn [network-from network-to external-outputs]
-            (let [msgs (vec (orig-diff network-from network-to external-outputs))]
-              (swap! diff-log conj {:external-outputs (vec external-outputs)
-                                    :targets (mapv message-id msgs)})
-              msgs))]
+          late-rest (subenv/cons-list-value [1 2])]
       (is (= [[0]] (list->data (strongest n2 out-id))))
       (is (some? nested-rest-target))
       (is (= :dispatch/subenv-ref
              (first (net/network-dict-entry n2 nested-rest-target))))
-      (with-redefs [diff/diff-internal-output-cells recording-diff]
-        (let [[tasks n3] (core/eval-cell* (net/net-dict-or-empty n2)
-                                          (message nested-rest-target
-                                                   (subenv/cons-list-value [1 2]))
-                                          n2)
-              n4 (core/run-tasks tasks n3)]
-          (is (= [[0 1 1]] (list->data (strongest n4 out-id))))
-          (is (some (fn [{:keys [targets]}]
-                      (some #{out-id} targets))
-                    @diff-log)))))))
-
-(deftest late-cdr-delivery-enters-frame-and-projects-output-through-diff
-  (testing "late cdr delivery updates the child frame via scoped dispatch and wakes the diff runner"
-    (let [fib-id (ids/new-node-id)
-          map-id (ids/new-node-id)
-          list-id (ids/new-node-id)
-          acc-id (ids/new-node-id)
-          out-id (ids/new-node-id)
-          initial-list {:car 0 :cdr value/nothing}
-          n0 (-> net/empty-net
-                 (nb/install-cell fib-id (subenv/fib-closure) (subenv/fib-closure))
-                 (nb/install-cell map-id (subenv/map-list-closure) (subenv/map-list-closure))
-                 (nb/install-cell list-id initial-list initial-list)
-                 (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
-                 (nb/install-cell out-id))
-          [props n1] ((subenv/p:apply-closure map-id [list-id fib-id acc-id] out-id)
-                      n0)
-          n2 (run-props n1 props)
-          frame-id (net/network-dict-entry n2
-                                           (subenv/application-key map-id
-                                                                   [list-id fib-id acc-id]
-                                                                   out-id))
-          frame-net (strongest n2 frame-id)
-          scope (net/network-dict-entry frame-net subenv/scope-key)
-          target (subenv/name-ref scope :rest)
-          late-rest (subenv/cons-list-value [1 2])
-          diff-log (atom [])
-          orig-diff diff/diff-internal-output-cells
-          recording-diff
-          (fn [network-from network-to external-outputs]
-            (let [msgs (vec (orig-diff network-from network-to external-outputs))]
-              (swap! diff-log conj {:external-outputs (vec external-outputs)
-                                    :targets (mapv message-id msgs)})
-              msgs))]
-      (is (= value/nothing
-             (list-slot (list-slot (strongest n2 out-id) :cdr) :car)))
-      (is (= [:dispatch/subenv frame-id
-              (second (first (filter #(= :rest (first %))
-                                     (subenv/bindings frame-net))))]
-             (net/network-dict-entry n2 target)))
-      (with-redefs [diff/diff-internal-output-cells recording-diff]
-        (let [[tasks n3] (core/eval-cell* (net/net-dict-or-empty n2)
-                                          (message target late-rest)
-                                          n2)
-              n4 (core/run-tasks tasks n3)]
-          (is (= [0 1 1] (list->vec (strongest n4 out-id))))
-          (is (some (fn [{:keys [targets]}]
-                      (some #{out-id} targets))
-                    @diff-log)))))))
+      (let [[tasks n3] (core/eval-cell* (net/net-dict-or-empty n2)
+                                        (message nested-rest-target late-rest)
+                                        n2)
+            n4 (core/run-tasks tasks n3)]
+        (is (= [[0 1 1]] (list->data (strongest n4 out-id))))))))

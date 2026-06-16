@@ -3,7 +3,7 @@
 
   Compile-time: `compile-net`, `let-cell`.
   Runtime: `net-let` — declare cells by symbol, install propagators like function calls."
-  (:require [propagators.ids :refer [new-node-id]]
+  (:require [propagators.ids :as ids :refer [new-node-id]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]))
 
@@ -16,6 +16,8 @@
    'prop/- (requiring-resolve 'propagators.stdlib.prop/-)
    'prop/<= (requiring-resolve 'propagators.stdlib.prop/<=)
    'prop/not (requiring-resolve 'propagators.stdlib.prop/not)
+   'prop/and (requiring-resolve 'propagators.stdlib.prop/and)
+   'prop/or (requiring-resolve 'propagators.stdlib.prop/or)
    'prop/nothing? (requiring-resolve 'propagators.stdlib.prop/nothing?)
    'prop/switch (requiring-resolve 'propagators.stdlib.prop/switch)
    'prop/when (requiring-resolve 'propagators.stdlib.prop/when)
@@ -89,12 +91,35 @@
                (bind-var sym id))]
     (assoc ctx :net n')))
 
-(defn- lookup-inst [ctx sym]
-  (let [v (or (get (:installers ctx) sym)
-              (throw (ex-info "unknown installer"
-                              {:inst sym
-                               :known (keys (:installers ctx))})))]
-    (if (var? v) @v v)))
+(defn- keyword-installer-candidates
+  [kw]
+  (let [n (name kw)]
+    [kw
+     (symbol n)
+     (symbol (str "p:" n))
+     (symbol "ctx" n)
+     (symbol "obj" (str "p:" n))
+     (symbol "prop" n)]))
+
+(defn- installer-candidates
+  [op]
+  (if (keyword? op)
+    (keyword-installer-candidates op)
+    [op]))
+
+(defn- lookup-inst [ctx op]
+  (let [installers (:installers ctx)
+        k (some #(when (contains? installers %) %) (installer-candidates op))
+        v (if k
+            (get installers k)
+            (throw (ex-info "unknown installer"
+                            {:inst op
+                             :candidates (installer-candidates op)
+                             :known (keys installers)})))]
+    (cond
+      (var? v) @v
+      (symbol? v) (lookup-inst ctx v)
+      :else v)))
 
 (defn- prop-ids [installed-id]
   (if (sequential? installed-id)
@@ -158,6 +183,41 @@
 
 (declare eval-expr)
 
+(defn- fresh-cell
+  [ctx]
+  (let [id (new-node-id)
+        n' (nb/install-cell (:net ctx) id)]
+    [(assoc ctx :net n') id]))
+
+(defn- bind-symbol-to-value
+  [ctx sym value]
+  (assoc ctx :net (bind-var (:net ctx) sym value)))
+
+(defn- plausible-cell-id? [v]
+  (or (ids/node-id? v)
+      (keyword? v)
+      (symbol? v)
+      (string? v)
+      (number? v)
+      (uuid? v)))
+
+(defn- cell-id? [ctx v]
+  (and (plausible-cell-id? v)
+       (contains? (net/net-env (:net ctx)) v)))
+
+(defn- value-cell
+  [ctx v]
+  (if (cell-id? ctx v)
+    [ctx v]
+    (let [[ctx' id] (fresh-cell ctx)
+          n' (nb/seed-cell (:net ctx') id v)]
+      [(assoc ctx' :net n') id])))
+
+(defn- eval-cell-expr
+  [ctx expr]
+  (let [[ctx' v] (eval-expr ctx expr)]
+    (value-cell ctx' v)))
+
 (defn- eval-seq [ctx exprs]
   (reduce
    (fn [[ctx _] expr]
@@ -177,6 +237,13 @@
 (defn- eval-do [ctx [_ & body]]
   (eval-seq ctx body))
 
+(defn- eval-bind [ctx [_ expr sym]]
+  (when-not (symbol? sym)
+    (throw (ex-info "-> target must be a symbol" {:target sym})))
+  (let [[ctx' value] (eval-expr ctx expr)
+        ctx'' (bind-symbol-to-value ctx' sym value)]
+    [(assoc ctx'' :value value) value]))
+
 (defn- eval-seed [ctx [_ cell-expr value-expr]]
   (let [[ctx' cell-id] (eval-expr ctx cell-expr)
         [ctx'' value] (eval-expr ctx' value-expr)
@@ -185,6 +252,16 @@
          (assoc :net n')
          (assoc :value cell-id))
      cell-id]))
+
+(defn- install-application [ctx op argv return-value]
+  (let [installer (lookup-inst ctx op)
+        [installed-id n'] ((apply installer argv) (:net ctx))
+        ids (prop-ids installed-id)]
+    [(-> ctx
+         (assoc :net n')
+         (update :props into ids)
+         (assoc :value return-value))
+     return-value]))
 
 (defn- eval-application [ctx form]
   (let [[op & args] form
@@ -204,6 +281,80 @@
          (assoc :value installed-id))
      installed-id]))
 
+(defn- eval-output-application [ctx form]
+  (let [[op & args] form
+        [ctx' argv]
+        (reduce
+         (fn [[ctx values] arg]
+           (let [[ctx' v] (eval-cell-expr ctx arg)]
+             [ctx' (conj values v)]))
+         [ctx []]
+         args)
+        [ctx'' out-id] (fresh-cell ctx')]
+    (install-application ctx'' op (conj argv out-id) out-id)))
+
+(defn- install-output-call [ctx op arg-cells out-id]
+  (install-application ctx op (conj (vec arg-cells) out-id) out-id))
+
+(defn- eval-switch [ctx [_ condition-expr value-expr & maybe-out]]
+  (when-not (<= 0 (count maybe-out) 1)
+    (throw (ex-info "switch expects condition, value, and optional output"
+                    {:out-count (count maybe-out)})))
+  (let [[ctx' condition-id] (eval-cell-expr ctx condition-expr)
+        [ctx'' value-id] (eval-cell-expr ctx' value-expr)
+        [ctx''' out-id] (if-let [out-expr (first maybe-out)]
+                          (eval-cell-expr ctx'' out-expr)
+                          (fresh-cell ctx''))]
+    (install-output-call ctx''' 'prop/switch [value-id condition-id] out-id)))
+
+(defn- install-unconditional-output [ctx value-id out-id]
+  (install-output-call ctx 'p:id [value-id] out-id))
+
+(defn- install-conditional-output [ctx condition-id value-id out-id]
+  (install-output-call ctx 'prop/switch [value-id condition-id] out-id))
+
+(defn- effective-condition [ctx prior-match-id condition-id]
+  (if prior-match-id
+    (let [[ctx' not-prior-id] (eval-output-application ctx (list 'prop/not prior-match-id))
+          [ctx'' gated-id] (eval-output-application ctx' (list 'prop/and condition-id not-prior-id))]
+      [ctx'' gated-id])
+    [ctx condition-id]))
+
+(defn- update-prior-match [ctx prior-match-id condition-id]
+  (if prior-match-id
+    (eval-output-application ctx (list 'prop/or prior-match-id condition-id))
+    [ctx condition-id]))
+
+(defn- eval-cond [ctx [_ & clauses]]
+  (when (odd? (count clauses))
+    (throw (ex-info "cond expects test/expression pairs" {:clauses clauses})))
+  (let [[ctx' out-id] (fresh-cell ctx)]
+    (loop [ctx ctx'
+           prior-match-id nil
+           clauses clauses]
+      (if (empty? clauses)
+        [(assoc ctx :value out-id) out-id]
+        (let [[test-expr value-expr & more] clauses]
+          (if (= :else test-expr)
+            (do
+              (when (seq more)
+                (throw (ex-info ":else must be the final cond clause"
+                                {:remaining more})))
+              (let [[ctx' value-id] (eval-cell-expr ctx value-expr)
+                    [ctx'' condition-id] (if prior-match-id
+                                           (eval-output-application ctx' (list 'prop/not prior-match-id))
+                                           [ctx' nil])
+                    [ctx''' _] (if condition-id
+                                 (install-conditional-output ctx'' condition-id value-id out-id)
+                                 (install-unconditional-output ctx'' value-id out-id))]
+                [(assoc ctx''' :value out-id) out-id]))
+            (let [[ctx' condition-id] (eval-cell-expr ctx test-expr)
+                  [ctx'' effective-id] (effective-condition ctx' prior-match-id condition-id)
+                  [ctx''' value-id] (eval-cell-expr ctx'' value-expr)
+                  [ctx'''' _] (install-conditional-output ctx''' effective-id value-id out-id)
+                  [ctx''''' next-prior-id] (update-prior-match ctx'''' prior-match-id condition-id)]
+              (recur ctx''''' next-prior-id more))))))))
+
 (defn- eval-expr [ctx expr]
   (cond
     (self-evaluating? expr)
@@ -219,8 +370,20 @@
     (and (seq? expr) (= 'do (first expr)))
     (eval-do ctx expr)
 
+    (and (seq? expr) (= '-> (first expr)))
+    (eval-bind ctx expr)
+
     (and (seq? expr) (= 'seed (first expr)))
     (eval-seed ctx expr)
+
+    (and (seq? expr) (= 'switch (first expr)))
+    (eval-switch ctx expr)
+
+    (and (seq? expr) (= 'cond (first expr)))
+    (eval-cond ctx expr)
+
+    (and (seq? expr) (keyword? (first expr)))
+    (eval-output-application ctx expr)
 
     (seq? expr)
     (eval-application ctx expr)

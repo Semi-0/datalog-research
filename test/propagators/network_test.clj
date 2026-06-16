@@ -179,6 +179,33 @@
     (is (= a (:value ctx)))
     (is (= 42 (cell/cell-strongest (net/network-lookup-cell (:net ctx) a))))))
 
+(deftest compiler-keyword-expression-allocates-output-cell
+  (let [ctx (compile/eval-net '(::+ 1 2))
+        n (run-compound-chain (:net ctx) (:props ctx))]
+    (is (cell/cell? (net/network-lookup-cell (:net ctx) (:value ctx))))
+    (expect-strongest n (:value ctx) 3 ":: expression result")))
+
+(deftest compiler-bind-expression-names-result-cell
+  (let [ctx (compile/eval-net
+             '(do
+                (-> (::+ 1 2) sum)
+                sum))
+        n (run-compound-chain (:net ctx) (:props ctx))]
+    (is (= (:value ctx) (compile/cell-ref ctx 'sum)))
+    (expect-strongest n (:value ctx) 3 "bound expression result")))
+
+(deftest compiler-switch-expression-gates-to-output-cell
+  (let [ctx (compile/eval-net '(switch true 9))
+        n (run-compound-chain (:net ctx) (:props ctx))]
+    (expect-strongest n (:value ctx) 9 "switch expression result")))
+
+(deftest compiler-cond-expression-gates-first-matching-branch
+  (let [ctx (compile/eval-net '(cond true 1
+                                     true 2
+                                     :else 3))
+        n (run-compound-chain (:net ctx) (:props ctx))]
+    (expect-strongest n (:value ctx) 1 "cond first branch result")))
+
 (deftest sync-chain-propagates-value
   (with-compiled
     '(let-cell [c0 c1 c2]

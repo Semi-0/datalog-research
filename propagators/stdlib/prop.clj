@@ -1,6 +1,6 @@
 (ns propagators.stdlib.prop
   "Primitive propagator installers (`prop/+`, `prop/id`, …)."
-  (:refer-clojure :exclude [+ - * / <= not when])
+  (:refer-clojure :exclude [+ - * / <= not and or when])
   (:require [clojure.core :as core]
             [propagators.cells.bool4 :as bool4]
             [propagators.cells.value :as value]
@@ -43,6 +43,12 @@
 
 (def not
   (prop/primitive-propagator bool4/not))
+
+(def and
+  (prop/primitive-propagator bool4/and))
+
+(def or
+  (prop/primitive-propagator bool4/or))
 
 (def nothing?
   (prop/primitive-propagator

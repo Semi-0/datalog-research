@@ -327,6 +327,9 @@
     [parent-id collection-id])
    network))
 
+
+;; this is very important module but the quality of the code is awful
+;; we will improve it in the future (too many nested redundant function, core intention is not clear)
 (defn p:network-slot
   [slot-key parent-id collection-id]
   (let [prop-id (ids/new-node-id)
