@@ -5,6 +5,7 @@
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.gur.subenv :as subenv]
+            [propagators.gur.subenv.scoped-slot :as scoped-slot]
             [propagators.gur.subenv.source :as source]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
@@ -581,6 +582,14 @@
           "Before the lazy extension there is no second mapped output element.")
       (is (= [0 1] mapped-after)
           "The source cdr update routes through the child scoped slot accessor and wakes the recursive frame."))))
+
+(deftest constructed-accessor-map-lazy-extension-uses-publisher-not-recursive-export
+  (testing "lazy recursive accessor export is handled by the frame publisher"
+    (with-redefs [scoped-slot/register-child-accessors
+                  (fn [& _]
+                    (throw (ex-info "recursive export hook should not run" {})))]
+      (let [{:keys [mapped-after]} (constructed-accessor-map-probe)]
+        (is (= [0 1] mapped-after))))))
 
 (deftest contextual-recursive-nested-map-list-over-compound-data
   (testing "nested map-list composition maps inner compound/list elements"

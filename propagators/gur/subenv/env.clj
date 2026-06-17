@@ -1,7 +1,6 @@
 (ns propagators.gur.subenv.env
   "Lexical sub-env dictionary keys and dispatch registration."
   (:require [propagators.ids :as ids]
-            [propagators.gur.subenv.scoped-slot :as scoped-slot]
             [propagators.network :as net]
             [propagators.scoped-address :as scoped]))
 
@@ -97,8 +96,7 @@
     (-> parent-net
         (net/assoc-net-dict-entry (scope-ref scope) owner-id)
         (register-direct-bindings owner-id scope child-net)
-        (register-lifted-nested-refs owner-id scope child-net)
-        (scoped-slot/register-child-accessors owner-id scope child-net))
+        (register-lifted-nested-refs owner-id scope child-net))
     parent-net))
 
 (defn maybe-register-subenv

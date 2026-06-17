@@ -373,22 +373,19 @@ topology. Local parent ids still seed from the parent env, child ids seed from
 the child env after dispatch, and structural slot registration remains distinct
 from slot value updates.
 
-This registration mechanism is intentionally crude. Each time a child sub-env
-value is written back into its owner cell, the current implementation scans the
-child network, nested child networks, and accessor values again to discover
-exports. That makes lazy expansion work for the current GUR list cases, but it
-is slow and redundant. It is also too specialized to this owner-cell/sub-env
-relationship: the export path knows about child frames, scoped cell refs, and
-compound-object accessor topology rather than expressing a reusable parent-child
-subscription protocol.
+The runtime no longer performs recursive accessor export from the sub-env merge
+hook. `p:apply-closure` installs a child-accessor publisher next to the frame
+runner. The publisher watches the frame owner cell, inspects only direct
+accessor values in that child frame, and emits ordinary parent-cell messages
+that register scoped child refs on matching parent collection slots. Nested
+frames publish through their own immediate owner cells; the top-level parent no
+longer walks nested child networks to discover their accessors.
 
-A better direction is probably to register recursive accessors through a
-lexical access propagator or comparable kernel-level boundary relation. Such a
-propagator would declare "this parent slot route depends on this lexical child
-cell" directly, wake when the relevant child frame is expanded, and avoid
-rescanning the whole child tree on every owner-cell update. That would keep
-recursive accessor registration as normal propagation topology instead of a
-post-merge side effect hidden in sub-env registration.
+This is still an experiment-specific bridge. The publisher still infers exports
+from compound-object accessor values after the frame body has been built. A
+cleaner future direction is to contextualize slot accessors, like contextual
+`apply` and `recur`, so `car` / `cdr` / `cons` can declare lexical access
+subscriptions directly when the frame body installs them.
 
 The code is split by responsibility:
 
@@ -666,8 +663,8 @@ Current behavior is covered by:
   or remain a small source-level convenience macro;
 - define bidirectional nested writer semantics over arbitrary compound shapes,
   beyond the current cons-style compound/list tests;
-- replace the crude scoped-accessor export scan with a reusable lexical access
-  propagator or boundary relation for recursive parent-child subscriptions;
+- replace the remaining post-build direct accessor inference with contextual
+  lexical slot accessors or a reusable boundary relation;
 - extend the GUR benchmark harness when dynamic map/vector slots land;
 - derive compact route declarations so compile-2 does not emit verbose frame
   boilerplate.

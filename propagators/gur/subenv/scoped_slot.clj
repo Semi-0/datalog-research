@@ -3,9 +3,12 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.effectful-sync :as sync]
             [propagators.ids :as ids]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
+            [propagators.propagator :as prop]
             [propagators.scoped-address :as scoped]))
 
 (defn- cell-strongest-value
@@ -141,14 +144,42 @@
        :parent-id parent-id
        :child-ref child-ref})))
 
+(defn- publisher-slot-exports
+  [parent-net child-net scope accessor-value slot-key]
+  (let [parent-ids (obj/accessor-parent-ids accessor-value slot-key)
+        parent-owned (filter #(parent-owned-id? parent-net %) parent-ids)
+        child-owned (filter #(child-owned-id? parent-net child-net %) parent-ids)
+        targets (concat (map #(scoped/cell-ref scope %) child-owned)
+                        (filter #(and (scoped/address? %)
+                                      (not= scope (scoped/address-scope %))
+                                      (live-scoped-target? child-net %))
+                                parent-ids))]
+    (for [parent-id parent-owned
+          child-ref targets]
+      {:slot-key slot-key
+       :parent-id parent-id
+       :child-ref child-ref})))
+
+(defn- direct-child-accessor-exports
+  [parent-net child-net scope]
+  (mapcat
+   (fn [[_cell-id accessor-value]]
+     (mapcat #(publisher-slot-exports parent-net child-net scope accessor-value %)
+             (obj/accessor-slot-keys accessor-value)))
+   (child-accessor-values child-net)))
+
+(defn- recursive-direct-child-accessor-exports
+  [parent-net child-net scope]
+  (mapcat
+   (fn [[cell-id accessor-value]]
+     (mapcat #(accessor-slot-exports parent-net child-net scope cell-id accessor-value %)
+             (obj/accessor-slot-keys accessor-value)))
+   (child-accessor-values child-net)))
+
 (defn- child-accessor-exports
   [parent-net child-net scope]
   (concat
-   (mapcat
-    (fn [[cell-id accessor-value]]
-      (mapcat #(accessor-slot-exports parent-net child-net scope cell-id accessor-value %)
-              (obj/accessor-slot-keys accessor-value)))
-    (child-accessor-values child-net))
+   (recursive-direct-child-accessor-exports parent-net child-net scope)
    (mapcat (fn [nested]
              (let [nested-scope (net/network-dict-entry nested [:env/scope])]
                (child-accessor-exports parent-net nested nested-scope)))
@@ -181,6 +212,52 @@
             (update-collection-accessor n collection-id slot-key child-ref))
           parent-net
           (collection-cell-ids-for-parent parent-net slot-key parent-id)))
+
+(defn- accumulate-export-update
+  [parent-net updates {:keys [slot-key parent-id child-ref]}]
+  (reduce (fn [acc collection-id]
+            (let [current (get acc collection-id
+                               (collection-cell-value parent-net collection-id))]
+              (assoc acc collection-id
+                     (obj/register-accessor-parent current slot-key child-ref))))
+          updates
+          (collection-cell-ids-for-parent parent-net slot-key parent-id)))
+
+(defn- accumulated-export-messages
+  [parent-net exports]
+  (->> (reduce #(accumulate-export-update parent-net %1 %2) {} exports)
+       (keep (fn [[collection-id updated]]
+               (when-not (sync/strongest-equivalent?
+                          (collection-cell-value parent-net collection-id)
+                          updated
+                          parent-net)
+                 (message collection-id updated))))))
+
+(defn direct-child-accessor-messages
+  "Return parent-cell messages that publish direct child scoped accessors.
+
+  Unlike `register-child-accessors`, this does not recurse into nested sub-envs
+  and does not mutate the parent network directly. Nested frames publish through
+  their own immediate owner cells.
+  "
+  [parent-net child-net]
+  (if-let [scope (and (net/net? child-net)
+                      (net/network-dict-entry child-net [:env/scope]))]
+    (vec (accumulated-export-messages
+          parent-net
+          (direct-child-accessor-exports parent-net child-net scope)))
+    []))
+
+(defn p:publish-child-accessors
+  "Publish direct child accessor exports as ordinary parent-cell messages."
+  [owner-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs parent-net]
+     (direct-child-accessor-messages
+      parent-net
+      (collection-cell-value parent-net owner-id)))
+   [owner-id]
+   []))
 
 (defn register-child-accessors
   "Add child-scoped slot addresses to matching parent collection accessors."

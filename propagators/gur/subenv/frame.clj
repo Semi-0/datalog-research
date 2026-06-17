@@ -2,6 +2,7 @@
   "Frame construction and contextual apply/recur for lexical sub-env GUR."
   (:require [propagators.boundary :as boundary]
             [propagators.cells.value :as value]
+            [propagators.datastructures.compound-object :as obj]
             [propagators.gur.subenv.env :as env]
             [propagators.gur.subenv.output :as output]
             [propagators.gur.subenv.queue :as queue]
@@ -67,9 +68,21 @@
        (true? (get x recursive-closure-tag))
        (ifn? (get x :gur/body))))
 
+(declare frame-key-value)
+
 (defn- frame-key
   [closure arg-values frame-id]
-  [:gur/frame (:gur/name closure) (vec arg-values) frame-id])
+  [:gur/frame (:gur/name closure) (mapv frame-key-value arg-values) frame-id])
+
+(defn- frame-key-value
+  [v]
+  (if (and (net/net? v) (obj/accessor-network? v))
+    [:accessor-source
+     (mapv (fn [[slot-key slot-value]]
+             [slot-key (frame-key-value slot-value)])
+           (sort-by (comp pr-str key)
+                    (obj/accessor-source-slots v)))]
+    v))
 
 (defn applied?
   [frame-net frame-key]
@@ -209,9 +222,11 @@
                                                         inputs
                                                         [frame-id])
                              n0)
-            [runner-prop n2] ((output/p:run-subenv-frame frame-id [out-id]) n1)]
-        [[apply-prop runner-prop]
-         (net/assoc-net-dict-entry n2
+            [publish-prop n2] ((scoped-slot/p:publish-child-accessors frame-id)
+                               n1)
+            [runner-prop n3] ((output/p:run-subenv-frame frame-id [out-id]) n2)]
+        [[apply-prop publish-prop runner-prop]
+         (net/assoc-net-dict-entry n3
                                    (application-key closure-id arg-ids out-id)
                                    frame-id)]))))
 
