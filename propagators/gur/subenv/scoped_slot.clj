@@ -8,6 +8,8 @@
             [propagators.network-builder :as nb]
             [propagators.scoped-address :as scoped]))
 
+(def nested-accessor-export-key [:gur/nested-accessor-export?])
+
 (defn- cell-strongest-value
   [entry]
   (when (cell/cell? entry)
@@ -123,10 +125,9 @@
               v)))
         (net/net-env child-net)))
 
-(defn- frame-name
-  [scope]
-  (when (and (vector? scope) (= :gur/frame (first scope)))
-    (second scope)))
+(defn- export-nested-accessors?
+  [child-net]
+  (true? (net/network-dict-entry child-net nested-accessor-export-key)))
 
 (defn- accessor-slot-exports
   [parent-net child-net scope cell-id accessor-value slot-key]
@@ -154,15 +155,10 @@
       (mapcat #(accessor-slot-exports parent-net child-net scope cell-id accessor-value %)
               (obj/accessor-slot-keys accessor-value)))
     (child-accessor-values child-net))
-   (when-not (= :map-list (frame-name scope))
+   (when (export-nested-accessors? child-net)
      (mapcat (fn [nested]
                (let [nested-scope (net/network-dict-entry nested [:env/scope])]
-                 ;; ponytail: wrapper frames lift nested accessor ownership; map-list's
-                 ;; own recursive frames stay internal. Replace with explicit
-                 ;; ownership metadata if more closure shapes need public exports.
-                 (if (= (frame-name scope) (frame-name nested-scope))
-                   []
-                   (child-accessor-exports parent-net nested nested-scope))))
+                 (child-accessor-exports parent-net nested nested-scope)))
              (nested-child-nets child-net)))))
 
 (defn- collection-cell-value

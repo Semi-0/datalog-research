@@ -578,15 +578,16 @@ Limit: this is not a compiler target, not the exact source syntax sketched for
 redesign `p:slot` or the existing nested `p:car` / `p:cdr` accessor behavior.
 The constructed-accessor probes now cover flat and nested scoped slot paths, but
 the implementation is still experiment-specific runtime machinery rather than
-compile-2 lowering. The transitive export currently lifts wrapper frames and
-keeps same-name recursive frames internal. The kernel hook still delegates to
-the experiment namespace rather than moving every dispatch case into
-`propagators.core`. No AST compound-object transformation probe was added in
-this pass; without a small arbitrary-record constructor, it would mostly be
-map/filter boilerplate over another accessor shape. No unification probe was
-added; plain value equality/merge is already covered elsewhere, while useful
-unification needs its own monotone substitution value rather than another
-scalar recursion body.
+compile-2 lowering. Transitive scoped-slot export is now explicit closure
+metadata: ordinary recursive frames keep nested accessor subscriptions private,
+and wrapper frames that intentionally lift nested subscriptions opt in with
+`:export-nested-accessors?`. The kernel hook still delegates to the experiment
+namespace rather than moving every dispatch case into `propagators.core`. No AST
+compound-object transformation probe was added in this pass; without a small
+arbitrary-record constructor, it would mostly be map/filter boilerplate over
+another accessor shape. No unification probe was added; plain value
+equality/merge is already covered elsewhere, while useful unification needs its
+own monotone substitution value rather than another scalar recursion body.
 
 Binary search exposed one DSL rule worth keeping: `cond` is declarative, so it
 builds all branch topology. Recursive branch expressions must gate their
@@ -1787,9 +1788,10 @@ Benchmark method for the benchmarked entries below:
    a constructed-accessor lazy-extension probe that routes parent slot updates
    through scoped child accessor addresses without materializing the source cdr
    slot, and a nested constructed-accessor probe that forwards wrapper-owned
-   slot interests transitively to the original inner collection. A follow-up
-   robustness pass adds derived `reduce-list` and `filter-list` closures built
-   from the same primitive propagators. `reduce-list` sums `[0..5]` to `15`,
+   slot interests transitively to the original inner collection through
+   explicit `:export-nested-accessors?` closure metadata. A follow-up robustness
+   pass adds derived `reduce-list` and `filter-list` closures built from the
+   same primitive propagators. `reduce-list` sums `[0..5]` to `15`,
    `filter-list` keeps `[0 2 4]`, and a constructed lazy-cdr reducer probe
    updates from `nothing` to `3` only after the terminal cdr becomes known.
    A lazy-cdr filter probe updates from `[0 ?]` to `[0 2]`. A prefix reduce
