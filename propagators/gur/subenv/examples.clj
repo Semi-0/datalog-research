@@ -334,9 +334,7 @@
       expr))))
 
 (defn map-list-fib-closure []
-  (frame/def-recursive :map-list-fib
-                       {:export-nested-accessors? true}
-                       map-list-fib-definition))
+  (frame/def-recursive :map-list-fib map-list-fib-definition))
 
 (defn sum-step-definition
   [{frame-net :network

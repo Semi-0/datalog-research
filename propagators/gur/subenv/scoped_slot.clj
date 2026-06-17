@@ -8,8 +8,6 @@
             [propagators.network-builder :as nb]
             [propagators.scoped-address :as scoped]))
 
-(def nested-accessor-export-key [:gur/nested-accessor-export?])
-
 (defn- cell-strongest-value
   [entry]
   (when (cell/cell? entry)
@@ -125,10 +123,6 @@
               v)))
         (net/net-env child-net)))
 
-(defn- export-nested-accessors?
-  [child-net]
-  (true? (net/network-dict-entry child-net nested-accessor-export-key)))
-
 (defn- accessor-slot-exports
   [parent-net child-net scope cell-id accessor-value slot-key]
   (let [parent-ids (obj/accessor-parent-ids accessor-value slot-key)
@@ -155,11 +149,10 @@
       (mapcat #(accessor-slot-exports parent-net child-net scope cell-id accessor-value %)
               (obj/accessor-slot-keys accessor-value)))
     (child-accessor-values child-net))
-   (when (export-nested-accessors? child-net)
-     (mapcat (fn [nested]
-               (let [nested-scope (net/network-dict-entry nested [:env/scope])]
-                 (child-accessor-exports parent-net nested nested-scope)))
-             (nested-child-nets child-net)))))
+   (mapcat (fn [nested]
+             (let [nested-scope (net/network-dict-entry nested [:env/scope])]
+               (child-accessor-exports parent-net nested nested-scope)))
+           (nested-child-nets child-net))))
 
 (defn- collection-cell-value
   [parent-net collection-id]

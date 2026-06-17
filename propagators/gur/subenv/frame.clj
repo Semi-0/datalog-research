@@ -56,13 +56,10 @@
         (boundary/create-boundary-inputs input-ids))))
 
 (defn recursive-closure
-  ([name body-fn]
-   (recursive-closure name {} body-fn))
-  ([name opts body-fn]
-   {recursive-closure-tag true
-    :gur/name name
-    :gur/body body-fn
-    :gur/export-nested-accessors? (boolean (:export-nested-accessors? opts))}))
+  [name body-fn]
+  {recursive-closure-tag true
+   :gur/name name
+   :gur/body body-fn})
 
 (defn recursive-closure?
   [x]
@@ -141,9 +138,6 @@
         self-id (ids/new-node-id)
         frame-net (-> with-boundary
                       (nb/install-cell self-id closure closure)
-                      (net/assoc-net-dict-entry scoped-slot/nested-accessor-export-key
-                                                (true? (:gur/export-nested-accessors?
-                                                        closure)))
                       (env/bind :self self-id)
                       (env/bind :out out-inner)
                       (bind-frame-args inner-args))
@@ -243,15 +237,12 @@
   `:out`, and `:ctx`, and returns either a network or
   `{:net frame-net :prop-ids [...]}`.
   "
-  ([name closure]
-   (def-recursive name {} closure))
-  ([name opts closure]
-   (recursive-closure
-    name
-    opts
-    (fn [ctx frame-net arg-ids out-id]
-      (closure (assoc (contextual-api ctx)
-                      :ctx ctx
-                      :network frame-net
-                      :args arg-ids
-                      :out out-id))))))
+  [name closure]
+  (recursive-closure
+   name
+   (fn [ctx frame-net arg-ids out-id]
+     (closure (assoc (contextual-api ctx)
+                     :ctx ctx
+                     :network frame-net
+                     :args arg-ids
+                     :out out-id)))))
