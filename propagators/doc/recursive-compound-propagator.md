@@ -516,6 +516,12 @@ Evidence: `propagators.gur-subenv-test` covers:
   named child network is merged into an owner cell;
 - Fibonacci values `0`, `1`, `5`, and `8`, with applied closure facts retained
   in the child network;
+- scalar factorial values `0! = 1`, `1! = 1`, and `5! = 120`, using recursive
+  multiplication through the same contextual `recur` path;
+- scalar integer square root by binary search, with floor results for perfect
+  and non-perfect squares from `0` through `81`. This is the current scalar
+  branching stress case because it uses multi-argument recursion, arithmetic
+  intermediates, comparison, and two recursive branches;
 - `map-list` over `[0 1 2 3 4 5]`, mapping Fibonacci to `[0 1 1 2 3 5]`;
 - nested `map-list` composition over `[[0 1] [2 3]]`, mapping inner lists to
   `[[0 1] [1 2]]`;
@@ -531,7 +537,41 @@ Evidence: `propagators.gur-subenv-test` covers:
 - nested constructed accessor input, where an outer `map-list` maps
   `map-list-fib` over an inner list built only with `obj/p:cons`; a later inner
   cdr extension reaches the nested mapper frame and updates the observed inner
-  output from a single mapped element to `[0 1]`.
+  output from a single mapped element to `[0 1]`;
+- derived `reduce-list` over the same cons/accessor shape, with a `sum-step`
+  closure applied at each node, returning `15` for `[0 1 2 3 4 5]`;
+- derived `filter-list` over the same cons/accessor shape, with an
+  `even-predicate` closure and branchy `cons` output, returning `[0 2 4]` for
+  `[0 1 2 3 4 5]`;
+- constructed-accessor lazy extension for `reduce-list`: the reducer output is
+  `nothing` while the cdr is unknown, then becomes `3` after the terminal cdr is
+  installed through `obj/p:cons`. This is the expected reduce behavior: unlike
+  map, reduce has no prefix output until the list end is known;
+- a prefix-style reduce experiment with a `sum-present-step` operator that
+  ignores `nothing` shows why this cannot be the default scalar reduce
+  semantics: it first emits provisional sum `1`, then the later correct sum `3`
+  conflicts in the same output cell and the cell becomes contradiction. To make
+  prefix reduce monotone, the output would need a monotone summary value rather
+  than a plain scalar strongest value;
+- constructed-accessor lazy extension for `filter-list`: filtering `[0 . ?]`
+  exposes first kept value `0`, and after a later cdr extension to `[2]` the
+  observed output updates to `[0 2]` through the same scoped slot fanout path.
+
+Local microbenchmark on `2026-06-17`, measured with an ad-hoc
+`clojure -M -e` command, `5` warmups and `20` timed end-to-end runs:
+
+| Case | Avg ms/run | Min | Max | Parent cells |
+| --- | ---: | ---: | ---: | ---: |
+| `fib(6)` | `34.285` | `27.318` | `47.128` | `6` |
+| `map-list-fib [0..5]` | `45.713` | `42.396` | `54.402` | `8` |
+| `nested-map-list-fib [[0 1] [2 3]]` | `21.069` | `19.781` | `22.587` | `8` |
+| `reduce-list-sum [0..19]` | `32.215` | `30.701` | `34.008` | `8` |
+| `filter-list-even [0..19]` | `51.139` | `49.370` | `54.388` | `8` |
+
+This is a snapshot, not a benchmark harness. It shows that reduce/filter do not
+require new runtime machinery, but filter is visibly more expensive because it
+combines predicate application, recursive tail production, branch selection,
+and conditional `cons` output.
 
 Limit: this is not a compiler target, not the exact source syntax sketched for
 `def-recursive`, and not a general nested map/vector writer. It does not
@@ -541,7 +581,17 @@ the implementation is still experiment-specific runtime machinery rather than
 compile-2 lowering. The transitive export currently lifts wrapper frames and
 keeps same-name recursive frames internal. The kernel hook still delegates to
 the experiment namespace rather than moving every dispatch case into
-`propagators.core`.
+`propagators.core`. No AST compound-object transformation probe was added in
+this pass; without a small arbitrary-record constructor, it would mostly be
+map/filter boilerplate over another accessor shape. No unification probe was
+added; plain value equality/merge is already covered elsewhere, while useful
+unification needs its own monotone substitution value rather than another
+scalar recursion body.
+
+Binary search exposed one DSL rule worth keeping: `cond` is declarative, so it
+builds all branch topology. Recursive branch expressions must gate their
+arguments with an effective branch predicate such as `(and search? fits?)`, or
+the inactive recursive branch can still install a self-recursive frame.
 
 Decision: continue this as the current generalized GUR proposal validation. It
 does not replace the routed ownership lesson; it lifts that lesson into the
@@ -579,8 +629,8 @@ Current behavior is covered by:
   topology installation.
 - `test/propagators/gur_subenv_test.clj` for lexical sub-env GUR dispatch,
   contextual apply/recur, Fibonacci, flat and composed nested map-list
-  recursion, and bidirectional late nested cdr delivery asserted through the
-  parent-visible output.
+  recursion, reduce-list, filter-list, and bidirectional late nested cdr
+  delivery asserted through the parent-visible output.
 
 ## Open Problems
 
@@ -674,7 +724,9 @@ Still open:
 - arbitrary bidirectional writer semantics over all nested compound shapes need
   more design;
 - route-list and frame-boilerplate ergonomics still need a derived API before
-  compile-2 should target this directly.
+  compile-2 should target this directly;
+- the current benchmark is an ad-hoc local snapshot; keep using it for direction
+  only until there is a dedicated GUR benchmark harness.
 
 ### Runtime Invariants
 
@@ -1735,7 +1787,21 @@ Benchmark method for the benchmarked entries below:
    a constructed-accessor lazy-extension probe that routes parent slot updates
    through scoped child accessor addresses without materializing the source cdr
    slot, and a nested constructed-accessor probe that forwards wrapper-owned
-   slot interests transitively to the original inner collection.
+   slot interests transitively to the original inner collection. A follow-up
+   robustness pass adds derived `reduce-list` and `filter-list` closures built
+   from the same primitive propagators. `reduce-list` sums `[0..5]` to `15`,
+   `filter-list` keeps `[0 2 4]`, and a constructed lazy-cdr reducer probe
+   updates from `nothing` to `3` only after the terminal cdr becomes known.
+   A lazy-cdr filter probe updates from `[0 ?]` to `[0 2]`. A prefix reduce
+   variant with a `sum-present-step` operator first emits provisional `1`, then
+   contradicts when the later tail requires `3`, exposing the plain-scalar
+   monotonicity boundary. A scalar robustness pass adds factorial and integer
+   square root by binary search; the sqrt probe passes floor results from `0`
+   through `81` and documents that recursive `cond` branches must be explicitly
+   gated because declaration builds all branch topology.
+   Benchmark snapshot: `fib(6)` `34.285 ms`, flat map `45.713 ms`, nested map
+   `21.069 ms`, reduce `[0..19]` `32.215 ms`, filter `[0..19]` `51.139 ms`
+   over `20` timed runs after `5` warmups.
    Boundary: this is not compile-2 lowering, not the final `def-recursive`
    source syntax, not arbitrary nested map/vector writer semantics, and not a
    redesign of existing nested `p:car` / `p:cdr` accessor behavior.
@@ -2252,9 +2318,12 @@ reason recursive network accumulation is now the preferred default.
 
 ## Appendix: Nested Accessor Dispatch Boundary Correction
 
-2026-06-11 clarification: the evidence above should not be read as proof that
-general unbounded recursion over nested compound data already works by letting a
-recursive activation build accessor topology inside an inner network.
+2026-06-11 clarification, updated 2026-06-17: the older direct-activation
+evidence should not be read as proof that general unbounded recursion over
+nested compound data works merely by letting a recursive activation build
+accessor topology inside an inner network. The newer lexical sub-env GUR path
+does prove more: scoped slot accessor registration can route lazy parent slot
+updates into child recursive frames for cons-list map, nested map, and reduce.
 
 What has been shown:
 
@@ -2263,10 +2332,23 @@ What has been shown:
 - direct recursive nested map is not robust for mixed nested map/vector output;
 - declared network-valued expansion can produce nested map/reduce topology and
   run that topology later;
+- lexical sub-env GUR can express Fibonacci, factorial, integer sqrt by binary
+  search, map, nested map, reduce, and filter as contextual apply/recur
+  topology;
+- scoped slot registration can carry a constructed lazy cdr update from a
+  parent accessor into the child frame and back to the parent-visible output;
 - older declared nested-map tests still use materialized/legacy slot accessors
   in parts of the builder;
 - the newer public `obj/p:slot`, `obj/p:car`, and `obj/p:cdr` path is
   demand-driven `p:network-slot` accessor topology.
+
+What remains unproven:
+
+- arbitrary nested map/vector writer semantics;
+- AST-shaped compound-object transformation over arbitrary records;
+- compile-2 lowering into the sub-env GUR forms;
+- benchmark-grade performance. The current GUR timing is only a local
+  microbenchmark snapshot.
 
 The important dispatch boundary is that a nested accessor only wakes when its
 outer cell receives an ordinary message. If recursion creates accessor topology

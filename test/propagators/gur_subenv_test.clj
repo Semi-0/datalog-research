@@ -100,6 +100,27 @@
       (is (seq applied-keys))
       (is (seq applied-closure-keys)))))
 
+(deftest contextual-recursive-scalar-cases
+  (testing "factorial uses scalar recursive multiplication"
+    (is (= 1 (:value (subenv/run-factorial 0))))
+    (is (= 1 (:value (subenv/run-factorial 1))))
+    (is (= 120 (:value (subenv/run-factorial 5)))))
+
+  (testing "integer square root uses scalar binary-search recursion"
+    (doseq [[n expected] [[0 0]
+                         [1 1]
+                         [2 1]
+                         [3 1]
+                         [4 2]
+                         [8 2]
+                         [9 3]
+                         [15 3]
+                         [16 4]
+                         [27 5]
+                         [81 9]]]
+      (is (= expected (:value (subenv/run-int-sqrt n)))
+          (str "floor sqrt for " n)))))
+
 (defn- list-slot
   [v slot-key]
   (cond
@@ -318,12 +339,134 @@
     {:before before
      :after after}))
 
+(defn- constructed-accessor-reduce-probe
+  []
+  (let [reduce-id (ids/new-node-id)
+        step-id (ids/new-node-id)
+        list-id (ids/new-node-id)
+        head0-id (ids/new-node-id)
+        tail0-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell reduce-id
+                                (subenv/reduce-list-closure)
+                                (subenv/reduce-list-closure))
+               (nb/install-cell step-id
+                                (subenv/sum-step-closure)
+                                (subenv/sum-step-closure))
+               (nb/install-cell list-id)
+               (nb/install-cell head0-id 1 1)
+               (nb/install-cell tail0-id)
+               (nb/install-cell acc-id 0 0)
+               (nb/install-cell out-id))
+        [[car0-prop cdr0-prop] n1] ((obj/p:cons head0-id tail0-id list-id) n0)
+        [reduce-props n2]
+        ((subenv/p:apply-closure reduce-id [list-id step-id acc-id] out-id) n1)
+        n3 (run-props n2 (concat [car0-prop cdr0-prop] reduce-props))
+        before (strongest n3 out-id)
+        head1-id (ids/new-node-id)
+        tail1-id (ids/new-node-id)
+        n4 (-> n3
+               (nb/install-cell head1-id 2 2)
+               (nb/install-cell tail1-id subenv/empty-list subenv/empty-list))
+        [[car1-prop cdr1-prop] n5] ((obj/p:cons head1-id tail1-id tail0-id) n4)
+        n6 (run-props n5 [car1-prop cdr1-prop])]
+    {:before before
+     :after (strongest n6 out-id)}))
+
+(defn- constructed-accessor-prefix-reduce-probe
+  []
+  (let [reduce-id (ids/new-node-id)
+        step-id (ids/new-node-id)
+        list-id (ids/new-node-id)
+        head0-id (ids/new-node-id)
+        tail0-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell reduce-id
+                                (subenv/prefix-reduce-list-closure)
+                                (subenv/prefix-reduce-list-closure))
+               (nb/install-cell step-id
+                                (subenv/sum-present-step-closure)
+                                (subenv/sum-present-step-closure))
+               (nb/install-cell list-id)
+               (nb/install-cell head0-id 1 1)
+               (nb/install-cell tail0-id)
+               (nb/install-cell acc-id 0 0)
+               (nb/install-cell out-id))
+        [[car0-prop cdr0-prop] n1] ((obj/p:cons head0-id tail0-id list-id) n0)
+        [reduce-props n2]
+        ((subenv/p:apply-closure reduce-id [list-id step-id acc-id] out-id) n1)
+        n3 (run-props n2 (concat [car0-prop cdr0-prop] reduce-props))
+        before (strongest n3 out-id)
+        head1-id (ids/new-node-id)
+        tail1-id (ids/new-node-id)
+        n4 (-> n3
+               (nb/install-cell head1-id 2 2)
+               (nb/install-cell tail1-id subenv/empty-list subenv/empty-list))
+        [[car1-prop cdr1-prop] n5] ((obj/p:cons head1-id tail1-id tail0-id) n4)
+        n6 (run-props n5 [car1-prop cdr1-prop])]
+    {:before before
+     :after (strongest n6 out-id)}))
+
+(defn- constructed-accessor-filter-probe
+  []
+  (let [filter-id (ids/new-node-id)
+        predicate-id (ids/new-node-id)
+        list-id (ids/new-node-id)
+        head0-id (ids/new-node-id)
+        tail0-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell filter-id
+                                (subenv/filter-list-closure)
+                                (subenv/filter-list-closure))
+               (nb/install-cell predicate-id
+                                (subenv/even-predicate-closure)
+                                (subenv/even-predicate-closure))
+               (nb/install-cell list-id)
+               (nb/install-cell head0-id 0 0)
+               (nb/install-cell tail0-id)
+               (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
+               (nb/install-cell out-id))
+        [[car0-prop cdr0-prop] n1] ((obj/p:cons head0-id tail0-id list-id) n0)
+        [filter-props n2]
+        ((subenv/p:apply-closure filter-id
+                                 [list-id predicate-id acc-id]
+                                 out-id)
+         n1)
+        n3 (run-props n2 (concat [car0-prop cdr0-prop] filter-props))
+        {n3a :net before :heads} (observe-first-two-heads n3 out-id)
+        head1-id (ids/new-node-id)
+        tail1-id (ids/new-node-id)
+        n4 (-> n3a
+               (nb/install-cell head1-id 2 2)
+               (nb/install-cell tail1-id subenv/empty-list subenv/empty-list))
+        [[car1-prop cdr1-prop] n5] ((obj/p:cons head1-id tail1-id tail0-id) n4)
+        n6 (run-props n5 [car1-prop cdr1-prop])
+        {after :heads} (observe-first-two-heads n6 out-id)]
+    {:before before
+     :after after}))
+
 (deftest contextual-recursive-map-list-over-compound-data
   (testing "map-list uses the same contextual apply/recur engine over compound data"
     (let [{:keys [value]} (subenv/run-map-list-fib [])]
       (is (= [] (list->vec value))))
     (let [{:keys [value]} (subenv/run-map-list-fib [0 1 2 3 4 5])]
       (is (= [0 1 1 2 3 5] (list->vec value))))))
+
+(deftest contextual-recursive-reduce-and-filter-over-compound-data
+  (testing "reduce-list composes contextual apply/recur with accumulator flow"
+    (is (= 0 (:value (subenv/run-reduce-list-sum []))))
+    (is (= 15 (:value (subenv/run-reduce-list-sum [0 1 2 3 4 5])))))
+
+  (testing "filter-list composes contextual apply/recur with branchy cons output"
+    (is (= [] (list->vec (:value (subenv/run-filter-list-even [])))))
+    (is (= [0 2 4] (list->vec (:value (subenv/run-filter-list-even
+                                       [0 1 2 3 4 5])))))))
 
 (deftest constructed-accessor-map-lazy-extension-routes-through-scoped-slot-dispatch
   (testing "accessor observers and recursive map output both see the lazy extension"
@@ -345,7 +488,7 @@
       (is (true? mapped-cell-observer-changed?)
           "Installing parent accessors also rewrites the mapped output cell with accessor route topology.")
       (is (= 0 (first mapped-before)))
-      (is (nil? (second mapped-before))
+      (is (contains? #{nil value/nothing} (second mapped-before))
           "Before the lazy extension there is no second mapped output element.")
       (is (= [0 1] mapped-after)
           "The source cdr update routes through the child scoped slot accessor and wakes the recursive frame."))))
@@ -363,6 +506,27 @@
       (is (= 0 (first before)))
       (is (contains? #{nil value/nothing} (second before)))
       (is (= [0 1] after)))))
+
+(deftest constructed-accessor-reduce-lazy-extension-routes-through-scoped-slots
+  (testing "constructed cdr extension wakes recursive reduce through scoped slots"
+    (let [{:keys [before after]} (constructed-accessor-reduce-probe)]
+      (is (= value/nothing before)
+          "Reduce has no prefix output until the terminal empty cdr is known.")
+      (is (= 3 after)))))
+
+(deftest prefix-reduce-over-lazy-cdr-contradicts-with-plain-numeric-output
+  (testing "ignoring an unknown tail emits a provisional scalar that cannot be revised"
+    (let [{:keys [before after]} (constructed-accessor-prefix-reduce-probe)]
+      (is (= 1 before))
+      (is (value/contradiction? after)
+          "The later correct sum 3 conflicts with the already-merged prefix sum 1."))))
+
+(deftest constructed-accessor-filter-lazy-extension-routes-through-scoped-slots
+  (testing "constructed cdr extension wakes recursive filter through scoped slots"
+    (let [{:keys [before after]} (constructed-accessor-filter-probe)]
+      (is (= 0 (first before)))
+      (is (contains? #{nil value/nothing} (second before)))
+      (is (= [0 2] after)))))
 
 (deftest nested-map-dispatches-to-child-and-projects-output
   (testing "nested map composition should route a parent message into the child frame and update only through recursive output"
