@@ -3,9 +3,9 @@
   (:require [propagators.cells.value :as value]
             [propagators.compile :as compile]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.gur.subenv.env :as env]
             [propagators.gur.subenv.frame :as frame]
             [propagators.gur.subenv.queue :as queue]
+            [propagators.gur.subenv.source :as source]
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -19,28 +19,6 @@
        (value/contradiction? v) value/contradiction
        (value/nothing? v) value/nothing
        :else (pred v)))))
-
-(defn- numeric-primitive
-  [f]
-  (prop/primitive-propagator
-   (fn [& values]
-     (cond
-       (some value/contradiction? values)
-       value/contradiction
-
-       (some value/nothing? values)
-       value/nothing
-
-       :else
-       (try
-         (apply f values)
-         (catch Exception _
-           value/contradiction))))))
-
-(def p:+ (numeric-primitive +))
-(def p:- (numeric-primitive -))
-(def p:* (numeric-primitive *))
-(def p:quot (numeric-primitive quot))
 
 (def p:+-present
   (prop/primitive-propagator
@@ -64,65 +42,21 @@
 
 (declare p:fib-base? p:empty-list? p:list-node-value? p:even?)
 
-(defn- contextual-recur-installer
-  [recur-fn]
-  (fn [& ids]
-    (let [arg-ids (vec (butlast ids))
-          out-id (last ids)]
-      (fn [n]
-        (recur-fn n arg-ids out-id)))))
-
-(defn- contextual-apply-installer
-  [apply-fn]
-  (fn [closure-id & ids]
-    (let [arg-ids (vec (butlast ids))
-          out-id (last ids)]
-      (fn [n]
-        (apply-fn n closure-id arg-ids out-id)))))
-
-(defn- p:car-out
-  [collection-id out-id]
-  (obj/p:car out-id collection-id))
-
-(defn- p:cdr-out
-  [collection-id out-id]
-  (obj/p:cdr out-id collection-id))
+(defn- example-base-installers []
+  (merge (compile/default-installers)
+         {'p:+-present p:+-present
+          'p:fib-base? p:fib-base?
+          'p:empty-list? p:empty-list?
+          'p:list-node-value? p:list-node-value?
+          'p:even? p:even?
+          'obj/p:car obj/p:car
+          'obj/p:cdr obj/p:cdr
+          'obj/p:cons obj/p:cons
+          'cons obj/p:cons}))
 
 (defn- example-installers
-  [{:keys [apply-fn recur-fn]}]
-  (cond-> (merge (compile/default-installers)
-                 {'p:+ p:+
-                  'p:- p:-
-                  'p:* p:*
-                  'p:quot p:quot
-                  'p:+-present p:+-present
-                  'p:fib-base? p:fib-base?
-                  'p:empty-list? p:empty-list?
-                  'p:list-node-value? p:list-node-value?
-                  'p:even? p:even?
-                  'obj/p:car obj/p:car
-                  'obj/p:cdr obj/p:cdr
-                  'obj/p:cons obj/p:cons
-                  'car p:car-out
-                  'cdr p:cdr-out
-                  'cons obj/p:cons})
-    recur-fn (assoc 'ctx/recur (contextual-recur-installer recur-fn))
-    apply-fn (assoc 'ctx/apply (contextual-apply-installer apply-fn))))
-
-(defn- topology-result
-  [ctx]
-  {:net (:net ctx)
-   :prop-ids (:props ctx)})
-
-(defn- bind-env-locals
-  [ctx name->sym]
-  (assoc ctx
-         :net
-         (reduce-kv
-          (fn [n name sym]
-            (env/bind n name (compile/cell-ref ctx sym)))
-          (:net ctx)
-          name->sym)))
+  [runtime]
+  (source/contextual-installers (example-base-installers) runtime))
 
 (def p:fib-base?
   (value-predicate
@@ -131,94 +65,59 @@
        (<= v 1)
        value/contradiction))))
 
-(defn fib-definition
-  [{frame-net :network
-    [n-id] :args
-    out-id :out
-    recur-fn :recur}]
-  (topology-result
-   (compile/eval-net-with-bindings
-    frame-net
-    (example-installers {:recur-fn recur-fn})
-    {'n n-id
-     'out out-id}
-    '(do
-       (seed one 1)
-       (seed two 2)
-       (-> (::fib-base? n) base?)
-       (-> (::not base?) recur?)
-       (p:id
-        (cond
-          base? n
-          recur? (::+ (::recur (switch recur? (::- n one)))
-                      (::recur (switch recur? (::- n two)))))
-        out)))))
+(compile/def-recursive fib
+  [n out]
+  {:installers example-installers}
+  (let [one 1
+        two 2
+        base? (::fib-base? n)
+        recur? (::not base?)]
+    (cond
+      base? n
+      recur? (::+ (::recur (switch recur? (::- n one)))
+                  (::recur (switch recur? (::- n two)))))))
 
 (defn fib-closure []
-  (frame/def-recursive :fib fib-definition))
+  fib)
 
-(defn factorial-definition
-  [{frame-net :network
-    [n-id] :args
-    out-id :out
-    recur-fn :recur}]
-  (topology-result
-   (compile/eval-net-with-bindings
-    frame-net
-    (example-installers {:recur-fn recur-fn})
-    {'n n-id
-     'out out-id}
-    '(do
-       (seed one 1)
-       (-> (::fib-base? n) base?)
-       (-> (::not base?) recur?)
-       (p:id
-        (cond
-          base? one
-          recur? (::* n (::recur (switch recur? (::- n one)))))
-        out)))))
+(compile/def-recursive factorial
+  [n out]
+  {:installers example-installers}
+  (let [one 1
+        base? (::fib-base? n)
+        recur? (::not base?)]
+    (cond
+      base? one
+      recur? (::* n (::recur (switch recur? (::- n one)))))))
 
 (defn factorial-closure []
-  (frame/def-recursive :factorial factorial-definition))
+  factorial)
 
-(defn int-sqrt-search-definition
-  [{frame-net :network
-    [n-id lo-id hi-id] :args
-    out-id :out
-    recur-fn :recur}]
-  (topology-result
-   (compile/eval-net-with-bindings
-    frame-net
-    (example-installers {:recur-fn recur-fn})
-    {'n n-id
-     'lo lo-id
-     'hi hi-id
-     'out out-id}
-    '(do
-       (seed one 1)
-       (seed two 2)
-       (-> (::<= hi lo) done?)
-       (-> (::not done?) search?)
-       (-> (::quot (::+ lo hi one) two) mid)
-       (-> (::* mid mid) square)
-       (-> (::<= square n) fits?)
-       (-> (::not fits?) too-big?)
-       (-> (::and search? fits?) search-fits?)
-       (-> (::and search? too-big?) search-too-big?)
-       (-> (::- mid one) hi*)
-       (p:id
-        (cond
-          done? lo
-          search-fits? (::recur (switch search-fits? n)
-                                 (switch search-fits? mid)
-                                 (switch search-fits? hi))
-          search-too-big? (::recur (switch search-too-big? n)
-                                    (switch search-too-big? lo)
-                                    (switch search-too-big? hi*)))
-        out)))))
+(compile/def-recursive int-sqrt-search
+  [n lo hi out]
+  {:installers example-installers}
+  (let [one 1
+        two 2
+        done? (::<= hi lo)
+        search? (::not done?)
+        mid (::quot (::+ lo hi one) two)
+        square (::* mid mid)
+        fits? (::<= square n)
+        too-big? (::not fits?)
+        search-fits? (::and search? fits?)
+        search-too-big? (::and search? too-big?)
+        hi* (::- mid one)]
+    (cond
+      done? lo
+      search-fits? (::recur (switch search-fits? n)
+                            (switch search-fits? mid)
+                            (switch search-fits? hi))
+      search-too-big? (::recur (switch search-too-big? n)
+                               (switch search-too-big? lo)
+                               (switch search-too-big? hi*)))))
 
 (defn int-sqrt-search-closure []
-  (frame/def-recursive :int-sqrt-search int-sqrt-search-definition))
+  int-sqrt-search)
 
 (def empty-list (obj/as-accessor-network {}))
 
@@ -272,235 +171,136 @@
        (even? v)
        value/contradiction))))
 
-(defn map-list-definition
-  [{frame-net :network
-    [list-id mapper-id acc-id] :args
-    out-id :out
-    apply-fn :apply
-    recur-fn :recur}]
-  (let [expr (list 'do
-                   '(-> (::empty-list? list) list-empty?)
-                   '(-> (::not list-empty?) list-more?)
-                   '(-> (switch list-empty? acc) done-list)
-                   '(p:id done-list out)
-                   '(-> (switch list-more? list) node)
-                   '(-> (::car node) head)
-                   '(-> (::cdr node) rest)
-                   '(p:id (::apply mapper head) mapped)
-                   '(-> (::empty-list? rest) rest-empty?)
-                   '(-> (::not rest-empty?) rest-more?)
-                   '(-> (switch rest-empty? acc) done-rest)
-                   '(-> (switch rest-more? rest) rest-recur)
-                   '(p:id done-rest mapped-rest)
-                   '(p:id (::recur rest-recur mapper acc) mapped-rest)
-                   '(-> (::cons mapped mapped-rest) mapped-node)
-                   '(p:id (switch list-more? mapped-node) out))]
-    (-> (compile/eval-net-with-bindings
-         frame-net
-         (example-installers {:apply-fn apply-fn
-                              :recur-fn recur-fn})
-         {'list list-id
-          'mapper mapper-id
-          'acc acc-id
-          'out out-id}
-         expr)
-        (bind-env-locals {:head 'head
-                          :rest 'rest
-                          :mapped 'mapped
-                          :mapped-rest 'mapped-rest
-                          :node 'node
-                          :mapped-node 'mapped-node})
-        topology-result)))
+(compile/def-recursive map-list
+  [list mapper acc out]
+  {:installers example-installers}
+  (let-cell [head rest]
+    (let [list-empty? (::empty-list? list)
+          list-more? (::not list-empty?)
+          node (switch list-more? list)]
+      (obj/p:car head node)
+      (obj/p:cdr rest node)
+      (let [mapped (::apply mapper head)
+            rest-empty? (::empty-list? rest)
+            rest-more? (::not rest-empty?)
+            mapped-rest (cond
+                          rest-empty? acc
+                          rest-more? (::recur (switch rest-more? rest)
+                                              mapper
+                                              acc))
+            mapped-node (::cons mapped mapped-rest)]
+        (cond
+          list-empty? acc
+          list-more? mapped-node)))))
 
 (defn map-list-closure []
-  (frame/def-recursive :map-list map-list-definition))
+  map-list)
 
-(defn map-list-fib-definition
-  [{frame-net :network
-    [list-id] :args
-    out-id :out
-    apply-fn :apply}]
-  (let [expr (list 'do
-                   (list 'seed 'map-list (map-list-closure))
-                   (list 'seed 'fib (fib-closure))
-                   (list 'seed 'acc empty-list)
-                   '(ctx/apply map-list list fib acc out))]
-    (topology-result
-     (compile/eval-net-with-bindings
-      frame-net
-      (example-installers {:apply-fn apply-fn})
-      {'list list-id
-       'out out-id}
-      expr))))
+(compile/def-recursive map-list-fib
+  [list out]
+  {:installers example-installers
+   :seed-values {map-list map-list
+                 fib fib
+                 acc empty-list}}
+  (::apply map-list list fib acc))
 
 (defn map-list-fib-closure []
-  (frame/def-recursive :map-list-fib map-list-fib-definition))
+  map-list-fib)
 
-(defn sum-step-definition
-  [{frame-net :network
-    [acc-id value-id] :args
-    out-id :out}]
-  (topology-result
-   (compile/eval-net-with-bindings
-    frame-net
-    (example-installers {})
-    {'acc acc-id
-     'value value-id
-     'out out-id}
-    '(p:id (::+ acc value) out))))
+(compile/def-recursive sum-step
+  [acc value out]
+  {:installers example-installers}
+  (::+ acc value))
 
 (defn sum-step-closure []
-  (frame/def-recursive :sum-step sum-step-definition))
+  sum-step)
 
-(defn sum-present-step-definition
-  [{frame-net :network
-    [acc-id value-id] :args
-    out-id :out}]
-  (topology-result
-   (compile/eval-net-with-bindings
-    frame-net
-    (example-installers {})
-    {'acc acc-id
-     'value value-id
-     'out out-id}
-    '(p:id (::+-present acc value) out))))
+(compile/def-recursive sum-present-step
+  [acc value out]
+  {:installers example-installers}
+  (::+-present acc value))
 
 (defn sum-present-step-closure []
-  (frame/def-recursive :sum-present-step sum-present-step-definition))
+  sum-present-step)
 
-(defn even-predicate-definition
-  [{frame-net :network
-    [value-id] :args
-    out-id :out}]
-  (topology-result
-   (compile/eval-net-with-bindings
-    frame-net
-    (example-installers {})
-    {'value value-id
-     'out out-id}
-    '(p:id (::even? value) out))))
+(compile/def-recursive even-predicate
+  [value out]
+  {:installers example-installers}
+  (::even? value))
 
 (defn even-predicate-closure []
-  (frame/def-recursive :even-predicate even-predicate-definition))
+  even-predicate)
 
-(defn reduce-list-definition
-  [{frame-net :network
-    [list-id step-id acc-id] :args
-    out-id :out
-    apply-fn :apply
-    recur-fn :recur}]
-  (let [expr (list 'do
-                   '(-> (::empty-list? list) list-empty?)
-                   '(-> (::not list-empty?) list-more?)
-                   '(p:id (switch list-empty? acc) out)
-                   '(-> (switch list-more? list) node)
-                   '(-> (::car node) head)
-                   '(-> (::cdr node) rest)
-                   '(p:id (::apply step acc head) next-acc)
-                   '(-> (::empty-list? rest) rest-empty?)
-                   '(-> (::not rest-empty?) rest-more?)
-                   '(p:id (switch rest-empty? next-acc) out)
-                   '(p:id (::recur (switch rest-more? rest) step next-acc) out))]
-    (-> (compile/eval-net-with-bindings
-         frame-net
-         (example-installers {:apply-fn apply-fn
-                              :recur-fn recur-fn})
-         {'list list-id
-          'step step-id
-          'acc acc-id
-          'out out-id}
-         expr)
-        (bind-env-locals {:head 'head
-                          :rest 'rest
-                          :next-acc 'next-acc
-                          :node 'node})
-        topology-result)))
+(compile/def-recursive reduce-list
+  [list step acc out]
+  {:installers example-installers}
+  (let-cell [head rest]
+    (let [list-empty? (::empty-list? list)
+          list-more? (::not list-empty?)
+          node (switch list-more? list)]
+      (obj/p:car head node)
+      (obj/p:cdr rest node)
+      (let [next-acc (::apply step acc head)
+            rest-empty? (::empty-list? rest)
+            rest-more? (::not rest-empty?)]
+        (cond
+          list-empty? acc
+          rest-empty? next-acc
+          rest-more? (::recur (switch rest-more? rest) step next-acc))))))
 
 (defn reduce-list-closure []
-  (frame/def-recursive :reduce-list reduce-list-definition))
+  reduce-list)
 
-(defn prefix-reduce-list-definition
-  [{frame-net :network
-    [list-id step-id acc-id] :args
-    out-id :out
-    apply-fn :apply
-    recur-fn :recur}]
-  (let [expr (list 'do
-                   '(-> (::empty-list? list) list-empty?)
-                   '(-> (::not list-empty?) list-more?)
-                   '(p:id (switch list-empty? acc) out)
-                   '(-> (switch list-more? list) node)
-                   '(-> (::car node) head)
-                   '(-> (::cdr node) rest)
-                   '(p:id (::apply step acc head) next-acc)
-                   '(-> (::empty-list? rest) rest-empty?)
-                   '(-> (::nothing? rest) rest-unknown?)
-                   '(-> (::or rest-empty? rest-unknown?) rest-done?)
-                   '(p:id (switch rest-done? next-acc) out)
-                   '(-> (::not rest-done?) rest-more?)
-                   '(p:id (::recur (switch rest-more? rest) step next-acc) out))]
-    (-> (compile/eval-net-with-bindings
-         frame-net
-         (example-installers {:apply-fn apply-fn
-                              :recur-fn recur-fn})
-         {'list list-id
-          'step step-id
-          'acc acc-id
-          'out out-id}
-         expr)
-        (bind-env-locals {:head 'head
-                          :rest 'rest
-                          :next-acc 'next-acc
-                          :node 'node})
-        topology-result)))
+(compile/def-recursive prefix-reduce-list
+  [list step acc out]
+  {:installers example-installers}
+  (let-cell [head rest]
+    (let [list-empty? (::empty-list? list)
+          list-more? (::not list-empty?)
+          node (switch list-more? list)]
+      (obj/p:car head node)
+      (obj/p:cdr rest node)
+      (let [next-acc (::apply step acc head)
+            rest-empty? (::empty-list? rest)
+            rest-unknown? (::nothing? rest)
+            rest-done? (::or rest-empty? rest-unknown?)
+            rest-more? (::not rest-done?)]
+        (cond
+          list-empty? acc
+          rest-done? next-acc
+          rest-more? (::recur (switch rest-more? rest) step next-acc))))))
 
 (defn prefix-reduce-list-closure []
-  (frame/def-recursive :prefix-reduce-list prefix-reduce-list-definition))
+  prefix-reduce-list)
 
-(defn filter-list-definition
-  [{frame-net :network
-    [list-id predicate-id acc-id] :args
-    out-id :out
-    apply-fn :apply
-    recur-fn :recur}]
-  (let [expr (list 'do
-                   '(-> (::empty-list? list) list-empty?)
-                   '(-> (::not list-empty?) list-more?)
-                   '(p:id (switch list-empty? acc) out)
-                   '(-> (switch list-more? list) node)
-                   '(-> (::car node) head)
-                   '(-> (::cdr node) rest)
-                   '(p:id (::apply predicate head) keep?)
-                   '(-> (::empty-list? rest) rest-empty?)
-                   '(-> (::not rest-empty?) rest-more?)
-                   '(p:id (switch rest-empty? acc) filtered-rest)
-                   '(p:id (::recur (switch rest-more? rest) predicate acc) filtered-rest)
-                   '(-> (::cons head filtered-rest) kept-node)
-                   '(-> (::not keep?) drop?)
-                   '(p:id
-                     (cond
-                       keep? kept-node
-                       drop? filtered-rest)
-                     branch)
-                   '(p:id (switch list-more? branch) out))]
-    (-> (compile/eval-net-with-bindings
-         frame-net
-         (example-installers {:apply-fn apply-fn
-                              :recur-fn recur-fn})
-         {'list list-id
-          'predicate predicate-id
-          'acc acc-id
-          'out out-id}
-         expr)
-        (bind-env-locals {:head 'head
-                          :rest 'rest
-                          :filtered-rest 'filtered-rest
-                          :node 'node
-                          :kept-node 'kept-node})
-        topology-result)))
+(compile/def-recursive filter-list
+  [list predicate acc out]
+  {:installers example-installers}
+  (let-cell [head rest]
+    (let [list-empty? (::empty-list? list)
+          list-more? (::not list-empty?)
+          node (switch list-more? list)]
+      (obj/p:car head node)
+      (obj/p:cdr rest node)
+      (let [keep? (::apply predicate head)
+            rest-empty? (::empty-list? rest)
+            rest-more? (::not rest-empty?)
+            filtered-rest (cond
+                            rest-empty? acc
+                            rest-more? (::recur (switch rest-more? rest)
+                                                predicate
+                                                acc))
+            kept-node (::cons head filtered-rest)
+            drop? (::not keep?)
+            branch (cond
+                     keep? kept-node
+                     drop? filtered-rest)]
+        (cond
+          list-empty? acc
+          list-more? branch)))))
 
 (defn filter-list-closure []
-  (frame/def-recursive :filter-list filter-list-definition))
+  filter-list)
 
 (defn run-fib
   [n-value]

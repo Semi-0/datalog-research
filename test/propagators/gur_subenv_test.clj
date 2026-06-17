@@ -1,21 +1,110 @@
 (ns propagators.gur-subenv-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.value :as value]
+            [propagators.compile :as compile]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.gur.subenv :as subenv]
+            [propagators.gur.subenv.source :as source]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.scoped-address :as scoped]))
 
 (defn- strongest [n id]
   (net/network-cell-strongest n id))
 
 (defn- run-props [n prop-ids]
   (core/run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
+
+(deftest compile-dsl-let-and-contextual-op-guard
+  (testing "DSL let binds expression cells without using host let"
+    (let [{:keys [net props value]}
+          (compile/eval-net
+           '(let [one 1
+                  two 2
+                  sum (::+ one two)]
+              sum))
+          result-net (run-props net props)]
+      (is (= 3 (strongest result-net value)))))
+
+  (testing "contextual recursive ops fail outside recursive source context"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"contextual recursive op"
+         (compile/eval-net '(::recur x))))))
+
+(deftest scoped-address-ir-round-trips-current-dispatch-keys
+  (let [scope [:scope :child]
+        local-id (ids/new-node-id)
+        name-ir (scoped/name-ref-ir scope :rest)
+        cell-ir (scoped/cell-ref-ir scope local-id)]
+    (is (scoped/ref? name-ir))
+    (is (= (subenv/name-ref scope :rest)
+           (scoped/ref->address name-ir)))
+    (is (= (subenv/cell-ref scope local-id)
+           (scoped/ref->address cell-ir)))
+    (is (= name-ir
+           (scoped/address->ref (subenv/name-ref scope :rest))))
+    (is (= cell-ir
+           (scoped/address->ref (subenv/cell-ref scope local-id))))))
+
+(defn- run-countdown
+  [n-value]
+  (let [closure (source/recursive-closure
+                 :countdown
+                 '[n out]
+                 '(let [zero 0
+                        one 1
+                        done? (::<= n zero)
+                        more? (::not done?)]
+                    (cond
+                      done? n
+                      more? (::recur (switch more? (::- n one))))))
+        closure-id (ids/new-node-id)
+        n-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell closure-id closure closure)
+               (nb/install-cell n-id n-value n-value)
+               (nb/install-cell out-id))
+        [props n1] ((subenv/p:apply-closure closure-id [n-id] out-id) n0)
+        n2 (run-props n1 props)]
+    (strongest n2 out-id)))
+
+(deftest source-level-def-recursive-lowers-to-gur-runtime
+  (is (= 0 (run-countdown 0)))
+  (is (= 0 (run-countdown 3))))
+
+(compile/def-recursive compile-countdown
+  [n out]
+  (let [zero 0
+        one 1
+        done? (::<= n zero)
+        more? (::not done?)]
+    (cond
+      done? n
+      more? (::recur (switch more? (::- n one))))))
+
+(defn- run-compile-countdown
+  [n-value]
+  (let [closure-id (ids/new-node-id)
+        n-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell closure-id compile-countdown compile-countdown)
+               (nb/install-cell n-id n-value n-value)
+               (nb/install-cell out-id))
+        [props n1] ((subenv/p:apply-closure closure-id [n-id] out-id) n0)
+        n2 (run-props n1 props)]
+    (strongest n2 out-id)))
+
+(deftest compile-def-recursive-lowers-to-gur-runtime
+  (is (= 0 (run-compile-countdown 0)))
+  (is (= 0 (run-compile-countdown 3))))
 
 (defn- child-net
   [scope local-id]

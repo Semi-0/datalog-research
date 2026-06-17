@@ -373,6 +373,23 @@ topology. Local parent ids still seed from the parent env, child ids seed from
 the child env after dispatch, and structural slot registration remains distinct
 from slot value updates.
 
+This registration mechanism is intentionally crude. Each time a child sub-env
+value is written back into its owner cell, the current implementation scans the
+child network, nested child networks, and accessor values again to discover
+exports. That makes lazy expansion work for the current GUR list cases, but it
+is slow and redundant. It is also too specialized to this owner-cell/sub-env
+relationship: the export path knows about child frames, scoped cell refs, and
+compound-object accessor topology rather than expressing a reusable parent-child
+subscription protocol.
+
+A better direction is probably to register recursive accessors through a
+lexical access propagator or comparable kernel-level boundary relation. Such a
+propagator would declare "this parent slot route depends on this lexical child
+cell" directly, wake when the relevant child frame is expanded, and avoid
+rescanning the whole child tree on every owner-cell update. That would keep
+recursive accessor registration as normal propagation topology instead of a
+post-merge side effect hidden in sub-env registration.
+
 The code is split by responsibility:
 
 - `subenv/env.clj`: scope keys, lexical bindings, dispatch directory
@@ -447,33 +464,31 @@ The `diff-view` is only a parent-facing projection. It is not stored back into
 the child frame, because doing so would erase child-local accessor routes needed
 for later output assembly.
 
-Contextual recursion is represented as ordinary propagators. The implemented
-`def-recursive` is a runtime constructor function, not a source-level macro. It
-passes contextual `apply` and `recur` functions into the closure; applying a
-closure extends and accumulates the child network with an applied-frame fact.
+Contextual recursion is represented as ordinary propagators. The core
+`gur.subenv.frame/def-recursive` remains a runtime constructor function, while
+`propagators.compile/def-recursive` is now the source-level macro front door. It
+lowers through `gur.subenv.source`, passes contextual `apply` and `recur`
+functions into the closure, and applying a closure extends and accumulates the
+child network with an applied-frame fact.
 
-The concrete probes in `subenv/examples.clj` use the small `propagators.compile`
-DSL with an experiment-local installer extension for contextual recursion:
+The concrete probes in `subenv/examples.clj` use `compile/def-recursive`.
+Source definitions get contextual recursion installers layered on top of the
+default compiler installers, so ordinary arithmetic such as `::+`, `::-`,
+`::*`, and `::quot` resolves to `propagators.stdlib.prop`, while `::apply` and
+`::recur` resolve only inside a recursive body:
 
 ```clojure
-(compile/eval-net-with-bindings
- frame-net
- {'ctx/recur (contextual-recur-installer recur-fn)
-  'p:fib-base? p:fib-base?
-  'p:+ p:+
-  'car p:car-out
-  'cdr p:cdr-out}
- {'n n-id, 'out out-id}
- '(do
-    (seed one 1)
-    (-> (::fib-base? n) base?)
-    (-> (::not base?) recur?)
-    (p:id
-     (cond
-       base? n
-       recur? (::+ (::recur (switch recur? (::- n one)))
-                   (::recur (switch recur? (::- n two)))))
-     out)))
+(compile/def-recursive fib
+  [n out]
+  {:installers example-installers}
+  (let [one 1
+        two 2
+        base? (::fib-base? n)
+        recur? (::not base?)]
+    (cond
+      base? n
+      recur? (::+ (::recur (switch recur? (::- n one)))
+                  (::recur (switch recur? (::- n two)))))))
 ```
 
 The compile DSL now has expression-returning keyword calls: `(::foo a b)`
@@ -482,15 +497,15 @@ returns that cell. The `switch` form also returns a gated output cell, `cond`
 installs propagated branch gates into one output cell, and `(-> expr name)`
 binds an expression result to a readable cell name.
 
-The probes do not branch by materializing host lists. `fib-definition` composes
-local bottom-aware numeric primitives with `switch`, `cond`, `not`, contextual
-`recur`, and `+`. `map-list-definition` is intentionally flat, like mapping
-over one array/list level: it composes accessor `car`/`cdr`, contextual
-`apply` over the `car`, contextual `recur` over the `cdr`, and `cons` to rebuild
-the output, with the empty input list gated directly to the accumulator. It does
-not inspect whether the `car` is itself a nested list. Nested mapping is tested
-by composition: the outer `map-list` receives a mapper closure whose body invokes
-an inner `map-list` with `fib`.
+The probes do not branch by materializing host lists. `fib` composes stdlib
+arithmetic with `switch`, `cond`, `not`, and contextual `recur`. `map-list` is
+intentionally flat, like mapping over one array/list level: it composes direct
+`obj/p:car` / `obj/p:cdr` accessors into named cells, contextual `apply` over
+the `car`, contextual `recur` over the `cdr`, and `::cons` to rebuild the output,
+with the empty input list gated directly to the accumulator. It does not inspect
+whether the `car` is itself a nested list. Nested mapping is tested by
+composition: the outer `map-list` receives a mapper closure whose body invokes an
+inner `map-list` with `fib`.
 
 The example cons values are accessor networks; predicates observe accessor
 source slots rather than raw `{:car ... :cdr ...}` maps.
@@ -647,10 +662,12 @@ Current behavior is covered by:
 
 - decide how routed GUR and lexical sub-env GUR should relate in the final
   compile-2 target;
-- promote `def-recursive` from a runtime constructor experiment into source
-  syntax or compile output, if the model holds;
+- decide whether `compile/def-recursive` should become compile-2 output syntax
+  or remain a small source-level convenience macro;
 - define bidirectional nested writer semantics over arbitrary compound shapes,
   beyond the current cons-style compound/list tests;
+- replace the crude scoped-accessor export scan with a reusable lexical access
+  propagator or boundary relation for recursive parent-child subscriptions;
 - extend the GUR benchmark harness when dynamic map/vector slots land;
 - derive compact route declarations so compile-2 does not emit verbose frame
   boilerplate.
@@ -1108,14 +1125,14 @@ Dispatch itself does not emit contradiction messages; invalid owner routes are
 reported as routing errors, while contradictions still arise from value
 propagators and cell merge.
 
-The example definitions are built with the small `propagators.compile` DSL plus
+The example definitions are built with `compile/def-recursive` plus
 experiment-local installers for contextual `apply` / `recur`, not host-side
-branch functions. `fib-definition` uses local bottom-aware numeric primitives
-plus `switch`, `cond`, and recursive applications. `map-list` uses
-accessor-network cons cells, output-last `::car` / `::cdr` aliases, gates,
-contextual `apply` over the `car`, contextual `recur` over the `cdr`, and
-`::cons`. It is intentionally flat; nested mapping is represented by composing
-`map-list` with a mapper closure that runs an inner `map-list`.
+branch functions. `fib` uses stdlib arithmetic plus `switch`, `cond`, and
+recursive applications. `map-list` uses accessor-network cons cells, explicit
+`obj/p:car` / `obj/p:cdr` calls into named `head` and `rest` cells, contextual
+`apply` over the `car`, contextual `recur` over the `cdr`, and `::cons`. It is
+intentionally flat; nested mapping is represented by composing `map-list` with a
+mapper closure that runs an inner `map-list`.
 
 The current tests validate both scalar and compound recursion:
 
@@ -1137,9 +1154,9 @@ The current tests validate both scalar and compound recursion:
   of the nested mapped output yields `[0 1]`.
 
 The experiment is deliberately still below the final language surface. It has
-the dispatch substrate, frame watcher, contextual apply/recur, and idempotent
-applied-frame accumulation. It does not yet have the exact `def-recursive`
-source syntax, arbitrary nested map/vector writers, or compile-2 lowering.
+the dispatch substrate, frame watcher, contextual apply/recur, idempotent
+applied-frame accumulation, and a thin `compile/def-recursive` source macro. It
+does not yet have arbitrary nested map/vector writers or compile-2 lowering.
 
 For all network-valued expansion paths:
 

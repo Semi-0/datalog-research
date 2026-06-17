@@ -14,6 +14,9 @@
    'p:id (requiring-resolve 'propagators.stdlib.prop/id)
    'prop/+ (requiring-resolve 'propagators.stdlib.prop/+)
    'prop/- (requiring-resolve 'propagators.stdlib.prop/-)
+   'prop/* (requiring-resolve 'propagators.stdlib.prop/*)
+   'prop// (requiring-resolve 'propagators.stdlib.prop//)
+   'prop/quot (requiring-resolve 'propagators.stdlib.prop/quot)
    'prop/<= (requiring-resolve 'propagators.stdlib.prop/<=)
    'prop/not (requiring-resolve 'propagators.stdlib.prop/not)
    'prop/and (requiring-resolve 'propagators.stdlib.prop/and)
@@ -38,6 +41,61 @@
    (requiring-resolve 'propagators.recursive/p:self-refining-recursive-compound)
    'recursive/p:accumulating-recursive-compound
    (requiring-resolve 'propagators.recursive/p:accumulating-recursive-compound)})
+
+(defn recursive-closure
+  "Compile-facing entry point for source-level GUR recursive closures.
+
+  The implementation stays in `propagators.gur.subenv.source`; resolving it
+  lazily keeps this namespace from depending on the experiment namespace during
+  compiler load.
+  "
+  ([name params body]
+   ((requiring-resolve 'propagators.gur.subenv.source/recursive-closure)
+    name
+    params
+    body))
+  ([name params body installer-fn]
+   ((requiring-resolve 'propagators.gur.subenv.source/recursive-closure)
+    name
+    params
+    body
+    installer-fn)))
+
+(defmacro def-recursive
+  "Define a source-level GUR recursive closure with compiler DSL syntax.
+
+  Optional leading body map:
+  - `:name` overrides the closure identity keyword.
+  - `:installers` supplies a runtime -> installer-map function.
+  - `:seed-values` seeds host values into source cells before the body.
+  "
+  [name params & body]
+  (let [[opts body] (if (map? (first body))
+                      [(first body) (rest body)]
+                      [{} body])
+        closure-name (or (:name opts) (keyword name))
+        installer-fn (:installers opts)
+        seed-values (:seed-values opts)
+        do-sym (symbol "do")
+        seed-sym (symbol "seed")
+        body-code (if (seq seed-values)
+                    `(list* '~do-sym
+                            (concat
+                             (list ~@(map (fn [[sym value-expr]]
+                                            `(list '~seed-sym '~sym ~value-expr))
+                                          seed-values))
+                             '~body))
+                    `'(~do-sym ~@body))]
+    (if installer-fn
+      `(def ~name
+         (recursive-closure ~closure-name
+                            '~params
+                            ~body-code
+                            ~installer-fn))
+      `(def ~name
+         (recursive-closure ~closure-name
+                            '~params
+                            ~body-code)))))
 
 ;; Re-export for manual threading
 (def install-net net/install-net)
@@ -110,8 +168,17 @@
 (defn- lookup-inst [ctx op]
   (let [installers (:installers ctx)
         k (some #(when (contains? installers %) %) (installer-candidates op))
-        v (if k
+        v (cond
+            k
             (get installers k)
+
+            (and (keyword? op)
+                 (contains? #{"apply" "recur"} (name op)))
+            (throw (ex-info "contextual recursive op used outside recursive body"
+                            {:op op
+                             :candidates (installer-candidates op)}))
+
+            :else
             (throw (ex-info "unknown installer"
                             {:inst op
                              :candidates (installer-candidates op)
@@ -232,6 +299,24 @@
            (bind-fresh-cell ctx sym))
          ctx
          syms)]
+    (eval-seq ctx' body)))
+
+(defn- eval-let [ctx [_ bindings & body]]
+  (when-not (vector? bindings)
+    (throw (ex-info "let expects a vector of bindings" {:bindings bindings})))
+  (when (odd? (count bindings))
+    (throw (ex-info "let expects symbol/expression pairs"
+                    {:bindings bindings})))
+  (let [[ctx' _]
+        (reduce
+         (fn [[ctx _] [sym expr]]
+           (when-not (symbol? sym)
+             (throw (ex-info "let binding name must be a symbol"
+                             {:binding sym})))
+           (let [[ctx' value] (eval-expr ctx expr)]
+             [(bind-symbol-to-value ctx' sym value) value]))
+         [ctx nil]
+         (partition 2 bindings))]
     (eval-seq ctx' body)))
 
 (defn- eval-do [ctx [_ & body]]
@@ -366,6 +451,9 @@
 
     (and (seq? expr) (= 'let-cell (first expr)))
     (eval-let-cell ctx expr)
+
+    (and (seq? expr) (= 'let (first expr)))
+    (eval-let ctx expr)
 
     (and (seq? expr) (= 'do (first expr)))
     (eval-do ctx expr)

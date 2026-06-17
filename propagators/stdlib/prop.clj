@@ -1,6 +1,6 @@
 (ns propagators.stdlib.prop
   "Primitive propagator installers (`prop/+`, `prop/id`, …)."
-  (:refer-clojure :exclude [+ - * / <= not and or when])
+  (:refer-clojure :exclude [+ - * / <= not and or quot when])
   (:require [clojure.core :as core]
             [propagators.cells.bool4 :as bool4]
             [propagators.cells.value :as value]
@@ -11,17 +11,33 @@
 (def id
   (prop/primitive-propagator (fn [x] x)))
 
+(defn- arithmetic-primitive
+  [f]
+  (prop/primitive-propagator
+   (fn [& values]
+     (cond
+       (some value/contradiction? values) value/contradiction
+       (some value/nothing? values) value/nothing
+       :else
+       (try
+         (apply f values)
+         (catch Exception _
+           value/contradiction))))))
+
 (def +
-  (prop/primitive-propagator core/+))
+  (arithmetic-primitive core/+))
 
 (def -
-  (prop/primitive-propagator core/-))
+  (arithmetic-primitive core/-))
 
 (def *
-  (prop/primitive-propagator core/*))
+  (arithmetic-primitive core/*))
 
 (def /
-  (prop/primitive-propagator core//))
+  (arithmetic-primitive core//))
+
+(def quot
+  (arithmetic-primitive core/quot))
 
 (def <=
   (prop/primitive-propagator

@@ -54,7 +54,7 @@
 (defn- env-dispatch-scope
   [k]
   (when (env-dispatch-key? k)
-    (second k)))
+    (scoped/address-scope k)))
 
 (defn- register-direct-binding
   [parent-net owner-id scope [name local-id]]
