@@ -54,6 +54,10 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Recursive Compound Propagator](recursive-compound-propagator.md) describes
   activation-local recursive network expansion, compile DSL wiring, and the
   Fibonacci proof.
+- [Main Module Dependence Graph](main-module-dependence-graph.md) maps the
+  current module dependencies against the target consolidation graph: compound
+  object partial data, lexical-aware apply closure, unbounded recursion,
+  layered/generic procedures, compiler-2, and hot reload.
 - `propagators.stdlib.provenance-arithmetic` — `+`, `-`, `*`, `/` that bootstrap
   base and provenance on a fresh `proc` and return the `layered/*` installer.
 - [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)

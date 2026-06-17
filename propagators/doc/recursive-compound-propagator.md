@@ -582,13 +582,23 @@ timed end-to-end runs:
 
 | Case | Median ms/run | Mean | Min | Max | Parent cells |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `fib(6)` | `32.474` | `31.063` | `24.306` | `36.664` | `6` |
-| `factorial(5)` | `3.381` | `3.403` | `3.127` | `3.677` | `6` |
-| `int-sqrt(81)` | `13.324` | `13.936` | `12.594` | `20.065` | `8` |
-| `map-list-fib [0..5]` | `41.919` | `43.347` | `39.276` | `61.379` | `8` |
-| `nested-map-list-fib [[0 1] [2 3]]` | `20.505` | `21.921` | `18.933` | `30.992` | `8` |
-| `reduce-list-sum [0..19]` | `34.387` | `36.308` | `32.049` | `48.868` | `8` |
-| `filter-list-even [0..19]` | `55.963` | `57.144` | `54.503` | `62.033` | `8` |
+| `fib(6)` | `34.914` | `34.105` | `26.318` | `43.711` | `7` |
+| `factorial(5)` | `3.735` | `3.792` | `3.515` | `4.924` | `7` |
+| `int-sqrt(81)` | `15.043` | `16.185` | `14.289` | `25.306` | `9` |
+| `map-list-fib [0..5]` | `47.708` | `48.680` | `44.152` | `59.992` | `9` |
+| `nested-map-list-fib [[0 1] [2 3]]` | `22.378` | `23.550` | `21.052` | `29.745` | `9` |
+| `reduce-list-sum [0..19]` | `42.128` | `44.025` | `40.604` | `53.528` | `9` |
+| `filter-list-even [0..19]` | `57.932` | `61.771` | `56.800` | `72.150` | `9` |
+
+The same harness also measures late-update propagation separately. Each sample
+builds the initial recursive network and installs observers outside the timed
+region, then times only the late cdr/cons propagation step:
+
+| Incremental case | Median ms/update | Mean | Min | Max | Parent cells |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `map late cdr [0 . ?] -> [0 1]` | `9.767` | `10.413` | `9.206` | `18.198` | `25` |
+| `reduce late terminal cdr [1 . ?] -> [1 2]` | `8.058` | `8.668` | `7.706` | `15.954` | `17` |
+| `filter late cdr [0 . ?] -> [0 2]` | `11.566` | `11.864` | `11.137` | `18.731` | `25` |
 
 The harness checks each result while timing it. It shows that reduce/filter do
 not require new runtime machinery, but filter is visibly more expensive because
@@ -1833,10 +1843,12 @@ Benchmark method for the benchmarked entries below:
    square root by binary search; the sqrt probe passes floor results from `0`
    through `81` and documents that recursive `cond` branches must be explicitly
    gated because declaration builds all branch topology.
-   Benchmark harness snapshot: `fib(6)` median `32.474 ms`, factorial
-   `3.381 ms`, integer sqrt `13.324 ms`, flat map `41.919 ms`, nested map
-   `20.505 ms`, reduce `[0..19]` `34.387 ms`, filter `[0..19]` `55.963 ms`
-   over `20` timed runs after `5` warmups.
+   Benchmark harness snapshot: `fib(6)` median `34.914 ms`, factorial
+   `3.735 ms`, integer sqrt `15.043 ms`, flat map `47.708 ms`, nested map
+   `22.378 ms`, reduce `[0..19]` `42.128 ms`, filter `[0..19]` `57.932 ms`
+   over `20` timed runs after `5` warmups. The same harness now records
+   late-update medians separately: map lazy cdr `9.767 ms`, reduce terminal cdr
+   `8.058 ms`, and filter lazy cdr `11.566 ms`.
    Boundary: this is not compile-2 lowering, not the final `def-recursive`
    source syntax, not arbitrary nested map/vector writer semantics, and not a
    redesign of existing nested `p:car` / `p:cdr` accessor behavior.
