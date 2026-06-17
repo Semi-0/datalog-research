@@ -145,6 +145,7 @@ The routed installer delivery keeps ownership explicit:
 | Accessor GUR | Lazy terminal cdr expansion can run as child frame values. | `gur/p:run-frame` plus branch network values and accessor snapshots. | Works for current cases, but needs snapshots/subscribers/lexical env coupling. | Keep as comparison. |
 | Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Best previous ownership baseline. |
 | Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, scoped vector keys, scoped slot accessor registration, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, bidirectional late nested cdr through parent-visible output, constructed-accessor lazy cdr extension, and nested constructed lazy cdr extension through transitive scoped slot fanout. | Current proposal validation; continue, but not compile target yet. |
+| Frame-publisher accessor export | Recursive accessor export can be ordinary propagation instead of a sub-env merge side effect. | `gur.subenv/p:apply-closure` installs a child-accessor publisher beside the frame runner. | Preserves lazy flat/nested cdr behavior while removing recursive accessor export from owner-cell registration. | Current implementation refinement; still leaves contextual slot accessors as future cleanup. |
 
 ## Experiments
 
@@ -1699,7 +1700,7 @@ Conclusion used for direction:
 
 ## Appendix: Chronological Experiment Log
 
-Total executed recursion experiments described here: `9`
+Total executed recursion experiments described here: `10`
 
 Separate from that total:
 
@@ -1839,6 +1840,27 @@ Benchmark method for the benchmarked entries below:
    Boundary: this is not compile-2 lowering, not the final `def-recursive`
    source syntax, not arbitrary nested map/vector writer semantics, and not a
    redesign of existing nested `p:car` / `p:cdr` accessor behavior.
+
+10. `2026-06-17` Frame-publisher accessor export for lexical sub-env GUR.
+    Assumption: recursive accessor registration should be owned by normal
+    propagators, not by a recursive scan hidden inside owner-cell sub-env
+    registration. The owner-cell merge hook should keep scope and dispatch
+    directory registration only.
+    Outcome: `gur.subenv/p:apply-closure` now installs a child-accessor publisher
+    next to the frame runner. The publisher watches the frame owner cell,
+    computes direct child accessor exports, and emits ordinary parent-cell
+    messages that register scoped child refs on matching parent collection
+    slots. Nested frames publish through their own immediate owner cells, so the
+    top-level parent no longer walks nested child networks to discover accessors.
+    The implementation also normalizes accessor-network frame keys by source
+    slots, so topology-only accessor route updates do not reapply a frame.
+    Evidence: `propagators.gur-subenv-test` includes a regression that redefines
+    the old recursive export hook to throw while the constructed lazy map still
+    updates to `[0 1]`. The full `clojure -M:test propagators` suite passes with
+    `952` assertions.
+    Boundary: the publisher still infers exports from built accessor values.
+    Contextual `car` / `cdr` / `cons` installers remain the cleaner future
+    direction for declaring lexical slot subscriptions at install time.
 
 Auxiliary comparison: repeated shallow reducer composition.
 Assumption: nested reduction can be approximated by explicitly composing several
