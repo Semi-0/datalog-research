@@ -1861,6 +1861,15 @@ Benchmark method for the benchmarked entries below:
     Boundary: the publisher still infers exports from built accessor values.
     Contextual `car` / `cdr` / `cons` installers remain the cleaner future
     direction for declaring lexical slot subscriptions at install time.
+    Open replayability question: `p:apply-closure` still treats the frame key as
+    an operational "already applied" guard. A more replayable design may store
+    closure application as a first-class mergeable fact in the frame cell, then
+    derive deterministic frame-network deltas from that fact. In that model the
+    application identity would still need to distinguish call site, closure
+    version, and normalized arguments, but idempotence would come from the cell
+    join rather than from a separate runtime guard. This is also the natural
+    place to make hot-reloaded closure bodies replay as new closure versions
+    without mutating parent topology directly.
 
 Auxiliary comparison: repeated shallow reducer composition.
 Assumption: nested reduction can be approximated by explicitly composing several
@@ -2403,6 +2412,10 @@ What remains unproven:
 - arbitrary nested map/vector writer semantics;
 - AST-shaped compound-object transformation over arbitrary records;
 - compile-2 lowering into the sub-env GUR forms;
+- replayable closure application facts. The current frame key guards repeated
+  application operationally; a future design should test whether application
+  facts can live inside the frame cell and rely on idempotent cell merge or
+  named-network join, with closure body versions included for hot reload;
 - benchmark-grade performance. The current GUR timing is only a local
   microbenchmark snapshot.
 
