@@ -1,16 +1,18 @@
 (ns propagators.gur.subenv.env
   "Lexical sub-env dictionary keys and dispatch registration."
   (:require [propagators.ids :as ids]
-            [propagators.network :as net]))
+            [propagators.gur.subenv.scoped-slot :as scoped-slot]
+            [propagators.network :as net]
+            [propagators.scoped-address :as scoped]))
 
 (def scope-key [:env/scope])
 (def parent-scope-key [:env/parent-scope])
 (def dispatch-tags #{:dispatch/local :dispatch/subenv :dispatch/subenv-ref})
-(def env-dispatch-tags #{:env/scope :env/ref :env/cell-ref})
+(def env-dispatch-tags scoped/dispatch-tags)
 
-(defn scope-ref [scope] [:env/scope scope])
-(defn name-ref [scope name] [:env/ref scope name])
-(defn cell-ref [scope local-id] [:env/cell-ref scope local-id])
+(def scope-ref scoped/scope-ref)
+(def name-ref scoped/name-ref)
+(def cell-ref scoped/cell-ref)
 (defn bind-key [name] [:env/bind name])
 
 (defn extend-env
@@ -47,9 +49,7 @@
 
 (defn- env-dispatch-key?
   [k]
-  (and (vector? k)
-       (contains? env-dispatch-tags (first k))
-       (> (count k) 1)))
+  (scoped/address? k))
 
 (defn- env-dispatch-scope
   [k]
@@ -97,7 +97,8 @@
     (-> parent-net
         (net/assoc-net-dict-entry (scope-ref scope) owner-id)
         (register-direct-bindings owner-id scope child-net)
-        (register-lifted-nested-refs owner-id scope child-net))
+        (register-lifted-nested-refs owner-id scope child-net)
+        (scoped-slot/register-child-accessors owner-id scope child-net))
     parent-net))
 
 (defn maybe-register-subenv

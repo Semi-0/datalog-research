@@ -144,7 +144,7 @@ The routed installer delivery keeps ownership explicit:
 | Lexical-pointer GUR | Dynamic frames can be addressed through lexical env refs. | `io/name-ref` / `io/cell-ref` into stored child envs. | Works for dispatch, but topology ownership leaks into lexical scope. | Investigate only; not preferred. |
 | Accessor GUR | Lazy terminal cdr expansion can run as child frame values. | `gur/p:run-frame` plus branch network values and accessor snapshots. | Works for current cases, but needs snapshots/subscribers/lexical env coupling. | Keep as comparison. |
 | Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Best previous ownership baseline. |
-| Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, parent dict vector keys, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, and bidirectional late nested cdr through parent-visible output. | Current proposal validation; continue, but not compile target yet. |
+| Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, scoped vector keys, scoped slot accessor registration, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, bidirectional late nested cdr through parent-visible output, constructed-accessor lazy cdr extension, and nested constructed lazy cdr extension through transitive scoped slot fanout. | Current proposal validation; continue, but not compile target yet. |
 
 ## Experiments
 
@@ -366,11 +366,20 @@ parent-visible message can be routed through the owning child network and then
 resolved again by the child dict. The important constraint is that the parent
 still evaluates only the owner network cell.
 
+Compound-object slot accessors use the same scoped address substrate. A child
+frame accessor that participates in a parent slot is registered as
+`[:env/cell-ref child-scope child-local]` on the parent collection's slot
+topology. Local parent ids still seed from the parent env, child ids seed from
+the child env after dispatch, and structural slot registration remains distinct
+from slot value updates.
+
 The code is split by responsibility:
 
 - `subenv/env.clj`: scope keys, lexical bindings, dispatch directory
   registration, and route resolution;
 - `subenv/dispatch.clj`: the `eval-cell*` routing hook only;
+- `subenv/scoped_slot.clj`: scoped slot accessor registration and accessor
+  parent-cell import across frame/dispatch boundaries;
 - `subenv/queue.clj`: child propagator run tokens;
 - `subenv/output.clj`: child queue execution plus diff-based output
   projection;
@@ -512,13 +521,27 @@ Evidence: `propagators.gur-subenv-test` covers:
   `[[0 1] [1 2]]`;
 - bidirectional nested dispatch where a late nested `cdr` delivery is routed
   into the owning child env through a lifted lexical ref, and the only
-  assertion is the parent-visible recursive output value.
+  assertion is the parent-visible recursive output value;
+- constructed accessor input built only with `compound-object` accessors:
+  parent-side `obj/p:cons` plus a later `obj/p:cons` into the first cdr slot is
+  observable as `[0 1]` through `obj/p:car` / `obj/p:cdr`, and recursive
+  `map-list` output observes `[0 1]` after the lazy cdr extension. The source
+  collection's direct cdr source slot remains `nothing`; the update travels
+  through scoped slot accessor fanout, not list materialization;
+- nested constructed accessor input, where an outer `map-list` maps
+  `map-list-fib` over an inner list built only with `obj/p:cons`; a later inner
+  cdr extension reaches the nested mapper frame and updates the observed inner
+  output from a single mapped element to `[0 1]`.
 
 Limit: this is not a compiler target, not the exact source syntax sketched for
 `def-recursive`, and not a general nested map/vector writer. It does not
 redesign `p:slot` or the existing nested `p:car` / `p:cdr` accessor behavior.
-The kernel hook currently delegates to the experiment namespace rather than
-moving every dispatch case into `propagators.core`.
+The constructed-accessor probes now cover flat and nested scoped slot paths, but
+the implementation is still experiment-specific runtime machinery rather than
+compile-2 lowering. The transitive export currently lifts wrapper frames and
+keeps same-name recursive frames internal. The kernel hook still delegates to
+the experiment namespace rather than moving every dispatch case into
+`propagators.core`.
 
 Decision: continue this as the current generalized GUR proposal validation. It
 does not replace the routed ownership lesson; it lifts that lesson into the
@@ -1033,6 +1056,15 @@ The current tests validate both scalar and compound recursion:
   an inner `map-list` to each nested cons list.
 - A late nested `cdr` update is routed through a parent-visible lifted sub-env
   ref and asserted only through the final parent-visible recursive output.
+- A constructed-accessor probe uses only `obj/p:cons`, `obj/p:car`, and
+  `obj/p:cdr` for the input. The parent compound object lazily extends from
+  `[0 nothing]` to `[0 1]` for new accessor observers. The collection cell is
+  rewritten only for accessor route topology, while the direct cdr source slot
+  remains `nothing`. Recursive `map-list` sees the lazy extension through scoped
+  slot dispatch and maps the output to `[0 1]`.
+- A nested constructed-accessor probe maps `map-list-fib` over an inner list
+  built with `obj/p:cons`; after a lazy inner cdr extension, accessor observation
+  of the nested mapped output yields `[0 1]`.
 
 The experiment is deliberately still below the final language surface. It has
 the dispatch substrate, frame watcher, contextual apply/recur, and idempotent
@@ -1697,9 +1729,13 @@ Benchmark method for the benchmarked entries below:
    registration at owner-cell merge time, owner-cell frame watchers,
    idempotent applied-frame accumulation, a split implementation namespace,
    compile-DSL Fibonacci topology, accessor-only flat `map-list`, nested
-   `map-list` composition, and a bidirectional late nested `cdr` test where
+   `map-list` composition, a bidirectional late nested `cdr` test where
    parent-to-child dispatch uses lifted lexical refs and child-to-parent output
-   is asserted only through the recursive propagator's parent-visible output.
+   is asserted only through the recursive propagator's parent-visible output,
+   a constructed-accessor lazy-extension probe that routes parent slot updates
+   through scoped child accessor addresses without materializing the source cdr
+   slot, and a nested constructed-accessor probe that forwards wrapper-owned
+   slot interests transitively to the original inner collection.
    Boundary: this is not compile-2 lowering, not the final `def-recursive`
    source syntax, not arbitrary nested map/vector writer semantics, and not a
    redesign of existing nested `p:car` / `p:cdr` accessor behavior.

@@ -43,6 +43,7 @@
 (def accessor-source-slot-present? network-slot/source-slot-present?)
 (def accessor-source-slot-value network-slot/source-slot-value)
 (def attach-network-slot-sync network-slot/attach-network-slot-sync)
+(def register-accessor-parent network-slot/register-accessor-parent)
 (def p:network-slot network-slot/p:network-slot)
 (def p:network-car network-slot/p:network-car)
 (def p:network-cdr network-slot/p:network-cdr)

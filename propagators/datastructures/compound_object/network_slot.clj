@@ -10,7 +10,8 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.scoped-address :as scoped]))
 
 (def accessor-network-key
   (core/internal-metadata-key :accessor-network))
@@ -205,6 +206,16 @@
   (and (contains? (net/net-env n) id)
        (contains? (net/net-graph n) id)))
 
+(defn- dispatch-address-present?
+  [n id]
+  (and (scoped/address? id)
+       (contains? (net/net-dict-or-empty n) id)))
+
+(defn- messageable-parent?
+  [parent-net parent-id]
+  (or (network-cell-present? parent-net parent-id)
+      (dispatch-address-present? parent-net parent-id)))
+
 (defn- run-accessor-inner-net
   [stable-net slot-key parent-net seed-parent-ids]
   (let [exec-net (seed-accessor-avatars stable-net
@@ -236,7 +247,7 @@
       (if (value/unusable? v)
         []
         (->> (accessor-parent-ids collection-net slot-key)
-             (filter #(network-cell-present? parent-net %))
+             (filter #(messageable-parent? parent-net %))
              (remove #(equivalent-to-parent? parent-net % v))
              (mapv #(message % v)))))))
 
@@ -245,10 +256,11 @@
   (let [dict (net/net-dict-or-empty executed-net)]
     (->> parent-ids
          (keep (fn [parent-id]
-                 (when-let [avatar-id (and (network-cell-present? parent-net parent-id)
+                 (when-let [avatar-id (and (messageable-parent? parent-net parent-id)
                                            (get dict parent-id))]
                    (let [v (net/network-cell-strongest executed-net avatar-id)]
-                     (when-not (equivalent-to-parent? parent-net parent-id v)
+                     (when-not (or (value/unusable? v)
+                                   (equivalent-to-parent? parent-net parent-id v))
                        (message parent-id v))))))
          vec)))
 
@@ -259,18 +271,30 @@
 
 (defn- accessor-synced?
   [collection-net slot-key parent-net]
-  (let [parent-ids (filter #(network-cell-present? parent-net %)
-                           (accessor-parent-ids collection-net slot-key))]
-    (or (empty? parent-ids)
-        (let [baseline (net/network-cell-strongest parent-net (first parent-ids))]
-          (every? #(sync/strongest-equivalent?
-                    baseline
-                    (net/network-cell-strongest parent-net %)
-                    parent-net)
-                  (rest parent-ids))))))
+  (let [parent-ids* (accessor-parent-ids collection-net slot-key)
+        dispatch-ids (filter #(dispatch-address-present? parent-net %) parent-ids*)
+        parent-ids (filter #(network-cell-present? parent-net %) parent-ids*)]
+    (and (empty? dispatch-ids)
+         (or (empty? parent-ids)
+             (let [baseline (net/network-cell-strongest parent-net (first parent-ids))]
+               (every? #(sync/strongest-equivalent?
+                         baseline
+                         (net/network-cell-strongest parent-net %)
+                         parent-net)
+                       (rest parent-ids)))))))
 
 (defn attach-network-slot-sync
   [collection-net slot-key parent-id _parent-net]
+  (ensure-accessor-route (as-accessor-network collection-net) slot-key parent-id))
+
+(defn register-accessor-parent
+  "Record `parent-id` as a participant in `slot-key` on an accessor network.
+
+  The participant may be a local node id or a scoped dispatch address. Scoped
+  addresses are kept as slot fanout targets; they are not required to be cells in
+  the currently executing parent network.
+  "
+  [collection-net slot-key parent-id]
   (ensure-accessor-route (as-accessor-network collection-net) slot-key parent-id))
 
 (defn network-slot-activation

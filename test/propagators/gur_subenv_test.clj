@@ -173,6 +173,151 @@
                           (= :dispatch/subenv-ref (first route)))
                  [k route])))))
 
+(defn- observe-first-two-heads
+  [network collection-id]
+  (let [head0-id (ids/new-node-id)
+        tail0-id (ids/new-node-id)
+        head1-id (ids/new-node-id)
+        tail1-id (ids/new-node-id)
+        n0 (reduce nb/install-cell
+                   network
+                   [head0-id tail0-id head1-id tail1-id])
+        [head0-prop n1] ((obj/p:car head0-id collection-id) n0)
+        [tail0-prop n2] ((obj/p:cdr tail0-id collection-id) n1)
+        [head1-prop n3] ((obj/p:car head1-id tail0-id) n2)
+        [tail1-prop n4] ((obj/p:cdr tail1-id tail0-id) n3)
+        n5 (run-props n4 [head0-prop tail0-prop head1-prop tail1-prop])]
+    {:net n5
+     :heads [(strongest n5 head0-id)
+             (strongest n5 head1-id)]}))
+
+(defn- observe-first-inner-heads
+  [network collection-id]
+  (let [inner-id (ids/new-node-id)
+        outer-tail-id (ids/new-node-id)
+        inner-head0-id (ids/new-node-id)
+        inner-tail0-id (ids/new-node-id)
+        inner-head1-id (ids/new-node-id)
+        inner-tail1-id (ids/new-node-id)
+        n0 (reduce nb/install-cell
+                   network
+                   [inner-id outer-tail-id inner-head0-id inner-tail0-id
+                    inner-head1-id inner-tail1-id])
+        [outer-head-prop n1] ((obj/p:car inner-id collection-id) n0)
+        [outer-tail-prop n2] ((obj/p:cdr outer-tail-id collection-id) n1)
+        [inner-head0-prop n3] ((obj/p:car inner-head0-id inner-id) n2)
+        [inner-tail0-prop n4] ((obj/p:cdr inner-tail0-id inner-id) n3)
+        [inner-head1-prop n5] ((obj/p:car inner-head1-id inner-tail0-id) n4)
+        [inner-tail1-prop n6] ((obj/p:cdr inner-tail1-id inner-tail0-id) n5)
+        n7 (run-props n6 [outer-head-prop outer-tail-prop
+                          inner-head0-prop inner-tail0-prop
+                          inner-head1-prop inner-tail1-prop])]
+    {:net n7
+     :heads [(strongest n7 inner-head0-id)
+             (strongest n7 inner-head1-id)]}))
+
+(defn- constructed-accessor-map-probe
+  []
+  (let [fib-id (ids/new-node-id)
+        map-id (ids/new-node-id)
+        list-id (ids/new-node-id)
+        head0-id (ids/new-node-id)
+        tail0-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell fib-id (subenv/fib-closure) (subenv/fib-closure))
+               (nb/install-cell map-id (subenv/map-list-closure) (subenv/map-list-closure))
+               (nb/install-cell list-id)
+               (nb/install-cell head0-id 0 0)
+               (nb/install-cell tail0-id)
+               (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
+               (nb/install-cell out-id))
+        [[car0-prop cdr0-prop] n1] ((obj/p:cons head0-id tail0-id list-id) n0)
+        [map-props n2] ((subenv/p:apply-closure map-id
+                                               [list-id fib-id acc-id]
+                                               out-id)
+                        n1)
+        n3 (run-props n2 (concat [car0-prop cdr0-prop] map-props))
+        source-cell-before (strongest n3 list-id)
+        mapped-cell-before (strongest n3 out-id)
+        {n3a :net parent-before :heads} (observe-first-two-heads n3 list-id)
+        {n3b :net mapped-before :heads} (observe-first-two-heads n3a out-id)
+        source-cell-after-observers (strongest n3b list-id)
+        mapped-cell-after-observers (strongest n3b out-id)
+        head1-id (ids/new-node-id)
+        tail1-id (ids/new-node-id)
+        n4 (-> n3b
+               (nb/install-cell head1-id 1 1)
+               (nb/install-cell tail1-id))
+        [[car1-prop cdr1-prop] n5] ((obj/p:cons head1-id tail1-id tail0-id) n4)
+        n6 (run-props n5 [car1-prop cdr1-prop])
+        source-cell-after (strongest n6 list-id)
+        mapped-cell-after (strongest n6 out-id)
+        {n6a :net parent-after :heads} (observe-first-two-heads n6 list-id)
+        {mapped-after :heads} (observe-first-two-heads n6a out-id)]
+    {:parent-before parent-before
+     :parent-after parent-after
+     :mapped-before mapped-before
+     :mapped-after mapped-after
+     :source-cell-observer-changed? (not= source-cell-before
+                                          source-cell-after-observers)
+     :source-cell-extension-changed? (not= source-cell-after-observers
+                                           source-cell-after)
+     :mapped-cell-observer-changed? (not= mapped-cell-before
+                                          mapped-cell-after-observers)
+     :mapped-cell-extension-changed? (not= mapped-cell-after-observers
+                                           mapped-cell-after)
+     :source-cell-cdr-before (list-slot source-cell-before :cdr)
+     :source-cell-cdr-after-observers (list-slot source-cell-after-observers
+                                                 :cdr)
+     :source-cell-cdr-after-extension (list-slot source-cell-after :cdr)}))
+
+(defn- constructed-nested-accessor-map-probe
+  []
+  (let [map-id (ids/new-node-id)
+        mapper-id (ids/new-node-id)
+        outer-id (ids/new-node-id)
+        inner-id (ids/new-node-id)
+        inner-head0-id (ids/new-node-id)
+        inner-tail0-id (ids/new-node-id)
+        outer-tail-id (ids/new-node-id)
+        acc-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        n0 (-> net/empty-net
+               (nb/install-cell map-id (subenv/map-list-closure) (subenv/map-list-closure))
+               (nb/install-cell mapper-id
+                                (subenv/map-list-fib-closure)
+                                (subenv/map-list-fib-closure))
+               (nb/install-cell outer-id)
+               (nb/install-cell inner-id)
+               (nb/install-cell inner-head0-id 0 0)
+               (nb/install-cell inner-tail0-id)
+               (nb/install-cell outer-tail-id subenv/empty-list subenv/empty-list)
+               (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
+               (nb/install-cell out-id))
+        [[inner-car0-prop inner-cdr0-prop] n1]
+        ((obj/p:cons inner-head0-id inner-tail0-id inner-id) n0)
+        [[outer-car0-prop outer-cdr0-prop] n2]
+        ((obj/p:cons inner-id outer-tail-id outer-id) n1)
+        [map-props n3]
+        ((subenv/p:apply-closure map-id [outer-id mapper-id acc-id] out-id) n2)
+        n4 (run-props n3 (concat [inner-car0-prop inner-cdr0-prop
+                                  outer-car0-prop outer-cdr0-prop]
+                                 map-props))
+        {n4a :net before :heads} (observe-first-inner-heads n4 out-id)
+        inner-head1-id (ids/new-node-id)
+        inner-tail1-id (ids/new-node-id)
+        n5 (-> n4a
+               (nb/install-cell inner-head1-id 1 1)
+               (nb/install-cell inner-tail1-id subenv/empty-list subenv/empty-list))
+        [[inner-car1-prop inner-cdr1-prop] n6]
+        ((obj/p:cons inner-head1-id inner-tail1-id inner-tail0-id) n5)
+        n7 (run-props n6 [inner-car1-prop inner-cdr1-prop])
+        {after :heads} (observe-first-inner-heads n7 out-id)]
+    {:before before
+     :after after}))
+
 (deftest contextual-recursive-map-list-over-compound-data
   (testing "map-list uses the same contextual apply/recur engine over compound data"
     (let [{:keys [value]} (subenv/run-map-list-fib [])]
@@ -180,12 +325,44 @@
     (let [{:keys [value]} (subenv/run-map-list-fib [0 1 2 3 4 5])]
       (is (= [0 1 1 2 3 5] (list->vec value))))))
 
+(deftest constructed-accessor-map-lazy-extension-routes-through-scoped-slot-dispatch
+  (testing "accessor observers and recursive map output both see the lazy extension"
+    (let [{:keys [parent-before parent-after mapped-before mapped-after
+                  source-cell-observer-changed?
+                  mapped-cell-observer-changed?
+                  source-cell-cdr-before
+                  source-cell-cdr-after-observers
+                  source-cell-cdr-after-extension]}
+          (constructed-accessor-map-probe)]
+      (is (= [0 value/nothing] parent-before))
+      (is (= [0 1] parent-after))
+      (is (true? source-cell-observer-changed?)
+          "Installing parent accessors does rewrite the source collection cell with accessor route topology.")
+      (is (= value/nothing source-cell-cdr-before))
+      (is (= value/nothing source-cell-cdr-after-observers))
+      (is (= value/nothing source-cell-cdr-after-extension)
+          "The source cdr value update remains route-observable, not materialized as a direct source slot.")
+      (is (true? mapped-cell-observer-changed?)
+          "Installing parent accessors also rewrites the mapped output cell with accessor route topology.")
+      (is (= 0 (first mapped-before)))
+      (is (nil? (second mapped-before))
+          "Before the lazy extension there is no second mapped output element.")
+      (is (= [0 1] mapped-after)
+          "The source cdr update routes through the child scoped slot accessor and wakes the recursive frame."))))
+
 (deftest contextual-recursive-nested-map-list-over-compound-data
   (testing "nested map-list composition maps inner compound/list elements"
     (let [source [(subenv/cons-list-value [0 1])
                   (subenv/cons-list-value [2 3])]
           {:keys [value]} (subenv/run-nested-map-list-fib source)]
       (is (= [[0 1] [1 2]] (list->data value))))))
+
+(deftest constructed-nested-accessor-map-lazy-extension-routes-transitively
+  (testing "nested constructed inner cdr extension reaches the nested mapper frame"
+    (let [{:keys [before after]} (constructed-nested-accessor-map-probe)]
+      (is (= 0 (first before)))
+      (is (contains? #{nil value/nothing} (second before)))
+      (is (= [0 1] after)))))
 
 (deftest nested-map-dispatches-to-child-and-projects-output
   (testing "nested map composition should route a parent message into the child frame and update only through recursive output"

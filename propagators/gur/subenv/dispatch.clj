@@ -1,8 +1,11 @@
 (ns propagators.gur.subenv.dispatch
   "Evaluator dispatch hook for lexical sub-env refs."
   (:require [propagators.cells.cell :as cell]
+            [propagators.cells.value :as value]
             [propagators.gur.subenv.env :as env]
             [propagators.gur.subenv.queue :as queue]
+            [propagators.gur.subenv.scoped-slot :as scoped-slot]
+            [propagators.helpers.task-queue :as tq]
             [propagators.message :refer [message message-id message-value]]
             [propagators.network :as net]))
 
@@ -41,12 +44,22 @@
              parent-net))
 
 (defn- route-through-owner
-  [eval-cell parent-net owner-id child-update]
+  [eval-cell parent-net owner-id routed-msg child-update]
   (let [child-net (owner-child-network parent-net owner-id)]
-    (if-not (net/net? child-net)
+    (cond
+      (value/contradiction? child-net)
+      [tq/empty-queue parent-net]
+
+      (not (net/net? child-net))
       (invalid-owner-route! owner-id child-net)
-      (let [{:keys [network tasks]} (child-update child-net)]
-        (store-child-network eval-cell parent-net owner-id network tasks)))))
+
+      :else
+      (let [child-net* (scoped-slot/import-accessor-parent-cells
+                         child-net
+                         parent-net
+                         (message-value routed-msg))
+             {:keys [network tasks]} (child-update child-net*)]
+         (store-child-network eval-cell parent-net owner-id network tasks)))))
 
 (defn eval-cell*
   [directory msg parent-net]
@@ -63,6 +76,7 @@
         (route-through-owner eval-cell
                              parent-net
                              owner-id
+                             child-msg
                              #(eval-child-local child-msg %)))
 
       :dispatch/subenv-ref
@@ -71,4 +85,5 @@
         (route-through-owner eval-cell
                              parent-net
                              owner-id
+                             child-msg
                              #(eval-child-dispatch child-msg %))))))

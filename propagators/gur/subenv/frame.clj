@@ -5,6 +5,7 @@
             [propagators.gur.subenv.env :as env]
             [propagators.gur.subenv.output :as output]
             [propagators.gur.subenv.queue :as queue]
+            [propagators.gur.subenv.scoped-slot :as scoped-slot]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
@@ -32,10 +33,25 @@
     :else
     (nb/ensure-cell child-net id)))
 
+(defn- boundary-accessor-parent-ids
+  [parent-net outer-ids]
+  (->> outer-ids
+       (filter #(contains? (net/net-env parent-net) %))
+       (mapcat #(scoped-slot/accessor-parent-cell-ids
+                 parent-net
+                 (net/network-cell-strongest parent-net %)))
+       (filter #(contains? (net/net-env parent-net) %))
+       distinct
+       vec))
+
 (defn install-frame-boundary
   [parent-net child-net input-ids output-ids]
-  (let [outer-ids (vec (distinct (concat input-ids output-ids)))]
+  (let [outer-ids (vec (distinct (concat input-ids output-ids)))
+        accessor-parent-ids (boundary-accessor-parent-ids parent-net outer-ids)]
     (-> (reduce #(copy-boundary-cell %1 parent-net %2) child-net outer-ids)
+        (as-> n (reduce #(copy-boundary-cell %1 parent-net %2)
+                        n
+                        accessor-parent-ids))
         (boundary/create-boundary-outputs output-ids)
         (boundary/create-boundary-inputs input-ids))))
 

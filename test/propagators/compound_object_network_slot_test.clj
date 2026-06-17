@@ -6,7 +6,8 @@
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.scoped-address :as scoped]))
 
 (defn- prop-count
   [n]
@@ -90,6 +91,32 @@
       (is (= 10 (net/network-cell-value n4 p1)))
       (is (= 10 (net/network-cell-value n4 p2)))
       (is (= coll-before coll-after)))))
+
+(deftest network-slot-fans-out-to-scoped-address-participants
+  (testing "scoped participants receive value updates without becoming local cells"
+    (let [parent (new-node-id)
+          scoped-target (new-node-id)
+          coll (new-node-id)
+          child-local (new-node-id)
+          child-ref (scoped/cell-ref [:test/scope] child-local)
+          n0 (nb/install-cells [parent scoped-target coll])
+          [slot-prop n1] ((obj/p:network-slot :x parent coll) n0)
+          n2 (-> n1
+                 (net/assoc-net-dict-entry child-ref
+                                           [:dispatch/local scoped-target])
+                 (nb/run-propagators [slot-prop]))
+          coll-with-scoped (obj/register-accessor-parent
+                            (net/network-cell-value n2 coll)
+                            :x
+                            child-ref)
+          n3 (nb/seed-cell n2 coll coll-with-scoped)
+          n4 (-> n3
+                 (nb/seed-cell parent 10)
+                 (nb/run-propagators [slot-prop]))]
+      (is (= 10 (net/network-cell-value n4 parent)))
+      (is (= 10 (net/network-cell-value n4 scoped-target)))
+      (is (= coll-with-scoped (net/network-cell-value n4 coll)))
+      (is (not (contains? (net/net-env n4) child-ref))))))
 
 (deftest network-slot-repeated-accessor-declaration-is-idempotent
   (testing "duplicate declarations reuse the same collection topology"
