@@ -557,20 +557,29 @@ Evidence: `propagators.gur-subenv-test` covers:
   exposes first kept value `0`, and after a later cdr extension to `[2]` the
   observed output updates to `[0 2]` through the same scoped slot fanout path.
 
-Local microbenchmark on `2026-06-17`, measured with an ad-hoc
-`clojure -M -e` command, `5` warmups and `20` timed end-to-end runs:
+Benchmark harness:
 
-| Case | Avg ms/run | Min | Max | Parent cells |
-| --- | ---: | ---: | ---: | ---: |
-| `fib(6)` | `34.285` | `27.318` | `47.128` | `6` |
-| `map-list-fib [0..5]` | `45.713` | `42.396` | `54.402` | `8` |
-| `nested-map-list-fib [[0 1] [2 3]]` | `21.069` | `19.781` | `22.587` | `8` |
-| `reduce-list-sum [0..19]` | `32.215` | `30.701` | `34.008` | `8` |
-| `filter-list-even [0..19]` | `51.139` | `49.370` | `54.388` | `8` |
+```sh
+clojure -M:gur-subenv-bench
+clojure -M:gur-subenv-bench 5 20
+```
 
-This is a snapshot, not a benchmark harness. It shows that reduce/filter do not
-require new runtime machinery, but filter is visibly more expensive because it
-combines predicate application, recursive tail production, branch selection,
+Local harness snapshot on `2026-06-17`, measured with `5` warmups and `20`
+timed end-to-end runs:
+
+| Case | Median ms/run | Mean | Min | Max | Parent cells |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `fib(6)` | `32.474` | `31.063` | `24.306` | `36.664` | `6` |
+| `factorial(5)` | `3.381` | `3.403` | `3.127` | `3.677` | `6` |
+| `int-sqrt(81)` | `13.324` | `13.936` | `12.594` | `20.065` | `8` |
+| `map-list-fib [0..5]` | `41.919` | `43.347` | `39.276` | `61.379` | `8` |
+| `nested-map-list-fib [[0 1] [2 3]]` | `20.505` | `21.921` | `18.933` | `30.992` | `8` |
+| `reduce-list-sum [0..19]` | `34.387` | `36.308` | `32.049` | `48.868` | `8` |
+| `filter-list-even [0..19]` | `55.963` | `57.144` | `54.503` | `62.033` | `8` |
+
+The harness checks each result while timing it. It shows that reduce/filter do
+not require new runtime machinery, but filter is visibly more expensive because
+it combines predicate application, recursive tail production, branch selection,
 and conditional `cons` output.
 
 Limit: this is not a compiler target, not the exact source syntax sketched for
@@ -642,9 +651,18 @@ Current behavior is covered by:
   syntax or compile output, if the model holds;
 - define bidirectional nested writer semantics over arbitrary compound shapes,
   beyond the current cons-style compound/list tests;
-- add a dedicated GUR benchmark harness;
+- extend the GUR benchmark harness when dynamic map/vector slots land;
 - derive compact route declarations so compile-2 does not emit verbose frame
   boilerplate.
+
+Kernel integration next steps:
+
+- keep `eval-cell*` as the single dispatch entry and move the sub-env dispatch
+  cases out of the experiment namespace once the API surface stops changing;
+- move scoped-address and scoped slot registration into a reusable kernel layer
+  only after dynamic slot discovery proves the same accessor-chain rule;
+- preserve the current split: dispatch routes messages, cell merge creates
+  contradictions, and collection accessors own bidirectional slot fanout.
 
 ## Design Details
 
@@ -721,14 +739,12 @@ Still open:
 
 - GUR is proven for the current accessor list/map cases, not yet packaged as
   the final compile-2 iteration primitive;
-- there is no dedicated GUR benchmark harness yet, so current timings are
-  subsystem-level evidence;
+- the GUR benchmark harness covers current scalar/list cases but not dynamic
+  map/vector slot discovery yet;
 - arbitrary bidirectional writer semantics over all nested compound shapes need
   more design;
 - route-list and frame-boilerplate ergonomics still need a derived API before
-  compile-2 should target this directly;
-- the current benchmark is an ad-hoc local snapshot; keep using it for direction
-  only until there is a dedicated GUR benchmark harness.
+  compile-2 should target this directly.
 
 ### Runtime Invariants
 
@@ -1802,8 +1818,9 @@ Benchmark method for the benchmarked entries below:
    square root by binary search; the sqrt probe passes floor results from `0`
    through `81` and documents that recursive `cond` branches must be explicitly
    gated because declaration builds all branch topology.
-   Benchmark snapshot: `fib(6)` `34.285 ms`, flat map `45.713 ms`, nested map
-   `21.069 ms`, reduce `[0..19]` `32.215 ms`, filter `[0..19]` `51.139 ms`
+   Benchmark harness snapshot: `fib(6)` median `32.474 ms`, factorial
+   `3.381 ms`, integer sqrt `13.324 ms`, flat map `41.919 ms`, nested map
+   `20.505 ms`, reduce `[0..19]` `34.387 ms`, filter `[0..19]` `55.963 ms`
    over `20` timed runs after `5` warmups.
    Boundary: this is not compile-2 lowering, not the final `def-recursive`
    source syntax, not arbitrary nested map/vector writer semantics, and not a
