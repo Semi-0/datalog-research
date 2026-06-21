@@ -30,12 +30,12 @@
                                            branch-id
                                            generic-id)
                                n4)]
-    [[predicates-prop
-      predicates-slot-prop
-      matcher-slot-prop
-      handler-slot-prop
-      method-slot-prop]
-     n5]))
+    [[]
+     (nb/run-propagators n5 [predicates-prop
+                             predicates-slot-prop
+                             matcher-slot-prop
+                             handler-slot-prop
+                             method-slot-prop])]))
 
 (defn make-generic-propagator
   "Initialize `generic-id` with fixed v1 select-one policy and `default-id`.
@@ -51,7 +51,8 @@
                               constants/select-one-policy-tag)
           [policy-prop n1] ((obj/p:slot constants/policy-slot policy-id generic-id) n0)
           [default-prop n2] ((obj/p:slot constants/default-slot default-id generic-id) n1)]
-      [[policy-prop default-prop] n2])))
+      [[]
+       (nb/run-propagators n2 [policy-prop default-prop])])))
 
 (defn- define-generic-propagator*
   "Merge one method branch into an initialized generic procedure cell.

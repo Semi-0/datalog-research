@@ -104,7 +104,7 @@
        (= (source-scope a) (source-scope b))
        (= (context-chain a) (context-chain b))))
 
-(defn merge-content
+(defn- merge-candidate
   [content update]
   (let [existing (candidates content)]
     (cond
@@ -113,6 +113,14 @@
       (empty? existing) update
       (some #(same-scope-value? % update) existing) content
       :else (conj (vec existing) update))))
+
+(defn merge-content
+  [content update]
+  (let [updates (candidates update)]
+    (cond
+      (value/contradiction? updates) value/contradiction
+      (empty? updates) content
+      :else (reduce merge-candidate content updates))))
 
 (defn content-candidates
   [content]

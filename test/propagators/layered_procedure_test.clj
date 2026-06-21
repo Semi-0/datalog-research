@@ -332,7 +332,7 @@
                                                   proc
                                                   :units
                                                   (units-closure-value))
-          declarations (obj/slot-declarations-for (:net extended) proc)
+          declarations (obj/accessor-declarations-for (:net extended) proc)
           visible-net (nb/run-propagators (:net extended) [(:prop extended)])]
       (is (contains? declarations :base))
       (is (contains? declarations :provenance))

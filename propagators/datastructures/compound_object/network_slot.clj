@@ -13,6 +13,9 @@
             [propagators.propagator :as prop]
             [propagators.scoped-address :as scoped]))
 
+;; ponytail: this file couples source slots, canonical fanout, scoped addresses,
+;; and projection messages. Split only when those responsibilities stabilize.
+
 (def accessor-network-key
   (core/internal-metadata-key :accessor-network))
 
@@ -35,6 +38,13 @@
     core/slot-index-key {}
     core/read-only-slots-key #{}
     source-slots-key {}}))
+
+(defn accessor-declaration
+  [slot-key parent-id]
+  (-> (empty-accessor-network)
+      (net/update-net-dict-entry
+       core/slot-index-key
+       #(update (or % {}) slot-key (fnil conj #{}) parent-id))))
 
 (defn source-slots
   [n]
@@ -137,6 +147,22 @@
                  (filter #(public-slot-present? n %)
                          (core/public-slot-keys n))))))
 
+(defn accessor-declarations-for
+  [n collection-id]
+  (let [v (if (contains? (net/net-env n) collection-id)
+            (net/network-cell-strongest n collection-id)
+            value/nothing)]
+    (if (accessor-network? v)
+      (into {}
+            (keep (fn [slot-key]
+                    (let [parent-ids (accessor-parent-ids v slot-key)]
+                      (when (seq parent-ids)
+                        [slot-key
+                         (zipmap parent-ids
+                                 (repeat {:strategy :network-slot}))]))))
+            (accessor-slot-keys v))
+      {})))
+
 (defn- sync-marker-key
   [slot-key parent-id canonical-id direction]
   [accessor-sync-key slot-key parent-id canonical-id direction])
@@ -186,6 +212,15 @@
      n2
      (accessor-parent-ids n2 slot-key))))
 
+(defn refine-accessor-network
+  [collection-net]
+  (let [slot-index (or (net/network-dict-entry collection-net core/slot-index-key) {})]
+    (reduce-kv
+     (fn [n slot-key parent-ids]
+       (reduce #(ensure-accessor-route %1 slot-key %2) n parent-ids))
+     (as-accessor-network collection-net)
+     slot-index)))
+
 (defn- seed-accessor-avatars
   [stable-net slot-key parent-net parent-ids]
   (reduce
@@ -227,8 +262,7 @@
                              exec-net
                              (fn [subnet _updated*] subnet)
                              #(accessor-seed-ids % seed-parent-ids))]
-    {:stable-net stable-net
-     :executed-net after
+    {:executed-net after
      :parent-ids parent-ids}))
 
 (defn- equivalent-to-parent?
@@ -241,15 +275,14 @@
 
 (defn- source-slot-messages
   [collection-net slot-key parent-net]
-  (if-not (source-slot-present? collection-net slot-key)
-    []
-    (let [v (source-slot-value collection-net slot-key)]
-      (if (value/unusable? v)
-        []
-        (->> (accessor-parent-ids collection-net slot-key)
-             (filter #(messageable-parent? parent-net %))
-             (remove #(equivalent-to-parent? parent-net % v))
-             (mapv #(message % v)))))))
+  (let [v (source-slot-value collection-net slot-key)]
+    (if (or (not (source-slot-present? collection-net slot-key))
+            (value/unusable? v))
+      []
+      (->> (accessor-parent-ids collection-net slot-key)
+           (filter #(messageable-parent? parent-net %))
+           (remove #(equivalent-to-parent? parent-net % v))
+           (mapv #(message % v))))))
 
 (defn- projected-accessor-messages
   [executed-net parent-ids parent-net]
@@ -263,11 +296,6 @@
                                    (equivalent-to-parent? parent-net parent-id v))
                        (message parent-id v))))))
          vec)))
-
-(defn- topology-message
-  [collection-id before after parent-net]
-  (when-not (sync/strongest-equivalent? before after parent-net)
-    (message collection-id after)))
 
 (defn- accessor-synced?
   [collection-net slot-key parent-net]
@@ -297,6 +325,27 @@
   [collection-net slot-key parent-id]
   (ensure-accessor-route (as-accessor-network collection-net) slot-key parent-id))
 
+(defn- network-slot-messages
+  [collection-id slot-key parent-id parent-net collection-net]
+  (let [known-parent? (contains? (accessor-parent-ids collection-net slot-key)
+                                 parent-id)]
+    (if-not known-parent?
+      [(message collection-id (accessor-declaration slot-key parent-id))]
+      (let [stable-net (refine-accessor-network collection-net)
+            source-messages (source-slot-messages stable-net slot-key parent-net)]
+        (if (and (empty? source-messages)
+                 (accessor-synced? stable-net slot-key parent-net))
+          []
+          (let [{:keys [executed-net parent-ids]}
+                (run-accessor-inner-net stable-net
+                                        slot-key
+                                        parent-net
+                                        [parent-id])]
+            (into source-messages
+                  (projected-accessor-messages executed-net
+                                               parent-ids
+                                               parent-net))))))))
+
 (defn network-slot-activation
   [slot-key parent-id collection-id]
   (fn [_inputs _outputs parent-net]
@@ -305,68 +354,23 @@
                              as-accessor-network)]
       (if (value/contradiction? collection-net)
         [(message collection-id value/contradiction)]
-        (let [known-parent? (contains? (accessor-parent-ids collection-net slot-key)
-                                       parent-id)
-              stable-net (ensure-accessor-route collection-net slot-key parent-id)
-              canonical-id (canonical-parent-id stable-net slot-key)
-              seed-parent-ids (if known-parent?
-                                [parent-id]
-                                (vec (distinct [parent-id canonical-id])))
-              source-messages (source-slot-messages stable-net slot-key parent-net)
-              collection-message (topology-message collection-id
-                                                   collection-net
-                                                   stable-net
-                                                   parent-net)]
-          (if (and known-parent?
-                   (empty? source-messages)
-                   (nil? collection-message)
-                   (accessor-synced? stable-net slot-key parent-net))
-            []
-            (let [{:keys [executed-net parent-ids]}
-                  (run-accessor-inner-net stable-net
-                                          slot-key
-                                          parent-net
-                                          seed-parent-ids)
-                  accessor-messages (into source-messages
-                                          (projected-accessor-messages executed-net
-                                                                       parent-ids
-                                                                       parent-net))]
-              (cond-> accessor-messages
-                collection-message (conj collection-message)))))))))
+        (network-slot-messages collection-id
+                               slot-key
+                               parent-id
+                               parent-net
+                               collection-net)))))
 
-(defn- record-network-slot-declaration
-  [n collection-id slot-key parent-id prop-id]
-  (net/update-net-dict-entry
-   n
-   core/slot-declarations-key
-   #(assoc-in (or % {}) [collection-id slot-key parent-id]
-              {:prop-id prop-id :strategy :network-slot})))
-
-(defn- register-network-slot-propagator
-  [network prop-id activate parent-id collection-id]
-  ((prop/construct-propagator
-    prop-id
-    activate
-    [parent-id collection-id]
-    [parent-id collection-id])
-   network))
-
-
-;; this is very important module but the quality of the code is awful
-;; we will improve it in the future (too many nested redundant function, core intention is not clear)
 (defn p:network-slot
   [slot-key parent-id collection-id]
   (let [prop-id (ids/new-node-id)
         activate (network-slot-activation slot-key parent-id collection-id)]
     (fn [network]
-      (let [[installed-id network']
-            (register-network-slot-propagator network prop-id activate parent-id collection-id)]
-        [installed-id
-         (record-network-slot-declaration network'
-                                          collection-id
-                                          slot-key
-                                          parent-id
-                                          installed-id)]))))
+      ((prop/construct-propagator
+        prop-id
+        activate
+        [parent-id collection-id]
+        [parent-id collection-id])
+       network))))
 
 (defn p:network-car [elem-id collection-id]
   (p:network-slot :car elem-id collection-id))

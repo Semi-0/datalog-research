@@ -111,6 +111,29 @@ values. Reactive late handler attachment is supported when no concrete default
 has already been committed, for example with `the-nothing` as the default, or by
 running a later application with a fresh output cell.
 
+## TODO: First-Order Refining Answers
+
+Suspended test:
+`installed-generic-application-observes-late-handler-with-nothing-default` in
+`test/propagators/generic_procedure_test.clj`.
+
+Evidence from the network-slot declaration migration:
+
+- Generic declarations can now enter the generic cell through ordinary accessor
+  messages and cell merge, without parent-network `:slot-declarations`.
+- A late handler can wake an existing application, but once that application has
+  committed a concrete answer for the old input, a later input answer is an
+  ordinary conflicting overwrite.
+- Changing the test to accept the first answer hides the problem. The intended
+  behavior is answer revision: the later `[:string "y"]` answer should refine
+  the previous generic application answer, not contradict it.
+
+This likely belongs in a shared first-order refining-information layer, not as a
+generic-procedure special case. The shape is close to compiler-2 lexical
+scope-source: keep multiple candidates as cell content, let strongest selection
+choose the current answer, and preserve enough source identity to revise or
+supersede earlier answers without flattening them into a single raw value.
+
 For pure protocol execution there is also:
 
 ```clojure

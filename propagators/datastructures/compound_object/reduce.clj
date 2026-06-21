@@ -47,7 +47,7 @@
 
 (defn- declared-accessor-input-ids
   [n source-id]
-  (->> (get (net/network-dict-entry n core/slot-declarations-key) source-id)
+  (->> (network-slot/accessor-declarations-for n source-id)
        vals
        (mapcat keys)
        (filter #(and (contains? (net/net-env n) %)

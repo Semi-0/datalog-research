@@ -28,14 +28,14 @@
   "Declare a reactive procedure layer.
 
   This is topology only: it ensures the procedure and closure cells exist,
-  installs the slot propagator, and records the slot declaration through
-  `obj/p:slot`. It does not seed values, run propagators, or enqueue tasks."
+  installs the slot propagator, and runs it once so its declaration is merged
+  into the procedure cell. It does not seed layer values."
   [n proc-id layer-name closure-id]
   (let [n0 (-> n
                (nb/ensure-cell proc-id)
                (nb/ensure-cell closure-id))
         [prop-id n1] ((p:layered-procedure layer-name closure-id proc-id) n0)]
-    {:net n1
+    {:net (nb/run-propagators n1 [prop-id])
      :prop prop-id
      :closure closure-id}))
 
@@ -234,7 +234,9 @@
 
 (defn- declared-procedure-layer-ids
   [outer-net proc-id]
-  (->> (obj/slot-declarations-for outer-net proc-id)
+  (->> (merge-with merge
+                   (obj/slot-declarations-for outer-net proc-id)
+                   (obj/accessor-declarations-for outer-net proc-id))
        (mapcat (fn [[layer-name parent->declaration]]
                  (map (fn [closure-id] [layer-name closure-id])
                       (keys parent->declaration))))

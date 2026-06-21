@@ -65,9 +65,15 @@
    [n []]
    (sort-by (comp pr-str key) declarations)))
 
+(defn- slot-declarations-for
+  [outer-net collection-id]
+  (merge-with merge
+              (obj/slot-declarations-for outer-net collection-id)
+              (obj/accessor-declarations-for outer-net collection-id)))
+
 (defn- declared-method-branches
   [outer-net generic-id]
-  (->> (obj/slot-declarations-for outer-net generic-id)
+  (->> (slot-declarations-for outer-net generic-id)
        (keep (fn [[slot-key parent->declaration]]
                (when (constants/method-slot? slot-key)
                  {:slot-key slot-key
@@ -86,7 +92,7 @@
 
 (defn- branch-field-parent-ids
   [outer-net branch-id]
-  (->> (obj/slot-declarations-for outer-net branch-id)
+  (->> (slot-declarations-for outer-net branch-id)
        vals
        (mapcat keys)
        (sort-by pr-str)
@@ -94,9 +100,11 @@
 
 (defn- materialize-branch
   [n outer-net branch-id]
-  (let [declarations (obj/slot-declarations-for outer-net branch-id)
+  (let [declarations (slot-declarations-for outer-net branch-id)
         parent-ids (branch-field-parent-ids outer-net branch-id)
-        n0 (copy-outer-cell n outer-net branch-id methods/normalize-generic-value)
+        n0 (nb/seed-cell (copy-outer-cell n outer-net branch-id)
+                         branch-id
+                         (obj/empty-compound-object))
         n1 (reduce #(copy-outer-cell %1 outer-net %2) n0 parent-ids)
         producer-ids (->> parent-ids
                           (mapcat #(producer-prop-ids outer-net %))
@@ -135,7 +143,7 @@
        :updated? false}
       (let [method-branches (declared-method-branches outer-net generic-id)
             branch-ids (set (mapcat :branch-ids method-branches))
-            generic-declarations (obj/slot-declarations-for outer-net generic-id)
+            generic-declarations (slot-declarations-for outer-net generic-id)
             generic-parent-ids (->> generic-declarations
                                     vals
                                     (mapcat keys)

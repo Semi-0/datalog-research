@@ -29,7 +29,7 @@
         (let [[tasks env] (merge/handle-contradiction next-tasks id (net/net-env n'))]
           [tasks (net/net-with-env n' env)])
         [next-tasks n'])
-      [tq/empty-queue n])))
+      [tq/empty-queue n'])))
 
 (defn eval-cell*
   "Evaluate `msg`, routing lexical sub-env refs through the current network dict.

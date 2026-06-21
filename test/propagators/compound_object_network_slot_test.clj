@@ -1,9 +1,13 @@
 (ns propagators.compound-object-network-slot-test
   (:require [clojure.test :refer [deftest is testing]]
+            [propagators.cells.merge :as merge]
+            [propagators.cells.value :as value]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
+            [propagators.message :as msg]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
@@ -32,6 +36,32 @@
      :prop slot-prop
      :parent-value (net/network-cell-value n3 parent)
      :collection-value (net/network-cell-value n3 coll)}))
+
+(deftest network-slot-install-does-not-touch-collection-cell
+  (let [parent (new-node-id)
+        coll (new-node-id)
+        n0 (nb/install-cells [parent coll])
+        [_slot-prop n1] ((obj/p:network-slot :x parent coll) n0)]
+    (is (value/nothing? (net/network-cell-value n1 coll)))))
+
+(deftest network-slot-activation-emits-accessor-declaration
+  (let [parent (new-node-id)
+        coll (new-node-id)
+        n0 (nb/install-cells [parent coll])
+        [m] ((network-slot/network-slot-activation :x parent coll) nil nil n0)]
+    (is (= coll (msg/message-id m)))
+    (is (= #{parent}
+           (obj/accessor-parent-ids (msg/message-value m) :x)))))
+
+(deftest accessor-declaration-is-refined-by-cell-merge
+  (let [parent (new-node-id)
+        declaration (obj/accessor-declaration :x parent)
+        merged (merge/cell-merge value/nothing declaration net/empty-net)]
+    (is (= #{parent}
+           (obj/accessor-parent-ids (merge/strongest-value merged net/empty-net) :x)))
+    (is (some? (net/network-dict-entry
+                (merge/strongest-value merged net/empty-net)
+                parent)))))
 
 (deftest network-slot-reads-map-vector-and-record-source-values
   (testing "map slots are projected to outer accessors without durable slot cells"
@@ -130,8 +160,9 @@
           n4 (nb/run-propagators n3 [prop-b])
           coll-b (net/network-cell-value n4 coll)]
       (is (= coll-a coll-b))
-      (is (= {:prop-id prop-b :strategy :network-slot}
-             (get-in (obj/slot-declarations-for n4 coll) [:x parent]))))))
+      (is (empty? (obj/slot-declarations-for n4 coll)))
+      (is (= {:strategy :network-slot}
+             (get-in (obj/accessor-declarations-for n4 coll) [:x parent]))))))
 
 (deftest network-slot-late-second-accessor-update-reaches-first-accessor
   (testing "the second frame/accessor can update a slot demanded earlier"

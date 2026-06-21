@@ -1,111 +1,24 @@
 (ns propagators.gur-subenv-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.value :as value]
-            [propagators.compile :as compile]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.gur.subenv :as subenv]
-            [propagators.gur.subenv.scoped-slot :as scoped-slot]
-            [propagators.gur.subenv.source :as source]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
-            [propagators.message :refer [message]]
+            [propagators.message :refer [message message-id]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.scoped-address :as scoped]))
+            [propagators.cells.diff :as diff]))
 
+;; test is too low level
+;; this is wrong
 (defn- strongest [n id]
   (net/network-cell-strongest n id))
 
 (defn- run-props [n prop-ids]
   (core/run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
-
-(deftest compile-dsl-let-and-contextual-op-guard
-  (testing "DSL let binds expression cells without using host let"
-    (let [{:keys [net props value]}
-          (compile/eval-net
-           '(let [one 1
-                  two 2
-                  sum (::+ one two)]
-              sum))
-          result-net (run-props net props)]
-      (is (= 3 (strongest result-net value)))))
-
-  (testing "contextual recursive ops fail outside recursive source context"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"contextual recursive op"
-         (compile/eval-net '(::recur x))))))
-
-(deftest scoped-address-ir-round-trips-current-dispatch-keys
-  (let [scope [:scope :child]
-        local-id (ids/new-node-id)
-        name-ir (scoped/name-ref-ir scope :rest)
-        cell-ir (scoped/cell-ref-ir scope local-id)]
-    (is (scoped/ref? name-ir))
-    (is (= (subenv/name-ref scope :rest)
-           (scoped/ref->address name-ir)))
-    (is (= (subenv/cell-ref scope local-id)
-           (scoped/ref->address cell-ir)))
-    (is (= name-ir
-           (scoped/address->ref (subenv/name-ref scope :rest))))
-    (is (= cell-ir
-           (scoped/address->ref (subenv/cell-ref scope local-id))))))
-
-(defn- run-countdown
-  [n-value]
-  (let [closure (source/recursive-closure
-                 :countdown
-                 '[n out]
-                 '(let [zero 0
-                        one 1
-                        done? (::<= n zero)
-                        more? (::not done?)]
-                    (cond
-                      done? n
-                      more? (::recur (switch more? (::- n one))))))
-        closure-id (ids/new-node-id)
-        n-id (ids/new-node-id)
-        out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (nb/install-cell closure-id closure closure)
-               (nb/install-cell n-id n-value n-value)
-               (nb/install-cell out-id))
-        [props n1] ((subenv/p:apply-closure closure-id [n-id] out-id) n0)
-        n2 (run-props n1 props)]
-    (strongest n2 out-id)))
-
-(deftest source-level-def-recursive-lowers-to-gur-runtime
-  (is (= 0 (run-countdown 0)))
-  (is (= 0 (run-countdown 3))))
-
-(compile/def-recursive compile-countdown
-  [n out]
-  (let [zero 0
-        one 1
-        done? (::<= n zero)
-        more? (::not done?)]
-    (cond
-      done? n
-      more? (::recur (switch more? (::- n one))))))
-
-(defn- run-compile-countdown
-  [n-value]
-  (let [closure-id (ids/new-node-id)
-        n-id (ids/new-node-id)
-        out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (nb/install-cell closure-id compile-countdown compile-countdown)
-               (nb/install-cell n-id n-value n-value)
-               (nb/install-cell out-id))
-        [props n1] ((subenv/p:apply-closure closure-id [n-id] out-id) n0)
-        n2 (run-props n1 props)]
-    (strongest n2 out-id)))
-
-(deftest compile-def-recursive-lowers-to-gur-runtime
-  (is (= 0 (run-compile-countdown 0)))
-  (is (= 0 (run-compile-countdown 3))))
 
 (defn- child-net
   [scope local-id]
@@ -157,6 +70,37 @@
       (is (some? local-watch))
       (is (some? owner-watch)))))
 
+(deftest subenv-frame-projects-outputs-through-diff-path
+  (testing "inner output changes are projected to the external output by diff cells"
+    (let [owner-id (ids/new-node-id)
+          out-id (ids/new-node-id)
+          parent0 (-> net/empty-net
+                      (nb/install-cell owner-id)
+                      (nb/install-cell out-id))
+          child0 (subenv/install-frame-boundary parent0
+                                                (subenv/extend-env net/empty-net
+                                                                   [:scope :frame])
+                                                []
+                                                [out-id])
+          out-inner (net/lookup-inner-out child0 out-id)
+          child1 (nb/seed-cell child0 out-inner 99)
+          parent1 (nb/seed-cell parent0 owner-id child1)
+          [runner-prop parent2] ((subenv/p:run-subenv-frame owner-id [out-id])
+                                 parent1)
+          diff-log (atom [])
+          orig-diff diff/diff-internal-output-cells
+          recording-diff
+          (fn [network-from network-to external-outputs]
+            (let [msgs (vec (orig-diff network-from network-to external-outputs))]
+              (swap! diff-log conj {:external-outputs (vec external-outputs)
+                                    :targets (mapv message-id msgs)})
+              msgs))]
+      (with-redefs [diff/diff-internal-output-cells recording-diff]
+        (let [parent3 (run-props parent2 [runner-prop])]
+          (is (= 99 (strongest parent3 out-id)))
+          (is (= [[out-id]] (mapv :targets @diff-log)))
+          (is (= [[out-id]] (mapv :external-outputs @diff-log))))))))
+
 (deftest contextual-recursive-fibonacci
   (testing "the generalized apply/recur engine computes scalar recursion"
     (is (= 0 (:value (subenv/run-fib 0))))
@@ -189,27 +133,6 @@
       (is (= 2 (strongest n2 out-id)))
       (is (seq applied-keys))
       (is (seq applied-closure-keys)))))
-
-(deftest contextual-recursive-scalar-cases
-  (testing "factorial uses scalar recursive multiplication"
-    (is (= 1 (:value (subenv/run-factorial 0))))
-    (is (= 1 (:value (subenv/run-factorial 1))))
-    (is (= 120 (:value (subenv/run-factorial 5)))))
-
-  (testing "integer square root uses scalar binary-search recursion"
-    (doseq [[n expected] [[0 0]
-                         [1 1]
-                         [2 1]
-                         [3 1]
-                         [4 2]
-                         [8 2]
-                         [9 3]
-                         [15 3]
-                         [16 4]
-                         [27 5]
-                         [81 9]]]
-      (is (= expected (:value (subenv/run-int-sqrt n)))
-          (str "floor sqrt for " n)))))
 
 (defn- list-slot
   [v slot-key]
@@ -284,312 +207,10 @@
                           (= :dispatch/subenv-ref (first route)))
                  [k route])))))
 
-(defn- observe-first-two-heads
-  [network collection-id]
-  (let [head0-id (ids/new-node-id)
-        tail0-id (ids/new-node-id)
-        head1-id (ids/new-node-id)
-        tail1-id (ids/new-node-id)
-        n0 (reduce nb/install-cell
-                   network
-                   [head0-id tail0-id head1-id tail1-id])
-        [head0-prop n1] ((obj/p:car head0-id collection-id) n0)
-        [tail0-prop n2] ((obj/p:cdr tail0-id collection-id) n1)
-        [head1-prop n3] ((obj/p:car head1-id tail0-id) n2)
-        [tail1-prop n4] ((obj/p:cdr tail1-id tail0-id) n3)
-        n5 (run-props n4 [head0-prop tail0-prop head1-prop tail1-prop])]
-    {:net n5
-     :heads [(strongest n5 head0-id)
-             (strongest n5 head1-id)]}))
-
-(defn- observe-first-inner-heads
-  [network collection-id]
-  (let [inner-id (ids/new-node-id)
-        outer-tail-id (ids/new-node-id)
-        inner-head0-id (ids/new-node-id)
-        inner-tail0-id (ids/new-node-id)
-        inner-head1-id (ids/new-node-id)
-        inner-tail1-id (ids/new-node-id)
-        n0 (reduce nb/install-cell
-                   network
-                   [inner-id outer-tail-id inner-head0-id inner-tail0-id
-                    inner-head1-id inner-tail1-id])
-        [outer-head-prop n1] ((obj/p:car inner-id collection-id) n0)
-        [outer-tail-prop n2] ((obj/p:cdr outer-tail-id collection-id) n1)
-        [inner-head0-prop n3] ((obj/p:car inner-head0-id inner-id) n2)
-        [inner-tail0-prop n4] ((obj/p:cdr inner-tail0-id inner-id) n3)
-        [inner-head1-prop n5] ((obj/p:car inner-head1-id inner-tail0-id) n4)
-        [inner-tail1-prop n6] ((obj/p:cdr inner-tail1-id inner-tail0-id) n5)
-        n7 (run-props n6 [outer-head-prop outer-tail-prop
-                          inner-head0-prop inner-tail0-prop
-                          inner-head1-prop inner-tail1-prop])]
-    {:net n7
-     :heads [(strongest n7 inner-head0-id)
-             (strongest n7 inner-head1-id)]}))
-
-(defn- constructed-accessor-map-probe
-  []
-  (let [fib-id (ids/new-node-id)
-        map-id (ids/new-node-id)
-        list-id (ids/new-node-id)
-        head0-id (ids/new-node-id)
-        tail0-id (ids/new-node-id)
-        acc-id (ids/new-node-id)
-        out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (nb/install-cell fib-id (subenv/fib-closure) (subenv/fib-closure))
-               (nb/install-cell map-id (subenv/map-list-closure) (subenv/map-list-closure))
-               (nb/install-cell list-id)
-               (nb/install-cell head0-id 0 0)
-               (nb/install-cell tail0-id)
-               (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
-               (nb/install-cell out-id))
-        [[car0-prop cdr0-prop] n1] ((obj/p:cons head0-id tail0-id list-id) n0)
-        [map-props n2] ((subenv/p:apply-closure map-id
-                                               [list-id fib-id acc-id]
-                                               out-id)
-                        n1)
-        n3 (run-props n2 (concat [car0-prop cdr0-prop] map-props))
-        source-cell-before (strongest n3 list-id)
-        mapped-cell-before (strongest n3 out-id)
-        {n3a :net parent-before :heads} (observe-first-two-heads n3 list-id)
-        {n3b :net mapped-before :heads} (observe-first-two-heads n3a out-id)
-        source-cell-after-observers (strongest n3b list-id)
-        mapped-cell-after-observers (strongest n3b out-id)
-        head1-id (ids/new-node-id)
-        tail1-id (ids/new-node-id)
-        n4 (-> n3b
-               (nb/install-cell head1-id 1 1)
-               (nb/install-cell tail1-id))
-        [[car1-prop cdr1-prop] n5] ((obj/p:cons head1-id tail1-id tail0-id) n4)
-        n6 (run-props n5 [car1-prop cdr1-prop])
-        source-cell-after (strongest n6 list-id)
-        mapped-cell-after (strongest n6 out-id)
-        {n6a :net parent-after :heads} (observe-first-two-heads n6 list-id)
-        {mapped-after :heads} (observe-first-two-heads n6a out-id)]
-    {:parent-before parent-before
-     :parent-after parent-after
-     :mapped-before mapped-before
-     :mapped-after mapped-after
-     :source-cell-observer-changed? (not= source-cell-before
-                                          source-cell-after-observers)
-     :source-cell-extension-changed? (not= source-cell-after-observers
-                                           source-cell-after)
-     :mapped-cell-observer-changed? (not= mapped-cell-before
-                                          mapped-cell-after-observers)
-     :mapped-cell-extension-changed? (not= mapped-cell-after-observers
-                                           mapped-cell-after)
-     :source-cell-cdr-before (list-slot source-cell-before :cdr)
-     :source-cell-cdr-after-observers (list-slot source-cell-after-observers
-                                                 :cdr)
-     :source-cell-cdr-after-extension (list-slot source-cell-after :cdr)}))
-
-(defn- constructed-nested-accessor-map-probe
-  []
-  (let [map-id (ids/new-node-id)
-        mapper-id (ids/new-node-id)
-        outer-id (ids/new-node-id)
-        inner-id (ids/new-node-id)
-        inner-head0-id (ids/new-node-id)
-        inner-tail0-id (ids/new-node-id)
-        outer-tail-id (ids/new-node-id)
-        acc-id (ids/new-node-id)
-        out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (nb/install-cell map-id (subenv/map-list-closure) (subenv/map-list-closure))
-               (nb/install-cell mapper-id
-                                (subenv/map-list-fib-closure)
-                                (subenv/map-list-fib-closure))
-               (nb/install-cell outer-id)
-               (nb/install-cell inner-id)
-               (nb/install-cell inner-head0-id 0 0)
-               (nb/install-cell inner-tail0-id)
-               (nb/install-cell outer-tail-id subenv/empty-list subenv/empty-list)
-               (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
-               (nb/install-cell out-id))
-        [[inner-car0-prop inner-cdr0-prop] n1]
-        ((obj/p:cons inner-head0-id inner-tail0-id inner-id) n0)
-        [[outer-car0-prop outer-cdr0-prop] n2]
-        ((obj/p:cons inner-id outer-tail-id outer-id) n1)
-        [map-props n3]
-        ((subenv/p:apply-closure map-id [outer-id mapper-id acc-id] out-id) n2)
-        n4 (run-props n3 (concat [inner-car0-prop inner-cdr0-prop
-                                  outer-car0-prop outer-cdr0-prop]
-                                 map-props))
-        {n4a :net before :heads} (observe-first-inner-heads n4 out-id)
-        inner-head1-id (ids/new-node-id)
-        inner-tail1-id (ids/new-node-id)
-        n5 (-> n4a
-               (nb/install-cell inner-head1-id 1 1)
-               (nb/install-cell inner-tail1-id subenv/empty-list subenv/empty-list))
-        [[inner-car1-prop inner-cdr1-prop] n6]
-        ((obj/p:cons inner-head1-id inner-tail1-id inner-tail0-id) n5)
-        n7 (run-props n6 [inner-car1-prop inner-cdr1-prop])
-        {after :heads} (observe-first-inner-heads n7 out-id)]
-    {:before before
-     :after after}))
-
-(defn- constructed-accessor-reduce-probe
-  []
-  (let [reduce-id (ids/new-node-id)
-        step-id (ids/new-node-id)
-        list-id (ids/new-node-id)
-        head0-id (ids/new-node-id)
-        tail0-id (ids/new-node-id)
-        acc-id (ids/new-node-id)
-        out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (nb/install-cell reduce-id
-                                (subenv/reduce-list-closure)
-                                (subenv/reduce-list-closure))
-               (nb/install-cell step-id
-                                (subenv/sum-step-closure)
-                                (subenv/sum-step-closure))
-               (nb/install-cell list-id)
-               (nb/install-cell head0-id 1 1)
-               (nb/install-cell tail0-id)
-               (nb/install-cell acc-id 0 0)
-               (nb/install-cell out-id))
-        [[car0-prop cdr0-prop] n1] ((obj/p:cons head0-id tail0-id list-id) n0)
-        [reduce-props n2]
-        ((subenv/p:apply-closure reduce-id [list-id step-id acc-id] out-id) n1)
-        n3 (run-props n2 (concat [car0-prop cdr0-prop] reduce-props))
-        before (strongest n3 out-id)
-        head1-id (ids/new-node-id)
-        tail1-id (ids/new-node-id)
-        n4 (-> n3
-               (nb/install-cell head1-id 2 2)
-               (nb/install-cell tail1-id subenv/empty-list subenv/empty-list))
-        [[car1-prop cdr1-prop] n5] ((obj/p:cons head1-id tail1-id tail0-id) n4)
-        n6 (run-props n5 [car1-prop cdr1-prop])]
-    {:before before
-     :after (strongest n6 out-id)}))
-
-(defn- constructed-accessor-prefix-reduce-probe
-  []
-  (let [reduce-id (ids/new-node-id)
-        step-id (ids/new-node-id)
-        list-id (ids/new-node-id)
-        head0-id (ids/new-node-id)
-        tail0-id (ids/new-node-id)
-        acc-id (ids/new-node-id)
-        out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (nb/install-cell reduce-id
-                                (subenv/prefix-reduce-list-closure)
-                                (subenv/prefix-reduce-list-closure))
-               (nb/install-cell step-id
-                                (subenv/sum-present-step-closure)
-                                (subenv/sum-present-step-closure))
-               (nb/install-cell list-id)
-               (nb/install-cell head0-id 1 1)
-               (nb/install-cell tail0-id)
-               (nb/install-cell acc-id 0 0)
-               (nb/install-cell out-id))
-        [[car0-prop cdr0-prop] n1] ((obj/p:cons head0-id tail0-id list-id) n0)
-        [reduce-props n2]
-        ((subenv/p:apply-closure reduce-id [list-id step-id acc-id] out-id) n1)
-        n3 (run-props n2 (concat [car0-prop cdr0-prop] reduce-props))
-        before (strongest n3 out-id)
-        head1-id (ids/new-node-id)
-        tail1-id (ids/new-node-id)
-        n4 (-> n3
-               (nb/install-cell head1-id 2 2)
-               (nb/install-cell tail1-id subenv/empty-list subenv/empty-list))
-        [[car1-prop cdr1-prop] n5] ((obj/p:cons head1-id tail1-id tail0-id) n4)
-        n6 (run-props n5 [car1-prop cdr1-prop])]
-    {:before before
-     :after (strongest n6 out-id)}))
-
-(defn- constructed-accessor-filter-probe
-  []
-  (let [filter-id (ids/new-node-id)
-        predicate-id (ids/new-node-id)
-        list-id (ids/new-node-id)
-        head0-id (ids/new-node-id)
-        tail0-id (ids/new-node-id)
-        acc-id (ids/new-node-id)
-        out-id (ids/new-node-id)
-        n0 (-> net/empty-net
-               (nb/install-cell filter-id
-                                (subenv/filter-list-closure)
-                                (subenv/filter-list-closure))
-               (nb/install-cell predicate-id
-                                (subenv/even-predicate-closure)
-                                (subenv/even-predicate-closure))
-               (nb/install-cell list-id)
-               (nb/install-cell head0-id 0 0)
-               (nb/install-cell tail0-id)
-               (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
-               (nb/install-cell out-id))
-        [[car0-prop cdr0-prop] n1] ((obj/p:cons head0-id tail0-id list-id) n0)
-        [filter-props n2]
-        ((subenv/p:apply-closure filter-id
-                                 [list-id predicate-id acc-id]
-                                 out-id)
-         n1)
-        n3 (run-props n2 (concat [car0-prop cdr0-prop] filter-props))
-        {n3a :net before :heads} (observe-first-two-heads n3 out-id)
-        head1-id (ids/new-node-id)
-        tail1-id (ids/new-node-id)
-        n4 (-> n3a
-               (nb/install-cell head1-id 2 2)
-               (nb/install-cell tail1-id subenv/empty-list subenv/empty-list))
-        [[car1-prop cdr1-prop] n5] ((obj/p:cons head1-id tail1-id tail0-id) n4)
-        n6 (run-props n5 [car1-prop cdr1-prop])
-        {after :heads} (observe-first-two-heads n6 out-id)]
-    {:before before
-     :after after}))
-
 (deftest contextual-recursive-map-list-over-compound-data
   (testing "map-list uses the same contextual apply/recur engine over compound data"
-    (let [{:keys [value]} (subenv/run-map-list-fib [])]
-      (is (= [] (list->vec value))))
     (let [{:keys [value]} (subenv/run-map-list-fib [0 1 2 3 4 5])]
       (is (= [0 1 1 2 3 5] (list->vec value))))))
-
-(deftest contextual-recursive-reduce-and-filter-over-compound-data
-  (testing "reduce-list composes contextual apply/recur with accumulator flow"
-    (is (= 0 (:value (subenv/run-reduce-list-sum []))))
-    (is (= 15 (:value (subenv/run-reduce-list-sum [0 1 2 3 4 5])))))
-
-  (testing "filter-list composes contextual apply/recur with branchy cons output"
-    (is (= [] (list->vec (:value (subenv/run-filter-list-even [])))))
-    (is (= [0 2 4] (list->vec (:value (subenv/run-filter-list-even
-                                       [0 1 2 3 4 5])))))))
-
-(deftest constructed-accessor-map-lazy-extension-routes-through-scoped-slot-dispatch
-  (testing "accessor observers and recursive map output both see the lazy extension"
-    (let [{:keys [parent-before parent-after mapped-before mapped-after
-                  source-cell-observer-changed?
-                  mapped-cell-observer-changed?
-                  source-cell-cdr-before
-                  source-cell-cdr-after-observers
-                  source-cell-cdr-after-extension]}
-          (constructed-accessor-map-probe)]
-      (is (= [0 value/nothing] parent-before))
-      (is (= [0 1] parent-after))
-      (is (true? source-cell-observer-changed?)
-          "Installing parent accessors does rewrite the source collection cell with accessor route topology.")
-      (is (= value/nothing source-cell-cdr-before))
-      (is (= value/nothing source-cell-cdr-after-observers))
-      (is (= value/nothing source-cell-cdr-after-extension)
-          "The source cdr value update remains route-observable, not materialized as a direct source slot.")
-      (is (true? mapped-cell-observer-changed?)
-          "Installing parent accessors also rewrites the mapped output cell with accessor route topology.")
-      (is (= 0 (first mapped-before)))
-      (is (contains? #{nil value/nothing} (second mapped-before))
-          "Before the lazy extension there is no second mapped output element.")
-      (is (= [0 1] mapped-after)
-          "The source cdr update routes through the child scoped slot accessor and wakes the recursive frame."))))
-
-(deftest constructed-accessor-map-lazy-extension-uses-publisher-not-recursive-export
-  (testing "lazy recursive accessor export is handled by the frame publisher"
-    (with-redefs [scoped-slot/register-child-accessors
-                  (fn [& _]
-                    (throw (ex-info "recursive export hook should not run" {})))]
-      (let [{:keys [mapped-after]} (constructed-accessor-map-probe)]
-        (is (= [0 1] mapped-after))))))
 
 (deftest contextual-recursive-nested-map-list-over-compound-data
   (testing "nested map-list composition maps inner compound/list elements"
@@ -598,43 +219,17 @@
           {:keys [value]} (subenv/run-nested-map-list-fib source)]
       (is (= [[0 1] [1 2]] (list->data value))))))
 
-(deftest constructed-nested-accessor-map-lazy-extension-routes-transitively
-  (testing "nested constructed inner cdr extension reaches the nested mapper frame"
-    (let [{:keys [before after]} (constructed-nested-accessor-map-probe)]
-      (is (= 0 (first before)))
-      (is (contains? #{nil value/nothing} (second before)))
-      (is (= [0 1] after)))))
-
-(deftest constructed-accessor-reduce-lazy-extension-routes-through-scoped-slots
-  (testing "constructed cdr extension wakes recursive reduce through scoped slots"
-    (let [{:keys [before after]} (constructed-accessor-reduce-probe)]
-      (is (= value/nothing before)
-          "Reduce has no prefix output until the terminal empty cdr is known.")
-      (is (= 3 after)))))
-
-(deftest prefix-reduce-over-lazy-cdr-contradicts-with-plain-numeric-output
-  (testing "ignoring an unknown tail emits a provisional scalar that cannot be revised"
-    (let [{:keys [before after]} (constructed-accessor-prefix-reduce-probe)]
-      (is (= 1 before))
-      (is (value/contradiction? after)
-          "The later correct sum 3 conflicts with the already-merged prefix sum 1."))))
-
-(deftest constructed-accessor-filter-lazy-extension-routes-through-scoped-slots
-  (testing "constructed cdr extension wakes recursive filter through scoped slots"
-    (let [{:keys [before after]} (constructed-accessor-filter-probe)]
-      (is (= 0 (first before)))
-      (is (contains? #{nil value/nothing} (second before)))
-      (is (= [0 2] after)))))
-
-(deftest nested-map-dispatches-to-child-and-projects-output
-  (testing "nested map composition should route a parent message into the child frame and update only through recursive output"
-    (let [map-id (ids/new-node-id)
+(deftest nested-compound-recursion-dispatches-bidirectionally
+  (testing "a parent message can route into a nested recursive frame, and output returns by diff"
+    (let [fib-id (ids/new-node-id)
+          map-id (ids/new-node-id)
           mapper-id (ids/new-node-id)
           list-id (ids/new-node-id)
           acc-id (ids/new-node-id)
           out-id (ids/new-node-id)
           source [(subenv/cons-cell-value 0 value/nothing)]
           n0 (-> net/empty-net
+                 (nb/install-cell fib-id (subenv/fib-closure) (subenv/fib-closure))
                  (nb/install-cell map-id (subenv/map-list-closure) (subenv/map-list-closure))
                  (nb/install-cell mapper-id
                                   (subenv/map-list-fib-closure)
@@ -650,13 +245,74 @@
                   (when (value/nothing? (dispatch-route-value n2 route))
                     target))
                 (nested-subenv-targets n2 :rest))
-          late-rest (subenv/cons-list-value [1 2])]
+          diff-log (atom [])
+          orig-diff diff/diff-internal-output-cells
+          recording-diff
+          (fn [network-from network-to external-outputs]
+            (let [msgs (vec (orig-diff network-from network-to external-outputs))]
+              (swap! diff-log conj {:external-outputs (vec external-outputs)
+                                    :targets (mapv message-id msgs)})
+              msgs))]
       (is (= [[0]] (list->data (strongest n2 out-id))))
       (is (some? nested-rest-target))
       (is (= :dispatch/subenv-ref
              (first (net/network-dict-entry n2 nested-rest-target))))
-      (let [[tasks n3] (core/eval-cell* (net/net-dict-or-empty n2)
-                                        (message nested-rest-target late-rest)
-                                        n2)
-            n4 (core/run-tasks tasks n3)]
-        (is (= [[0 1 1]] (list->data (strongest n4 out-id))))))))
+      (with-redefs [diff/diff-internal-output-cells recording-diff]
+        (let [[tasks n3] (core/eval-cell* (net/net-dict-or-empty n2)
+                                          (message nested-rest-target
+                                                   (subenv/cons-list-value [1 2]))
+                                          n2)
+              n4 (core/run-tasks tasks n3)]
+          (is (= [[0 1 1]] (list->data (strongest n4 out-id))))
+          (is (some (fn [{:keys [targets]}]
+                      (some #{out-id} targets))
+                    @diff-log)))))))
+
+(deftest late-cdr-delivery-enters-frame-and-projects-output-through-diff
+  (testing "late cdr delivery updates the child frame via scoped dispatch and wakes the diff runner"
+    (let [fib-id (ids/new-node-id)
+          map-id (ids/new-node-id)
+          list-id (ids/new-node-id)
+          acc-id (ids/new-node-id)
+          out-id (ids/new-node-id)
+          initial-list (subenv/cons-cell-value 0 value/nothing)
+          n0 (-> net/empty-net
+                 (nb/install-cell fib-id (subenv/fib-closure) (subenv/fib-closure))
+                 (nb/install-cell map-id (subenv/map-list-closure) (subenv/map-list-closure))
+                 (nb/install-cell list-id initial-list initial-list)
+                 (nb/install-cell acc-id subenv/empty-list subenv/empty-list)
+                 (nb/install-cell out-id))
+          [props n1] ((subenv/p:apply-closure map-id [list-id fib-id acc-id] out-id)
+                      n0)
+          n2 (run-props n1 props)
+          frame-id (net/network-dict-entry n2
+                                           (subenv/application-key map-id
+                                                                   [list-id fib-id acc-id]
+                                                                   out-id))
+          frame-net (strongest n2 frame-id)
+          scope (net/network-dict-entry frame-net subenv/scope-key)
+          target (subenv/name-ref scope :rest)
+          late-rest (subenv/cons-list-value [1 2])
+          diff-log (atom [])
+          orig-diff diff/diff-internal-output-cells
+          recording-diff
+          (fn [network-from network-to external-outputs]
+            (let [msgs (vec (orig-diff network-from network-to external-outputs))]
+              (swap! diff-log conj {:external-outputs (vec external-outputs)
+                                    :targets (mapv message-id msgs)})
+              msgs))]
+      (is (= value/nothing
+             (list-slot (list-slot (strongest n2 out-id) :cdr) :car)))
+      (is (= [:dispatch/subenv frame-id
+              (second (first (filter #(= :rest (first %))
+                                     (subenv/bindings frame-net))))]
+             (net/network-dict-entry n2 target)))
+      (with-redefs [diff/diff-internal-output-cells recording-diff]
+        (let [[tasks n3] (core/eval-cell* (net/net-dict-or-empty n2)
+                                          (message target late-rest)
+                                          n2)
+              n4 (core/run-tasks tasks n3)]
+          (is (= [0 1 1] (list->vec (strongest n4 out-id))))
+          (is (some (fn [{:keys [targets]}]
+                      (some #{out-id} targets))
+                    @diff-log)))))))

@@ -157,6 +157,14 @@
         'propagators.datastructures.compound-object/compound-object)
        content))))
 
+(defn- refine-accessor-network
+  [value]
+  (if (accessor-network-update? value)
+    ((requiring-resolve
+      'propagators.datastructures.compound-object.network-slot/refine-accessor-network)
+     value)
+    value))
+
 (defmethod built-in-cell-merge :named-network
   [content update _network]
   (let [content* (normalize-named-network-content content update)]
@@ -265,11 +273,11 @@
 
 (defmethod built-in-strongest-value :named-network
   [content _network]
-  content)
+  (refine-accessor-network content))
 
 (defmethod built-in-strongest-value :named-network-evidence
   [content _network]
-  (evidence/strongest content))
+  (refine-accessor-network (evidence/strongest content)))
 
 (defmethod built-in-strongest-value :reducer-subnet
   [content _network]
