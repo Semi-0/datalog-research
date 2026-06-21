@@ -144,7 +144,7 @@ The routed installer delivery keeps ownership explicit:
 | Lexical-pointer GUR | Dynamic frames can be addressed through lexical env refs. | `io/name-ref` / `io/cell-ref` into stored child envs. | Works for dispatch, but topology ownership leaks into lexical scope. | Investigate only; not preferred. |
 | Accessor GUR | Lazy terminal cdr expansion can run as child frame values. | `gur/p:run-frame` plus branch network values and accessor snapshots. | Works for current cases, but needs snapshots/subscribers/lexical env coupling. | Keep as comparison. |
 | Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Best previous ownership baseline. |
-| Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, scoped vector keys, scoped slot accessor registration, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, bidirectional late nested cdr through parent-visible output, constructed-accessor lazy cdr extension, and nested constructed lazy cdr extension through transitive scoped slot fanout. | Current proposal validation; continue, but not compile target yet. |
+| Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, scoped vector keys, scoped slot accessor registration, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, bidirectional late nested cdr through parent-visible output, constructed-accessor lazy cdr extension, and nested constructed lazy cdr extension through transitive scoped slot fanout. Accessor-linked hop smoke shows filter reaches 10 hops, while map is correct through 7 but blows up operationally before 8-10. | Current proposal validation; continue, but not compile target yet. |
 | Frame-publisher accessor export | Recursive accessor export can be ordinary propagation instead of a sub-env merge side effect. | `gur.subenv/p:apply-closure` installs a child-accessor publisher beside the frame runner. | Preserves lazy flat/nested cdr behavior while removing recursive accessor export from owner-cell registration. | Current implementation refinement; still leaves contextual slot accessors as future cleanup. |
 
 ## Experiments
@@ -570,6 +570,37 @@ Evidence: `propagators.gur-subenv-test` covers:
   exposes first kept value `0`, and after a later cdr extension to `[2]` the
   observed output updates to `[0 2]` through the same scoped slot fanout path.
 
+Ad hoc accessor-hop smoke on `2026-06-21`: the source list was built with the
+current public compound-object linked-list surface, `obj/p:cons` /
+`obj/p:car` / `obj/p:cdr`, using scalar head cells, collection cells, and an
+empty-list cell. It did not seed a materialized `subenv/cons-list-value` source;
+only the final output was walked into a vector for assertion.
+
+| Hops | `map-list` with Fibonacci mapper | `filter-list` with even predicate |
+| ---: | --- | --- |
+| `5` | Pass, about `2.0 s` | Pass, about `0.6 s` |
+| `6` | Pass, about `9.1 s` | Pass, about `0.7 s` |
+| `7` | Pass, about `56.2 s` | Pass, about `1.6 s` |
+| `8` | No result after about `60 s`; stopped | Pass, about `3.6 s` |
+| `9` | Not attempted after the hop-8 stall | Pass, about `8.5 s` |
+| `10` | Not attempted after the hop-8 stall | Pass, about `18.3 s` |
+
+This is evidence for a scaling boundary, not a semantic wrong-value failure.
+The successful filter run proves that GUR can traverse ten accessor-linked cdr
+hops when each hop performs the branchy filter body. The map run proves the same
+accessor path and output assembly are semantically correct through seven hops,
+but the direct composed-frame map path grows too quickly to treat eight to ten
+hops as operationally supported.
+
+The likely reason is the amount of recursive frame work created by `map-list`.
+Each list node applies the mapper to the head, recurs over the cdr, and builds a
+new `obj/p:cons` output node. With a Fibonacci mapper, each element also expands
+its own recursive Fibonacci frame tree. The timings grow from about `2.0 s` at
+five hops to `9.1 s` at six and `56.2 s` at seven, which points at accumulated
+frame/topology expansion rather than the network-slot accessor dispatch alone.
+Filter also grows with hop count, but its scalar predicate does not recursively
+expand per element, so it still reaches ten hops in this bounded smoke.
+
 Benchmark harness:
 
 ```sh
@@ -610,16 +641,18 @@ Limit: this is not a compiler target, not the exact source syntax sketched for
 redesign `p:slot` or the existing nested `p:car` / `p:cdr` accessor behavior.
 The constructed-accessor probes now cover flat and nested scoped slot paths, but
 the implementation is still experiment-specific runtime machinery rather than
-compile-2 lowering. Transitive scoped-slot export now follows the accessor
+compile-2 lowering. The accessor-hop smoke above is not committed regression
+coverage and should not be read as a benchmark suite. Transitive scoped-slot
+export now follows the accessor
 chain itself: nested child frames are scanned, but a scoped target is registered
 back to a parent collection only when it is reachable through a parent-owned
 accessor parent id and still has a live child route. The kernel hook still
 delegates to the experiment namespace rather than moving every dispatch case
-into `propagators.core`. No AST compound-object transformation probe was added
-in this pass; without a small arbitrary-record constructor, it would mostly be
-map/filter boilerplate over another accessor shape. No unification probe was
-added; plain value equality/merge is already covered elsewhere, while useful
-unification needs its own monotone substitution value rather than another
+into `propagators.core`. The later compiler-2/GUR linked-list probe is
+deliberately narrow: it demonstrates one declaration/application/lexical path,
+not arbitrary AST transformation or production compiler lowering. No unification
+probe was added; plain value equality/merge is already covered elsewhere, while
+useful unification needs its own monotone substitution value rather than another
 scalar recursion body.
 
 Binary search exposed one DSL rule worth keeping: `cond` is declarative, so it
@@ -665,6 +698,13 @@ Current behavior is covered by:
   contextual apply/recur, Fibonacci, flat and composed nested map-list
   recursion, reduce-list, filter-list, and bidirectional late nested cdr
   delivery asserted through the parent-visible output.
+- Manual `2026-06-21` accessor-hop smoke over public `obj/p:cons` linked-list
+  topology, which kept the source unmaterialized: filter reached `10` hops,
+  while Fibonacci map passed through `7` hops and stalled before `8`.
+- `test/propagators/compiler_2_gur_linked_list_test.clj` for the parallel
+  compiler-2/GUR linked-list probe: declaration AST traversal through
+  `obj/p:cons`, GUR closure declaration/application, and accessor-backed lexical
+  lookup without source-list materialization.
 
 ## Open Problems
 
@@ -677,6 +717,11 @@ Current behavior is covered by:
 - replace the remaining post-build direct accessor inference with contextual
   lexical slot accessors or a reusable boundary relation;
 - extend the GUR benchmark harness when dynamic map/vector slots land;
+- decide whether the map blow-up should be fixed by memoizing applied recursive
+  frame facts, declaration-first map expansion, or a cheaper mapper/output
+  assembly path before claiming 8-10 hop map support;
+- lift the compiler-2/GUR linked-list probe from one hard-coded declaration form
+  to dynamic operator dispatch and recursive lexical-accessor construction;
 - derive compact route declarations so compile-2 does not emit verbose frame
   boilerplate.
 
@@ -1710,7 +1755,7 @@ Conclusion used for direction:
 
 ## Appendix: Chronological Experiment Log
 
-Total executed recursion experiments described here: `10`
+Total executed recursion experiments described here: `12`
 
 Separate from that total:
 
@@ -1728,6 +1773,8 @@ Benchmark method for the benchmarked entries below:
 - nested stress benchmarks use
   `{:left [0 1 2] :right {:a 3 :b [4 5] :empty []}}`
 - later experiments record test evidence but do not yet have benchmark numbers
+- entry `11` is an ad hoc bounded smoke, not a committed benchmark harness
+- entry `12` is a focused regression test, not the active compiler-2 lowering
 
 1. `2026-06-04` Plain direct recursive activation.
    Assumption: recursion can expand and run an activation-local inner network,
@@ -1882,6 +1929,42 @@ Benchmark method for the benchmarked entries below:
     join rather than from a separate runtime guard. This is also the natural
     place to make hot-reloaded closure bodies replay as new closure versions
     without mutating parent topology directly.
+
+11. `2026-06-21` Public compound-object linked-list hop smoke for GUR.
+    Assumption: GUR `map-list` and `filter-list` should be tested against the
+    current public linked-list/accessor surface, not materialized
+    `subenv/cons-list-value` inputs. The source shape is cells plus
+    `obj/p:cons` / `obj/p:car` / `obj/p:cdr`; only the output is walked for
+    assertion.
+    Outcome: `filter-list` with `even-predicate` passes from `5` through `10`
+    cdr hops. `map-list` with the recursive Fibonacci mapper passes through
+    `7` hops, but hop `8` produced no result after about `60 s` and was stopped.
+    Evidence: observed map timings were about `2.0 s`, `9.1 s`, and `56.2 s`
+    for `5`, `6`, and `7` hops. Observed filter timings were about `0.6 s`,
+    `0.7 s`, `1.6 s`, `3.6 s`, `8.5 s`, and `18.3 s` for `5` through `10`
+    hops.
+    Boundary: this is not a wrong-value failure. It shows that accessor-linked
+    traversal can reach ten hops for filter, while recursive mapped Fibonacci
+    expansion is not operationally viable at eight to ten hops in the current
+    direct composed-frame implementation.
+
+12. `2026-06-21` Parallel compiler-2/GUR linked-list declaration probe.
+    Assumption: before rewriting compiler-2, prove one vertical slice beside the
+    current compiler path: accessor-linked declaration AST, GUR declaration of a
+    compound propagator, GUR application, and lexical access through the
+    compound-object env accessor path.
+    Outcome: `propagators.compiler-2-gur-linked-list-test` builds
+    `[:compound add-bias x + x bias]` as cells plus `obj/p:cons` links. A small
+    GUR compiler closure walks the declaration with `obj/p:car` / `obj/p:cdr`,
+    emits a GUR closure value, then applies it. The compiled closure receives an
+    accessor-backed env cell, installs `compiler-2.env/p:lexical-access` for
+    `bias`, composes that with stdlib `prop/+`, and returns `15` for `x = 5`
+    and `bias = 10`.
+    Evidence: the focused test passes with `10` assertions.
+    Boundary: this is not dynamic compiler-2 lowering. The declaration shape is
+    still hard-coded, operator dispatch is not inferred from arbitrary AST data,
+    and recursive lexical-accessor construction for general closures is not yet
+    implemented.
 
 Auxiliary comparison: repeated shallow reducer composition.
 Assumption: nested reduction can be approximated by explicitly composing several
