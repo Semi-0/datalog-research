@@ -5,6 +5,7 @@
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
+            [propagators.datastructures.named-network :as named]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.message :as msg]
@@ -53,15 +54,63 @@
     (is (= #{parent}
            (obj/accessor-parent-ids (msg/message-value m) :x)))))
 
-(deftest accessor-declaration-is-refined-by-cell-merge
+(deftest accessor-declaration-is-refined-in-cell-content
   (let [parent (new-node-id)
         declaration (obj/accessor-declaration :x parent)
         merged (merge/cell-merge value/nothing declaration net/empty-net)]
+    (is (obj/accessor-network? merged))
     (is (= #{parent}
-           (obj/accessor-parent-ids (merge/strongest-value merged net/empty-net) :x)))
+           (obj/accessor-parent-ids merged :x)))
     (is (some? (net/network-dict-entry
-                (merge/strongest-value merged net/empty-net)
-                parent)))))
+                merged
+                (obj/internal-metadata-key :accessor :x :canonical-cell))))
+    (is (some? (net/network-dict-entry
+                merged
+                (obj/internal-metadata-key :accessor :x :avatar parent))))))
+
+(deftest accessor-declaration-merge-is-idempotent
+  (let [parent (new-node-id)
+        declaration (obj/accessor-declaration :x parent)
+        once (merge/cell-merge value/nothing declaration net/empty-net)
+        twice (merge/cell-merge once declaration net/empty-net)]
+    (is (= (cell-count once) (cell-count twice)))
+    (is (= (prop-count once) (prop-count twice)))
+    (is (= true (named/named-network->= once twice)))
+    (is (= true (named/named-network->= twice once)))))
+
+(deftest accessor-declaration-merge-is-order-independent
+  (let [p1 (new-node-id)
+        p2 (new-node-id)
+        d1 (obj/accessor-declaration :x p1)
+        d2 (obj/accessor-declaration :x p2)
+        left (-> value/nothing
+                 (merge/cell-merge d1 net/empty-net)
+                 (merge/cell-merge d2 net/empty-net))
+        right (-> value/nothing
+                  (merge/cell-merge d2 net/empty-net)
+                  (merge/cell-merge d1 net/empty-net))]
+    (is (= #{p1 p2} (obj/accessor-parent-ids left :x)))
+    (is (= #{p1 p2} (obj/accessor-parent-ids right :x)))
+    (is (= 1 (count (filter #(= (obj/internal-metadata-key :accessor :x :canonical-cell) %)
+                            (keys (net/net-dict-or-empty left))))))
+    (is (= true (named/named-network->= left right)))
+    (is (= true (named/named-network->= right left)))))
+
+(deftest accessor-declaration-installs-canonical-cell-and-parent-routes
+  (let [p1 (new-node-id)
+        p2 (new-node-id)
+        merged (-> value/nothing
+                   (merge/cell-merge (obj/accessor-declaration :x p1) net/empty-net)
+                   (merge/cell-merge (obj/accessor-declaration :x p2) net/empty-net))
+        dict (net/net-dict-or-empty merged)
+        sync-prefix (obj/internal-metadata-key :accessor-sync)
+        sync-key? #(and (vector? %)
+                        (= sync-prefix
+                           (vec (take (count sync-prefix) %))))]
+    (is (some? (get dict (obj/internal-metadata-key :accessor :x :canonical-cell))))
+    (is (some? (get dict (obj/internal-metadata-key :accessor :x :avatar p1))))
+    (is (some? (get dict (obj/internal-metadata-key :accessor :x :avatar p2))))
+    (is (= 4 (count (filter sync-key? (keys dict)))))))
 
 (deftest network-slot-reads-map-vector-and-record-source-values
   (testing "map slots are projected to outer accessors without durable slot cells"

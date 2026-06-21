@@ -3,7 +3,7 @@
   (:require [propagators.cells.value :as value]
             [propagators.deprecated.cursor :as cursor]
             [propagators.datastructures.compound-object.core :as core]
-            [propagators.datastructures.compound-object.network-slot :as network-slot]
+            [propagators.datastructures.compound-object.merge :as compound-merge]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
@@ -18,8 +18,8 @@
 
 (defn- accessor-slot-value
   [source-net slot-key]
-  (if (network-slot/source-slot-present? source-net slot-key)
-    (network-slot/source-slot-value source-net slot-key)
+  (if (compound-merge/source-slot-present? source-net slot-key)
+    (compound-merge/source-slot-value source-net slot-key)
     value/nothing))
 
 (defn- accessor-slot-entry
@@ -42,7 +42,7 @@
 
 (defn- accessor-slot-entries
   [source-id source-net]
-  (->> (network-slot/accessor-slot-keys source-net)
+  (->> (compound-merge/accessor-slot-keys source-net)
        (filter #(mappable-slot-key? source-net %))
        sorted-slot-keys
        (mapv #(accessor-slot-entry source-id source-net %))))
@@ -60,7 +60,7 @@
     (value/contradiction? source-value)
     value/contradiction
 
-    (network-slot/accessor-network? source-value)
+    (compound-merge/accessor-network? source-value)
     (cursor/cursor (accessor-slot-entries source-id source-value))
 
     :else

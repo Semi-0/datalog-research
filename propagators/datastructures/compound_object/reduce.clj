@@ -3,7 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object.core :as core]
-            [propagators.datastructures.compound-object.network-slot :as network-slot]
+            [propagators.datastructures.compound-object.merge :as compound-merge]
             [propagators.datastructures.reducer-subnet :as reducer]
             [propagators.effectful-sync :as sync]
             [propagators.ids :as ids]
@@ -47,7 +47,7 @@
 
 (defn- declared-accessor-input-ids
   [n source-id]
-  (->> (network-slot/accessor-declarations-for n source-id)
+  (->> (compound-merge/accessor-declarations-for n source-id)
        vals
        (mapcat keys)
        (filter #(and (contains? (net/net-env n) %)
@@ -58,7 +58,7 @@
 
 (defn- accessor-slot-value
   [network source-net slot-key]
-  (let [parent-values (->> (network-slot/accessor-parent-ids source-net slot-key)
+  (let [parent-values (->> (compound-merge/accessor-parent-ids source-net slot-key)
                            (filter #(contains? (net/net-env network) %))
                            (map #(net/network-cell-strongest network %))
                            (remove value/unusable?)
@@ -72,8 +72,8 @@
               (first parent-values)
               (rest parent-values))
 
-      (network-slot/source-slot-present? source-net slot-key)
-      (network-slot/source-slot-value source-net slot-key)
+      (compound-merge/source-slot-present? source-net slot-key)
+      (compound-merge/source-slot-value source-net slot-key)
 
       :else value/nothing)))
 
@@ -96,7 +96,7 @@
                               slot-key
                               (accessor-slot-value network source-net slot-key)))
    (net/net-with-dict net/empty-net {core/slot-index-key {}})
-   (sort-by pr-str (network-slot/accessor-slot-keys source-net))))
+   (sort-by pr-str (compound-merge/accessor-slot-keys source-net))))
 
 (defn- reducer-boundary-ids
   [merge-net-id init-id out-id]
@@ -179,7 +179,7 @@
         (value/contradiction? raw-source)
         [(message source-id value/contradiction)]
 
-        (network-slot/accessor-network? raw-source)
+        (compound-merge/accessor-network? raw-source)
         (let [out-content (reducer-accessor-output-content network
                                                            raw-source
                                                            merge-net

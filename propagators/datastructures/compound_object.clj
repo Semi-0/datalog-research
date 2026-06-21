@@ -3,6 +3,7 @@
   (:require [propagators.datastructures.compound-object.core :as core]
             [propagators.datastructures.compound-object.cursor :as cursor]
             [propagators.datastructures.compound-object.map :as map]
+            [propagators.datastructures.compound-object.merge :as compound-merge]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.compound-object.reduce :as reduce]
             [propagators.datastructures.compound-object.sequence :as sequence]
@@ -34,19 +35,19 @@
 (def sync-slot-messages slot/sync-slot-messages)
 (def ^:deprecated p:legacy-slot slot/p:slot)
 
-(def accessor-network? network-slot/accessor-network?)
-(def as-accessor-network network-slot/as-accessor-network)
-(def empty-accessor-network network-slot/empty-accessor-network)
-(def accessor-declaration network-slot/accessor-declaration)
-(def refine-accessor-network network-slot/refine-accessor-network)
-(def accessor-slot-keys network-slot/accessor-slot-keys)
-(def accessor-parent-ids network-slot/accessor-parent-ids)
-(def accessor-source-slots network-slot/source-slots)
-(def accessor-source-slot-present? network-slot/source-slot-present?)
-(def accessor-source-slot-value network-slot/source-slot-value)
-(def accessor-declarations-for network-slot/accessor-declarations-for)
-(def attach-network-slot-sync network-slot/attach-network-slot-sync)
-(def register-accessor-parent network-slot/register-accessor-parent)
+(def accessor-network? compound-merge/accessor-network?)
+(def as-accessor-network compound-merge/as-accessor-network)
+(def empty-accessor-network compound-merge/empty-accessor-network)
+(def accessor-declaration compound-merge/accessor-declaration)
+(def refine-accessor-network compound-merge/refine-accessor-network)
+(def accessor-slot-keys compound-merge/accessor-slot-keys)
+(def accessor-parent-ids compound-merge/accessor-parent-ids)
+(def accessor-source-slots compound-merge/source-slots)
+(def accessor-source-slot-present? compound-merge/source-slot-present?)
+(def accessor-source-slot-value compound-merge/source-slot-value)
+(def accessor-declarations-for compound-merge/accessor-declarations-for)
+(def attach-network-slot-sync compound-merge/attach-network-slot-sync)
+(def register-accessor-parent compound-merge/register-accessor-parent)
 (def p:network-slot network-slot/p:network-slot)
 (def p:network-car network-slot/p:network-car)
 (def p:network-cdr network-slot/p:network-cdr)

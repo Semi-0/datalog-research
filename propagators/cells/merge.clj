@@ -138,44 +138,39 @@
   [update]
   (and (named/named-network? update)
        (let [accessor-network? (requiring-resolve
-                                'propagators.datastructures.compound-object.network-slot/accessor-network?)]
+                                'propagators.datastructures.compound-object.merge/accessor-network?)]
          (accessor-network? update))))
 
 (defn- normalize-named-network-content
-  [content update]
-  (if (accessor-network-update? update)
-    (if (evidence/evidence-set? content)
-      content
-      (let [as-accessor-network (requiring-resolve
-                                 'propagators.datastructures.compound-object.network-slot/as-accessor-network)]
-        (as-accessor-network content)))
-    (if (or (value/nothing? content)
-            (named/named-network? content)
-            (evidence/evidence-set? content))
-      content
-      ((requiring-resolve
-        'propagators.datastructures.compound-object/compound-object)
-       content))))
-
-(defn- refine-accessor-network
-  [value]
-  (if (accessor-network-update? value)
+  [content]
+  (if (or (value/nothing? content)
+          (named/named-network? content)
+          (evidence/evidence-set? content))
+    content
     ((requiring-resolve
-      'propagators.datastructures.compound-object.network-slot/refine-accessor-network)
-     value)
-    value))
+      'propagators.datastructures.compound-object/compound-object)
+     content)))
+
+(defn- merge-accessor-network-content
+  [content update]
+  ((requiring-resolve
+    'propagators.datastructures.compound-object.merge/merge-named-network-content)
+   content
+   update))
 
 (defmethod built-in-cell-merge :named-network
   [content update _network]
-  (let [content* (normalize-named-network-content content update)]
-    (cond
-      (value/contradiction? content*) value/contradiction
-      (value/contradiction? update) value/contradiction
-      (value/nothing? update) (evidence/merge-evidence value/nothing content*)
-      (or (value/nothing? content*)
-          (named/named-network? content*)
-          (evidence/evidence-set? content*)) (evidence/merge-evidence content* update)
-      :else value/contradiction)))
+  (if (accessor-network-update? update)
+    (merge-accessor-network-content content update)
+    (let [content* (normalize-named-network-content content)]
+      (cond
+        (value/contradiction? content*) value/contradiction
+        (value/contradiction? update) value/contradiction
+        (value/nothing? update) (evidence/merge-evidence value/nothing content*)
+        (or (value/nothing? content*)
+            (named/named-network? content*)
+            (evidence/evidence-set? content*)) (evidence/merge-evidence content* update)
+        :else value/contradiction))))
 
 (defmethod built-in-cell-merge :reducer-subnet
   [content update _network]
@@ -273,11 +268,11 @@
 
 (defmethod built-in-strongest-value :named-network
   [content _network]
-  (refine-accessor-network content))
+  content)
 
 (defmethod built-in-strongest-value :named-network-evidence
   [content _network]
-  (refine-accessor-network (evidence/strongest content)))
+  (evidence/strongest content))
 
 (defmethod built-in-strongest-value :reducer-subnet
   [content _network]
