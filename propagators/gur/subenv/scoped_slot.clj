@@ -126,17 +126,31 @@
                  local-id)))
        set))
 
+(defn- scoped-local-id-index
+  [child-net]
+  (reduce (fn [index [scope _name local-id]]
+            (update index scope (fnil conj #{}) local-id))
+          {}
+          (env/scoped-bindings child-net)))
+
 (defn- external-output-cell?
   [parent-net child-net cell-id]
   (and (parent-owned-id? parent-net cell-id)
        (boundary-outer-id? child-net cell-id)))
 
 (defn- publisher-slot-exports
-  [parent-net child-net scope cell-id accessor-value slot-key]
+  ([parent-net child-net scope cell-id accessor-value slot-key]
+   (publisher-slot-exports parent-net
+                           child-net
+                           scope
+                           (scoped-local-ids child-net scope)
+                           cell-id
+                           accessor-value
+                           slot-key))
+  ([parent-net child-net scope scope-locals cell-id accessor-value slot-key]
   (let [parent-ids (sort-by pr-str (obj/accessor-parent-ids accessor-value slot-key))
         parent-owned (filter #(parent-owned-id? parent-net %) parent-ids)
         child-owned (filter #(child-owned-id? parent-net child-net %) parent-ids)
-        scope-locals (scoped-local-ids child-net scope)
         targets (concat (map #(scoped/cell-ref scope %)
                              (filter scope-locals child-owned))
                         (filter #(and (scoped/address? %)
@@ -155,15 +169,28 @@
             {:slot-key slot-key
              :collection-id cell-id
              :child-ref child-ref}))]
-    (concat parent-exports output-exports)))
+    (concat parent-exports output-exports))))
 
 (defn- direct-child-accessor-exports
-  [parent-net child-net scope]
-  (mapcat
-   (fn [[cell-id accessor-value]]
-     (mapcat #(publisher-slot-exports parent-net child-net scope cell-id accessor-value %)
-             (sort-by pr-str (obj/accessor-slot-keys accessor-value))))
-   (child-accessor-values child-net)))
+  ([parent-net child-net scope]
+   (direct-child-accessor-exports parent-net
+                                  child-net
+                                  scope
+                                  (child-accessor-values child-net)
+                                  {scope (scoped-local-ids child-net scope)}))
+  ([parent-net child-net scope accessor-values scope-local-index]
+   (let [scope-locals (get scope-local-index scope #{})]
+     (mapcat
+      (fn [[cell-id accessor-value]]
+        (mapcat #(publisher-slot-exports parent-net
+                                         child-net
+                                         scope
+                                         scope-locals
+                                         cell-id
+                                         accessor-value
+                                         %)
+                (sort-by pr-str (obj/accessor-slot-keys accessor-value))))
+      accessor-values))))
 
 (defn- collection-cell-value
   [parent-net collection-id]
@@ -222,12 +249,18 @@
 
 (defn direct-child-accessor-messages-for-scopes
   [parent-net child-net scopes]
-  (vec
-   (mapcat (fn [scope]
-             (accumulated-export-messages
-              parent-net
-              (direct-child-accessor-exports parent-net child-net scope)))
-           (sort-by pr-str scopes))))
+  (let [accessor-values (vec (child-accessor-values child-net))
+        scope-local-index (scoped-local-id-index child-net)]
+    (vec
+     (mapcat (fn [scope]
+               (accumulated-export-messages
+                parent-net
+                (direct-child-accessor-exports parent-net
+                                               child-net
+                                               scope
+                                               accessor-values
+                                               scope-local-index)))
+             (sort-by pr-str scopes)))))
 
 (defn p:publish-child-accessors
   "Publish direct child accessor exports as ordinary parent-cell messages."

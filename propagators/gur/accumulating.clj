@@ -440,15 +440,15 @@
           (recur (dec remaining) next))))))
 
 (defn- outbox-with-task-facts
-  [child-net applied-net-id outbox]
+  [child-net applied-net-id outbox outbox-index]
   (add-task-facts outbox
                   [:outbox applied-net-id]
                   (distinct (concat (indexed-prop-ids child-net)
                                     (indexed-prop-ids outbox)))
-                  (hash (pr-str outbox))))
+                  outbox-index))
 
 (defn- settle-accumulated-child
-  [task-cursor parent-net child-net applied-net-id]
+  [task-cursor outbox-epoch parent-net child-net applied-net-id]
   ;; ponytail: owner-local reconciliation; do not publish a half-merged outbox
   ;; and wait for a later runner turn to discover its tasks.
   (loop [remaining 64
@@ -459,7 +459,10 @@
     (let [child1 (run-accumulated-child current task-cursor)
           outbox (strongest-or-nothing child1 applied-net-id)]
       (if (net/net? outbox)
-        (let [outbox* (outbox-with-task-facts child1 applied-net-id outbox)
+        (let [outbox* (outbox-with-task-facts child1
+                                              applied-net-id
+                                              outbox
+                                              (swap! outbox-epoch inc))
               child2 (reset-outbox child1 applied-net-id)
               merged (merge/strongest-value
                       (merge/cell-merge child2 outbox* parent-net)
@@ -470,7 +473,7 @@
         child1))))
 
 (defn- run-accumulated-messages
-  [task-cursor parent-net applied-net-id import-ids external-output-ids]
+  [task-cursor outbox-epoch parent-net applied-net-id import-ids external-output-ids]
   (let [acc0 (strongest-or-nothing parent-net applied-net-id)]
     (if-not (net/net? acc0)
       []
@@ -483,6 +486,7 @@
                                     import-ids
                                     external-output-ids)
             child1 (settle-accumulated-child task-cursor
+                                             outbox-epoch
                                              parent-net
                                              child0
                                              applied-net-id)
@@ -514,10 +518,13 @@
          inputs (vec (distinct (concat [applied-net-id]
                                        import-ids
                                        external-output-ids)))
-         task-cursor (atom {})]
+         task-cursor (atom {})
+         ;; ponytail: runner-local scheduling token; not recursive semantics.
+         outbox-epoch (atom 0)]
      (prop/construct-propagator
       (fn [_inputs _outputs parent-net]
         (run-accumulated-messages task-cursor
+                                  outbox-epoch
                                   parent-net
                                   applied-net-id
                                   import-ids

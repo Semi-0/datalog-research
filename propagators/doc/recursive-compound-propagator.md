@@ -755,6 +755,39 @@ microbenchmark numbers, not a speedup claim.
 | filter chain depth `5` | `1061.640 ms` | `1054.216 ms` | `1030.840 ms` | `1070.170 ms` |
 | filter chain depth `10` | `1497.057 ms` | `1496.498 ms` | `1487.655 ms` | `1504.781 ms` |
 
+Optimization snapshot on `2026-06-23`, same command shape with `warmup=1`,
+`iterations=3`:
+
+| Scenario | Before scoped cache | After scoped cache |
+| --- | ---: | ---: |
+| mapper chain depth `5` | `647.246 ms` | `459.432 ms` |
+| mapper chain depth `10` | `1005.061 ms` | `660.990 ms` |
+| mapper chain depth `15` | `1398.493 ms` | `904.329 ms` |
+| filter chain depth `5` | `694.797 ms` | `467.133 ms` |
+| filter chain depth `10` | `1020.819 ms` | `709.491 ms` |
+
+Two small optimizations produced this snapshot:
+
+- Outbox task facts no longer use `(hash (pr-str outbox))` as their task
+  index. The accumulating runner owns a primitive-local `outbox-epoch` atom and
+  uses that epoch as the outbox task index. This removes whole-network printing
+  from the hot path while keeping runtime scheduling state out of recursive
+  semantics and out of cell merge.
+- Scoped child accessor publishing now computes child accessor cells once per
+  publication pass and builds one `scope -> local ids` index from scoped
+  bindings. The old path rescanned child env and scoped bindings for each scope
+  and each accessor slot. In the depth-15 mapper probe, child env scans dropped
+  from `94,440` to `9,588`, and scoped-binding scans dropped from `2,427,600` to
+  `6,300`.
+
+Correctness check for the optimized snapshot:
+
+```bash
+clojure -M:test
+```
+
+Result: `1358 pass, 0 fail, 0 error`.
+
 Legacy comparison caveat: `clojure -M:gur-subenv-bench` currently completes the
 end-to-end sub-env rows but fails its incremental late-update result checks.
 That benchmark is retained as evidence for the older sub-env path, not used as
