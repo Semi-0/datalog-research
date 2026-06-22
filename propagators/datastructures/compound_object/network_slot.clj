@@ -73,16 +73,20 @@
         (net/network-cell-strongest parent-net parent-id)
         parent-net)))
 
-(defn- source-slot-messages
-  [collection-net slot-key parent-net]
+(defn- source-slot-message
+  [collection-net slot-key parent-id parent-net]
   (let [v (compound-merge/source-slot-value collection-net slot-key)]
     (if (or (not (compound-merge/source-slot-present? collection-net slot-key))
-            (value/unusable? v))
+            (value/unusable? v)
+            (not (messageable-parent? parent-net parent-id))
+            (equivalent-to-parent? parent-net parent-id v))
       []
-      (->> (compound-merge/accessor-parent-ids collection-net slot-key)
-           (filter #(messageable-parent? parent-net %))
-           (remove #(equivalent-to-parent? parent-net % v))
-           (mapv #(message % v))))))
+      [(message parent-id v)])))
+
+(defn- source-slot-messages
+  [collection-net slot-key parent-net]
+  (vec (mapcat #(source-slot-message collection-net slot-key % parent-net)
+               (compound-merge/accessor-parent-ids collection-net slot-key))))
 
 (defn- projected-accessor-messages
   [executed-net slot-key parent-ids parent-net]
@@ -116,7 +120,9 @@
   (let [known-parent? (contains? (compound-merge/accessor-parent-ids collection-net slot-key)
                                  parent-id)]
     (if-not known-parent?
-      [(message collection-id (compound-merge/accessor-declaration slot-key parent-id))]
+      (into [(message collection-id
+                      (compound-merge/accessor-declaration slot-key parent-id))]
+            (source-slot-message collection-net slot-key parent-id parent-net))
       (let [stable-net (compound-merge/refine-accessor-network collection-net)
             source-messages (source-slot-messages stable-net slot-key parent-net)]
         (if (and (empty? source-messages)

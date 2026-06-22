@@ -130,6 +130,11 @@
   [n sym->value]
   (reduce-kv bind-var n sym->value))
 
+(defn- symbol-bindings [n]
+  (into {}
+        (filter (fn [[k _]] (symbol? k)))
+        (net/net-dict-or-empty n)))
+
 (defn- resolve-symbol
   "Symbols are cell vars. Missing symbols create fresh empty cells."
   [ctx sym]
@@ -392,6 +397,23 @@
                           (fresh-cell ctx''))]
     (install-output-call ctx''' 'prop/switch [value-id condition-id] out-id)))
 
+(defn- eval-when [ctx [_ condition-expr & body]]
+  (when-not (seq body)
+    (throw (ex-info "when expects a condition and at least one body expression"
+                    {:condition condition-expr})))
+  (let [[ctx' condition-id] (eval-cell-expr ctx condition-expr)
+        installer (lookup-inst ctx' 'ctx/when)
+        install-when (installer condition-id
+                                (symbol-bindings (:net ctx'))
+                                (cons 'do body)
+                                (:installers ctx))
+        [installed-id n'] (install-when (:net ctx'))]
+    [(-> ctx'
+         (assoc :net n')
+         (update :props into (prop-ids installed-id))
+         (assoc :value installed-id))
+     installed-id]))
+
 (defn- install-unconditional-output [ctx value-id out-id]
   (install-output-call ctx 'p:id [value-id] out-id))
 
@@ -467,6 +489,9 @@
     (and (seq? expr) (= 'switch (first expr)))
     (eval-switch ctx expr)
 
+    (and (seq? expr) (= 'when (first expr)))
+    (eval-when ctx expr)
+
     (and (seq? expr) (= 'cond (first expr)))
     (eval-cond ctx expr)
 
@@ -512,11 +537,6 @@
   "Evaluate body expressions against `n` using default installers."
   [n & body]
   `(eval-net* ~n (default-installers) '~body))
-
-(defn- symbol-bindings [n]
-  (into {}
-        (filter (fn [[k _]] (symbol? k)))
-        (net/net-dict-or-empty n)))
 
 (defn compile-net
   ([expr]

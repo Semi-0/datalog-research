@@ -2,6 +2,7 @@
   "Parallel accumulating GUR experiment with one network-valued owner cell."
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.diff :as diff]
+            [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.compile :as compile]
             [propagators.gur.subenv.env :as env]
@@ -65,9 +66,25 @@
   [app-key]
   (conj frame-applied-prefix app-key))
 
+(defn- frame-applied?
+  [runtime-net applied-net-id app-key]
+  (or (true? (net/network-dict-entry runtime-net (frame-applied-key app-key)))
+      (let [applied-net (strongest-or-nothing runtime-net applied-net-id)]
+        (and (net/net? applied-net)
+             (true? (net/network-dict-entry applied-net
+                                            (frame-applied-key app-key)))))))
+
 (defn- frame-scope-key
   [app-key]
   (conj frame-scope-prefix app-key))
+
+(defn- when-applied-key
+  [when-key]
+  [:gur/accumulating :when-applied when-key])
+
+(defn- when-applied?
+  [runtime-net when-key]
+  (true? (net/network-dict-entry runtime-net (when-applied-key when-key))))
 
 (defn- ensure-cell-value
   [n id v]
@@ -139,6 +156,7 @@
      :prop-ids []}))
 
 (declare p:accumulate-apply-closure)
+(declare p:when-topology)
 
 (defn- contextual-api
   [{:keys [self-id applied-net-id]}]
@@ -153,7 +171,14 @@
                                          arg-ids
                                          applied-net-id
                                          out-id)
-             network))})
+             network))
+   :when (fn [network condition-id bindings body-expr installers]
+           ((p:when-topology condition-id
+                             bindings
+                             body-expr
+                             installers
+                             applied-net-id)
+            network))})
 
 (defn- frame-context
   [closure self-id applied-net-id scope arg-values]
@@ -196,6 +221,14 @@
             (net/assoc-net-dict-entry (frame-scope-key app-key) scope)
             (queue-frame-props app-key arg-values prop-ids))))))
 
+(defn- strip-compiler-symbols
+  [n]
+  (net/net-with-dict
+   n
+   (into {}
+         (remove (fn [[k _v]] (symbol? k)))
+         (net/net-dict-or-empty n))))
+
 (defn- missing-closure-input?
   [closure arg-values]
   (or (value/unusable? closure)
@@ -204,9 +237,13 @@
 (defn- accumulate-apply-messages
   [runtime-net closure-id arg-ids applied-net-id out-id]
   (let [closure (strongest-or-nothing runtime-net closure-id)
-        arg-values (mapv #(strongest-or-nothing runtime-net %) arg-ids)]
+        arg-values (mapv #(strongest-or-nothing runtime-net %) arg-ids)
+        app-key (application-key closure-id arg-ids out-id)]
     (cond
       (missing-closure-input? closure arg-values)
+      []
+
+      (frame-applied? runtime-net applied-net-id app-key)
       []
 
       (not (recursive-closure? closure))
@@ -240,25 +277,112 @@
           [applied-net-id out-id])
          n0)))))
 
+(defn- delayed-body-fragment
+  [runtime-net when-key bindings body-expr installers]
+  ;; ponytail: deterministic body ids keep repeated non-nothing checks idempotent.
+  (with-redefs [ids/new-node-id (stable-id-generator [when-key :body])]
+    (let [{:keys [net props]} (compile/eval-net-with-bindings
+                               runtime-net
+                               installers
+                               bindings
+                               body-expr)]
+      (-> net
+          strip-compiler-symbols
+          (net/assoc-net-dict-entry (when-applied-key when-key) true)
+          (queue-frame-props when-key :body props)))))
+
+(defn p:when-topology
+  "Presence-gated topology builder. `nothing` waits; any other value builds."
+  [condition-id bindings body-expr installers applied-net-id]
+  (let [prop-id (ids/new-node-id)
+        when-key [:gur/accumulating :when prop-id]]
+    (prop/construct-propagator
+     prop-id
+     (fn [_inputs _outputs runtime-net]
+       (let [condition (strongest-or-nothing runtime-net condition-id)]
+         (cond
+           (value/nothing? condition)
+           []
+
+           (value/contradiction? condition)
+           [(message applied-net-id value/contradiction)]
+
+           (when-applied? runtime-net when-key)
+           []
+
+           :else
+           [(message applied-net-id
+                     (delayed-body-fragment runtime-net
+                                            when-key
+                                            bindings
+                                            body-expr
+                                            installers))])))
+     [condition-id]
+     [applied-net-id])))
+
 (defn- reset-outbox
   [n applied-net-id]
   (-> n
       (nb/ensure-cell applied-net-id)
       (nb/seed-cell applied-net-id value/nothing)))
 
+(defn- import-parent-cell
+  [child-net parent-net id]
+  (let [child-entry (get (net/net-env child-net) id)
+        parent-entry (get (net/net-env parent-net) id)]
+    (if (and (cell/cell? child-entry) (cell/cell? parent-entry))
+      (net/assoc-net-cell child-net
+                          id
+                          (merge/merge-cell-entry child-entry
+                                                  (cell/cell-content parent-entry)
+                                                  parent-net))
+      child-net)))
+
 (defn- prepare-run-net
-  [acc-net applied-net-id external-output-ids]
-  (reduce #(net/assoc-avatar-out %1 %2 %2)
-          (reset-outbox acc-net applied-net-id)
-          external-output-ids))
+  [parent-net acc-net applied-net-id import-ids external-output-ids]
+  (let [n0 (reduce #(import-parent-cell %1 parent-net %2)
+                   (reset-outbox acc-net applied-net-id)
+                   import-ids)]
+    (reduce (fn [n external-id]
+              (-> n
+                  (net/assoc-avatar-out external-id external-id)
+                  (import-parent-cell parent-net external-id)))
+            n0
+            external-output-ids)))
+
+(defn- accumulated-prop-ids
+  [n]
+  (->> (net/net-env n)
+       (keep (fn [[id entry]]
+               (when (and (prop/prop? entry)
+                          (contains? (net/net-graph n) id))
+                 id)))
+       (sort-by pr-str)
+       vec))
+
+(defn- run-accumulated-child
+  [child-net]
+  (loop [remaining 4
+         current (queue/run-child-queue child-net)]
+    (let [props (accumulated-prop-ids current)]
+      (if (or (zero? remaining) (empty? props))
+        current
+        (let [next (queue/run-props current props)]
+          (if (= next current)
+            next
+            (recur (dec remaining) next)))))))
 
 (defn- run-accumulated-messages
-  [parent-net applied-net-id external-output-ids]
+  [parent-net applied-net-id import-ids external-output-ids]
   (let [acc0 (strongest-or-nothing parent-net applied-net-id)]
     (if-not (net/net? acc0)
       []
-      (let [child0 (prepare-run-net acc0 applied-net-id external-output-ids)
-            child1 (queue/run-child-queue child0)
+      (let [child0 (prepare-run-net parent-net
+                                    acc0
+                                    applied-net-id
+                                    import-ids
+                                    external-output-ids)
+            child1 (run-accumulated-child child0)
             outbox (strongest-or-nothing child1 applied-net-id)
             diff-view (output/externalize-output-cells child1 external-output-ids)
             output-msgs (vec (diff/diff-internal-output-cells
@@ -271,7 +395,6 @@
                            (env/scopes child1))
             external-msgs (queue/external-messages child1)
             child2 (-> child1
-                       queue/clear-child-queue
                        queue/clear-external-messages
                        (reset-outbox applied-net-id))]
         (cond-> (vec (concat output-msgs
@@ -284,15 +407,22 @@
           (conj (message applied-net-id outbox)))))))
 
 (defn p:run-accumulated-network
-  [applied-net-id external-output-ids]
-  (let [external-output-ids (vec external-output-ids)]
-    (prop/construct-propagator
-     (fn [_inputs _outputs parent-net]
-       (run-accumulated-messages parent-net
-                                 applied-net-id
-                                 external-output-ids))
-     [applied-net-id]
-     (into [applied-net-id] external-output-ids))))
+  ([applied-net-id external-output-ids]
+   (p:run-accumulated-network applied-net-id [] external-output-ids))
+  ([applied-net-id import-ids external-output-ids]
+   (let [import-ids (vec import-ids)
+         external-output-ids (vec external-output-ids)
+         inputs (vec (distinct (concat [applied-net-id]
+                                       import-ids
+                                       external-output-ids)))]
+     (prop/construct-propagator
+      (fn [_inputs _outputs parent-net]
+        (run-accumulated-messages parent-net
+                                  applied-net-id
+                                  import-ids
+                                  external-output-ids))
+      inputs
+      (into [applied-net-id] external-output-ids)))))
 
 (defn p:apply-closure
   [closure-id arg-ids out-id]
@@ -306,7 +436,9 @@
                                                          applied-net-id
                                                          out-id)
                              n0)
-            [runner-prop n2] ((p:run-accumulated-network applied-net-id [out-id])
+            [runner-prop n2] ((p:run-accumulated-network applied-net-id
+                                                         arg-ids
+                                                         [out-id])
                               n1)]
         [[apply-prop runner-prop]
          (net/assoc-net-dict-entry n2
@@ -330,7 +462,18 @@
              (let [arg-ids (vec (butlast ids))
                    out-id (last ids)]
                (fn [n]
-                 ((:recur runtime) n arg-ids out-id)))))))
+                 ((:recur runtime) n arg-ids out-id)))))
+
+    (:when runtime)
+    (assoc 'ctx/when
+           (fn [condition-id bindings body-expr installers]
+             (fn [n]
+               ((:when runtime)
+                n
+                condition-id
+                bindings
+                body-expr
+                installers))))))
 
 (defn default-installers
   [runtime]
@@ -364,11 +507,7 @@
 
 (defn- topology-result
   [ctx]
-  {:net (net/net-with-dict
-         (:net ctx)
-         (into {}
-               (remove (fn [[k _v]] (symbol? k)))
-               (net/net-dict-or-empty (:net ctx))))
+  {:net (strip-compiler-symbols (:net ctx))
    :prop-ids (:props ctx)})
 
 (defn recursive-definition

@@ -31,7 +31,9 @@
      :task-queue/q (conj (fifo q) node-id)}))
 
 (defn enqueue-all [q node-ids]
-  (reduce enqueue q node-ids))
+  (reduce enqueue q (if (set? node-ids)
+                      (sort-by pr-str node-ids)
+                      node-ids)))
 
 (defn merge-queues
   "Enqueue every node-id from `b` into `a` (FIFO order preserved; `a` drains first)."

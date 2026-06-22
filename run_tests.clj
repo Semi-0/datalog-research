@@ -20,6 +20,7 @@
     propagators.compound-data-test
     propagators.compound-object-network-slot-test
     propagators.compound-object-test
+    propagators.debug-test
     propagators.dispatch-test
     propagators.generic-procedure-test
     propagators.gur-accumulating-test
