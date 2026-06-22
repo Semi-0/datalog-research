@@ -16,9 +16,11 @@ Source files:
 - `propagators/gur/subenv/output.clj`
 - `propagators/gur/subenv/frame.clj`
 - `propagators/gur/subenv/examples.clj`
+- `propagators/gur/accumulating.clj`
 - `test/propagators/recursive_compound_test.clj`
 - `test/propagators/gur_routed_test.clj`
 - `test/propagators/gur_subenv_test.clj`
+- `test/propagators/gur_accumulating_test.clj`
 
 ## Current Conclusion
 
@@ -58,10 +60,13 @@ a registered owner route no longer points at a child network, that is an invalid
 route/state error. Contradictions still arise from ordinary cell merges or from
 domain propagators that explicitly publish contradiction values.
 
-This is not yet a compile-2 target or a source DSL. It is a working experiment
-that validates the proposal's dispatch shape, contextual apply/recur
-accumulation, Fibonacci, flat compound recursion, and nested map composition
-over cons-style objects.
+The parallel accumulating GUR experiment collapses recursive frames into one
+owner cell per application while reusing the same scoped dispatch substrate. It
+validates scalar recursion, list map/reduce/filter, nested map composition,
+late cdr routing, and one compiler-2 linked-list lexical-access slice. It also
+exposes a current design gap: multiple same-parent HOP stages do not hand off
+accessor-list output strongly enough for 5/10/15 map chains or 5/10 filter
+chains.
 
 ## Core Concepts
 
@@ -146,6 +151,7 @@ The routed installer delivery keeps ownership explicit:
 | Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Best previous ownership baseline. |
 | Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, scoped vector keys, scoped slot accessor registration, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, bidirectional late nested cdr through parent-visible output, constructed-accessor lazy cdr extension, and nested constructed lazy cdr extension through transitive scoped slot fanout. Accessor-linked hop smoke shows filter reaches 10 hops, while map is correct through 7 but blows up operationally before 8-10. | Current proposal validation; continue, but not compile target yet. |
 | Frame-publisher accessor export | Recursive accessor export can be ordinary propagation instead of a sub-env merge side effect. | `gur.subenv/p:apply-closure` installs a child-accessor publisher beside the frame runner. | Preserves lazy flat/nested cdr behavior while removing recursive accessor export from owner-cell registration. | Current implementation refinement; still leaves contextual slot accessors as future cleanup. |
+| Accumulating GUR | Recursive frames can accumulate into one owner network instead of nested child frame cells. | `gur.accumulating/p:apply-closure` emits deterministic frame fragments into one `applied-net-id`; `p:run-accumulated-network` evaluates queued topology and projects outputs. | Passes scalar fib/factorial/sqrt, list map/reduce/filter, nested map, late cdr routing, one compiler-2 linked-list lexical probe, one map hop, and idempotence/no nested-frame-net checks. Same-parent map chains at 5/10/15 and filter chains at 5/10 are explicitly pinned as non-parity. | Keep as parallel experiment; fix inter-owner tail convergence before claiming HOP-chain parity. |
 
 ## Experiments
 
@@ -664,6 +670,114 @@ Decision: continue this as the current generalized GUR proposal validation. It
 does not replace the routed ownership lesson; it lifts that lesson into the
 lexical sub-env dispatch model.
 
+### Experiment I: Accumulating GUR In `propagators.gur.accumulating`
+
+Hypothesis: recursive GUR does not need nested frame owner cells. A closure
+application can use one `applied-net-id` cell as the owner for the whole
+accumulated frame network. Recursive `apply` and `recur` then emit deterministic
+named-network fragments into that owner; the runner evaluates queued topology
+and projects selected external outputs.
+
+Mechanism:
+
+```clojure
+(acc/p:apply-closure closure-id arg-ids out-id)
+;; installs:
+;; - p:accumulate-apply-closure closure-id arg-ids applied-net-id out-id
+;; - p:run-accumulated-network applied-net-id [out-id]
+
+[:env/ref frame-scope name]
+;; parent dict -> [:dispatch/subenv applied-net-id local-id]
+```
+
+The implementation reuses `gur.subenv.env` scoped address conventions and
+`core/eval-cell*` owner-cell dispatch. The difference is ownership: all frame
+scopes in one application register routes to the same `applied-net-id`, and no
+frame cell stores another child `Net` as its strongest value. Source compiler
+symbols are stripped from accumulated fragments after scoped bindings are
+harvested; otherwise separate frames would merge different `n`, `rest`, or
+`out` cells under the same global dict key and contradict.
+
+Frame body declaration temporarily pins `ids/new-node-id` to a deterministic
+per-frame generator. This is deliberately narrow: repeated declaration of the
+same frame must not grow topology, but the experiment does not add a new public
+ID abstraction.
+
+Evidence: `propagators.gur-accumulating-test` covers:
+
+- Fibonacci values `0`, `1`, `5`, and `8`;
+- factorial `5 = 120`;
+- integer sqrt of `81 = 9`;
+- map-list Fibonacci over `[0 1 2 3 4 5]` -> `[0 1 1 2 3 5]`;
+- reduce-list sum over `[1 2 3 4 5]` -> `15`;
+- filter-list even over `[1 2 3 4 5 6]` -> `[2 4 6]`;
+- nested map-list over `[[0 1] [2 3]]` -> `[[0 1] [1 2]]`;
+- late cdr delivery through `core/eval-cell*` into the single owner, updating
+  `[0 . ?]` to `[0 1 1]`;
+- topology checks: all scoped frame routes point to one owner, no nested child
+  frame `Net` cells with `[:env/scope]`, and rerunning after quiescence does
+  not grow frame/route/prop counts;
+- one map HOP with a propagator-composed `double-value` mapper over
+  `[1 1 1 1 1]` -> `[2 2 2 2 2]`;
+- one compiler-2 linked-list probe: accessor-linked declaration traversal,
+  accumulating GUR closure declaration/application, and lexical access through
+  `compiler-2.env/p:lexical-access`, returning `15`.
+
+Known gap: same-parent HOP chains are not parity yet. The regression pin asserts
+non-parity instead of pretending success, because the exact bad prefix can vary
+with propagation order:
+
+| Scenario | Expected parity | Current accumulating result |
+| --- | --- | --- |
+| mapper chain depth `5` | `[32 32 32 32 32]` | non-parity prefix or `nothing` |
+| mapper chain depth `10` | `[1024 1024 1024 1024 1024]` | non-parity prefix or `nothing` |
+| mapper chain depth `15` | `[32768 32768 32768 32768 32768]` | non-parity prefix or `nothing` |
+| filter chain depth `5` | `[2 4 6]` | non-parity, typically `[2]` |
+| filter chain depth `10` | `[2 4 6]` | non-parity, typically `[2]` |
+
+Analysis: the first implementation bugs were useful evidence. Leaving compiler
+symbol dict entries global caused accumulated frames to merge different `n`
+cells and contradict. Copying parent graph nodes into an accumulated owner also
+queued parent-only propagator ids inside child networks. Both were fixed.
+
+Two explanations are still live:
+
+- Recursive closure environment is incomplete. The closure may not preserve
+  enough lexical/runtime identity for a HOP result that becomes another HOP's
+  input. The one compiler-2 linked-list probe only proves one lexical access
+  through one accumulated application; it does not prove that projected compound
+  outputs carry enough environment identity for later sibling HOP owners.
+- HOP output is not bidirectional enough. A HOP can project a compound value to
+  an external output cell, but the next HOP must use that external cell as a
+  slot-addressable collection. The failing mapper/filter chains fit this shape:
+  later stages can often observe a strengthened head, while cdr/tail convergence
+  across owners remains incomplete.
+
+Evidence currently favors the second symptom but does not rule out the first
+cause. One map HOP works, ordinary list map/reduce/filter works inside one
+application owner, late cdr delivery works through `core/eval-cell*`, and the
+same-parent chain failures appear only when a projected compound output becomes
+the next HOP input. A short experiment that tried to make the accumulating
+runner synthesize an external output accessor boundary changed the bad prefixes
+but did not restore parity; it was backed out because propagators must emit
+messages only, not mutate/refine cell entries. Any real fix must represent this
+as accessor declaration partial information and let `compound-object.merge` /
+cell merge own canonical/avatar/bi-sync refinement.
+
+Follow-up evidence: the merge-owned declaration path now exists. Child accessor
+publication emits `accessor-declaration` messages, and cell merge stores scoped
+slot participants in the external output accessor's `:slot-index`. The
+`accumulating-gur-hop-output-stores-scoped-slot-participants` regression proves
+one HOP output keeps scoped routing facts without local scoped cells. This is
+not enough for chain parity: 5/10/15 mapper chains and 5/10 filter chains still
+fail. The remaining gap is not "can we store scoped routing facts"; it is that
+later sibling owners still do not deterministically consume those facts as a
+bidirectional value route for the tail.
+
+Decision: keep this beside `gur.subenv`. It is better on frame ownership for a
+single recursive application, but not yet equivalent for multi-operator HOP
+chains.
+
 ## Current APIs
 
 ```clojure
@@ -679,6 +793,10 @@ lexical sub-env dispatch model.
 (gur-subenv/def-recursive name closure)
 (gur-subenv/p:apply-closure closure-id arg-ids out-id)
 (gur-subenv/p:run-subenv-frame owner-id external-output-ids)
+(gur-acc/recursive-closure name body-fn)
+(gur-acc/p:accumulate-apply-closure closure-id arg-ids applied-net-id out-id)
+(gur-acc/p:run-accumulated-network applied-net-id external-output-ids)
+(gur-acc/p:apply-closure closure-id arg-ids out-id)
 ```
 
 ## Test Evidence
@@ -698,6 +816,10 @@ Current behavior is covered by:
   contextual apply/recur, Fibonacci, flat and composed nested map-list
   recursion, reduce-list, filter-list, and bidirectional late nested cdr
   delivery asserted through the parent-visible output.
+- `test/propagators/gur_accumulating_test.clj` for the parallel accumulating
+  GUR experiment: scalar/list parity, nested map, late cdr routing through one
+  owner, topology/idempotence checks, compiler-2 linked-list lexical access,
+  and the known same-parent HOP-chain handoff gap.
 - Manual `2026-06-21` accessor-hop smoke over public `obj/p:cons` linked-list
   topology, which kept the source unmaterialized: filter reached `10` hops,
   while Fibonacci map passed through `7` hops and stalled before `8`.
@@ -720,6 +842,8 @@ Current behavior is covered by:
 - decide whether the map blow-up should be fixed by memoizing applied recursive
   frame facts, declaration-first map expansion, or a cheaper mapper/output
   assembly path before claiming 8-10 hop map support;
+- fix accumulating GUR's inter-owner accessor handoff before claiming 5/10/15
+  mapper-chain or 5/10 filter-chain parity;
 - lift the compiler-2/GUR linked-list probe from one hard-coded declaration form
   to dynamic operator dispatch and recursive lexical-accessor construction;
 - derive compact route declarations so compile-2 does not emit verbose frame
@@ -1965,6 +2089,30 @@ Benchmark method for the benchmarked entries below:
     still hard-coded, operator dispatch is not inferred from arbitrary AST data,
     and recursive lexical-accessor construction for general closures is not yet
     implemented.
+
+13. `2026-06-22` Parallel accumulating GUR with one owner cell.
+    Assumption: recursive frames can accumulate into one network-valued
+    `applied-net-id` while reusing scoped sub-env dispatch, avoiding nested child
+    frame owner cells.
+    Outcome: `propagators.gur.accumulating` adds deterministic frame fragments,
+    multi-scope route registration, scoped-only compiler bindings, one-owner
+    running/projection, and a compile-DSL wrapper for accumulating contextual
+    `apply` / `recur`. Focused tests pass scalar fib/factorial/sqrt, list
+    map/reduce/filter, nested map, late cdr routing, idempotence/no-nested-frame
+    topology checks, one map HOP, and one compiler-2 linked-list lexical access
+    probe.
+    Boundary: same-parent HOP chains remain a real gap. Mapper chains at
+    depths `5`, `10`, and `15` and filter chains at depths `5` and `10` are
+    pinned as non-parity. The exact bad mapper prefix can vary, which is itself
+    evidence that sibling-owner tail handoff has not reached a deterministic
+    fixed point. Two explanations remain open: recursive closure environment
+    identity may be incomplete across HOP boundaries, and projected HOP outputs
+    are not yet bidirectionally slot-addressable enough for later HOP inputs.
+    A propagator-side boundary experiment was backed out; the fix must be
+    message-only on the propagator side and merge-owned on the cell side.
+    Follow-up: merge-owned scoped accessor declarations are now emitted and the
+    output accessor stores scoped slot participants, but this alone does not fix
+    mapper/filter HOP chains.
 
 Auxiliary comparison: repeated shallow reducer composition.
 Assumption: nested reduction can be approximated by explicitly composing several

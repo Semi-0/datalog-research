@@ -184,18 +184,20 @@
                  (net/assoc-net-dict-entry child-ref
                                            [:dispatch/local scoped-target])
                  (nb/run-propagators [slot-prop]))
-          coll-with-scoped (obj/register-accessor-parent
-                            (net/network-cell-value n2 coll)
-                            :x
-                            child-ref)
-          n3 (nb/seed-cell n2 coll coll-with-scoped)
-          n4 (-> n3
+          [tasks n3] (core/eval-cell coll
+                                      (msg/message
+                                       coll
+                                       (obj/accessor-declaration :x child-ref))
+                                      n2)
+          n4 (core/run-tasks tasks n3)
+          coll-with-scoped (net/network-cell-value n4 coll)
+          n5 (-> n4
                  (nb/seed-cell parent 10)
                  (nb/run-propagators [slot-prop]))]
-      (is (= 10 (net/network-cell-value n4 parent)))
-      (is (= 10 (net/network-cell-value n4 scoped-target)))
-      (is (= coll-with-scoped (net/network-cell-value n4 coll)))
-      (is (not (contains? (net/net-env n4) child-ref))))))
+      (is (= 10 (net/network-cell-value n5 parent)))
+      (is (= 10 (net/network-cell-value n5 scoped-target)))
+      (is (= coll-with-scoped (net/network-cell-value n5 coll)))
+      (is (not (contains? (net/net-env n5) child-ref))))))
 
 (deftest network-slot-repeated-accessor-declaration-is-idempotent
   (testing "duplicate declarations reuse the same collection topology"

@@ -6,6 +6,7 @@
 
 (def scope-key [:env/scope])
 (def parent-scope-key [:env/parent-scope])
+(def scopes-key [:env/scopes])
 (def dispatch-tags #{:dispatch/local :dispatch/subenv :dispatch/subenv-ref})
 (def env-dispatch-tags scoped/dispatch-tags)
 
@@ -24,6 +25,12 @@
   [n name local-id]
   (net/assoc-net-dict-entry n (bind-key name) local-id))
 
+(defn bind-in-scope
+  [n scope name local-id]
+  (net/update-net-dict-entry n
+                             scopes-key
+                             #(assoc-in (or % {}) [scope name] local-id)))
+
 (defn current-scope
   [n]
   (net/network-dict-entry n scope-key))
@@ -40,6 +47,19 @@
        (keep (fn [[k local-id]]
                (when (and (bind-entry? k) (ids/node-id? local-id))
                  [(second k) local-id])))))
+
+(defn scoped-bindings
+  [child-net]
+  (mapcat (fn [[scope bindings]]
+            (keep (fn [[name local-id]]
+                    (when (ids/node-id? local-id)
+                      [scope name local-id]))
+                  bindings))
+          (or (net/network-dict-entry child-net scopes-key) {})))
+
+(defn scopes
+  [child-net]
+  (set (map first (scoped-bindings child-net))))
 
 (defn- subenv-scope
   [child-net]
@@ -92,16 +112,24 @@
 
 (defn register-subenv-from-owner
   [parent-net owner-id child-net]
-  (if-let [scope (subenv-scope child-net)]
-    (-> parent-net
-        (net/assoc-net-dict-entry (scope-ref scope) owner-id)
-        (register-direct-bindings owner-id scope child-net)
-        (register-lifted-nested-refs owner-id scope child-net))
-    parent-net))
+  (let [n (if-let [scope (subenv-scope child-net)]
+            (-> parent-net
+                (net/assoc-net-dict-entry (scope-ref scope) owner-id)
+                (register-direct-bindings owner-id scope child-net)
+                (register-lifted-nested-refs owner-id scope child-net))
+            parent-net)]
+    (reduce (fn [acc [scope name local-id]]
+              (-> acc
+                  (net/assoc-net-dict-entry (scope-ref scope) owner-id)
+                  (register-direct-binding owner-id scope [name local-id])))
+            n
+            (scoped-bindings child-net))))
 
 (defn maybe-register-subenv
   [parent-net owner-id strongest]
-  (if (subenv-scope strongest)
+  (if (and (net/net? strongest)
+           (or (subenv-scope strongest)
+               (seq (scoped-bindings strongest))))
     (register-subenv-from-owner parent-net owner-id strongest)
     parent-net))
 

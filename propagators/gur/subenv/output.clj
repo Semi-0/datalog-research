@@ -11,13 +11,24 @@
 
 (declare externalize-output-value)
 
+(defn- slot-value-rank
+  [v]
+  (if (and (net/net? v) (obj/accessor-network? v))
+    (+ (* 10 (count (obj/accessor-source-slots v)))
+       (count (obj/accessor-slot-keys v)))
+    100))
+
 (defn- accessor-slot-parent-value
   [child-net accessor-value slot-key]
-  (when-let [parent-id (->> (obj/accessor-parent-ids accessor-value slot-key)
-                            (filter #(contains? (net/net-env child-net) %))
-                            (sort-by pr-str)
-                            first)]
-    (net/network-cell-strongest child-net parent-id)))
+  (->> (obj/accessor-parent-ids accessor-value slot-key)
+       (filter #(contains? (net/net-env child-net) %))
+       (sort-by pr-str)
+       (keep (fn [parent-id]
+               (let [v (net/network-cell-strongest child-net parent-id)]
+                 (when-not (value/unusable? v)
+                   v))))
+       (sort-by (juxt slot-value-rank pr-str))
+       last))
 
 (defn- externalize-accessor-value
   [child-net accessor-value]
@@ -34,7 +45,7 @@
                        (obj/accessor-source-slot-value accessor-value slot-key)
                        parent-v)
                      parent-v)]
-             (if (value/unusable? v)
+             (if (or (nil? v) (value/unusable? v))
                acc
                (assoc acc slot-key (externalize-output-value child-net v)))))
          {}

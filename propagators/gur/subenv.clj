@@ -15,6 +15,7 @@
 
 (def scope-key env/scope-key)
 (def parent-scope-key env/parent-scope-key)
+(def scopes-key env/scopes-key)
 (def child-queue-key queue/child-queue-key)
 (def recursive-closure-tag frame/recursive-closure-tag)
 
@@ -26,8 +27,11 @@
 
 (def extend-env env/extend-env)
 (def bind env/bind)
+(def bind-in-scope env/bind-in-scope)
 (def current-scope env/current-scope)
 (def bindings env/bindings)
+(def scoped-bindings env/scoped-bindings)
+(def scopes env/scopes)
 (def register-subenv-from-owner env/register-subenv-from-owner)
 (def maybe-register-subenv env/maybe-register-subenv)
 (def resolve-dispatch env/resolve-dispatch)

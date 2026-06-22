@@ -22,6 +22,7 @@
     propagators.compound-object-test
     propagators.dispatch-test
     propagators.generic-procedure-test
+    propagators.gur-accumulating-test
     propagators.gur-subenv-test
     propagators.layered-procedure-test
     propagators.linked-list-access-test
