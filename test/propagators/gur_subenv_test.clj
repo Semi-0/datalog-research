@@ -70,6 +70,45 @@
       (is (some? local-watch))
       (is (some? owner-watch)))))
 
+(deftest eval-cell-star-routes-from-one-subenv-to-another
+  (testing "a child prop can emit a sibling-scoped message through the parent scheduler"
+    (let [scope-a [:scope :a]
+          scope-b [:scope :b]
+          owner-a (ids/new-node-id)
+          owner-b (ids/new-node-id)
+          local-a (ids/new-node-id)
+          local-b (ids/new-node-id)
+          child-a0 (-> net/empty-net
+                       (nb/install-cell local-a)
+                       (subenv/extend-env scope-a)
+                       (subenv/bind :x local-a))
+          [_sender child-a]
+          ((prop/construct-propagator
+            (fn [_inputs _outputs network]
+              [(message (subenv/cell-ref scope-b local-b)
+                        (strongest network local-a))])
+            [local-a]
+            [])
+           child-a0)
+          child-b (-> net/empty-net
+                      (nb/install-cell local-b)
+                      (subenv/extend-env scope-b)
+                      (subenv/bind :y local-b))
+          parent0 (-> net/empty-net
+                      (nb/install-cell owner-a)
+                      (nb/install-cell owner-b))
+          [_ parent1] (core/eval-cell owner-a (message owner-a child-a) parent0)
+          [_ parent2] (core/eval-cell owner-b (message owner-b child-b) parent1)
+          [runner-a parent3] ((subenv/p:run-subenv-frame owner-a []) parent2)
+          [tasks parent4] (core/eval-cell* (net/net-dict-or-empty parent3)
+                                           (message (subenv/cell-ref scope-a local-a)
+                                                    42)
+                                           parent3)
+          parent5 (core/run-tasks tasks parent4)
+          parent6 (run-props parent5 [runner-a])
+          updated-b (strongest parent6 owner-b)]
+      (is (= 42 (strongest updated-b local-b))))))
+
 (deftest subenv-frame-projects-outputs-through-diff-path
   (testing "inner output changes are projected to the external output by diff cells"
     (let [owner-id (ids/new-node-id)

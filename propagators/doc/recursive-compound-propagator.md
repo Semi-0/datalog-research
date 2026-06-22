@@ -774,6 +774,18 @@ fail. The remaining gap is not "can we store scoped routing facts"; it is that
 later sibling owners still do not deterministically consume those facts as a
 bidirectional value route for the tail.
 
+Second follow-up: focused tests now split the two suspected missing pieces.
+`accumulating-gur-hop-output-cdr-update-is-bidirectional` proves a one-hop GUR
+collection output can be used as both collection input and slot output: writing
+through the external output's `cdr` accessor updates the projected output from
+`[2]` to `[2 9]`. `eval-cell-star-routes-from-one-subenv-to-another` proves the
+kernel can carry a scoped message emitted by one sub-env to a sibling sub-env by
+queuing it in the child net and letting the parent owner runner flush it back to
+normal `core/eval-cell*` routing. Chain parity is still unchanged: mapper depth
+`5/10/15` remains `nothing`, and filter depth `5/10` remains `[2]`. Therefore
+the current chain failure is narrower than simple output bidirectionality or
+kernel cross-subenv delivery.
+
 Decision: keep this beside `gur.subenv`. It is better on frame ownership for a
 single recursive application, but not yet equivalent for multi-operator HOP
 chains.
@@ -2113,6 +2125,8 @@ Benchmark method for the benchmarked entries below:
     Follow-up: merge-owned scoped accessor declarations are now emitted and the
     output accessor stores scoped slot participants, but this alone does not fix
     mapper/filter HOP chains.
+    Second follow-up: one-hop output `cdr` updates and sibling sub-env message
+    routing both work, but same-parent HOP chains still do not reach parity.
 
 Auxiliary comparison: repeated shallow reducer composition.
 Assumption: nested reduction can be approximated by explicitly composing several

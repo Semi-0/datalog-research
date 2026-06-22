@@ -6,6 +6,7 @@
             [propagators.network :as net]))
 
 (def child-queue-key [:gur/child-queue])
+(def external-messages-key [:gur/external-messages])
 
 (defn task-ids
   [tasks]
@@ -120,3 +121,22 @@
       child-net
       (let [after (run-props child-net pending-props)]
         (mark-child-run-tokens-ran after pending-tokens)))))
+
+(defn queue-external-message
+  [child-net msg]
+  (net/update-net-dict-entry child-net
+                             external-messages-key
+                             #(conj (set %) msg)))
+
+(defn external-messages
+  [child-net]
+  (->> (net/network-dict-entry child-net external-messages-key)
+       set
+       (sort-by pr-str)
+       vec))
+
+(defn clear-external-messages
+  [child-net]
+  (if (seq (net/network-dict-entry child-net external-messages-key))
+    (net/assoc-net-dict-entry child-net external-messages-key #{})
+    child-net))

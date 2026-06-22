@@ -86,4 +86,10 @@
                              parent-net
                              owner-id
                              child-msg
-                             #(eval-child-dispatch child-msg %))))))
+                             #(eval-child-dispatch child-msg %)))
+
+      :dispatch/external
+      (let [[_ target] route]
+        [tq/empty-queue
+         (queue/queue-external-message parent-net
+                                       (message target (message-value msg)))]))))

@@ -269,11 +269,14 @@
                            parent-net
                            child1
                            (env/scopes child1))
+            external-msgs (queue/external-messages child1)
             child2 (-> child1
                        queue/clear-child-queue
+                       queue/clear-external-messages
                        (reset-outbox applied-net-id))]
         (cond-> (vec (concat output-msgs
-                              accessor-msgs))
+                              accessor-msgs
+                              external-msgs))
           (not= acc0 child2)
           (conj (message applied-net-id child2))
 

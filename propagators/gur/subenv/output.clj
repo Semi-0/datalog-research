@@ -84,12 +84,15 @@
            []
            (let [child1 (queue/run-child-queue child0)
                  diff-view (externalize-output-cells child1 external-output-ids)
-                 child2 (queue/clear-child-queue child1)
+                 external-msgs (queue/external-messages child1)
+                 child2 (-> child1
+                            queue/clear-child-queue
+                            queue/clear-external-messages)
                  output-msgs (vec (diff/diff-internal-output-cells
                                     diff-view
                                     parent-net
                                     external-output-ids))]
-             (cond-> output-msgs
+             (cond-> (vec (concat output-msgs external-msgs))
                (not= child0 child2)
                (conj (message owner-id
                               child2)))))))

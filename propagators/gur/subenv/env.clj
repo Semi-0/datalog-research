@@ -7,7 +7,8 @@
 (def scope-key [:env/scope])
 (def parent-scope-key [:env/parent-scope])
 (def scopes-key [:env/scopes])
-(def dispatch-tags #{:dispatch/local :dispatch/subenv :dispatch/subenv-ref})
+(def dispatch-tags #{:dispatch/local :dispatch/subenv :dispatch/subenv-ref
+                     :dispatch/external})
 (def env-dispatch-tags scoped/dispatch-tags)
 
 (def scope-ref scoped/scope-ref)
@@ -145,7 +146,7 @@
        (contains? dispatch-tags (first entry))))
 
 (defn resolve-dispatch
-  [directory target _parent-net]
+  [directory target parent-net]
   (let [entry (get (directory-map directory) target)]
     (cond
       (dispatch-entry? entry)
@@ -156,6 +157,11 @@
 
       (ids/node-id? target)
       [:dispatch/local target]
+
+      (and (scoped/address? target)
+           (or (subenv-scope parent-net)
+               (seq (scoped-bindings parent-net))))
+      [:dispatch/external target]
 
       :else
       (throw (ex-info "unresolvable cell dispatch target"
