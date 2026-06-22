@@ -277,6 +277,49 @@
       (is (obj/accessor-network? (net/network-cell-value n7 c1)))
       (is (obj/accessor-network? (net/network-cell-value n7 c2))))))
 
+(deftest late-accessors-read-settled-p-cons-chain
+  (testing "late root-to-tail p:car/p:cdr declarations are order-insensitive"
+    (let [values [1 2 3 4 5]
+          heads (vec (repeatedly (count values) new-node-id))
+          colls (vec (repeatedly (count values) new-node-id))
+          terminal (new-node-id)
+          tails (vec (repeatedly (count values) new-node-id))
+          outs (vec (repeatedly (count values) new-node-id))
+          n0 (nb/install-cells (into [] cat [heads colls [terminal] tails outs]))
+          build (reduce
+                 (fn [{:keys [net props]} i]
+                   (let [tail (if (= i (dec (count values)))
+                                terminal
+                                (colls (inc i)))
+                         [[car-prop cdr-prop] net'] ((obj/p:cons (heads i)
+                                                                  tail
+                                                                  (colls i))
+                                                     net)]
+                     {:net net'
+                      :props (conj props car-prop cdr-prop)}))
+                 {:net n0 :props []}
+                 (range (count values)))
+          settled (-> (:net build)
+                      (nb/seed-cell terminal value/nothing)
+                      (#(reduce (fn [n [head v]]
+                                  (nb/seed-cell n head v))
+                                %
+                                (map vector heads values)))
+                      (nb/run-propagators (:props build)))
+          path (reduce
+                (fn [{:keys [net props prev]} i]
+                  (let [[car-prop net1] ((obj/p:car (outs i) prev) net)
+                        [cdr-prop net2] ((obj/p:cdr (tails i) prev) net1)]
+                    {:net net2
+                     :props (conj props car-prop cdr-prop)
+                     :prev (tails i)}))
+                {:net settled :props [] :prev (colls 0)}
+                (range (count values)))
+          read-net (nb/run-propagators (:net path) (:props path))]
+      (is (= values
+             (mapv #(net/network-cell-value read-net %) outs)))
+      (is (value/nothing? (net/network-cell-value read-net (last tails)))))))
+
 (defn network-slot-benchmark
   "Small comparison helper for REPL/manual runs. Returns shape metrics and
   elapsed nanoseconds for the current slot strategy and network-slot strategy."

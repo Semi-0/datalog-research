@@ -3,6 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object.merge :as compound-merge]
+            [propagators.datastructures.evidence-set :as evidence]
             [propagators.effectful-execution :as effect]
             [propagators.effectful-sync :as sync]
             [propagators.ids :as ids]
@@ -52,16 +53,21 @@
 
 (defn- run-accessor-inner-net
   [stable-net slot-key parent-net seed-parent-ids]
-  (let [exec-net (seed-accessor-avatars stable-net
+  (let [parent-ids (compound-merge/accessor-parent-ids stable-net slot-key)
+        seed-parent-ids* (distinct
+                          (concat seed-parent-ids
+                                  (filter #(contains? (net/net-env parent-net) %)
+                                          parent-ids)))
+        exec-net (seed-accessor-avatars stable-net
                                         slot-key
                                         parent-net
-                                        seed-parent-ids)
+                                        seed-parent-ids*)
         parent-ids (compound-merge/accessor-parent-ids stable-net slot-key)
         [_ after _updated*] (effect/execute-subnet
                              exec-net
                              (fn [subnet _updated*] subnet)
                              (fn [_subnet]
-                               (accessor-seed-ids slot-key seed-parent-ids)))]
+                               (accessor-seed-ids slot-key seed-parent-ids*)))]
     {:executed-net after
      :parent-ids parent-ids}))
 
@@ -73,6 +79,12 @@
         (net/network-cell-strongest parent-net parent-id)
         parent-net)))
 
+(defn- message-value
+  [v]
+  (if (evidence/evidence-set? v)
+    (evidence/strongest v)
+    v))
+
 (defn- source-slot-message
   [collection-net slot-key parent-id parent-net]
   (let [v (compound-merge/source-slot-value collection-net slot-key)]
@@ -81,12 +93,27 @@
             (not (messageable-parent? parent-net parent-id))
             (equivalent-to-parent? parent-net parent-id v))
       []
-      [(message parent-id v)])))
+      [(message parent-id (message-value v))])))
 
 (defn- source-slot-messages
   [collection-net slot-key parent-net]
   (vec (mapcat #(source-slot-message collection-net slot-key % parent-net)
                (compound-merge/accessor-parent-ids collection-net slot-key))))
+
+(defn- peer-accessor-messages
+  [collection-net slot-key parent-net]
+  (let [parent-ids (filter #(network-cell-present? parent-net %)
+                           (compound-merge/accessor-parent-ids collection-net slot-key))]
+    (vec
+     (for [from-id parent-ids
+           :let [entry (net/network-env-lookup parent-net from-id)
+                 v (message-value (cell/cell-content entry))]
+           :when (not (value/unusable? v))
+           to-id parent-ids
+           :when (and (not= from-id to-id)
+                      (messageable-parent? parent-net to-id)
+                      (not (equivalent-to-parent? parent-net to-id v)))]
+       (message to-id v)))))
 
 (defn- projected-accessor-messages
   [executed-net slot-key parent-ids parent-net]
@@ -98,7 +125,7 @@
                    (let [v (net/network-cell-strongest executed-net avatar-id)]
                      (when-not (or (value/unusable? v)
                                    (equivalent-to-parent? parent-net parent-id v))
-                       (message parent-id v)))))))
+                       (message parent-id (message-value v))))))))
        vec))
 
 (defn- accessor-synced?
@@ -124,20 +151,21 @@
                       (compound-merge/accessor-declaration slot-key parent-id))]
             (source-slot-message collection-net slot-key parent-id parent-net))
       (let [stable-net (compound-merge/refine-accessor-network collection-net)
-            source-messages (source-slot-messages stable-net slot-key parent-net)]
-        (if (and (empty? source-messages)
-                 (accessor-synced? stable-net slot-key parent-net))
-          []
+            source-messages (source-slot-messages stable-net slot-key parent-net)
+            peer-messages (peer-accessor-messages stable-net slot-key parent-net)]
+        (if (or (seq source-messages)
+                (seq peer-messages)
+                (accessor-synced? stable-net slot-key parent-net))
+          (into source-messages peer-messages)
           (let [{:keys [executed-net parent-ids]}
                 (run-accessor-inner-net stable-net
                                         slot-key
                                         parent-net
                                         [parent-id])]
-            (into source-messages
-                  (projected-accessor-messages executed-net
-                                               slot-key
-                                               parent-ids
-                                               parent-net))))))))
+            (projected-accessor-messages executed-net
+                                         slot-key
+                                         parent-ids
+                                         parent-net)))))))
 
 (defn network-slot-activation
   [slot-key parent-id collection-id]

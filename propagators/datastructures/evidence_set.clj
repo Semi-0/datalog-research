@@ -30,6 +30,10 @@
     evidence
     (conj (set (remove #(subsumes? update %) evidence)) update)))
 
+(defn- accumulating-gur-network?
+  [n]
+  (contains? (:dict n) [:gur/accumulating :frames]))
+
 (defn merge-evidence
   "Merge named-network evidence without forcing a strongest join."
   [content update]
@@ -40,7 +44,13 @@
 (defn strongest
   "Strongest named-network view for an evidence set."
   [evidence]
-  (let [networks (vec (evidence-networks evidence))]
+  (let [networks* (vec (evidence-networks evidence))
+        networks (if (some accumulating-gur-network? networks*)
+                   (vec (sort-by (juxt #(count (:env %))
+                                        #(count (:dict %))
+                                        hash)
+                                  networks*))
+                   networks*)]
     (cond
       (empty? networks)
       value/nothing

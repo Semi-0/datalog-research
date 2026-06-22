@@ -5,10 +5,11 @@
             [propagators.datastructures.compound-object.core :as core]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.datastructures.named-network :as named]
-            [propagators.effectful-sync :as sync]
             [propagators.ids :as ids]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.propagator :as prop]))
 
 (def accessor-network-key
   (core/internal-metadata-key :accessor-network))
@@ -182,23 +183,52 @@
   [slot-key parent-id direction]
   (into accessor-sync-key [slot-key parent-id direction]))
 
+(defn- sync-prop-id
+  [slot-key parent-id direction]
+  (stable-node-id [:sync slot-key parent-id direction]))
+
+(defn- content-copy-installed?
+  [n prop-id from-id to-id]
+  (let [g (net/net-graph n)
+        from-node (get g from-id)
+        prop-node (get g prop-id)]
+    (and (contains? (net/net-env n) prop-id)
+         from-node
+         prop-node
+         (contains? (:outputs from-node) prop-id)
+         (contains? (:inputs prop-node) from-id)
+         (contains? (:outputs prop-node) to-id))))
+
+(defn- install-content-copy
+  [n prop-id from-id to-id]
+  (if (content-copy-installed? n prop-id from-id to-id)
+    n
+    (second
+     ((prop/construct-propagator
+       prop-id
+       (fn [_inputs _outputs network]
+         (let [entry (net/network-env-lookup network from-id)
+               content (cell/cell-content entry)]
+           [(message to-id
+                     (if (evidence/evidence-set? content)
+                       (cell/cell-strongest entry)
+                       content))]))
+       [from-id]
+       [to-id])
+      n))))
+
 (defn- ensure-accessor-bi-sync
   [n slot-key parent-id parent-avatar-id canonical-avatar-id]
   (let [from-key (sync-marker-key slot-key parent-id :from->canonical)
         to-key (sync-marker-key slot-key parent-id :canonical->from)
-        dict (net/net-dict-or-empty n)]
-    (if (and (contains? dict from-key)
-             (contains? dict to-key))
-      n
-      (let [n' (sync/attach-content-bi-sync n
-                                            parent-avatar-id
-                                            canonical-avatar-id
-                                            from-key
-                                            to-key)]
-        ;; ponytail: marker values hide generated prop ids so merge stays idempotent.
-        (-> n'
-            (net/assoc-net-dict-entry from-key #{:installed})
-            (net/assoc-net-dict-entry to-key #{:installed}))))))
+        from-prop-id (sync-prop-id slot-key parent-id :from->canonical)
+        to-prop-id (sync-prop-id slot-key parent-id :canonical->from)]
+    ;; ponytail: deterministic prop ids make copied accessor markers executable.
+    (-> n
+        (install-content-copy from-prop-id parent-avatar-id canonical-avatar-id)
+        (install-content-copy to-prop-id canonical-avatar-id parent-avatar-id)
+        (net/assoc-net-dict-entry from-key #{:installed})
+        (net/assoc-net-dict-entry to-key #{:installed}))))
 
 (defn ensure-accessor-avatar
   [n slot-key parent-id]
@@ -258,18 +288,58 @@
     (evidence/strongest content)
     content))
 
+(defn- behavior-value?
+  [v]
+  (boolean
+   (when-let [behavior-value? (requiring-resolve
+                               'propagators.datastructures.behavior/behavior-value?)]
+     (behavior-value? v))))
+
+(defn- merge-behavior
+  [a b]
+  ((requiring-resolve 'propagators.datastructures.behavior/merge-content) a b))
+
+(declare merge-named-network-content)
+
+(defn- merge-source-slot-value
+  [a b]
+  (cond
+    (nil? a) b
+    (nil? b) a
+    (= a b) a
+    (and (behavior-value? a) (behavior-value? b)) (merge-behavior a b)
+    (and (accessor-network? a) (accessor-network? b)) (merge-named-network-content a b)
+    (and (named/named-network? a) (named/named-network? b)) (named/join a b)
+    :else b))
+
+(defn- merge-source-slots
+  [a b]
+  (merge-with merge-source-slot-value
+              (source-slots a)
+              (source-slots b)))
+
+(defn- without-source-slots
+  [n]
+  (net/net-with-dict n (dissoc (net/net-dict-or-empty n) source-slots-key)))
+
 (defn merge-named-network-content
   [content update]
   (let [content* (named-network-content
                   (if (evidence/evidence-set? content)
                     content
                     (as-accessor-network content)))
+        source-slots* (merge-source-slots content* update)
         joined (cond
                  (value/contradiction? content*) value/contradiction
                  (value/contradiction? update) value/contradiction
                  (value/nothing? content*) update
                  (value/nothing? update) content*
                  (and (named/named-network? content*)
-                      (named/named-network? update)) (named/join content* update)
+                      (named/named-network? update)) (named/join
+                                                       (without-source-slots content*)
+                                                       (without-source-slots update))
                  :else value/contradiction)]
-    (refine-accessor-network joined)))
+    (if (value/contradiction? joined)
+      value/contradiction
+      (refine-accessor-network
+       (net/assoc-net-dict-entry joined source-slots-key source-slots*)))))

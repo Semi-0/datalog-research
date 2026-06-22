@@ -3,12 +3,14 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.gur.subenv.env :as env]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.scoped-address :as scoped]))
+            [propagators.scoped-address :as scoped])
+  (:import [java.util Collections IdentityHashMap]))
 
 (defn- cell-strongest-value
   [entry]
@@ -28,24 +30,28 @@
     (cell-strongest-value (get (net/net-env source-net) id))))
 
 (defn accessor-parent-cell-ids
-  ([v] (accessor-parent-cell-ids nil #{} v))
-  ([source-net v] (accessor-parent-cell-ids source-net #{} v))
-  ([source-net seen v]
-   (if (or (not (accessor-value? v)) (contains? seen v))
-     #{}
-     (let [seen* (conj seen v)
-           direct (->> (obj/accessor-slot-keys v)
-                       (mapcat #(obj/accessor-parent-ids v %))
-                       (filter ids/node-id?)
-                       set)
-           indirect (->> direct
-                         (map #(source-cell-value source-net %))
-                         (mapcat #(accessor-parent-cell-ids source-net seen* %))
-                         set)
-           nested (->> (vals (obj/accessor-source-slots v))
-                       (mapcat #(accessor-parent-cell-ids source-net seen* %))
-                       set)]
-       (into direct (concat indirect nested))))))
+  ([v] (accessor-parent-cell-ids nil v))
+  ([source-net v]
+   ;; ponytail: identity cycle guard; equal list nodes are still distinct tails.
+   (let [seen (Collections/newSetFromMap (IdentityHashMap.))]
+     (letfn [(walk [value]
+               (if (or (not (accessor-value? value)) (.contains seen value))
+                 #{}
+                 (do
+                   (.add seen value)
+                   (let [direct (->> (obj/accessor-slot-keys value)
+                                     (mapcat #(obj/accessor-parent-ids value %))
+                                     (filter ids/node-id?)
+                                     set)
+                         indirect (->> direct
+                                       (map #(source-cell-value source-net %))
+                                       (mapcat walk)
+                                       set)
+                         nested (->> (vals (obj/accessor-source-slots value))
+                                     (mapcat walk)
+                                     set)]
+                     (into direct (concat indirect nested))))))]
+       (walk v)))))
 
 (defn- copy-or-merge-cell
   [target-net source-net id]
@@ -112,6 +118,14 @@
               [id v])))
         (net/net-env child-net)))
 
+(defn- scoped-local-ids
+  [child-net scope]
+  (->> (env/scoped-bindings child-net)
+       (keep (fn [[binding-scope _name local-id]]
+               (when (= scope binding-scope)
+                 local-id)))
+       set))
+
 (defn- external-output-cell?
   [parent-net child-net cell-id]
   (and (parent-owned-id? parent-net cell-id)
@@ -119,10 +133,12 @@
 
 (defn- publisher-slot-exports
   [parent-net child-net scope cell-id accessor-value slot-key]
-  (let [parent-ids (obj/accessor-parent-ids accessor-value slot-key)
+  (let [parent-ids (sort-by pr-str (obj/accessor-parent-ids accessor-value slot-key))
         parent-owned (filter #(parent-owned-id? parent-net %) parent-ids)
         child-owned (filter #(child-owned-id? parent-net child-net %) parent-ids)
-        targets (concat (map #(scoped/cell-ref scope %) child-owned)
+        scope-locals (scoped-local-ids child-net scope)
+        targets (concat (map #(scoped/cell-ref scope %)
+                             (filter scope-locals child-owned))
                         (filter #(and (scoped/address? %)
                                       (not= scope (scoped/address-scope %))
                                       (live-scoped-target? child-net %))
@@ -146,7 +162,7 @@
   (mapcat
    (fn [[cell-id accessor-value]]
      (mapcat #(publisher-slot-exports parent-net child-net scope cell-id accessor-value %)
-             (obj/accessor-slot-keys accessor-value)))
+             (sort-by pr-str (obj/accessor-slot-keys accessor-value))))
    (child-accessor-values child-net)))
 
 (defn- collection-cell-value
@@ -211,7 +227,7 @@
              (accumulated-export-messages
               parent-net
               (direct-child-accessor-exports parent-net child-net scope)))
-           scopes)))
+           (sort-by pr-str scopes))))
 
 (defn p:publish-child-accessors
   "Publish direct child accessor exports as ordinary parent-cell messages."

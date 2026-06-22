@@ -32,10 +32,15 @@ clj -M:propagators-profile propagate 1000
 clj -M:dispatch-bench
 clj -M:dispatch-bench 50 1
 clj -M:dispatch-bench 50 51
+clj -M:gur-accumulating-bench
+clj -M:gur-accumulating-bench 0 1
 ```
 
 The chain benchmark harness is `propagators_chain_bench.clj`. The generic and
 layered procedure dispatch benchmark harness is `propagators_dispatch_bench.clj`.
+The accumulating GUR HOP benchmark harness is
+`propagators_gur_accumulating_bench.clj`; it reuses the focused accumulating
+GUR test scenarios and checks each observed result.
 
 Recorded local dispatch baseline on 2026-06-08:
 

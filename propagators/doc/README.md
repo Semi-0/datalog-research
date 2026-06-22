@@ -92,10 +92,9 @@ accumulated network. A task fact is declaration information: task identity maps
 to one or more indexes. Re-seeing the same task with a new index means the task
 is stronger and must be run again; the executor primitive keeps only a local
 `ran [task index]` cursor. That runtime cursor is not recursive semantics and is
-not stored in the named network. Current evidence: index-batched execution
-helped the older lazy-accessor HOP source, but the stricter `obj/p:cons` source
-builder now fails accumulating HOP with invalid scoped-dispatch owner `nothing`
-or unknown child-local node errors. The failing tests remain as design evidence.
+not stored in the named network. Current evidence: the stricter `obj/p:cons`
+source builder now passes accumulating HOP mapper depths `5/10/15` and filter
+depths `5/10` without materializing the source or output lists.
 
 The runtime compound model is still experimental, but the main fragility today
 is in compound data: `compound_data.clj` centralizes dispatch in the

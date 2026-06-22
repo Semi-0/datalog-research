@@ -23,6 +23,7 @@
 (def task-index-key [:gur/accumulating :tasks])
 (def frame-applied-prefix [:gur/accumulating :applied])
 (def frame-scope-prefix [:gur/accumulating :scope])
+(def ^:private max-child-steps 65536)
 
 (defn add-task-facts
   ([n cause tasks]
@@ -383,7 +384,14 @@
 
 (defn- indexed-prop-ids
   [n]
-  (vec (net/network-dict-entry n frame-prop-index-key)))
+  (vec (sort-by pr-str (net/network-dict-entry n frame-prop-index-key))))
+
+(defn- same-cell-value?
+  [a b]
+  (and (cell/cell? a)
+       (cell/cell? b)
+       (= (cell/cell-content a) (cell/cell-content b))
+       (= (cell/cell-strongest a) (cell/cell-strongest b))))
 
 (defn- add-boundary-task-facts
   [parent-net acc-net boundary-ids]
@@ -391,11 +399,13 @@
             (if (and (ids/node-id? id)
                      (contains? (net/net-env parent-net) id))
               (let [entry (net/network-env-lookup parent-net id)]
-                (add-task-facts n
-                                [:boundary id]
-                                (indexed-prop-ids n)
-                                (hash (pr-str {:content (cell/cell-content entry)
-                                               :strongest (cell/cell-strongest entry)}))))
+                (if (same-cell-value? entry (get (net/net-env n) id))
+                  n
+                  (add-task-facts n
+                                  [:boundary id]
+                                  (indexed-prop-ids n)
+                                  (hash {:content (cell/cell-content entry)
+                                         :strongest (cell/cell-strongest entry)}))))
               n))
           acc-net
           boundary-ids))
@@ -404,12 +414,13 @@
   [child-net task-cursor]
   ;; ponytail: task facts grow monotonically; this cursor is primitive-local
   ;; runtime state and only records which task indexes have been consumed.
-  (loop [remaining 4096
+  (loop [remaining max-child-steps
          current child-net]
     (let [pending (first (pending-task-facts current @task-cursor))]
       (cond
         (zero? remaining)
-        current
+        (throw (ex-info "accumulating GUR child run exceeded step budget"
+                        {:max-steps max-child-steps}))
 
         (nil? pending)
         current

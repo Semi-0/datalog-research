@@ -31,6 +31,12 @@
   (some-> (net/network-lookup-cell parent-net owner-id)
           cell/cell-strongest))
 
+(defn- local-cell-present?
+  [parent-net local-id]
+  (and (net/net? parent-net)
+       (contains? (net/net-env parent-net) local-id)
+       (contains? (net/net-graph parent-net) local-id)))
+
 (defn- invalid-owner-route!
   [owner-id child-net]
   (throw (ex-info "subenv dispatch owner does not hold a child network"
@@ -42,6 +48,11 @@
   (and (net/net? child-net)
        (contains? (net/net-dict-or-empty child-net)
                   [:gur/accumulating :frames])))
+
+(defn- self-owned-accumulating-local?
+  [parent-net local-id]
+  (and (accumulating-gur-network? parent-net)
+       (local-cell-present? parent-net local-id)))
 
 (defn- store-child-network
   [eval-cell parent-net owner-id child-net tasks task-cause task-index]
@@ -95,11 +106,17 @@
       :dispatch/subenv
       (let [[_ owner-id local-id] route
             child-msg (message local-id (message-value msg))]
-        (route-through-owner eval-cell
-                             parent-net
-                             owner-id
-                             child-msg
-                             #(eval-child-local child-msg %)))
+        (if (or (self-owned-accumulating-local? parent-net local-id)
+                (and (local-cell-present? parent-net local-id)
+                     (not (local-cell-present?
+                           (owner-child-network parent-net owner-id)
+                           local-id))))
+          (eval-cell local-id child-msg parent-net)
+          (route-through-owner eval-cell
+                               parent-net
+                               owner-id
+                               child-msg
+                               #(eval-child-local child-msg %))))
 
       :dispatch/subenv-ref
       (let [[_ owner-id target] route
