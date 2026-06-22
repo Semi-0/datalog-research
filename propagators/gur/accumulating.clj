@@ -379,7 +379,12 @@
                       :index index
                       :prop-ids (vec (sort-by pr-str
                                                (or prop-ids #{prop-id})))}))))
-       (sort-by (juxt (comp pr-str :task-key) (comp pr-str :index)))
+       ;; Boundary tasks use the current declared prop index. Run declaration
+       ;; tasks first so a boundary index does not get consumed before the props
+       ;; it should wake have been added.
+       (sort-by (juxt #(if (= :boundary (first (:task-key %))) 1 0)
+                      (comp pr-str :task-key)
+                      (comp pr-str :index)))
        vec))
 
 (defn- indexed-prop-ids
@@ -434,6 +439,36 @@
                  #(vec (distinct (conj (or % []) index))))
           (recur (dec remaining) next))))))
 
+(defn- outbox-with-task-facts
+  [child-net applied-net-id outbox]
+  (add-task-facts outbox
+                  [:outbox applied-net-id]
+                  (distinct (concat (indexed-prop-ids child-net)
+                                    (indexed-prop-ids outbox)))
+                  (hash (pr-str outbox))))
+
+(defn- settle-accumulated-child
+  [task-cursor parent-net child-net applied-net-id]
+  ;; ponytail: owner-local reconciliation; do not publish a half-merged outbox
+  ;; and wait for a later runner turn to discover its tasks.
+  (loop [remaining 64
+         current child-net]
+    (when (zero? remaining)
+      (throw (ex-info "accumulating GUR outbox reconciliation exceeded step budget"
+                      {:max-steps 64})))
+    (let [child1 (run-accumulated-child current task-cursor)
+          outbox (strongest-or-nothing child1 applied-net-id)]
+      (if (net/net? outbox)
+        (let [outbox* (outbox-with-task-facts child1 applied-net-id outbox)
+              child2 (reset-outbox child1 applied-net-id)
+              merged (merge/strongest-value
+                      (merge/cell-merge child2 outbox* parent-net)
+                      parent-net)]
+          (if (= merged child2)
+            child2
+            (recur (dec remaining) merged)))
+        child1))))
+
 (defn- run-accumulated-messages
   [task-cursor parent-net applied-net-id import-ids external-output-ids]
   (let [acc0 (strongest-or-nothing parent-net applied-net-id)]
@@ -447,8 +482,10 @@
                                     applied-net-id
                                     import-ids
                                     external-output-ids)
-            child1 (run-accumulated-child child0 task-cursor)
-            outbox (strongest-or-nothing child1 applied-net-id)
+            child1 (settle-accumulated-child task-cursor
+                                             parent-net
+                                             child0
+                                             applied-net-id)
             diff-view (output/externalize-output-cells child1 external-output-ids)
             output-msgs (vec (diff/diff-internal-output-cells
                               diff-view
@@ -459,13 +496,6 @@
                            child1
                            (env/scopes child1))
             external-msgs (queue/external-messages child1)
-            outbox* (if (net/net? outbox)
-                      (add-task-facts outbox
-                                      [:outbox applied-net-id]
-                                      (distinct (concat (indexed-prop-ids child1)
-                                                        (indexed-prop-ids outbox)))
-                                      (hash (pr-str outbox)))
-                      outbox)
             child2 (-> child1
                        queue/clear-external-messages
                        (reset-outbox applied-net-id))]
@@ -473,10 +503,7 @@
                               accessor-msgs
                               external-msgs))
           (not= acc0 child2)
-          (conj (message applied-net-id child2))
-
-          (net/net? outbox*)
-          (conj (message applied-net-id outbox*)))))))
+          (conj (message applied-net-id child2)))))))
 
 (defn p:run-accumulated-network
   ([applied-net-id external-output-ids]
