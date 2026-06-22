@@ -7,6 +7,7 @@
             [propagators.datastructures.compound_update :as update]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.datastructures.named-network :as named]
+            [propagators.network :as net]
             [propagators.datastructures.reducer-subnet :as reducer]))
 
 (def cell-equal? value/cell-value-equal?)
@@ -84,11 +85,19 @@
     :else
     (cell-equal? new old)))
 
+(defn- accumulating-gur-network?
+  [x]
+  (and (named/named-network? x)
+       (contains? (net/net-dict-or-empty x) [:gur/accumulating :frames])))
+
 (defmethod cell-updated? :named-network
   [new old network]
   (let [new* (strongest-value new network)
         old* (strongest-value old network)]
-    (not (named-strongest-equal? new* old*))))
+    (if (or (accumulating-gur-network? new*)
+            (accumulating-gur-network? old*))
+      (not= new* old*)
+      (not (named-strongest-equal? new* old*)))))
 
 (defmulti built-in-cell-merge
   (fn [_content update _network]

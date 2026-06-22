@@ -20,8 +20,28 @@
 (def recursive-closure-tag :gur/accumulating-recursive-closure?)
 (def frame-index-key [:gur/accumulating :frames])
 (def frame-prop-index-key [:gur/accumulating :props])
+(def task-index-key [:gur/accumulating :tasks])
 (def frame-applied-prefix [:gur/accumulating :applied])
 (def frame-scope-prefix [:gur/accumulating :scope])
+
+(defn add-task-facts
+  ([n cause tasks]
+   (add-task-facts n cause tasks 0))
+  ([n cause tasks index]
+   (let [prop-ids (queue/task-ids tasks)]
+     (if (empty? prop-ids)
+       n
+       (net/update-net-dict-entry
+        n
+        task-index-key
+        (fn [task-map]
+          (reduce (fn [m prop-id]
+                    (update m cause
+                            (fn [entry]
+                              {:prop-ids (conj (set (:prop-ids entry)) prop-id)
+                               :indexes (conj (set (:indexes entry)) index)})))
+                  (or task-map {})
+                  prop-ids)))))))
 
 (defn application-key
   [closure-id arg-ids out-id]
@@ -131,22 +151,6 @@
           frame-net
           (map-indexed vector arg-ids)))
 
-(defn- queue-frame-props
-  [n app-key run-key prop-ids]
-  (let [tokens (set (map (fn [prop-id]
-                           [prop-id
-                            (stable-node-id [app-key :run prop-id run-key])])
-                         (queue/task-ids prop-ids)))]
-    (if (empty? tokens)
-      n
-      (net/update-net-dict-entry
-       n
-       queue/child-queue-key
-       (fn [q]
-         (let [q* {:scheduled (set (:scheduled q))
-                   :ran (set (:ran q))}]
-           (update q* :scheduled into tokens)))))))
-
 (defn- normalize-body-result
   [result]
   (if (and (map? result) (contains? result :net))
@@ -217,9 +221,9 @@
             (net/update-net-dict-entry frame-index-key #(conj (or % #{}) app-key))
             (net/update-net-dict-entry frame-prop-index-key
                                        #(into (or % #{}) (queue/task-ids prop-ids)))
+            (add-task-facts [:frame app-key] prop-ids)
             (net/assoc-net-dict-entry (frame-applied-key app-key) true)
-            (net/assoc-net-dict-entry (frame-scope-key app-key) scope)
-            (queue-frame-props app-key arg-values prop-ids))))))
+            (net/assoc-net-dict-entry (frame-scope-key app-key) scope))))))
 
 (defn- strip-compiler-symbols
   [n]
@@ -288,8 +292,10 @@
                                body-expr)]
       (-> net
           strip-compiler-symbols
-          (net/assoc-net-dict-entry (when-applied-key when-key) true)
-          (queue-frame-props when-key :body props)))))
+          (net/update-net-dict-entry frame-prop-index-key
+                                     #(into (or % #{}) (queue/task-ids props)))
+          (add-task-facts [:when when-key] props)
+          (net/assoc-net-dict-entry (when-applied-key when-key) true)))))
 
 (defn p:when-topology
   "Presence-gated topology builder. `nothing` waits; any other value builds."
@@ -360,29 +366,77 @@
        (sort-by pr-str)
        vec))
 
+(defn- pending-task-facts
+  [n task-cursor]
+  (->> (net/network-dict-entry n task-index-key)
+       (mapcat (fn [[task-key {:keys [prop-ids indexes prop-id]}]]
+                 (let [ordered (vec (sort-by pr-str indexes))
+                       consumed (set (get task-cursor task-key []))]
+                   (for [index ordered
+                         :when (not (contains? consumed index))]
+                     {:task-key task-key
+                      :index index
+                      :prop-ids (vec (sort-by pr-str
+                                               (or prop-ids #{prop-id})))}))))
+       (sort-by (juxt (comp pr-str :task-key) (comp pr-str :index)))
+       vec))
+
+(defn- indexed-prop-ids
+  [n]
+  (vec (net/network-dict-entry n frame-prop-index-key)))
+
+(defn- add-boundary-task-facts
+  [parent-net acc-net boundary-ids]
+  (reduce (fn [n id]
+            (if (and (ids/node-id? id)
+                     (contains? (net/net-env parent-net) id))
+              (let [entry (net/network-env-lookup parent-net id)]
+                (add-task-facts n
+                                [:boundary id]
+                                (indexed-prop-ids n)
+                                (hash (pr-str {:content (cell/cell-content entry)
+                                               :strongest (cell/cell-strongest entry)}))))
+              n))
+          acc-net
+          boundary-ids))
+
 (defn- run-accumulated-child
-  [child-net]
-  (loop [remaining 4
-         current (queue/run-child-queue child-net)]
-    (let [props (accumulated-prop-ids current)]
-      (if (or (zero? remaining) (empty? props))
+  [child-net task-cursor]
+  ;; ponytail: task facts grow monotonically; this cursor is primitive-local
+  ;; runtime state and only records which task indexes have been consumed.
+  (loop [remaining 4096
+         current child-net]
+    (let [pending (first (pending-task-facts current @task-cursor))]
+      (cond
+        (zero? remaining)
         current
-        (let [next (queue/run-props current props)]
-          (if (= next current)
-            next
-            (recur (dec remaining) next)))))))
+
+        (nil? pending)
+        current
+
+        :else
+        (let [{:keys [task-key index prop-ids]} pending
+              next (queue/run-props current prop-ids)]
+          (swap! task-cursor
+                 update
+                 task-key
+                 #(vec (distinct (conj (or % []) index))))
+          (recur (dec remaining) next))))))
 
 (defn- run-accumulated-messages
-  [parent-net applied-net-id import-ids external-output-ids]
+  [task-cursor parent-net applied-net-id import-ids external-output-ids]
   (let [acc0 (strongest-or-nothing parent-net applied-net-id)]
     (if-not (net/net? acc0)
       []
-      (let [child0 (prepare-run-net parent-net
-                                    acc0
+      (let [acc1 (add-boundary-task-facts parent-net
+                                          acc0
+                                          (concat import-ids external-output-ids))
+            child0 (prepare-run-net parent-net
+                                    acc1
                                     applied-net-id
                                     import-ids
                                     external-output-ids)
-            child1 (run-accumulated-child child0)
+            child1 (run-accumulated-child child0 task-cursor)
             outbox (strongest-or-nothing child1 applied-net-id)
             diff-view (output/externalize-output-cells child1 external-output-ids)
             output-msgs (vec (diff/diff-internal-output-cells
@@ -394,6 +448,13 @@
                            child1
                            (env/scopes child1))
             external-msgs (queue/external-messages child1)
+            outbox* (if (net/net? outbox)
+                      (add-task-facts outbox
+                                      [:outbox applied-net-id]
+                                      (distinct (concat (indexed-prop-ids child1)
+                                                        (indexed-prop-ids outbox)))
+                                      (hash (pr-str outbox)))
+                      outbox)
             child2 (-> child1
                        queue/clear-external-messages
                        (reset-outbox applied-net-id))]
@@ -403,8 +464,8 @@
           (not= acc0 child2)
           (conj (message applied-net-id child2))
 
-          (net/net? outbox)
-          (conj (message applied-net-id outbox)))))))
+          (net/net? outbox*)
+          (conj (message applied-net-id outbox*)))))))
 
 (defn p:run-accumulated-network
   ([applied-net-id external-output-ids]
@@ -414,10 +475,12 @@
          external-output-ids (vec external-output-ids)
          inputs (vec (distinct (concat [applied-net-id]
                                        import-ids
-                                       external-output-ids)))]
+                                       external-output-ids)))
+         task-cursor (atom {})]
      (prop/construct-propagator
       (fn [_inputs _outputs parent-net]
-        (run-accumulated-messages parent-net
+        (run-accumulated-messages task-cursor
+                                  parent-net
                                   applied-net-id
                                   import-ids
                                   external-output-ids))

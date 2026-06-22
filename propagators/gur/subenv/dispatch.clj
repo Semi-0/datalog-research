@@ -37,11 +37,27 @@
                   {:owner-id owner-id
                    :owner-value child-net})))
 
+(defn- accumulating-gur-network?
+  [child-net]
+  (and (net/net? child-net)
+       (contains? (net/net-dict-or-empty child-net)
+                  [:gur/accumulating :frames])))
+
 (defn- store-child-network
-  [eval-cell parent-net owner-id child-net tasks]
-  (eval-cell owner-id
-             (message owner-id (queue/queue-child-props child-net tasks))
-             parent-net))
+  [eval-cell parent-net owner-id child-net tasks task-cause task-index]
+  (if (accumulating-gur-network? child-net)
+    (eval-cell owner-id
+               (message owner-id
+                        ((requiring-resolve
+                          'propagators.gur.accumulating/add-task-facts)
+                         child-net
+                         task-cause
+                         tasks
+                         task-index))
+               parent-net)
+    (eval-cell owner-id
+               (message owner-id (queue/queue-child-props child-net tasks))
+               parent-net)))
 
 (defn- route-through-owner
   [eval-cell parent-net owner-id routed-msg child-update]
@@ -58,8 +74,14 @@
                          child-net
                          parent-net
                          (message-value routed-msg))
-             {:keys [network tasks]} (child-update child-net*)]
-         (store-child-network eval-cell parent-net owner-id network tasks)))))
+            {:keys [network tasks]} (child-update child-net*)]
+         (store-child-network eval-cell
+                              parent-net
+                              owner-id
+                              network
+                              tasks
+                              [:route (message-id routed-msg)]
+                              (hash (pr-str (message-value routed-msg))))))))
 
 (defn eval-cell*
   [directory msg parent-net]
