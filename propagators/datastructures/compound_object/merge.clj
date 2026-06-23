@@ -223,12 +223,15 @@
         to-key (sync-marker-key slot-key parent-id :canonical->from)
         from-prop-id (sync-prop-id slot-key parent-id :from->canonical)
         to-prop-id (sync-prop-id slot-key parent-id :canonical->from)]
-    ;; ponytail: deterministic prop ids make copied accessor markers executable.
-    (-> n
-        (install-content-copy from-prop-id parent-avatar-id canonical-avatar-id)
-        (install-content-copy to-prop-id canonical-avatar-id parent-avatar-id)
-        (net/assoc-net-dict-entry from-key #{:installed})
-        (net/assoc-net-dict-entry to-key #{:installed}))))
+    ;; ponytail: markers are the idempotence contract; graph rechecks are the hot path.
+    (if (and (net/network-dict-entry n from-key)
+             (net/network-dict-entry n to-key))
+      n
+      (-> n
+          (install-content-copy from-prop-id parent-avatar-id canonical-avatar-id)
+          (install-content-copy to-prop-id canonical-avatar-id parent-avatar-id)
+          (net/assoc-net-dict-entry from-key #{:installed})
+          (net/assoc-net-dict-entry to-key #{:installed})))))
 
 (defn ensure-accessor-avatar
   [n slot-key parent-id]
@@ -259,12 +262,28 @@
      n1
      (accessor-parent-ids n1 slot-key))))
 
+(defn- ensure-accessor-slot-topology
+  [collection-net slot-key parent-ids]
+  (let [n0 (ensure-canonical-cell collection-net slot-key)
+        canonical-avatar-id (canonical-cell-id slot-key)]
+    (reduce
+     (fn [n parent-id]
+       (let [n* (ensure-accessor-avatar n slot-key parent-id)
+             parent-avatar-id (accessor-avatar-id slot-key parent-id)]
+         (ensure-accessor-bi-sync n*
+                                  slot-key
+                                  parent-id
+                                  parent-avatar-id
+                                  canonical-avatar-id)))
+     n0
+     parent-ids)))
+
 (defn refine-accessor-network
   [collection-net]
   (let [slot-index (or (net/network-dict-entry collection-net core/slot-index-key) {})]
     (reduce-kv
      (fn [n slot-key parent-ids]
-       (reduce #(ensure-accessor-route %1 slot-key %2) n parent-ids))
+       (ensure-accessor-slot-topology n slot-key parent-ids))
      (as-accessor-network collection-net)
      slot-index)))
 

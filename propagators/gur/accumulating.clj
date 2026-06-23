@@ -18,6 +18,7 @@
            [java.util UUID]))
 
 (def recursive-closure-tag :gur/accumulating-recursive-closure?)
+(def bidirectional-apply-key :gur/bidirectional-apply?)
 (def frame-index-key [:gur/accumulating :frames])
 (def frame-prop-index-key [:gur/accumulating :props])
 (def task-index-key [:gur/accumulating :tasks])
@@ -59,6 +60,14 @@
   (and (map? x)
        (true? (get x recursive-closure-tag))
        (ifn? (get x :gur/body))))
+
+(defn bidirectional-closure
+  [closure]
+  (assoc closure bidirectional-apply-key true))
+
+(defn bidirectional-closure?
+  [closure]
+  (true? (get closure bidirectional-apply-key)))
 
 (defn strongest-or-nothing
   [n id]
@@ -129,15 +138,18 @@
       n)
     (nb/ensure-cell n id)))
 
-(defn- copy-argument-cells
-  [frame-net runtime-net arg-ids arg-values]
-  (let [accessor-parent-ids
-        (->> arg-values
-             (mapcat #(scoped-slot/accessor-parent-cell-ids runtime-net %))
-             distinct)]
-    (reduce #(copy-runtime-cell %1 runtime-net %2)
-            frame-net
-            (distinct (concat arg-ids accessor-parent-ids)))))
+(defn- boundary-cell-ids
+  [source-net ids values]
+  (distinct
+   (concat ids
+           (mapcat #(scoped-slot/accessor-parent-cell-ids source-net %)
+                   values))))
+
+(defn- copy-boundary-cells
+  [frame-net runtime-net ids values]
+  (reduce #(copy-runtime-cell %1 runtime-net %2)
+          frame-net
+          (boundary-cell-ids runtime-net ids values)))
 
 (defn- bind-local-alias
   [n scope name id]
@@ -202,9 +214,12 @@
     ;; repeated accumulation grows topology.
     (with-redefs [ids/new-node-id (stable-id-generator app-key)]
       (let [base (-> net/empty-net
-                     (copy-argument-cells runtime-net arg-ids arg-values)
                      (copy-runtime-cell runtime-net closure-id)
-                     (copy-runtime-cell runtime-net out-id)
+                     (copy-boundary-cells runtime-net
+                                          (conj (vec arg-ids) out-id)
+                                          (conj (vec arg-values)
+                                                (strongest-or-nothing runtime-net
+                                                                     out-id)))
                      (nb/ensure-cell applied-net-id)
                      (ensure-cell-value self-id closure)
                      (env/bind-in-scope scope :self self-id)
@@ -234,18 +249,22 @@
          (remove (fn [[k _v]] (symbol? k)))
          (net/net-dict-or-empty n))))
 
-(defn- missing-closure-input?
-  [closure arg-values]
-  (or (value/unusable? closure)
-      (apply value/any-unusable-values? arg-values)))
+(defn- ready-to-apply?
+  [closure arg-values out-value]
+  (and (not (value/unusable? closure))
+       (if (bidirectional-closure? closure)
+         (or (not (apply value/any-unusable-values? arg-values))
+             (not (value/unusable? out-value)))
+         (not (apply value/any-unusable-values? arg-values)))))
 
 (defn- accumulate-apply-messages
   [runtime-net closure-id arg-ids applied-net-id out-id]
   (let [closure (strongest-or-nothing runtime-net closure-id)
         arg-values (mapv #(strongest-or-nothing runtime-net %) arg-ids)
+        out-value (strongest-or-nothing runtime-net out-id)
         app-key (application-key closure-id arg-ids out-id)]
     (cond
-      (missing-closure-input? closure arg-values)
+      (not (ready-to-apply? closure arg-values out-value))
       []
 
       (frame-applied? runtime-net applied-net-id app-key)
@@ -267,7 +286,7 @@
 (defn p:accumulate-apply-closure
   [closure-id arg-ids applied-net-id out-id]
   (let [arg-ids (vec arg-ids)
-        inputs (into [closure-id] arg-ids)]
+        inputs (vec (distinct (conj (into [closure-id] arg-ids) out-id)))]
     (fn [network]
       (let [n0 (reduce nb/ensure-cell network
                        (conj (into inputs [applied-net-id]) out-id))]
@@ -347,15 +366,20 @@
 
 (defn- prepare-run-net
   [parent-net acc-net applied-net-id import-ids external-output-ids]
-  (let [n0 (reduce #(import-parent-cell %1 parent-net %2)
+  (let [boundary-ids (boundary-cell-ids
+                      parent-net
+                      (distinct (concat import-ids external-output-ids))
+                      (map #(strongest-or-nothing parent-net %)
+                           (concat import-ids external-output-ids)))
+        n0 (reduce #(import-parent-cell %1 parent-net %2)
                    (reset-outbox acc-net applied-net-id)
-                   import-ids)]
+                   boundary-ids)]
     (reduce (fn [n external-id]
               (-> n
                   (net/assoc-avatar-out external-id external-id)
                   (import-parent-cell parent-net external-id)))
             n0
-            external-output-ids)))
+            (distinct (concat import-ids external-output-ids)))))
 
 (defn- accumulated-prop-ids
   [n]
@@ -490,15 +514,16 @@
                                              parent-net
                                              child0
                                              applied-net-id)
-            diff-view (output/externalize-output-cells child1 external-output-ids)
+            boundary-output-ids (vec (distinct (concat import-ids
+                                                       external-output-ids)))
+            diff-view (output/externalize-output-cells child1 boundary-output-ids)
             output-msgs (vec (diff/diff-internal-output-cells
                               diff-view
                               parent-net
-                              external-output-ids))
-            accessor-msgs (scoped-slot/direct-child-accessor-messages-for-scopes
+                              boundary-output-ids))
+            accessor-msgs (scoped-slot/direct-child-accessor-messages-for-neighbors
                            parent-net
-                           child1
-                           (env/scopes child1))
+                           child1)
             external-msgs (queue/external-messages child1)
             child2 (-> child1
                        queue/clear-external-messages
@@ -530,7 +555,8 @@
                                   import-ids
                                   external-output-ids))
       inputs
-      (into [applied-net-id] external-output-ids)))))
+      (into [applied-net-id] (distinct (concat import-ids
+                                               external-output-ids)))))))
 
 (defn p:apply-closure
   [closure-id arg-ids out-id]
@@ -676,13 +702,15 @@
                                           seed-values))
                              '~body))
                     `'(~do-sym ~@body))]
-    (if installer-fn
+    (let [closure-expr (if installer-fn
+                         `(source-recursive-closure ~closure-name
+                                                    '~params
+                                                    ~body-code
+                                                    ~installer-fn)
+                         `(source-recursive-closure ~closure-name
+                                                    '~params
+                                                    ~body-code))]
       `(def ~name
-         (source-recursive-closure ~closure-name
-                                   '~params
-                                   ~body-code
-                                   ~installer-fn))
-      `(def ~name
-         (source-recursive-closure ~closure-name
-                                   '~params
-                                   ~body-code)))))
+         ~(if (:bidirectional? opts)
+            `(bidirectional-closure ~closure-expr)
+            closure-expr)))))

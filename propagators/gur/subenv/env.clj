@@ -1,12 +1,17 @@
 (ns propagators.gur.subenv.env
   "Lexical sub-env dictionary keys and dispatch registration."
-  (:require [propagators.ids :as ids]
+  (:require [propagators.datastructures.compound-object :as obj]
+            [propagators.ids :as ids]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.scoped-address :as scoped]))
 
 (def scope-key [:env/scope])
 (def parent-scope-key [:env/parent-scope])
 (def scopes-key [:env/scopes])
+(def local-scopes-key [:env/local-scopes])
+(def scope-object-key [:env/scope-object])
+(def scope-object-props-key [:env/scope-object-props])
 (def dispatch-tags #{:dispatch/local :dispatch/subenv :dispatch/subenv-ref
                      :dispatch/external})
 (def env-dispatch-tags scoped/dispatch-tags)
@@ -28,9 +33,58 @@
 
 (defn bind-in-scope
   [n scope name local-id]
-  (net/update-net-dict-entry n
-                             scopes-key
-                             #(assoc-in (or % {}) [scope name] local-id)))
+  (-> n
+      (net/update-net-dict-entry scopes-key
+                                 #(assoc-in (or % {}) [scope name] local-id))
+      (net/update-net-dict-entry local-scopes-key
+                                 #(update (or %) local-id (fnil conj #{}) scope))))
+
+(defn local-scopes
+  [n local-id]
+  (get (net/network-dict-entry n local-scopes-key) local-id #{}))
+
+(defn scope-object-id
+  [n scope]
+  (get (net/network-dict-entry n scope-object-key) scope))
+
+(defn scope-object-prop-ids
+  [n]
+  (set (vals (net/network-dict-entry n scope-object-props-key))))
+
+(defn- ensure-scope-object
+  [n scope]
+  (if-let [id (scope-object-id n scope)]
+    [id n]
+    (let [id (ids/new-node-id)]
+      [id (-> n
+              (nb/ensure-cell id)
+              (net/update-net-dict-entry scope-object-key
+                                         #(assoc (or % {}) scope id)))])))
+
+(defn bind-in-scope-object
+  "Mirror one scoped binding into an accessor-built scope object.
+
+  This is parallel topology: existing scoped dict routing remains the source of
+  compatibility while experiments can read scope bindings through obj/p:slot.
+  "
+  [n scope name local-id]
+  (let [n0 (bind-in-scope n scope name local-id)
+        prop-key [scope name local-id]]
+    (if (get (net/network-dict-entry n0 scope-object-props-key) prop-key)
+      n0
+      (let [[scope-object-id n1] (ensure-scope-object n0 scope)
+            [prop-id n2] ((obj/p:slot name local-id scope-object-id) n1)]
+        (net/update-net-dict-entry n2
+                                   scope-object-props-key
+                                   #(assoc (or % {}) prop-key prop-id))))))
+
+(defn p:scope-object-access
+  [scope name out-id]
+  (fn [network]
+    (if-let [scope-object-id (scope-object-id network scope)]
+      ((obj/p:slot name out-id scope-object-id) network)
+      (throw (ex-info "missing compound scope object"
+                      {:scope scope :name name})))))
 
 (defn current-scope
   [n]
@@ -57,6 +111,10 @@
                       [scope name local-id]))
                   bindings))
           (or (net/network-dict-entry child-net scopes-key) {})))
+
+(defn scoped-bindings?
+  [child-net]
+  (seq (net/network-dict-entry child-net scopes-key)))
 
 (defn scopes
   [child-net]
@@ -130,7 +188,7 @@
   [parent-net owner-id strongest]
   (if (and (net/net? strongest)
            (or (subenv-scope strongest)
-               (seq (scoped-bindings strongest))))
+               (scoped-bindings? strongest)))
     (register-subenv-from-owner parent-net owner-id strongest)
     parent-net))
 
@@ -160,7 +218,7 @@
 
       (and (scoped/address? target)
            (or (subenv-scope parent-net)
-               (seq (scoped-bindings parent-net))))
+               (scoped-bindings? parent-net)))
       [:dispatch/external target]
 
       :else

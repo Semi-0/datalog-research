@@ -133,6 +133,10 @@
           {}
           (env/scoped-bindings child-net)))
 
+(defn- local-scope-index
+  [child-net]
+  (or (net/network-dict-entry child-net env/local-scopes-key) {}))
+
 (defn- external-output-cell?
   [parent-net child-net cell-id]
   (and (parent-owned-id? parent-net cell-id)
@@ -192,9 +196,101 @@
                 (sort-by pr-str (obj/accessor-slot-keys accessor-value))))
       accessor-values))))
 
+(defn- neighbor-slot-exports
+  [parent-net child-net local-scopes cell-id accessor-value slot-key]
+  (let [parent-ids (sort-by pr-str (obj/accessor-parent-ids accessor-value slot-key))
+        parent-owned (filter #(parent-owned-id? parent-net %) parent-ids)
+        scoped-parents (filter #(and (scoped/address? %)
+                                     (contains? (net/net-dict-or-empty parent-net) %))
+                               parent-ids)
+        child-owned (filter #(child-owned-id? parent-net child-net %) parent-ids)
+        child-targets (for [local-id child-owned
+                            scope (sort-by pr-str (get local-scopes local-id))]
+                        (scoped/cell-ref scope local-id))
+        scoped-targets (filter #(and (scoped/address? %)
+                                     (live-scoped-target? child-net %))
+                               parent-ids)
+        targets (distinct (concat child-targets scoped-targets))
+        parent-exports
+        (concat
+         (for [parent-id parent-owned
+               child-ref targets
+               :when (not= parent-id child-ref)]
+           {:slot-key slot-key
+            :parent-id parent-id
+            :child-ref child-ref})
+         (for [parent-id scoped-parents
+               child-ref targets
+               :when (not= parent-id child-ref)]
+           {:slot-key slot-key
+            :parent-id parent-id
+            :child-ref child-ref
+            :value-only? true}))
+        output-exports
+        (when (external-output-cell? parent-net child-net cell-id)
+          (for [child-ref targets]
+            {:slot-key slot-key
+             :collection-id cell-id
+             :child-ref child-ref}))]
+    (concat parent-exports output-exports)))
+
+(defn- neighbor-child-accessor-exports
+  [parent-net child-net]
+  (let [accessor-values (vec (child-accessor-values child-net))
+        local-scopes (local-scope-index child-net)]
+    (mapcat
+     (fn [[cell-id accessor-value]]
+       (mapcat #(neighbor-slot-exports parent-net
+                                       child-net
+                                       local-scopes
+                                       cell-id
+                                       accessor-value
+                                       %)
+               (sort-by pr-str (obj/accessor-slot-keys accessor-value))))
+     accessor-values)))
+
 (defn- collection-cell-value
   [parent-net collection-id]
   (cell-strongest-value (get (net/net-env parent-net) collection-id)))
+
+(defn- child-ref-value
+  [child-net child-ref]
+  (cond
+    (ids/node-id? child-ref)
+    (cell-strongest-value (get (net/net-env child-net) child-ref))
+
+    (scoped/address? child-ref)
+    (let [route (net/network-dict-entry child-net child-ref)]
+      (or
+       (case (first route)
+         :dispatch/local
+         (cell-strongest-value (get (net/net-env child-net) (second route)))
+
+         :dispatch/subenv
+         (let [[_ owner-id local-id] route
+               owner-net (cell-strongest-value (get (net/net-env child-net)
+                                                    owner-id))]
+           (when (net/net? owner-net)
+             (cell-strongest-value (get (net/net-env owner-net) local-id))))
+
+         nil)
+       (when (and (vector? child-ref)
+                  (= :env/cell-ref (first child-ref)))
+         (cell-strongest-value (get (net/net-env child-net)
+                                    (nth child-ref 2))))))
+
+    :else
+    nil))
+
+(defn- parent-already-has?
+  [parent-net parent-id v]
+  (= v (cell-strongest-value (get (net/net-env parent-net) parent-id))))
+
+(defn- parent-messageable?
+  [parent-net parent-id]
+  (or (parent-owned-id? parent-net parent-id)
+      (and (scoped/address? parent-id)
+           (contains? (net/net-dict-or-empty parent-net) parent-id))))
 
 (defn- collection-cell-ids-for-parent
   [parent-net slot-key parent-id]
@@ -221,6 +317,7 @@
 (defn- accumulated-export-messages
   [parent-net exports]
   (->> exports
+       (remove :value-only?)
        (mapcat (fn [{:keys [slot-key child-ref] :as export}]
                  (for [collection-id (export-collection-ids parent-net export)
                        :when (declaration-missing? parent-net
@@ -232,6 +329,19 @@
        (mapv (fn [[collection-id slot-key child-ref]]
                (message collection-id
                         (obj/accessor-declaration slot-key child-ref))))))
+
+(defn- accumulated-export-value-messages
+  [parent-net child-net exports]
+  (->> exports
+       (keep (fn [{:keys [parent-id child-ref]}]
+               (when (parent-messageable? parent-net parent-id)
+                 (let [v (child-ref-value child-net child-ref)]
+                   (when-not (or (nil? v)
+                                 (and (parent-owned-id? parent-net parent-id)
+                                      (parent-already-has? parent-net parent-id v)))
+                     (message parent-id v))))))
+       distinct
+       vec))
 
 (defn direct-child-accessor-messages
   "Return parent-cell messages that publish direct child scoped accessors.
@@ -261,6 +371,14 @@
                                                accessor-values
                                                scope-local-index)))
              (sort-by pr-str scopes)))))
+
+(defn direct-child-accessor-messages-for-neighbors
+  [parent-net child-net]
+  (let [exports (vec (neighbor-child-accessor-exports parent-net child-net))]
+    (vec
+     (concat
+      (accumulated-export-messages parent-net exports)
+      (accumulated-export-value-messages parent-net child-net exports)))))
 
 (defn p:publish-child-accessors
   "Publish direct child accessor exports as ordinary parent-cell messages."

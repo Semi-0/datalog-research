@@ -788,6 +788,99 @@ clojure -M:test
 
 Result: `1358 pass, 0 fail, 0 error`.
 
+Neighbor-scope follow-up on `2026-06-23`:
+
+- Accumulating GUR now uses
+  `direct-child-accessor-messages-for-neighbors` instead of the older
+  all-scopes publication path. The publisher derives target scoped refs from
+  the accessor's neighboring parent ids, then asks the lexical env routing
+  metadata which scopes bind those locals.
+- `bind-in-scope` now maintains `[:env/local-scopes]` as monotone routing
+  metadata. That keeps the neighbor publisher from rebuilding `local-id ->
+  scopes` by scanning all scoped bindings every publication pass. This is
+  network declaration metadata, not cell content and not executor cursor state.
+- Instrumented depth-15 mapper run:
+  `{:scope-sweep-calls 0, :neighbor-publisher-calls 45}`. Replacing the
+  `maybe-register-subenv` enumeration check with a direct `[:env/scopes]`
+  presence check reduced remaining `env/scoped-bindings` calls from `3001` to
+  `315`; the remaining calls are from actual subenv route registration.
+- Benchmark with `clojure -M:gur-accumulating-bench 1 3` remained correct and
+  beat the scoped-cache snapshot in this local run:
+
+  | Scenario | Median |
+  | --- | ---: |
+  | mapper chain depth `5` | `457.824 ms` |
+  | mapper chain depth `10` | `634.461 ms` |
+  | mapper chain depth `15` | `837.357 ms` |
+  | filter chain depth `5` | `432.324 ms` |
+  | filter chain depth `10` | `651.987 ms` |
+- Full correctness after this follow-up:
+  `clojure -M:test` -> `1361 pass, 0 fail, 0 error`.
+
+Relational map-list experiment on `2026-06-23`:
+
+- A test-only `relational-id-map-list` declares list shape as a relation:
+  `in.car <-> out.car` and `in.cdr <-> out.cdr`. It uses `obj/p:car`,
+  `obj/p:cdr`, and bidirectional `p:id`; it does not materialize the list.
+- Output-side accessor update now flows back to the input head for that
+  same-owner relation. The focused test writes `9` through `out.car` and reads
+  `9` from the original input head cell.
+- Marked bidirectional closure apply now works for the identity mapper case:
+  `map-list` with a `:bidirectional?` identity mapper receives `out.car = 9`
+  and propagates `9` back to the source head. The mapper frame is allowed to
+  build from output information only when the closure is explicitly marked
+  bidirectional; unmarked reduce/filter apply keeps the old all-args-ready
+  rule.
+- Follow-up same-parent HOP chain test now passes for bidirectional mapper
+  backflow at depths `2` and `5`: writing `9` through the final output `car`
+  propagates to the original unseeded source head without materializing the
+  list. A test-only invertible arithmetic mapper also passes at depth `5`:
+  forward is `*2`, reverse is `/2`, and writing final output `32` propagates
+  source head `1`.
+- The fixes were value publication alongside neighbor accessor declaration
+  publication, boundary projection for imported args, and output-sensitive
+  frame creation for marked bidirectional closures. The accumulating runner
+  still emits messages only; cell merge still owns accessor topology
+  refinement.
+- The actual cross-owner gap was narrower than the earlier hypothesis:
+  one owner could propagate `out.car = 9` through the mapper, but sibling owner
+  publication treated scoped parent ids only as child refs, never as message
+  destinations. Scoped parent ids are now value-only destinations. They do not
+  install extra accessor declarations.
+- Accessor-network merge optimization follow-up: `refine-accessor-network`
+  no longer calls `ensure-accessor-route` once per parent, because that made
+  each slot re-scan all parents for every parent. It now ensures canonical
+  topology once per slot and then installs each parent avatar/sync once.
+  Existing sync markers also short-circuit graph rechecks.
+- Latest local `clojure -M:gur-accumulating-bench 1 3` after this optimization:
+
+  | Scenario | Median |
+  | --- | ---: |
+  | mapper chain depth `5` | `401.806 ms` |
+  | mapper chain depth `10` | `630.268 ms` |
+  | mapper chain depth `15` | `886.260 ms` |
+  | filter chain depth `5` | `370.726 ms` |
+  | filter chain depth `10` | `598.193 ms` |
+- Instrumented merge route evidence:
+  `[:accessor-network :accessor-network]` on mapper depth `15` dropped from
+  about `539 ms` to `261 ms`; filter depth `10` dropped from about `158 ms` to
+  `99 ms`. Plain `[:named-network :named-network]` remained much smaller.
+- Full correctness after this follow-up:
+  `clojure -M:test` -> `1371 pass, 0 fail, 0 error`.
+
+Compound-scope-object experiment on `2026-06-23`:
+
+- A test-only installer can mirror a frame binding into a compound-object scope
+  cell and read it back through `obj/p:slot`, without materializing the scope
+  object. The focused test `accumulating-gur-can-read-frame-binding-through-
+  compound-scope` returns `42` and verifies that the scope cell strongest value
+  is an accessor network.
+- Making this mirror default for every accumulating frame was rejected by
+  measurement: the same benchmark shape regressed to roughly
+  `map depth 15 = 7361.628 ms` and `filter depth 10 = 5617.073 ms`. The current
+  code keeps it opt-in as evidence that scope-as-compound-object is possible,
+  not as the default routing substrate.
+
 Legacy comparison caveat: `clojure -M:gur-subenv-bench` currently completes the
 end-to-end sub-env rows but fails its incremental late-update result checks.
 That benchmark is retained as evidence for the older sub-env path, not used as
