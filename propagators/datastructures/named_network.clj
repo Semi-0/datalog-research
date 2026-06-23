@@ -98,20 +98,51 @@
     (= a b) a
     :else b))
 
+(defn- scope-source-content?
+  [x]
+  (boolean
+   (when-let [scope-content?
+              (requiring-resolve
+               'propagators.datastructures.scope-source/scope-content?)]
+     (scope-content? x))))
+
+(defn- scope-source-mergeable?
+  [x]
+  (or (value/nothing? x)
+      (scope-source-content? x)))
+
+(defn- merge-scope-source-entry
+  [a-entry b-entry]
+  (let [a-content (cell/cell-content a-entry)
+        b-content (cell/cell-content b-entry)]
+    (when (and (scope-source-mergeable? a-content)
+               (scope-source-mergeable? b-content)
+               (or (scope-source-content? a-content)
+                   (scope-source-content? b-content)))
+      (let [merge-content
+            (requiring-resolve
+             'propagators.datastructures.scope-source/merge-content)
+            strongest-value
+            (requiring-resolve
+             'propagators.datastructures.scope-source/strongest-value)
+            merged (merge-content a-content b-content)]
+        (cell/cell merged (strongest-value merged))))))
+
 (defn- merge-entry [a-entry b-entry]
   (cond
     (nil? a-entry) b-entry
     (nil? b-entry) a-entry
 
     (and (cell/cell? a-entry) (cell/cell? b-entry))
-    (let [a-strong (cell/cell-strongest a-entry)
-          b-strong (cell/cell-strongest b-entry)
-          strongest (cond
-                      (= true (value->= a-strong b-strong)) a-strong
-                      (= true (value->= b-strong a-strong)) b-strong
-                      (and (b/bool4? a-strong) (b/bool4? b-strong)) (b/join a-strong b-strong)
-                      :else value/contradiction)]
-      (cell/cell strongest strongest))
+    (or (merge-scope-source-entry a-entry b-entry)
+        (let [a-strong (cell/cell-strongest a-entry)
+              b-strong (cell/cell-strongest b-entry)
+              strongest (cond
+                          (= true (value->= a-strong b-strong)) a-strong
+                          (= true (value->= b-strong a-strong)) b-strong
+                          (and (b/bool4? a-strong) (b/bool4? b-strong)) (b/join a-strong b-strong)
+                          :else value/contradiction)]
+          (cell/cell strongest strongest)))
 
     (= a-entry b-entry)
     a-entry
