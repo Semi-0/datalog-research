@@ -1099,8 +1099,8 @@ fast paths:
 - Diagnostic command:
   `clojure -M -m graph.gur-mapper-topology-draw 15 15
   propagators/doc/generated/gur/gur-map-depth summary-only`.
-- The diagnostic is opt-in. `runner/*phase-observer*`,
-  `runner/*prop-run-observer*`, and
+- The diagnostic is opt-in. `runner.instrumentation/*phase-observer*`,
+  `runner.instrumentation/*prop-run-observer*`, and
   `network-slot/*network-slot-observer*` collect evidence for the graph tool;
   normal propagation semantics do not read those events.
 - Current topology size remains bounded for the HOP shape:

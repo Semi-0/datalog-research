@@ -7,6 +7,7 @@
   - source DSL helpers are only syntax over that declaration/evaluation split.
   "
   (:require [propagators.gur.accumulating.core :as core]
+            [propagators.gur.accumulating.facts :as facts]
             [propagators.gur.accumulating.runner :as runner]
             [propagators.gur.accumulating.source :as source]
             [propagators.ids :as ids]
@@ -14,15 +15,15 @@
             [propagators.network-builder :as nb]))
 
 (def recursive-closure-tag core/recursive-closure-tag)
-(def frame-index-key core/frame-index-key)
-(def frame-prop-index-key core/frame-prop-index-key)
-(def task-index-key core/task-index-key)
-(def application-request-index-key core/application-request-index-key)
+(def frame-index-key facts/frame-index-key)
+(def frame-prop-index-key facts/frame-prop-index-key)
+(def task-index-key facts/task-index-key)
+(def application-request-index-key facts/application-request-index-key)
 
-(def add-task-facts core/add-task-facts)
-(def application-key core/application-key)
-(def application-request-fragment core/application-request-fragment)
-(def application-requests core/application-requests)
+(def add-task-facts facts/add-task-facts)
+(def application-key facts/application-key)
+(def application-request-fragment facts/application-request-fragment)
+(def application-requests facts/application-requests)
 (def recursive-closure core/recursive-closure)
 (def recursive-closure? core/recursive-closure?)
 (def strongest-or-nothing core/strongest-or-nothing)
@@ -58,5 +59,5 @@
                               n1)]
         [[apply-prop runner-prop]
          (net/assoc-net-dict-entry n2
-                                   (core/application-key closure-id arg-ids out-id)
+                                   (facts/application-key closure-id arg-ids out-id)
                                    applied-net-id)]))))
