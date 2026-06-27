@@ -123,6 +123,20 @@ depth-15 bar, while still not claiming the older sub-`100 ms` target. On
 Full regression after the shared named-network change:
 `clojure -M:test` -> `1393 pass, 0 fail, 0 error`.
 
+The intended coordination-language framing is now narrower than "everything is
+GUR." Ordinary programs should mostly be primitive propagators, iterative
+operators, explicit behavior reducers, slots, and retained application data.
+GUR is the advanced layer for recursive declaration problems: macros, compiler
+construction, recursive AST/list traversal, recursive lexical accessor
+construction, and higher-order operators that need unbounded but idempotent
+network expansion. That makes the current accumulating-GUR performance good
+enough for prototype compiler work, while leaving long-term GC and behavior
+version retention to behavior-aware propagators and behavior merge policies.
+Compound objects are similarly scoped as structural carriers: they should
+preserve behavior/TMS-like partial-information content through slots and
+accessors, but behavior owns time/version policy and a future TMS owns support,
+justification, and retraction policy.
+
 The retained optimization keeps declaration and evaluation separate. Cell merge
 still only refines declaration facts; runner-local cursors/cache state stay in
 the executor primitive. The useful cuts were: idempotent accumulated-fragment

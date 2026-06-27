@@ -425,6 +425,14 @@ Remaining limits:
 - content-copy sync is intentionally used for demand-driven network-slot
   accessors, not as a global replacement for every primitive `p:id` relation.
 
+This is also the intended responsibility boundary. Compound objects are the
+structural carrier for behavior values: they own slots, accessors, and
+bidirectional structural sync. They must preserve retained behavior content and
+source evidence when behavior values move through slots. They do not need to
+implement behavior reactivity internally. Time/version retention, latest
+projection, windowing, and dominant-source replacement remain behavior reducer
+and behavior merge policy.
+
 ## Kernel Boundary
 
 This design intentionally does not change `propagators/core.clj`.

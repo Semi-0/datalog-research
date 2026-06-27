@@ -1374,7 +1374,8 @@ Current behavior is covered by:
 - `test/propagators/gur_accumulating_test.clj` for the parallel accumulating
   GUR experiment: scalar/list parity, nested map, late cdr routing through one
   owner, topology/idempotence checks, compiler-2 linked-list lexical access,
-  and the known same-parent HOP-chain handoff gap.
+  true `obj/p:cons` same-parent HOP mapper depths `5/10/15`, filter depths
+  `5/10`, and late cdr propagation through chained mapper outputs.
 - Manual `2026-06-21` accessor-hop smoke over public `obj/p:cons` linked-list
   topology, which kept the source unmaterialized: filter reached `10` hops,
   while Fibonacci map passed through `7` hops and stalled before `8`.
@@ -1394,11 +1395,10 @@ Current behavior is covered by:
 - replace the remaining post-build direct accessor inference with contextual
   lexical slot accessors or a reusable boundary relation;
 - extend the GUR benchmark harness when dynamic map/vector slots land;
-- decide whether the map blow-up should be fixed by memoizing applied recursive
-  frame facts, declaration-first map expansion, or a cheaper mapper/output
-  assembly path before claiming 8-10 hop map support;
-- fix accumulating GUR's inter-owner accessor handoff before claiming 5/10/15
-  mapper-chain or 5/10 filter-chain parity;
+- keep optimizing accumulating GUR without moving scheduler/runtime cursors into
+  recursive semantics; current HOP support is correct for the tested `obj/p:cons`
+  mapper/filter chains, but still uses broad boundary/mailbox scheduling plus
+  runner-local caches;
 - lift the compiler-2/GUR linked-list probe from one hard-coded declaration form
   to dynamic operator dispatch and recursive lexical-accessor construction;
 - derive compact route declarations so compile-2 does not emit verbose frame
