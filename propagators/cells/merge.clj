@@ -243,10 +243,12 @@
 
 (defn cell-merge
   [content update network]
-  (let [protocol-result (protocol-cell-merge content update network)]
-    (if (protocol-handled? protocol-result)
-      (protocol-handled-value protocol-result)
-      (built-in-cell-merge content update network))))
+  (if (= content update)
+    content
+    (let [protocol-result (protocol-cell-merge content update network)]
+      (if (protocol-handled? protocol-result)
+        (protocol-handled-value protocol-result)
+        (built-in-cell-merge content update network)))))
 
 (def generic-merge cell-merge)
 

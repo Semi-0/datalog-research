@@ -327,6 +327,14 @@
 (defn- eval-do [ctx [_ & body]]
   (eval-seq ctx body))
 
+(declare eval-output-expr)
+
+(defn- eval-output-seq [ctx exprs out-id]
+  (if (seq exprs)
+    (let [[ctx' _] (eval-seq ctx (butlast exprs))]
+      (eval-output-expr ctx' (last exprs) out-id))
+    (throw (ex-info "output expression requires a body" {:out-id out-id}))))
+
 (defn- eval-bind [ctx [_ expr sym]]
   (when-not (symbol? sym)
     (throw (ex-info "-> target must be a symbol" {:target sym})))
@@ -397,6 +405,17 @@
                           (fresh-cell ctx''))]
     (install-output-call ctx''' 'prop/switch [value-id condition-id] out-id)))
 
+(defn- eval-output-direct-application [ctx form out-id]
+  (let [[op & args] form
+        [ctx' argv]
+        (reduce
+         (fn [[ctx values] arg]
+           (let [[ctx' v] (eval-cell-expr ctx arg)]
+             [ctx' (conj values v)]))
+         [ctx []]
+         args)]
+    (install-output-call ctx' op argv out-id)))
+
 (defn- eval-when [ctx [_ condition-expr & body]]
   (when-not (seq body)
     (throw (ex-info "when expects a condition and at least one body expression"
@@ -419,6 +438,66 @@
 
 (defn- install-conditional-output [ctx condition-id value-id out-id]
   (install-output-call ctx 'prop/switch [value-id condition-id] out-id))
+
+(defn- eval-output-expr
+  [ctx expr out-id]
+  (cond
+    (and (seq? expr) (= 'do (first expr)))
+    (eval-output-seq ctx (rest expr) out-id)
+
+    (and (seq? expr) (= 'let (first expr)))
+    (let [[_ bindings & body] expr]
+      (when-not (vector? bindings)
+        (throw (ex-info "let expects a vector of bindings" {:bindings bindings})))
+      (when (odd? (count bindings))
+        (throw (ex-info "let expects symbol/expression pairs"
+                        {:bindings bindings})))
+      (let [pairs (vec (partition 2 bindings))
+            [last-sym last-expr] (peek pairs)]
+        (if (and (seq body)
+                 (= last-sym (last body)))
+          (let [[ctx' _]
+                (reduce
+                 (fn [[ctx _] [sym expr]]
+                   (when-not (symbol? sym)
+                     (throw (ex-info "let binding name must be a symbol"
+                                     {:binding sym})))
+                   (let [[ctx' value] (eval-expr ctx expr)]
+                     [(bind-symbol-to-value ctx' sym value) value]))
+                 [ctx nil]
+                 (pop pairs))
+                [ctx'' _] (eval-output-expr ctx' last-expr out-id)
+                ctx''' (bind-symbol-to-value ctx'' last-sym out-id)
+                [ctx'''' _] (eval-seq ctx''' (butlast body))]
+            [(assoc ctx'''' :value out-id) out-id])
+          (let [[ctx' _]
+                (reduce
+                 (fn [[ctx _] [sym expr]]
+                   (when-not (symbol? sym)
+                     (throw (ex-info "let binding name must be a symbol"
+                                     {:binding sym})))
+                   (let [[ctx' value] (eval-expr ctx expr)]
+                     [(bind-symbol-to-value ctx' sym value) value]))
+                 [ctx nil]
+                 pairs)]
+            (eval-output-seq ctx' body out-id)))))
+
+    (and (seq? expr) (= 'let-cell (first expr)))
+    (let [[_ syms & body] expr
+          ctx' (reduce
+                (fn [ctx sym]
+                  (bind-fresh-cell ctx sym))
+                ctx
+                syms)]
+      (eval-output-seq ctx' body out-id))
+
+    (and (seq? expr)
+         (not (contains? '#{let-cell -> seed switch when cond} (first expr))))
+    (eval-output-direct-application ctx expr out-id)
+
+    :else
+    (let [[ctx' value-id] (eval-cell-expr ctx expr)]
+      (install-unconditional-output ctx' value-id out-id))))
 
 (defn- effective-condition [ctx prior-match-id condition-id]
   (if prior-match-id
@@ -524,6 +603,17 @@
   "Evaluate one network expression after binding symbols into network `n`."
   [n installers sym->value expr]
   (eval-net (bind-vars n sym->value) installers expr))
+
+(defn eval-net-output-with-bindings
+  "Evaluate expression `expr` after binding symbols into `n`, wiring the final
+  value into existing cell `out-id` when the final expression can target output
+  directly. Falls back to a `p:id` bridge for complex expression values."
+  [n installers sym->value expr out-id]
+  (let [[ctx value] (eval-output-expr (ctx0 (bind-vars n sym->value)
+                                            installers)
+                                      expr
+                                      out-id)]
+    (assoc ctx :value value)))
 
 (defn eval-layered
   "Evaluate one network expression with an explicit installer map and pre-bound symbols.

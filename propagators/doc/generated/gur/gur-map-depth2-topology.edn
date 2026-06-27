@@ -1,0 +1,1329 @@
+{:edges
+ [["top:n1" "top:n11"]
+  ["top:n2" "top:n6"]
+  ["top:n2" "top:n14"]
+  ["top:n2" "top:n26"]
+  ["top:n3" "top:n1"]
+  ["top:n3" "top:n8"]
+  ["top:n3" "top:n18"]
+  ["top:n3" "top:n19"]
+  ["top:n4" "top:n19"]
+  ["top:n5" "top:n30"]
+  ["top:n6" "top:n2"]
+  ["top:n6" "top:n7"]
+  ["top:n7" "top:n6"]
+  ["top:n8" "top:n4"]
+  ["top:n9" "top:n21"]
+  ["top:n9" "top:n22"]
+  ["top:n10" "top:n1"]
+  ["top:n10" "top:n8"]
+  ["top:n10" "top:n18"]
+  ["top:n10" "top:n19"]
+  ["top:n11" "top:n18"]
+  ["top:n12" "top:n22"]
+  ["top:n12" "top:n25"]
+  ["top:n13" "top:n23"]
+  ["top:n13" "top:n25"]
+  ["top:n14" "top:n2"]
+  ["top:n14" "top:n29"]
+  ["top:n15" "top:n1"]
+  ["top:n15" "top:n8"]
+  ["top:n15" "top:n18"]
+  ["top:n15" "top:n19"]
+  ["top:n16" "top:n1"]
+  ["top:n16" "top:n18"]
+  ["top:n17" "top:n23"]
+  ["top:n17" "top:n28"]
+  ["top:n18" "top:n3"]
+  ["top:n18" "top:n10"]
+  ["top:n18" "top:n11"]
+  ["top:n18" "top:n15"]
+  ["top:n18" "top:n16"]
+  ["top:n18" "top:n24"]
+  ["top:n19" "top:n3"]
+  ["top:n19" "top:n4"]
+  ["top:n19" "top:n10"]
+  ["top:n19" "top:n15"]
+  ["top:n19" "top:n23"]
+  ["top:n19" "top:n24"]
+  ["top:n20" "top:n31"]
+  ["top:n21" "top:n9"]
+  ["top:n21" "top:n26"]
+  ["top:n21" "top:n30"]
+  ["top:n22" "top:n9"]
+  ["top:n22" "top:n12"]
+  ["top:n22" "top:n31"]
+  ["top:n23" "top:n8"]
+  ["top:n23" "top:n13"]
+  ["top:n23" "top:n17"]
+  ["top:n23" "top:n19"]
+  ["top:n24" "top:n1"]
+  ["top:n24" "top:n8"]
+  ["top:n24" "top:n18"]
+  ["top:n24" "top:n19"]
+  ["top:n25" "top:n12"]
+  ["top:n25" "top:n13"]
+  ["top:n25" "top:n27"]
+  ["top:n26" "top:n2"]
+  ["top:n26" "top:n21"]
+  ["top:n27" "top:n25"]
+  ["top:n27" "top:n32"]
+  ["top:n28" "top:n17"]
+  ["top:n29" "top:n14"]
+  ["top:n30" "top:n5"]
+  ["top:n30" "top:n21"]
+  ["top:n31" "top:n20"]
+  ["top:n31" "top:n22"]
+  ["top:n32" "top:n27"]
+  ["owner1:n1" "owner1:n8"]
+  ["owner1:n1" "owner1:n102"]
+  ["owner1:n2" "owner1:n31"]
+  ["owner1:n2" "owner1:n105"]
+  ["owner1:n3" "owner1:n73"]
+  ["owner1:n4" "owner1:n39"]
+  ["owner1:n5" "owner1:n4"]
+  ["owner1:n5" "owner1:n87"]
+  ["owner1:n7" "owner1:n33"]
+  ["owner1:n8" "owner1:n1"]
+  ["owner1:n8" "owner1:n38"]
+  ["owner1:n9" "owner1:n33"]
+  ["owner1:n10" "owner1:n77"]
+  ["owner1:n11" "owner1:n51"]
+  ["owner1:n11" "owner1:n52"]
+  ["owner1:n11" "owner1:n85"]
+  ["owner1:n11" "owner1:n87"]
+  ["owner1:n11" "owner1:n93"]
+  ["owner1:n12" "owner1:n82"]
+  ["owner1:n13" "owner1:n76"]
+  ["owner1:n14" "owner1:n33"]
+  ["owner1:n15" "owner1:n19"]
+  ["owner1:n15" "owner1:n89"]
+  ["owner1:n16" "owner1:n22"]
+  ["owner1:n16" "owner1:n27"]
+  ["owner1:n17" "owner1:n52"]
+  ["owner1:n17" "owner1:n81"]
+  ["owner1:n18" "owner1:n35"]
+  ["owner1:n18" "owner1:n46"]
+  ["owner1:n19" "owner1:n15"]
+  ["owner1:n19" "owner1:n48"]
+  ["owner1:n19" "owner1:n57"]
+  ["owner1:n20" "owner1:n44"]
+  ["owner1:n22" "owner1:n16"]
+  ["owner1:n22" "owner1:n69"]
+  ["owner1:n22" "owner1:n98"]
+  ["owner1:n23" "owner1:n25"]
+  ["owner1:n23" "owner1:n58"]
+  ["owner1:n24" "owner1:n7"]
+  ["owner1:n24" "owner1:n45"]
+  ["owner1:n25" "owner1:n23"]
+  ["owner1:n25" "owner1:n59"]
+  ["owner1:n25" "owner1:n86"]
+  ["owner1:n26" "owner1:n61"]
+  ["owner1:n26" "owner1:n67"]
+  ["owner1:n27" "owner1:n16"]
+  ["owner1:n27" "owner1:n106"]
+  ["owner1:n28" "owner1:n55"]
+  ["owner1:n28" "owner1:n79"]
+  ["owner1:n29" "owner1:n51"]
+  ["owner1:n29" "owner1:n52"]
+  ["owner1:n29" "owner1:n85"]
+  ["owner1:n29" "owner1:n87"]
+  ["owner1:n30" "owner1:n77"]
+  ["owner1:n30" "owner1:n108"]
+  ["owner1:n31" "owner1:n2"]
+  ["owner1:n31" "owner1:n67"]
+  ["owner1:n32" "owner1:n51"]
+  ["owner1:n34" "owner1:n50"]
+  ["owner1:n34" "owner1:n85"]
+  ["owner1:n35" "owner1:n33"]
+  ["owner1:n36" "owner1:n48"]
+  ["owner1:n36" "owner1:n93"]
+  ["owner1:n37" "owner1:n36"]
+  ["owner1:n38" "owner1:n33"]
+  ["owner1:n39" "owner1:n84"]
+  ["owner1:n40" "owner1:n56"]
+  ["owner1:n40" "owner1:n88"]
+  ["owner1:n41" "owner1:n109"]
+  ["owner1:n42" "owner1:n52"]
+  ["owner1:n43" "owner1:n27"]
+  ["owner1:n44" "owner1:n95"]
+  ["owner1:n45" "owner1:n24"]
+  ["owner1:n45" "owner1:n61"]
+  ["owner1:n46" "owner1:n18"]
+  ["owner1:n46" "owner1:n102"]
+  ["owner1:n47" "owner1:n64"]
+  ["owner1:n47" "owner1:n84"]
+  ["owner1:n47" "owner1:n92"]
+  ["owner1:n48" "owner1:n19"]
+  ["owner1:n48" "owner1:n36"]
+  ["owner1:n49" "owner1:n33"]
+  ["owner1:n50" "owner1:n89"]
+  ["owner1:n51" "owner1:n33"]
+  ["owner1:n52" "owner1:n33"]
+  ["owner1:n53" "owner1:n87"]
+  ["owner1:n54" "owner1:n41"]
+  ["owner1:n54" "owner1:n51"]
+  ["owner1:n55" "owner1:n28"]
+  ["owner1:n55" "owner1:n91"]
+  ["owner1:n56" "owner1:n40"]
+  ["owner1:n56" "owner1:n106"]
+  ["owner1:n57" "owner1:n62"]
+  ["owner1:n58" "owner1:n23"]
+  ["owner1:n59" "owner1:n25"]
+  ["owner1:n59" "owner1:n76"]
+  ["owner1:n60" "owner1:n78"]
+  ["owner1:n60" "owner1:n108"]
+  ["owner1:n61" "owner1:n49"]
+  ["owner1:n61" "owner1:n85"]
+  ["owner1:n61" "owner1:n91"]
+  ["owner1:n64" "owner1:n47"]
+  ["owner1:n64" "owner1:n101"]
+  ["owner1:n65" "owner1:n101"]
+  ["owner1:n66" "owner1:n67"]
+  ["owner1:n66" "owner1:n88"]
+  ["owner1:n67" "owner1:n14"]
+  ["owner1:n67" "owner1:n26"]
+  ["owner1:n67" "owner1:n87"]
+  ["owner1:n68" "owner1:n65"]
+  ["owner1:n69" "owner1:n17"]
+  ["owner1:n70" "owner1:n85"]
+  ["owner1:n73" "owner1:n13"]
+  ["owner1:n75" "owner1:n96"]
+  ["owner1:n76" "owner1:n59"]
+  ["owner1:n76" "owner1:n105"]
+  ["owner1:n77" "owner1:n30"]
+  ["owner1:n77" "owner1:n38"]
+  ["owner1:n78" "owner1:n60"]
+  ["owner1:n79" "owner1:n28"]
+  ["owner1:n79" "owner1:n93"]
+  ["owner1:n81" "owner1:n58"]
+  ["owner1:n82" "owner1:n43"]
+  ["owner1:n83" "owner1:n99"]
+  ["owner1:n84" "owner1:n39"]
+  ["owner1:n84" "owner1:n47"]
+  ["owner1:n85" "owner1:n33"]
+  ["owner1:n86" "owner1:n5"]
+  ["owner1:n87" "owner1:n33"]
+  ["owner1:n88" "owner1:n9"]
+  ["owner1:n88" "owner1:n52"]
+  ["owner1:n88" "owner1:n66"]
+  ["owner1:n89" "owner1:n15"]
+  ["owner1:n90" "owner1:n54"]
+  ["owner1:n91" "owner1:n55"]
+  ["owner1:n91" "owner1:n61"]
+  ["owner1:n92" "owner1:n34"]
+  ["owner1:n93" "owner1:n33"]
+  ["owner1:n95" "owner1:n37"]
+  ["owner1:n96" "owner1:n68"]
+  ["owner1:n97" "owner1:n88"]
+  ["owner1:n97" "owner1:n102"]
+  ["owner1:n98" "owner1:n22"]
+  ["owner1:n98" "owner1:n109"]
+  ["owner1:n99" "owner1:n103"]
+  ["owner1:n100" "owner1:n3"]
+  ["owner1:n101" "owner1:n7"]
+  ["owner1:n101" "owner1:n64"]
+  ["owner1:n102" "owner1:n51"]
+  ["owner1:n102" "owner1:n97"]
+  ["owner1:n102" "owner1:n110"]
+  ["owner1:n103" "owner1:n10"]
+  ["owner1:n105" "owner1:n33"]
+  ["owner1:n106" "owner1:n33"]
+  ["owner1:n107" "owner1:n12"]
+  ["owner1:n108" "owner1:n30"]
+  ["owner1:n108" "owner1:n60"]
+  ["owner1:n108" "owner1:n90"]
+  ["owner1:n109" "owner1:n98"]
+  ["owner1:n110" "owner1:n33"]
+  ["owner2:n1" "owner2:n20"]
+  ["owner2:n1" "owner2:n25"]
+  ["owner2:n2" "owner2:n7"]
+  ["owner2:n5" "owner2:n2"]
+  ["owner2:n5" "owner2:n21"]
+  ["owner2:n5" "owner2:n33"]
+  ["owner2:n5" "owner2:n64"]
+  ["owner2:n5" "owner2:n112"]
+  ["owner2:n6" "owner2:n85"]
+  ["owner2:n6" "owner2:n117"]
+  ["owner2:n8" "owner2:n2"]
+  ["owner2:n8" "owner2:n27"]
+  ["owner2:n10" "owner2:n71"]
+  ["owner2:n11" "owner2:n2"]
+  ["owner2:n12" "owner2:n7"]
+  ["owner2:n13" "owner2:n60"]
+  ["owner2:n13" "owner2:n113"]
+  ["owner2:n14" "owner2:n50"]
+  ["owner2:n14" "owner2:n118"]
+  ["owner2:n16" "owner2:n21"]
+  ["owner2:n16" "owner2:n55"]
+  ["owner2:n17" "owner2:n67"]
+  ["owner2:n17" "owner2:n89"]
+  ["owner2:n18" "owner2:n95"]
+  ["owner2:n19" "owner2:n7"]
+  ["owner2:n20" "owner2:n39"]
+  ["owner2:n20" "owner2:n54"]
+  ["owner2:n20" "owner2:n112"]
+  ["owner2:n21" "owner2:n7"]
+  ["owner2:n22" "owner2:n83"]
+  ["owner2:n23" "owner2:n53"]
+  ["owner2:n23" "owner2:n90"]
+  ["owner2:n24" "owner2:n88"]
+  ["owner2:n25" "owner2:n1"]
+  ["owner2:n25" "owner2:n118"]
+  ["owner2:n26" "owner2:n109"]
+  ["owner2:n27" "owner2:n58"]
+  ["owner2:n28" "owner2:n35"]
+  ["owner2:n28" "owner2:n48"]
+  ["owner2:n29" "owner2:n64"]
+  ["owner2:n29" "owner2:n78"]
+  ["owner2:n30" "owner2:n102"]
+  ["owner2:n30" "owner2:n112"]
+  ["owner2:n31" "owner2:n22"]
+  ["owner2:n32" "owner2:n59"]
+  ["owner2:n33" "owner2:n7"]
+  ["owner2:n34" "owner2:n7"]
+  ["owner2:n35" "owner2:n28"]
+  ["owner2:n35" "owner2:n47"]
+  ["owner2:n37" "owner2:n91"]
+  ["owner2:n37" "owner2:n101"]
+  ["owner2:n38" "owner2:n99"]
+  ["owner2:n39" "owner2:n20"]
+  ["owner2:n39" "owner2:n60"]
+  ["owner2:n40" "owner2:n79"]
+  ["owner2:n40" "owner2:n108"]
+  ["owner2:n41" "owner2:n32"]
+  ["owner2:n42" "owner2:n2"]
+  ["owner2:n42" "owner2:n33"]
+  ["owner2:n42" "owner2:n64"]
+  ["owner2:n42" "owner2:n112"]
+  ["owner2:n43" "owner2:n14"]
+  ["owner2:n44" "owner2:n112"]
+  ["owner2:n45" "owner2:n70"]
+  ["owner2:n45" "owner2:n85"]
+  ["owner2:n46" "owner2:n26"]
+  ["owner2:n47" "owner2:n35"]
+  ["owner2:n47" "owner2:n95"]
+  ["owner2:n47" "owner2:n120"]
+  ["owner2:n48" "owner2:n7"]
+  ["owner2:n49" "owner2:n30"]
+  ["owner2:n50" "owner2:n14"]
+  ["owner2:n50" "owner2:n79"]
+  ["owner2:n51" "owner2:n21"]
+  ["owner2:n51" "owner2:n110"]
+  ["owner2:n52" "owner2:n58"]
+  ["owner2:n52" "owner2:n82"]
+  ["owner2:n53" "owner2:n23"]
+  ["owner2:n53" "owner2:n34"]
+  ["owner2:n54" "owner2:n7"]
+  ["owner2:n55" "owner2:n16"]
+  ["owner2:n55" "owner2:n82"]
+  ["owner2:n56" "owner2:n24"]
+  ["owner2:n58" "owner2:n52"]
+  ["owner2:n59" "owner2:n32"]
+  ["owner2:n59" "owner2:n91"]
+  ["owner2:n60" "owner2:n33"]
+  ["owner2:n60" "owner2:n84"]
+  ["owner2:n60" "owner2:n98"]
+  ["owner2:n62" "owner2:n29"]
+  ["owner2:n63" "owner2:n65"]
+  ["owner2:n64" "owner2:n7"]
+  ["owner2:n66" "owner2:n117"]
+  ["owner2:n67" "owner2:n12"]
+  ["owner2:n67" "owner2:n64"]
+  ["owner2:n67" "owner2:n106"]
+  ["owner2:n68" "owner2:n38"]
+  ["owner2:n69" "owner2:n33"]
+  ["owner2:n69" "owner2:n41"]
+  ["owner2:n70" "owner2:n45"]
+  ["owner2:n71" "owner2:n111"]
+  ["owner2:n78" "owner2:n108"]
+  ["owner2:n79" "owner2:n40"]
+  ["owner2:n79" "owner2:n49"]
+  ["owner2:n79" "owner2:n50"]
+  ["owner2:n80" "owner2:n86"]
+  ["owner2:n80" "owner2:n110"]
+  ["owner2:n82" "owner2:n52"]
+  ["owner2:n82" "owner2:n55"]
+  ["owner2:n82" "owner2:n63"]
+  ["owner2:n83" "owner2:n114"]
+  ["owner2:n84" "owner2:n60"]
+  ["owner2:n84" "owner2:n90"]
+  ["owner2:n85" "owner2:n6"]
+  ["owner2:n85" "owner2:n45"]
+  ["owner2:n85" "owner2:n62"]
+  ["owner2:n86" "owner2:n80"]
+  ["owner2:n86" "owner2:n90"]
+  ["owner2:n88" "owner2:n43"]
+  ["owner2:n89" "owner2:n17"]
+  ["owner2:n89" "owner2:n100"]
+  ["owner2:n90" "owner2:n2"]
+  ["owner2:n90" "owner2:n86"]
+  ["owner2:n90" "owner2:n96"]
+  ["owner2:n91" "owner2:n37"]
+  ["owner2:n91" "owner2:n59"]
+  ["owner2:n91" "owner2:n97"]
+  ["owner2:n92" "owner2:n64"]
+  ["owner2:n93" "owner2:n68"]
+  ["owner2:n94" "owner2:n10"]
+  ["owner2:n95" "owner2:n18"]
+  ["owner2:n95" "owner2:n47"]
+  ["owner2:n96" "owner2:n7"]
+  ["owner2:n97" "owner2:n8"]
+  ["owner2:n98" "owner2:n7"]
+  ["owner2:n99" "owner2:n101"]
+  ["owner2:n100" "owner2:n7"]
+  ["owner2:n101" "owner2:n34"]
+  ["owner2:n101" "owner2:n37"]
+  ["owner2:n102" "owner2:n18"]
+  ["owner2:n104" "owner2:n33"]
+  ["owner2:n106" "owner2:n20"]
+  ["owner2:n106" "owner2:n67"]
+  ["owner2:n107" "owner2:n67"]
+  ["owner2:n107" "owner2:n119"]
+  ["owner2:n108" "owner2:n40"]
+  ["owner2:n109" "owner2:n66"]
+  ["owner2:n110" "owner2:n51"]
+  ["owner2:n110" "owner2:n80"]
+  ["owner2:n111" "owner2:n28"]
+  ["owner2:n112" "owner2:n7"]
+  ["owner2:n113" "owner2:n13"]
+  ["owner2:n113" "owner2:n48"]
+  ["owner2:n114" "owner2:n16"]
+  ["owner2:n117" "owner2:n6"]
+  ["owner2:n117" "owner2:n19"]
+  ["owner2:n118" "owner2:n7"]
+  ["owner2:n119" "owner2:n19"]
+  ["owner2:n119" "owner2:n107"]
+  ["owner2:n120" "owner2:n69"]],
+ :nodes
+ {"owner2:n81" ":owner2 n81 #:gur{:accumulati...",
+  "owner1:n72" ":owner1 :double-v....:self #:gur{:accumulati...",
+  "owner2:n96" ":owner2 when :map-list.[:... n96",
+  "owner2:n74" ":owner2 :double-v....:self #:gur{:accumulati...",
+  "owner1:n90" ":owner1 id :map-list.:map... n90",
+  "owner1:n88" ":owner1 :map-list.[:arg 0] Net",
+  "top:n31" ":top cons.car source.n... n31",
+  "top:n9" ":top cons.cdr source.n... n9",
+  "owner1:n48" ":owner1 cons.car :map-lis... n48",
+  "owner1:n27" ":owner1 :double-v....:out 4",
+  "owner1:n99" ":owner1 mul :map-list.:he... n99",
+  "owner2:n1" ":owner2 car :map-list.res... n1",
+  "owner2:n63" ":owner2 id :map-list.:map... n63",
+  "owner1:n11" ":owner1 :map-list.:mapper #:gur{:accumulati...",
+  "top:n19" ":top apply.runner map-... n19",
+  "owner2:n104" ":owner2 :map-list.:self #:gur{:accumulati...",
+  "owner2:n113" ":owner2 :map-list.:head 1",
+  "owner1:n32" ":owner1 :map-list.:self #:gur{:accumulati...",
+  "owner2:n110" ":owner2 car :map-list.[:a... n110",
+  "owner2:n12" ":owner2 when :map-list.[:... n12",
+  "owner1:n30" ":owner1 cons.car :map-lis... n30",
+  "owner1:n104" ":owner1 :double-v....:self #:gur{:accumulati...",
+  "owner1:n41" ":owner1 id :map-list.:out... n41",
+  "owner1:n59" ":owner1 cons.car :map-lis... n59",
+  "top:n24" ":top map-list-closure #:gur{:accumulati...",
+  "owner1:n73" ":owner1 n73 4",
+  "owner2:n34" ":owner2 apply :map-list.:... n34",
+  "top:n1" ":top apply.request map... n1",
+  "owner2:n28" ":owner2 :map-list.:mapped 2",
+  "owner2:n9" ":owner2 n9 1",
+  "owner1:n43" ":owner1 id cell -> :doubl... n43",
+  "owner2:n59" ":owner2 cons.cdr :map-lis... n59",
+  "owner2:n65" ":owner2 :map-list.:out Net",
+  "owner1:n60" ":owner1 cons.cdr :map-lis... n60",
+  "top:n32" ":top source.head1 1",
+  "owner2:n107" ":owner2 car :map-list.[:a... n107",
+  "owner2:n94" ":owner2 n94 2",
+  "owner1:n110" ":owner1 when :map-list.re... n110",
+  "owner2:n85" ":owner2 :map-list.:mapped-node Net",
+  "owner1:n16" ":owner1 cons.car :map-lis... n16",
+  "owner2:n72" ":owner2 :double-v....:self #:gur{:accumulati...",
+  "owner2:n17" ":owner2 cdr :map-list.[:a... n17",
+  "owner1:n58" ":owner1 :map-list.:mapped-rest Net",
+  "owner2:n33" ":owner2 recur :map-list.r... n33",
+  "owner1:n74" ":owner1 :double-v....:self #:gur{:accumulati...",
+  "owner2:n68" ":owner2 mul :map-list.:he... n68",
+  "owner2:n25" ":owner2 :double-v....[:arg 0] 1",
+  "owner1:n7" ":owner1 apply :map-list.:... n7",
+  "owner1:n86" ":owner1 id :map-list.:map... n86",
+  "owner1:n55" ":owner1 :map-list.[:arg 0] Net",
+  "owner2:n27" ":owner2 id :map-list.:out... n27",
+  "owner2:n7" ":owner2 [:env/scope [:gur/accumulat... nothing",
+  "owner1:n80" ":owner1 :double-v....:self #:gur{:accumulati...",
+  "owner2:n48" ":owner2 apply :map-list.:... n48",
+  "owner2:n114" ":owner2 id cell -> :doubl... n114",
+  "owner1:n34" ":owner1 :map-list.:out Net",
+  "owner2:n57" ":owner2 :map-list.:self #:gur{:accumulati...",
+  "owner1:n101" ":owner1 :map-list.:mapped 4",
+  "owner1:n26" ":owner1 cdr :map-list.[:a... n26",
+  "owner1:n15" ":owner1 cons.cdr :map-lis... n15",
+  "owner1:n6" ":owner1 :double-v....:self #:gur{:accumulati...",
+  "owner2:n42" ":owner2 :map-list.acc-list :graph.gur-mapper...",
+  "owner2:n18" ":owner2 :map-list.:mapped-rest Net",
+  "owner2:n31" ":owner2 n31 2",
+  "owner2:n88" ":owner2 n88 2",
+  "top:n25" ":top source.node1 Net",
+  "owner1:n91" ":owner1 cdr :map-list.[:a... n91",
+  "owner1:n45" ":owner1 car :map-list.[:a... n45",
+  "owner2:n38" ":owner2 n38 2",
+  "owner2:n6" ":owner2 cons.car :map-lis... n6",
+  "owner1:n92" ":owner1 id :map-list.:map... n92",
+  "top:n16" ":top hop2.out Net",
+  "owner2:n112" ":owner2 recur :map-list.r... n112",
+  "owner1:n85" ":owner1 recur :map-list.[... n85",
+  "owner2:n106" ":owner2 cdr :map-list.res... n106",
+  "top:n12" ":top cons.cdr source.n... n12",
+  "owner2:n99" ":owner2 id cell -> :map-l... n99",
+  "owner2:n43" ":owner2 id cell -> :doubl... n43",
+  "owner1:n24" ":owner1 :map-list.:head 2",
+  "owner1:n14" ":owner1 when :map-list.re... n14",
+  "owner1:n22" ":owner1 :map-list.:mapped-node Net",
+  "owner2:n97" ":owner2 id :map-list.:map... n97",
+  "owner2:n86" ":owner2 cdr :map-list.[:a... n86",
+  "owner2:n39" ":owner2 cdr :map-list.res... n39",
+  "owner1:n40" ":owner1 car :map-list.[:a... n40",
+  "owner2:n44" ":owner2 :map-list.:self #:gur{:accumulati...",
+  "owner1:n89" ":owner1 :map-list.:mapped-rest Net",
+  "owner1:n79" ":owner1 :double-v....[:arg 0] 2",
+  "owner2:n109" ":owner2 n109 2",
+  "top:n14" ":top cons.cdr source.n... n14",
+  "owner1:n93" ":owner1 apply :map-list.:... n93",
+  "owner1:n100" ":owner1 n100 2",
+  "owner2:n55" ":owner2 cons.car :map-lis... n55",
+  "owner2:n36" ":owner2 n36 nothing",
+  "top:n17" ":top cons.car source.n... n17",
+  "owner1:n5" ":owner1 :map-list.:out Net",
+  "top:n10" ":top acc-list :graph.gur-mapper...",
+  "owner1:n3" ":owner1 mul :double-v....... n3",
+  "owner1:n68" ":owner1 n68 4",
+  "top:n20" ":top source.head2 1",
+  "owner1:n50" ":owner1 id :map-list.:out... n50",
+  "owner2:n22" ":owner2 mul :double-v....... n22",
+  "owner1:n63" ":owner1 :map-list.:self #:gur{:accumulati...",
+  "owner2:n62" ":owner2 id :map-list.:map... n62",
+  "owner2:n19" ":owner2 apply :map-list.:... n19",
+  "owner2:n3" ":owner2 n3 Net",
+  "owner2:n98" ":owner2 when :map-list.re... n98",
+  "owner1:n20" ":owner1 n20 2",
+  "top:n15" ":top hop1.out Net",
+  "owner2:n67" ":owner2 :map-list.[:arg 0] Net",
+  "top:n2" ":top source.node4 Net",
+  "top:n6" ":top cons.car source.n... n6",
+  "owner1:n42" ":owner1 :map-list.:self #:gur{:accumulati...",
+  "owner2:n53" ":owner2 :map-list.:head 1",
+  "owner1:n75" ":owner1 n75 2",
+  "owner2:n70" ":owner2 :map-list.:mapped-rest nothing",
+  "owner2:n23" ":owner2 car :map-list.[:a... n23",
+  "owner2:n83" ":owner2 n83 2",
+  "owner2:n89" ":owner2 :map-list.rest nothing",
+  "owner2:n37" ":owner2 cons.car :map-lis... n37",
+  "owner2:n117" ":owner2 :map-list.:mapped 2",
+  "owner2:n52" ":owner2 cons.cdr :map-lis... n52",
+  "top:n22" ":top source.node2 Net",
+  "owner1:n46" ":owner1 cdr :map-list.res... n46",
+  "owner2:n58" ":owner2 :map-list.:mapped-rest Net",
+  "owner1:n44" ":owner1 mul :double-v....... n44",
+  "owner1:n56" ":owner1 :double-v....[:arg 0] 2",
+  "owner2:n15" ":owner2 n15 1",
+  "top:n18" ":top apply.runner map-... n18",
+  "owner2:n35" ":owner2 cons.car :map-lis... n35",
+  "owner2:n90" ":owner2 :map-list.[:arg 0] Net",
+  "owner1:n82" ":owner1 n82 4",
+  "owner1:n108" ":owner1 :map-list.:mapped-node Net",
+  "owner1:n64" ":owner1 cons.car :map-lis... n64",
+  "owner2:n78" ":owner2 id :map-list.:out... n78",
+  "owner2:n46" ":owner2 n46 2",
+  "owner1:n17" ":owner1 :map-list.:out Net",
+  "owner2:n8" ":owner2 :map-list.:out Net",
+  "owner2:n4" ":owner2 :double-v....:self #:gur{:accumulati...",
+  "owner2:n60" ":owner2 :map-list.rest Net",
+  "owner1:n96" ":owner1 mul :map-list.:he... n96",
+  "owner2:n91" ":owner2 :map-list.:mapped-node Net",
+  "owner2:n40" ":owner2 cons.cdr :map-lis... n40",
+  "owner2:n13" ":owner2 car :map-list.res... n13",
+  "owner2:n29" ":owner2 :map-list.:out Net",
+  "owner1:n102" ":owner1 :map-list.rest Net",
+  "owner2:n56" ":owner2 n56 2",
+  "owner1:n9" ":owner1 when :map-list.[:... n9",
+  "owner2:n103" ":owner2 n103 1",
+  "owner1:n62" ":owner1 :map-list.:out Net",
+  "owner1:n109" ":owner1 :map-list.:mapped-rest Net",
+  "owner1:n21" ":owner1 n21 Net",
+  "owner2:n101" ":owner2 :map-list.:mapped 2",
+  "top:n26" ":top cons.cdr source.n... n26",
+  "owner1:n13" ":owner1 id cell -> :doubl... n13",
+  "owner2:n30" ":owner2 :map-list.:out Net",
+  "top:n7" ":top source.head4 1",
+  "owner2:n87" ":owner2 n87 Net",
+  "owner2:n47" ":owner2 :map-list.:mapped-node Net",
+  "owner1:n97" ":owner1 cdr :map-list.[:a... n97",
+  "top:n27" ":top cons.car source.n... n27",
+  "owner1:n65" ":owner1 id cell -> :map-l... n65",
+  "owner1:n12" ":owner1 mul :double-v....... n12",
+  "owner2:n61" ":owner2 :double-v....:self #:gur{:accumulati...",
+  "top:n21" ":top source.node3 Net",
+  "owner2:n79" ":owner2 :map-list.:mapped-node Net",
+  "owner1:n23" ":owner1 cons.cdr :map-lis... n23",
+  "owner1:n25" ":owner1 :map-list.:mapped-node Net",
+  "owner2:n115" ":owner2 :double-v....:self #:gur{:accumulati...",
+  "owner2:n118" ":owner2 apply :map-list.:... n118",
+  "top:n4" ":top [:env/scope [:gur/accumulat... Net",
+  "top:n11" ":top [:env/scope [:gur/accumulat... Net",
+  "owner2:n116" ":owner2 n116 1",
+  "owner2:n24" ":owner2 mul :double-v....... n24",
+  "owner1:n52" ":owner1 recur :map-list.[... n52",
+  "owner1:n94" ":owner1 n94 2",
+  "owner1:n83" ":owner1 n83 2",
+  "owner1:n107" ":owner1 n107 2",
+  "owner1:n53" ":owner1 :map-list.:self #:gur{:accumulati...",
+  "owner1:n70" ":owner1 :map-list.:self #:gur{:accumulati...",
+  "top:n29" ":top source.tail-nothing nothing",
+  "owner2:n80" ":owner2 :map-list.[:arg 0] Net",
+  "owner2:n2" ":owner2 recur :map-list.[... n2",
+  "top:n5" ":top source.head3 1",
+  "owner2:n105" ":owner2 n105 nothing",
+  "owner1:n103" ":owner1 n103 4",
+  "owner2:n16" ":owner2 :double-v....:out 2",
+  "owner1:n10" ":owner1 id cell -> :map-l... n10",
+  "owner1:n67" ":owner1 :map-list.rest Net",
+  "owner1:n81" ":owner1 id :map-list.:out... n81",
+  "owner1:n2" ":owner1 :double-v....[:arg 0] 2",
+  "owner2:n64" ":owner2 recur :map-list.[... n64",
+  "top:n13" ":top cons.cdr source.n... n13",
+  "owner2:n49" ":owner2 id :map-list.:map... n49",
+  "owner2:n14" ":owner2 :double-v....:out 2",
+  "owner2:n26" ":owner2 mul :map-list.:he... n26",
+  "owner1:n18" ":owner1 :map-list.rest nothing",
+  "owner2:n120" ":owner2 id :map-list.:map... n120",
+  "owner1:n36" ":owner1 :double-v....:out 4",
+  "owner1:n98" ":owner1 cons.cdr :map-lis... n98",
+  "owner2:n95" ":owner2 cons.cdr :map-lis... n95",
+  "owner2:n66" ":owner2 id cell -> :map-l... n66",
+  "owner2:n5" ":owner2 :map-list.:mapper #:gur{:accumulati...",
+  "owner2:n51" ":owner2 :double-v....[:arg 0] 1",
+  "owner2:n11" ":owner2 :map-list.:self #:gur{:accumulati...",
+  "owner2:n102" ":owner2 id :map-list.:out... n102",
+  "owner2:n71" ":owner2 n71 2",
+  "owner1:n76" ":owner1 :double-v....:out 4",
+  "owner2:n76" ":owner2 n76 Net",
+  "owner1:n39" ":owner1 :map-list.:mapped-rest Net",
+  "owner1:n29" ":owner1 :map-list.acc-list :graph.gur-mapper...",
+  "owner1:n47" ":owner1 :map-list.:mapped-node Net",
+  "top:n3" ":top double-value-closure #:gur{:accumulati...",
+  "owner2:n10" ":owner2 mul :map-list.:he... n10",
+  "owner1:n28" ":owner1 car :map-list.[:a... n28",
+  "owner1:n87" ":owner1 recur :map-list.r... n87",
+  "owner2:n108" ":owner2 :map-list.:mapped-rest Net",
+  "owner1:n1" ":owner1 car :map-list.res... n1",
+  "owner2:n21" ":owner2 apply :map-list.:... n21",
+  "owner1:n66" ":owner1 cdr :map-list.res... n66",
+  "owner1:n95" ":owner1 n95 4",
+  "owner1:n61" ":owner1 :map-list.[:arg 0] Net",
+  "top:n30" ":top cons.car source.n... n30",
+  "owner1:n78" ":owner1 :map-list.:mapped-rest nothing",
+  "owner1:n105" ":owner1 apply :map-list.:... n105",
+  "owner2:n69" ":owner2 :map-list.:out Net",
+  "owner2:n73" ":owner2 n73 1",
+  "owner1:n8" ":owner1 :map-list.:head 2",
+  "owner1:n49" ":owner1 when :map-list.[:... n49",
+  "top:n8" ":top apply.request map... n8",
+  "owner2:n119" ":owner2 :map-list.:head 1",
+  "owner1:n51" ":owner1 recur :map-list.r... n51",
+  "owner2:n32" ":owner2 :map-list.:mapped-rest Net",
+  "owner2:n20" ":owner2 :map-list.rest Net",
+  "owner1:n84" ":owner1 cons.cdr :map-lis... n84",
+  "top:n23" ":top source.node0 Net",
+  "owner2:n45" ":owner2 cons.cdr :map-lis... n45",
+  "owner1:n69" ":owner1 id :map-list.:map... n69",
+  "owner1:n19" ":owner1 :map-list.:mapped-node Net",
+  "owner2:n54" ":owner2 when :map-list.re... n54",
+  "owner2:n82" ":owner2 :map-list.:mapped-node Net",
+  "owner1:n77" ":owner1 :map-list.:mapped 4",
+  "owner1:n38" ":owner1 apply :map-list.:... n38",
+  "owner1:n57" ":owner1 id :map-list.:map... n57",
+  "owner2:n77" ":owner2 n77 nothing",
+  "owner2:n50" ":owner2 cons.car :map-lis... n50",
+  "owner1:n4" ":owner1 id :map-list.:out... n4",
+  "owner1:n35" ":owner1 when :map-list.re... n35",
+  "owner2:n84" ":owner2 cdr :map-list.[:a... n84",
+  "owner2:n41" ":owner2 id :map-list.:out... n41",
+  "owner2:n100" ":owner2 when :map-list.re... n100",
+  "owner1:n31" ":owner1 car :map-list.res... n31",
+  "owner1:n54" ":owner1 :map-list.:out Net",
+  "top:n28" ":top source.head0 1",
+  "owner2:n93" ":owner2 n93 2",
+  "owner1:n71" ":owner1 n71 #:gur{:accumulati...",
+  "owner2:n75" ":owner2 n75 Net",
+  "owner2:n111" ":owner2 id cell -> :map-l... n111",
+  "owner1:n33" ":owner1 [:env/scope [:gur/accumulat... nothing",
+  "owner1:n106" ":owner1 apply :map-list.:... n106",
+  "owner1:n37" ":owner1 id cell -> :doubl... n37",
+  "owner2:n92" ":owner2 :map-list.:self #:gur{:accumulati..."},
+ :owner-count 2,
+ :sections
+ [{:nodes
+   {"top:n31" ":top cons.car source.n... n31",
+    "top:n9" ":top cons.cdr source.n... n9",
+    "top:n19" ":top apply.runner map-... n19",
+    "top:n24" ":top map-list-closure #:gur{:accumulati...",
+    "top:n1" ":top apply.request map... n1",
+    "top:n32" ":top source.head1 1",
+    "top:n25" ":top source.node1 Net",
+    "top:n16" ":top hop2.out Net",
+    "top:n12" ":top cons.cdr source.n... n12",
+    "top:n14" ":top cons.cdr source.n... n14",
+    "top:n17" ":top cons.car source.n... n17",
+    "top:n10" ":top acc-list :graph.gur-mapper...",
+    "top:n20" ":top source.head2 1",
+    "top:n15" ":top hop1.out Net",
+    "top:n2" ":top source.node4 Net",
+    "top:n6" ":top cons.car source.n... n6",
+    "top:n22" ":top source.node2 Net",
+    "top:n18" ":top apply.runner map-... n18",
+    "top:n26" ":top cons.cdr source.n... n26",
+    "top:n7" ":top source.head4 1",
+    "top:n27" ":top cons.car source.n... n27",
+    "top:n21" ":top source.node3 Net",
+    "top:n4" ":top [:env/scope [:gur/accumulat... Net",
+    "top:n11" ":top [:env/scope [:gur/accumulat... Net",
+    "top:n29" ":top source.tail-nothing nothing",
+    "top:n5" ":top source.head3 1",
+    "top:n13" ":top cons.cdr source.n... n13",
+    "top:n3" ":top double-value-closure #:gur{:accumulati...",
+    "top:n30" ":top cons.car source.n... n30",
+    "top:n8" ":top apply.request map... n8",
+    "top:n23" ":top source.node0 Net",
+    "top:n28" ":top source.head0 1"},
+   :edges
+   [["top:n1" "top:n11"]
+    ["top:n2" "top:n6"]
+    ["top:n2" "top:n14"]
+    ["top:n2" "top:n26"]
+    ["top:n3" "top:n1"]
+    ["top:n3" "top:n8"]
+    ["top:n3" "top:n18"]
+    ["top:n3" "top:n19"]
+    ["top:n4" "top:n19"]
+    ["top:n5" "top:n30"]
+    ["top:n6" "top:n2"]
+    ["top:n6" "top:n7"]
+    ["top:n7" "top:n6"]
+    ["top:n8" "top:n4"]
+    ["top:n9" "top:n21"]
+    ["top:n9" "top:n22"]
+    ["top:n10" "top:n1"]
+    ["top:n10" "top:n8"]
+    ["top:n10" "top:n18"]
+    ["top:n10" "top:n19"]
+    ["top:n11" "top:n18"]
+    ["top:n12" "top:n22"]
+    ["top:n12" "top:n25"]
+    ["top:n13" "top:n23"]
+    ["top:n13" "top:n25"]
+    ["top:n14" "top:n2"]
+    ["top:n14" "top:n29"]
+    ["top:n15" "top:n1"]
+    ["top:n15" "top:n8"]
+    ["top:n15" "top:n18"]
+    ["top:n15" "top:n19"]
+    ["top:n16" "top:n1"]
+    ["top:n16" "top:n18"]
+    ["top:n17" "top:n23"]
+    ["top:n17" "top:n28"]
+    ["top:n18" "top:n3"]
+    ["top:n18" "top:n10"]
+    ["top:n18" "top:n11"]
+    ["top:n18" "top:n15"]
+    ["top:n18" "top:n16"]
+    ["top:n18" "top:n24"]
+    ["top:n19" "top:n3"]
+    ["top:n19" "top:n4"]
+    ["top:n19" "top:n10"]
+    ["top:n19" "top:n15"]
+    ["top:n19" "top:n23"]
+    ["top:n19" "top:n24"]
+    ["top:n20" "top:n31"]
+    ["top:n21" "top:n9"]
+    ["top:n21" "top:n26"]
+    ["top:n21" "top:n30"]
+    ["top:n22" "top:n9"]
+    ["top:n22" "top:n12"]
+    ["top:n22" "top:n31"]
+    ["top:n23" "top:n8"]
+    ["top:n23" "top:n13"]
+    ["top:n23" "top:n17"]
+    ["top:n23" "top:n19"]
+    ["top:n24" "top:n1"]
+    ["top:n24" "top:n8"]
+    ["top:n24" "top:n18"]
+    ["top:n24" "top:n19"]
+    ["top:n25" "top:n12"]
+    ["top:n25" "top:n13"]
+    ["top:n25" "top:n27"]
+    ["top:n26" "top:n2"]
+    ["top:n26" "top:n21"]
+    ["top:n27" "top:n25"]
+    ["top:n27" "top:n32"]
+    ["top:n28" "top:n17"]
+    ["top:n29" "top:n14"]
+    ["top:n30" "top:n5"]
+    ["top:n30" "top:n21"]
+    ["top:n31" "top:n20"]
+    ["top:n31" "top:n22"]
+    ["top:n32" "top:n27"]],
+   :title "top-level HOP chain"}
+  {:nodes
+   {"owner1:n72" ":owner1 :double-v....:self #:gur{:accumulati...",
+    "owner1:n90" ":owner1 id :map-list.:map... n90",
+    "owner1:n88" ":owner1 :map-list.[:arg 0] Net",
+    "owner1:n48" ":owner1 cons.car :map-lis... n48",
+    "owner1:n27" ":owner1 :double-v....:out 4",
+    "owner1:n99" ":owner1 mul :map-list.:he... n99",
+    "owner1:n11" ":owner1 :map-list.:mapper #:gur{:accumulati...",
+    "owner1:n32" ":owner1 :map-list.:self #:gur{:accumulati...",
+    "owner1:n30" ":owner1 cons.car :map-lis... n30",
+    "owner1:n104" ":owner1 :double-v....:self #:gur{:accumulati...",
+    "owner1:n41" ":owner1 id :map-list.:out... n41",
+    "owner1:n59" ":owner1 cons.car :map-lis... n59",
+    "owner1:n73" ":owner1 n73 4",
+    "owner1:n43" ":owner1 id cell -> :doubl... n43",
+    "owner1:n60" ":owner1 cons.cdr :map-lis... n60",
+    "owner1:n110" ":owner1 when :map-list.re... n110",
+    "owner1:n16" ":owner1 cons.car :map-lis... n16",
+    "owner1:n58" ":owner1 :map-list.:mapped-rest Net",
+    "owner1:n74" ":owner1 :double-v....:self #:gur{:accumulati...",
+    "owner1:n7" ":owner1 apply :map-list.:... n7",
+    "owner1:n86" ":owner1 id :map-list.:map... n86",
+    "owner1:n55" ":owner1 :map-list.[:arg 0] Net",
+    "owner1:n80" ":owner1 :double-v....:self #:gur{:accumulati...",
+    "owner1:n34" ":owner1 :map-list.:out Net",
+    "owner1:n101" ":owner1 :map-list.:mapped 4",
+    "owner1:n26" ":owner1 cdr :map-list.[:a... n26",
+    "owner1:n15" ":owner1 cons.cdr :map-lis... n15",
+    "owner1:n6" ":owner1 :double-v....:self #:gur{:accumulati...",
+    "owner1:n91" ":owner1 cdr :map-list.[:a... n91",
+    "owner1:n45" ":owner1 car :map-list.[:a... n45",
+    "owner1:n92" ":owner1 id :map-list.:map... n92",
+    "owner1:n85" ":owner1 recur :map-list.[... n85",
+    "owner1:n24" ":owner1 :map-list.:head 2",
+    "owner1:n14" ":owner1 when :map-list.re... n14",
+    "owner1:n22" ":owner1 :map-list.:mapped-node Net",
+    "owner1:n40" ":owner1 car :map-list.[:a... n40",
+    "owner1:n89" ":owner1 :map-list.:mapped-rest Net",
+    "owner1:n79" ":owner1 :double-v....[:arg 0] 2",
+    "owner1:n93" ":owner1 apply :map-list.:... n93",
+    "owner1:n100" ":owner1 n100 2",
+    "owner1:n5" ":owner1 :map-list.:out Net",
+    "owner1:n3" ":owner1 mul :double-v....... n3",
+    "owner1:n68" ":owner1 n68 4",
+    "owner1:n50" ":owner1 id :map-list.:out... n50",
+    "owner1:n63" ":owner1 :map-list.:self #:gur{:accumulati...",
+    "owner1:n20" ":owner1 n20 2",
+    "owner1:n42" ":owner1 :map-list.:self #:gur{:accumulati...",
+    "owner1:n75" ":owner1 n75 2",
+    "owner1:n46" ":owner1 cdr :map-list.res... n46",
+    "owner1:n44" ":owner1 mul :double-v....... n44",
+    "owner1:n56" ":owner1 :double-v....[:arg 0] 2",
+    "owner1:n82" ":owner1 n82 4",
+    "owner1:n108" ":owner1 :map-list.:mapped-node Net",
+    "owner1:n64" ":owner1 cons.car :map-lis... n64",
+    "owner1:n17" ":owner1 :map-list.:out Net",
+    "owner1:n96" ":owner1 mul :map-list.:he... n96",
+    "owner1:n102" ":owner1 :map-list.rest Net",
+    "owner1:n9" ":owner1 when :map-list.[:... n9",
+    "owner1:n62" ":owner1 :map-list.:out Net",
+    "owner1:n109" ":owner1 :map-list.:mapped-rest Net",
+    "owner1:n21" ":owner1 n21 Net",
+    "owner1:n13" ":owner1 id cell -> :doubl... n13",
+    "owner1:n97" ":owner1 cdr :map-list.[:a... n97",
+    "owner1:n65" ":owner1 id cell -> :map-l... n65",
+    "owner1:n12" ":owner1 mul :double-v....... n12",
+    "owner1:n23" ":owner1 cons.cdr :map-lis... n23",
+    "owner1:n25" ":owner1 :map-list.:mapped-node Net",
+    "owner1:n52" ":owner1 recur :map-list.[... n52",
+    "owner1:n94" ":owner1 n94 2",
+    "owner1:n83" ":owner1 n83 2",
+    "owner1:n107" ":owner1 n107 2",
+    "owner1:n53" ":owner1 :map-list.:self #:gur{:accumulati...",
+    "owner1:n70" ":owner1 :map-list.:self #:gur{:accumulati...",
+    "owner1:n103" ":owner1 n103 4",
+    "owner1:n10" ":owner1 id cell -> :map-l... n10",
+    "owner1:n67" ":owner1 :map-list.rest Net",
+    "owner1:n81" ":owner1 id :map-list.:out... n81",
+    "owner1:n2" ":owner1 :double-v....[:arg 0] 2",
+    "owner1:n18" ":owner1 :map-list.rest nothing",
+    "owner1:n36" ":owner1 :double-v....:out 4",
+    "owner1:n98" ":owner1 cons.cdr :map-lis... n98",
+    "owner1:n76" ":owner1 :double-v....:out 4",
+    "owner1:n39" ":owner1 :map-list.:mapped-rest Net",
+    "owner1:n29" ":owner1 :map-list.acc-list :graph.gur-mapper...",
+    "owner1:n47" ":owner1 :map-list.:mapped-node Net",
+    "owner1:n28" ":owner1 car :map-list.[:a... n28",
+    "owner1:n87" ":owner1 recur :map-list.r... n87",
+    "owner1:n1" ":owner1 car :map-list.res... n1",
+    "owner1:n66" ":owner1 cdr :map-list.res... n66",
+    "owner1:n95" ":owner1 n95 4",
+    "owner1:n61" ":owner1 :map-list.[:arg 0] Net",
+    "owner1:n78" ":owner1 :map-list.:mapped-rest nothing",
+    "owner1:n105" ":owner1 apply :map-list.:... n105",
+    "owner1:n8" ":owner1 :map-list.:head 2",
+    "owner1:n49" ":owner1 when :map-list.[:... n49",
+    "owner1:n51" ":owner1 recur :map-list.r... n51",
+    "owner1:n84" ":owner1 cons.cdr :map-lis... n84",
+    "owner1:n69" ":owner1 id :map-list.:map... n69",
+    "owner1:n19" ":owner1 :map-list.:mapped-node Net",
+    "owner1:n77" ":owner1 :map-list.:mapped 4",
+    "owner1:n38" ":owner1 apply :map-list.:... n38",
+    "owner1:n57" ":owner1 id :map-list.:map... n57",
+    "owner1:n4" ":owner1 id :map-list.:out... n4",
+    "owner1:n35" ":owner1 when :map-list.re... n35",
+    "owner1:n31" ":owner1 car :map-list.res... n31",
+    "owner1:n54" ":owner1 :map-list.:out Net",
+    "owner1:n71" ":owner1 n71 #:gur{:accumulati...",
+    "owner1:n33" ":owner1 [:env/scope [:gur/accumulat... nothing",
+    "owner1:n106" ":owner1 apply :map-list.:... n106",
+    "owner1:n37" ":owner1 id cell -> :doubl... n37"},
+   :edges
+   [["owner1:n1" "owner1:n8"]
+    ["owner1:n1" "owner1:n102"]
+    ["owner1:n2" "owner1:n31"]
+    ["owner1:n2" "owner1:n105"]
+    ["owner1:n3" "owner1:n73"]
+    ["owner1:n4" "owner1:n39"]
+    ["owner1:n5" "owner1:n4"]
+    ["owner1:n5" "owner1:n87"]
+    ["owner1:n7" "owner1:n33"]
+    ["owner1:n8" "owner1:n1"]
+    ["owner1:n8" "owner1:n38"]
+    ["owner1:n9" "owner1:n33"]
+    ["owner1:n10" "owner1:n77"]
+    ["owner1:n11" "owner1:n51"]
+    ["owner1:n11" "owner1:n52"]
+    ["owner1:n11" "owner1:n85"]
+    ["owner1:n11" "owner1:n87"]
+    ["owner1:n11" "owner1:n93"]
+    ["owner1:n12" "owner1:n82"]
+    ["owner1:n13" "owner1:n76"]
+    ["owner1:n14" "owner1:n33"]
+    ["owner1:n15" "owner1:n19"]
+    ["owner1:n15" "owner1:n89"]
+    ["owner1:n16" "owner1:n22"]
+    ["owner1:n16" "owner1:n27"]
+    ["owner1:n17" "owner1:n52"]
+    ["owner1:n17" "owner1:n81"]
+    ["owner1:n18" "owner1:n35"]
+    ["owner1:n18" "owner1:n46"]
+    ["owner1:n19" "owner1:n15"]
+    ["owner1:n19" "owner1:n48"]
+    ["owner1:n19" "owner1:n57"]
+    ["owner1:n20" "owner1:n44"]
+    ["owner1:n22" "owner1:n16"]
+    ["owner1:n22" "owner1:n69"]
+    ["owner1:n22" "owner1:n98"]
+    ["owner1:n23" "owner1:n25"]
+    ["owner1:n23" "owner1:n58"]
+    ["owner1:n24" "owner1:n7"]
+    ["owner1:n24" "owner1:n45"]
+    ["owner1:n25" "owner1:n23"]
+    ["owner1:n25" "owner1:n59"]
+    ["owner1:n25" "owner1:n86"]
+    ["owner1:n26" "owner1:n61"]
+    ["owner1:n26" "owner1:n67"]
+    ["owner1:n27" "owner1:n16"]
+    ["owner1:n27" "owner1:n106"]
+    ["owner1:n28" "owner1:n55"]
+    ["owner1:n28" "owner1:n79"]
+    ["owner1:n29" "owner1:n51"]
+    ["owner1:n29" "owner1:n52"]
+    ["owner1:n29" "owner1:n85"]
+    ["owner1:n29" "owner1:n87"]
+    ["owner1:n30" "owner1:n77"]
+    ["owner1:n30" "owner1:n108"]
+    ["owner1:n31" "owner1:n2"]
+    ["owner1:n31" "owner1:n67"]
+    ["owner1:n32" "owner1:n51"]
+    ["owner1:n34" "owner1:n50"]
+    ["owner1:n34" "owner1:n85"]
+    ["owner1:n35" "owner1:n33"]
+    ["owner1:n36" "owner1:n48"]
+    ["owner1:n36" "owner1:n93"]
+    ["owner1:n37" "owner1:n36"]
+    ["owner1:n38" "owner1:n33"]
+    ["owner1:n39" "owner1:n84"]
+    ["owner1:n40" "owner1:n56"]
+    ["owner1:n40" "owner1:n88"]
+    ["owner1:n41" "owner1:n109"]
+    ["owner1:n42" "owner1:n52"]
+    ["owner1:n43" "owner1:n27"]
+    ["owner1:n44" "owner1:n95"]
+    ["owner1:n45" "owner1:n24"]
+    ["owner1:n45" "owner1:n61"]
+    ["owner1:n46" "owner1:n18"]
+    ["owner1:n46" "owner1:n102"]
+    ["owner1:n47" "owner1:n64"]
+    ["owner1:n47" "owner1:n84"]
+    ["owner1:n47" "owner1:n92"]
+    ["owner1:n48" "owner1:n19"]
+    ["owner1:n48" "owner1:n36"]
+    ["owner1:n49" "owner1:n33"]
+    ["owner1:n50" "owner1:n89"]
+    ["owner1:n51" "owner1:n33"]
+    ["owner1:n52" "owner1:n33"]
+    ["owner1:n53" "owner1:n87"]
+    ["owner1:n54" "owner1:n41"]
+    ["owner1:n54" "owner1:n51"]
+    ["owner1:n55" "owner1:n28"]
+    ["owner1:n55" "owner1:n91"]
+    ["owner1:n56" "owner1:n40"]
+    ["owner1:n56" "owner1:n106"]
+    ["owner1:n57" "owner1:n62"]
+    ["owner1:n58" "owner1:n23"]
+    ["owner1:n59" "owner1:n25"]
+    ["owner1:n59" "owner1:n76"]
+    ["owner1:n60" "owner1:n78"]
+    ["owner1:n60" "owner1:n108"]
+    ["owner1:n61" "owner1:n49"]
+    ["owner1:n61" "owner1:n85"]
+    ["owner1:n61" "owner1:n91"]
+    ["owner1:n64" "owner1:n47"]
+    ["owner1:n64" "owner1:n101"]
+    ["owner1:n65" "owner1:n101"]
+    ["owner1:n66" "owner1:n67"]
+    ["owner1:n66" "owner1:n88"]
+    ["owner1:n67" "owner1:n14"]
+    ["owner1:n67" "owner1:n26"]
+    ["owner1:n67" "owner1:n87"]
+    ["owner1:n68" "owner1:n65"]
+    ["owner1:n69" "owner1:n17"]
+    ["owner1:n70" "owner1:n85"]
+    ["owner1:n73" "owner1:n13"]
+    ["owner1:n75" "owner1:n96"]
+    ["owner1:n76" "owner1:n59"]
+    ["owner1:n76" "owner1:n105"]
+    ["owner1:n77" "owner1:n30"]
+    ["owner1:n77" "owner1:n38"]
+    ["owner1:n78" "owner1:n60"]
+    ["owner1:n79" "owner1:n28"]
+    ["owner1:n79" "owner1:n93"]
+    ["owner1:n81" "owner1:n58"]
+    ["owner1:n82" "owner1:n43"]
+    ["owner1:n83" "owner1:n99"]
+    ["owner1:n84" "owner1:n39"]
+    ["owner1:n84" "owner1:n47"]
+    ["owner1:n85" "owner1:n33"]
+    ["owner1:n86" "owner1:n5"]
+    ["owner1:n87" "owner1:n33"]
+    ["owner1:n88" "owner1:n9"]
+    ["owner1:n88" "owner1:n52"]
+    ["owner1:n88" "owner1:n66"]
+    ["owner1:n89" "owner1:n15"]
+    ["owner1:n90" "owner1:n54"]
+    ["owner1:n91" "owner1:n55"]
+    ["owner1:n91" "owner1:n61"]
+    ["owner1:n92" "owner1:n34"]
+    ["owner1:n93" "owner1:n33"]
+    ["owner1:n95" "owner1:n37"]
+    ["owner1:n96" "owner1:n68"]
+    ["owner1:n97" "owner1:n88"]
+    ["owner1:n97" "owner1:n102"]
+    ["owner1:n98" "owner1:n22"]
+    ["owner1:n98" "owner1:n109"]
+    ["owner1:n99" "owner1:n103"]
+    ["owner1:n100" "owner1:n3"]
+    ["owner1:n101" "owner1:n7"]
+    ["owner1:n101" "owner1:n64"]
+    ["owner1:n102" "owner1:n51"]
+    ["owner1:n102" "owner1:n97"]
+    ["owner1:n102" "owner1:n110"]
+    ["owner1:n103" "owner1:n10"]
+    ["owner1:n105" "owner1:n33"]
+    ["owner1:n106" "owner1:n33"]
+    ["owner1:n107" "owner1:n12"]
+    ["owner1:n108" "owner1:n30"]
+    ["owner1:n108" "owner1:n60"]
+    ["owner1:n108" "owner1:n90"]
+    ["owner1:n109" "owner1:n98"]
+    ["owner1:n110" "owner1:n33"]],
+   :title "accumulated owner 1"}
+  {:nodes
+   {"owner2:n81" ":owner2 n81 #:gur{:accumulati...",
+    "owner2:n96" ":owner2 when :map-list.[:... n96",
+    "owner2:n74" ":owner2 :double-v....:self #:gur{:accumulati...",
+    "owner2:n1" ":owner2 car :map-list.res... n1",
+    "owner2:n63" ":owner2 id :map-list.:map... n63",
+    "owner2:n104" ":owner2 :map-list.:self #:gur{:accumulati...",
+    "owner2:n113" ":owner2 :map-list.:head 1",
+    "owner2:n110" ":owner2 car :map-list.[:a... n110",
+    "owner2:n12" ":owner2 when :map-list.[:... n12",
+    "owner2:n34" ":owner2 apply :map-list.:... n34",
+    "owner2:n28" ":owner2 :map-list.:mapped 2",
+    "owner2:n9" ":owner2 n9 1",
+    "owner2:n59" ":owner2 cons.cdr :map-lis... n59",
+    "owner2:n65" ":owner2 :map-list.:out Net",
+    "owner2:n107" ":owner2 car :map-list.[:a... n107",
+    "owner2:n94" ":owner2 n94 2",
+    "owner2:n85" ":owner2 :map-list.:mapped-node Net",
+    "owner2:n72" ":owner2 :double-v....:self #:gur{:accumulati...",
+    "owner2:n17" ":owner2 cdr :map-list.[:a... n17",
+    "owner2:n33" ":owner2 recur :map-list.r... n33",
+    "owner2:n68" ":owner2 mul :map-list.:he... n68",
+    "owner2:n25" ":owner2 :double-v....[:arg 0] 1",
+    "owner2:n27" ":owner2 id :map-list.:out... n27",
+    "owner2:n7" ":owner2 [:env/scope [:gur/accumulat... nothing",
+    "owner2:n48" ":owner2 apply :map-list.:... n48",
+    "owner2:n114" ":owner2 id cell -> :doubl... n114",
+    "owner2:n57" ":owner2 :map-list.:self #:gur{:accumulati...",
+    "owner2:n42" ":owner2 :map-list.acc-list :graph.gur-mapper...",
+    "owner2:n18" ":owner2 :map-list.:mapped-rest Net",
+    "owner2:n31" ":owner2 n31 2",
+    "owner2:n88" ":owner2 n88 2",
+    "owner2:n38" ":owner2 n38 2",
+    "owner2:n6" ":owner2 cons.car :map-lis... n6",
+    "owner2:n112" ":owner2 recur :map-list.r... n112",
+    "owner2:n106" ":owner2 cdr :map-list.res... n106",
+    "owner2:n99" ":owner2 id cell -> :map-l... n99",
+    "owner2:n43" ":owner2 id cell -> :doubl... n43",
+    "owner2:n97" ":owner2 id :map-list.:map... n97",
+    "owner2:n86" ":owner2 cdr :map-list.[:a... n86",
+    "owner2:n39" ":owner2 cdr :map-list.res... n39",
+    "owner2:n44" ":owner2 :map-list.:self #:gur{:accumulati...",
+    "owner2:n109" ":owner2 n109 2",
+    "owner2:n55" ":owner2 cons.car :map-lis... n55",
+    "owner2:n36" ":owner2 n36 nothing",
+    "owner2:n22" ":owner2 mul :double-v....... n22",
+    "owner2:n62" ":owner2 id :map-list.:map... n62",
+    "owner2:n19" ":owner2 apply :map-list.:... n19",
+    "owner2:n3" ":owner2 n3 Net",
+    "owner2:n98" ":owner2 when :map-list.re... n98",
+    "owner2:n67" ":owner2 :map-list.[:arg 0] Net",
+    "owner2:n53" ":owner2 :map-list.:head 1",
+    "owner2:n70" ":owner2 :map-list.:mapped-rest nothing",
+    "owner2:n23" ":owner2 car :map-list.[:a... n23",
+    "owner2:n83" ":owner2 n83 2",
+    "owner2:n89" ":owner2 :map-list.rest nothing",
+    "owner2:n37" ":owner2 cons.car :map-lis... n37",
+    "owner2:n117" ":owner2 :map-list.:mapped 2",
+    "owner2:n52" ":owner2 cons.cdr :map-lis... n52",
+    "owner2:n58" ":owner2 :map-list.:mapped-rest Net",
+    "owner2:n15" ":owner2 n15 1",
+    "owner2:n35" ":owner2 cons.car :map-lis... n35",
+    "owner2:n90" ":owner2 :map-list.[:arg 0] Net",
+    "owner2:n78" ":owner2 id :map-list.:out... n78",
+    "owner2:n46" ":owner2 n46 2",
+    "owner2:n8" ":owner2 :map-list.:out Net",
+    "owner2:n4" ":owner2 :double-v....:self #:gur{:accumulati...",
+    "owner2:n60" ":owner2 :map-list.rest Net",
+    "owner2:n91" ":owner2 :map-list.:mapped-node Net",
+    "owner2:n40" ":owner2 cons.cdr :map-lis... n40",
+    "owner2:n13" ":owner2 car :map-list.res... n13",
+    "owner2:n29" ":owner2 :map-list.:out Net",
+    "owner2:n56" ":owner2 n56 2",
+    "owner2:n103" ":owner2 n103 1",
+    "owner2:n101" ":owner2 :map-list.:mapped 2",
+    "owner2:n30" ":owner2 :map-list.:out Net",
+    "owner2:n87" ":owner2 n87 Net",
+    "owner2:n47" ":owner2 :map-list.:mapped-node Net",
+    "owner2:n61" ":owner2 :double-v....:self #:gur{:accumulati...",
+    "owner2:n79" ":owner2 :map-list.:mapped-node Net",
+    "owner2:n115" ":owner2 :double-v....:self #:gur{:accumulati...",
+    "owner2:n118" ":owner2 apply :map-list.:... n118",
+    "owner2:n116" ":owner2 n116 1",
+    "owner2:n24" ":owner2 mul :double-v....... n24",
+    "owner2:n80" ":owner2 :map-list.[:arg 0] Net",
+    "owner2:n2" ":owner2 recur :map-list.[... n2",
+    "owner2:n105" ":owner2 n105 nothing",
+    "owner2:n16" ":owner2 :double-v....:out 2",
+    "owner2:n64" ":owner2 recur :map-list.[... n64",
+    "owner2:n49" ":owner2 id :map-list.:map... n49",
+    "owner2:n14" ":owner2 :double-v....:out 2",
+    "owner2:n26" ":owner2 mul :map-list.:he... n26",
+    "owner2:n120" ":owner2 id :map-list.:map... n120",
+    "owner2:n95" ":owner2 cons.cdr :map-lis... n95",
+    "owner2:n66" ":owner2 id cell -> :map-l... n66",
+    "owner2:n5" ":owner2 :map-list.:mapper #:gur{:accumulati...",
+    "owner2:n51" ":owner2 :double-v....[:arg 0] 1",
+    "owner2:n11" ":owner2 :map-list.:self #:gur{:accumulati...",
+    "owner2:n102" ":owner2 id :map-list.:out... n102",
+    "owner2:n71" ":owner2 n71 2",
+    "owner2:n76" ":owner2 n76 Net",
+    "owner2:n10" ":owner2 mul :map-list.:he... n10",
+    "owner2:n108" ":owner2 :map-list.:mapped-rest Net",
+    "owner2:n21" ":owner2 apply :map-list.:... n21",
+    "owner2:n69" ":owner2 :map-list.:out Net",
+    "owner2:n73" ":owner2 n73 1",
+    "owner2:n119" ":owner2 :map-list.:head 1",
+    "owner2:n32" ":owner2 :map-list.:mapped-rest Net",
+    "owner2:n20" ":owner2 :map-list.rest Net",
+    "owner2:n45" ":owner2 cons.cdr :map-lis... n45",
+    "owner2:n54" ":owner2 when :map-list.re... n54",
+    "owner2:n82" ":owner2 :map-list.:mapped-node Net",
+    "owner2:n77" ":owner2 n77 nothing",
+    "owner2:n50" ":owner2 cons.car :map-lis... n50",
+    "owner2:n84" ":owner2 cdr :map-list.[:a... n84",
+    "owner2:n41" ":owner2 id :map-list.:out... n41",
+    "owner2:n100" ":owner2 when :map-list.re... n100",
+    "owner2:n93" ":owner2 n93 2",
+    "owner2:n75" ":owner2 n75 Net",
+    "owner2:n111" ":owner2 id cell -> :map-l... n111",
+    "owner2:n92" ":owner2 :map-list.:self #:gur{:accumulati..."},
+   :edges
+   [["owner2:n1" "owner2:n20"]
+    ["owner2:n1" "owner2:n25"]
+    ["owner2:n2" "owner2:n7"]
+    ["owner2:n5" "owner2:n2"]
+    ["owner2:n5" "owner2:n21"]
+    ["owner2:n5" "owner2:n33"]
+    ["owner2:n5" "owner2:n64"]
+    ["owner2:n5" "owner2:n112"]
+    ["owner2:n6" "owner2:n85"]
+    ["owner2:n6" "owner2:n117"]
+    ["owner2:n8" "owner2:n2"]
+    ["owner2:n8" "owner2:n27"]
+    ["owner2:n10" "owner2:n71"]
+    ["owner2:n11" "owner2:n2"]
+    ["owner2:n12" "owner2:n7"]
+    ["owner2:n13" "owner2:n60"]
+    ["owner2:n13" "owner2:n113"]
+    ["owner2:n14" "owner2:n50"]
+    ["owner2:n14" "owner2:n118"]
+    ["owner2:n16" "owner2:n21"]
+    ["owner2:n16" "owner2:n55"]
+    ["owner2:n17" "owner2:n67"]
+    ["owner2:n17" "owner2:n89"]
+    ["owner2:n18" "owner2:n95"]
+    ["owner2:n19" "owner2:n7"]
+    ["owner2:n20" "owner2:n39"]
+    ["owner2:n20" "owner2:n54"]
+    ["owner2:n20" "owner2:n112"]
+    ["owner2:n21" "owner2:n7"]
+    ["owner2:n22" "owner2:n83"]
+    ["owner2:n23" "owner2:n53"]
+    ["owner2:n23" "owner2:n90"]
+    ["owner2:n24" "owner2:n88"]
+    ["owner2:n25" "owner2:n1"]
+    ["owner2:n25" "owner2:n118"]
+    ["owner2:n26" "owner2:n109"]
+    ["owner2:n27" "owner2:n58"]
+    ["owner2:n28" "owner2:n35"]
+    ["owner2:n28" "owner2:n48"]
+    ["owner2:n29" "owner2:n64"]
+    ["owner2:n29" "owner2:n78"]
+    ["owner2:n30" "owner2:n102"]
+    ["owner2:n30" "owner2:n112"]
+    ["owner2:n31" "owner2:n22"]
+    ["owner2:n32" "owner2:n59"]
+    ["owner2:n33" "owner2:n7"]
+    ["owner2:n34" "owner2:n7"]
+    ["owner2:n35" "owner2:n28"]
+    ["owner2:n35" "owner2:n47"]
+    ["owner2:n37" "owner2:n91"]
+    ["owner2:n37" "owner2:n101"]
+    ["owner2:n38" "owner2:n99"]
+    ["owner2:n39" "owner2:n20"]
+    ["owner2:n39" "owner2:n60"]
+    ["owner2:n40" "owner2:n79"]
+    ["owner2:n40" "owner2:n108"]
+    ["owner2:n41" "owner2:n32"]
+    ["owner2:n42" "owner2:n2"]
+    ["owner2:n42" "owner2:n33"]
+    ["owner2:n42" "owner2:n64"]
+    ["owner2:n42" "owner2:n112"]
+    ["owner2:n43" "owner2:n14"]
+    ["owner2:n44" "owner2:n112"]
+    ["owner2:n45" "owner2:n70"]
+    ["owner2:n45" "owner2:n85"]
+    ["owner2:n46" "owner2:n26"]
+    ["owner2:n47" "owner2:n35"]
+    ["owner2:n47" "owner2:n95"]
+    ["owner2:n47" "owner2:n120"]
+    ["owner2:n48" "owner2:n7"]
+    ["owner2:n49" "owner2:n30"]
+    ["owner2:n50" "owner2:n14"]
+    ["owner2:n50" "owner2:n79"]
+    ["owner2:n51" "owner2:n21"]
+    ["owner2:n51" "owner2:n110"]
+    ["owner2:n52" "owner2:n58"]
+    ["owner2:n52" "owner2:n82"]
+    ["owner2:n53" "owner2:n23"]
+    ["owner2:n53" "owner2:n34"]
+    ["owner2:n54" "owner2:n7"]
+    ["owner2:n55" "owner2:n16"]
+    ["owner2:n55" "owner2:n82"]
+    ["owner2:n56" "owner2:n24"]
+    ["owner2:n58" "owner2:n52"]
+    ["owner2:n59" "owner2:n32"]
+    ["owner2:n59" "owner2:n91"]
+    ["owner2:n60" "owner2:n33"]
+    ["owner2:n60" "owner2:n84"]
+    ["owner2:n60" "owner2:n98"]
+    ["owner2:n62" "owner2:n29"]
+    ["owner2:n63" "owner2:n65"]
+    ["owner2:n64" "owner2:n7"]
+    ["owner2:n66" "owner2:n117"]
+    ["owner2:n67" "owner2:n12"]
+    ["owner2:n67" "owner2:n64"]
+    ["owner2:n67" "owner2:n106"]
+    ["owner2:n68" "owner2:n38"]
+    ["owner2:n69" "owner2:n33"]
+    ["owner2:n69" "owner2:n41"]
+    ["owner2:n70" "owner2:n45"]
+    ["owner2:n71" "owner2:n111"]
+    ["owner2:n78" "owner2:n108"]
+    ["owner2:n79" "owner2:n40"]
+    ["owner2:n79" "owner2:n49"]
+    ["owner2:n79" "owner2:n50"]
+    ["owner2:n80" "owner2:n86"]
+    ["owner2:n80" "owner2:n110"]
+    ["owner2:n82" "owner2:n52"]
+    ["owner2:n82" "owner2:n55"]
+    ["owner2:n82" "owner2:n63"]
+    ["owner2:n83" "owner2:n114"]
+    ["owner2:n84" "owner2:n60"]
+    ["owner2:n84" "owner2:n90"]
+    ["owner2:n85" "owner2:n6"]
+    ["owner2:n85" "owner2:n45"]
+    ["owner2:n85" "owner2:n62"]
+    ["owner2:n86" "owner2:n80"]
+    ["owner2:n86" "owner2:n90"]
+    ["owner2:n88" "owner2:n43"]
+    ["owner2:n89" "owner2:n17"]
+    ["owner2:n89" "owner2:n100"]
+    ["owner2:n90" "owner2:n2"]
+    ["owner2:n90" "owner2:n86"]
+    ["owner2:n90" "owner2:n96"]
+    ["owner2:n91" "owner2:n37"]
+    ["owner2:n91" "owner2:n59"]
+    ["owner2:n91" "owner2:n97"]
+    ["owner2:n92" "owner2:n64"]
+    ["owner2:n93" "owner2:n68"]
+    ["owner2:n94" "owner2:n10"]
+    ["owner2:n95" "owner2:n18"]
+    ["owner2:n95" "owner2:n47"]
+    ["owner2:n96" "owner2:n7"]
+    ["owner2:n97" "owner2:n8"]
+    ["owner2:n98" "owner2:n7"]
+    ["owner2:n99" "owner2:n101"]
+    ["owner2:n100" "owner2:n7"]
+    ["owner2:n101" "owner2:n34"]
+    ["owner2:n101" "owner2:n37"]
+    ["owner2:n102" "owner2:n18"]
+    ["owner2:n104" "owner2:n33"]
+    ["owner2:n106" "owner2:n20"]
+    ["owner2:n106" "owner2:n67"]
+    ["owner2:n107" "owner2:n67"]
+    ["owner2:n107" "owner2:n119"]
+    ["owner2:n108" "owner2:n40"]
+    ["owner2:n109" "owner2:n66"]
+    ["owner2:n110" "owner2:n51"]
+    ["owner2:n110" "owner2:n80"]
+    ["owner2:n111" "owner2:n28"]
+    ["owner2:n112" "owner2:n7"]
+    ["owner2:n113" "owner2:n13"]
+    ["owner2:n113" "owner2:n48"]
+    ["owner2:n114" "owner2:n16"]
+    ["owner2:n117" "owner2:n6"]
+    ["owner2:n117" "owner2:n19"]
+    ["owner2:n118" "owner2:n7"]
+    ["owner2:n119" "owner2:n19"]
+    ["owner2:n119" "owner2:n107"]
+    ["owner2:n120" "owner2:n69"]],
+   :title "accumulated owner 2"}]}

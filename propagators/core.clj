@@ -16,20 +16,24 @@
 
 (defn eval-cell [id msg n]
   (let [old (net/env-get (net/net-env n) id)
-        old-strongest (merge/strongest-value old n)
-        content' (merge/cell-merge (cell/cell-content old) (message-value msg) n)
-        strongest' (merge/strongest-value content' n)
-        n' (-> n
-               (net/assoc-net-cell id (cell/cell content' strongest'))
-               (maybe-register-subenv id strongest'))
-        node (graph/get-node (net/net-graph n') id)
-        next-tasks (tq/enqueue-all tq/empty-queue (graph/node-output-ids node))]
-    (if (merge/cell-updated? strongest' old-strongest n)
-      (if (value/contradiction? strongest')
-        (let [[tasks env] (merge/handle-contradiction next-tasks id (net/net-env n'))]
-          [tasks (net/net-with-env n' env)])
-        [next-tasks n'])
-      [tq/empty-queue n'])))
+        update (message-value msg)]
+    (if (and (cell/cell? old)
+             (= update (cell/cell-content old)))
+      [tq/empty-queue n]
+      (let [old-strongest (cell/cell-strongest old)
+            content' (merge/cell-merge (cell/cell-content old) update n)
+            strongest' (merge/strongest-value content' n)
+            n' (-> n
+                   (net/assoc-net-cell id (cell/cell content' strongest'))
+                   (maybe-register-subenv id strongest'))
+            node (graph/get-node (net/net-graph n') id)
+            next-tasks (tq/enqueue-all tq/empty-queue (graph/node-output-ids node))]
+        (if (merge/cell-updated? strongest' old-strongest n)
+          (if (value/contradiction? strongest')
+            (let [[tasks env] (merge/handle-contradiction next-tasks id (net/net-env n'))]
+              [tasks (net/net-with-env n' env)])
+            [next-tasks n'])
+          [tq/empty-queue n'])))))
 
 (defn eval-cell*
   "Evaluate `msg`, routing lexical sub-env refs through the current network dict.

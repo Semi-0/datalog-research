@@ -20,6 +20,9 @@
 (def accessor-sync-key
   (core/internal-metadata-key :accessor-sync))
 
+(def refined-slot-index-key
+  (core/internal-metadata-key :accessor-refined-slot-index))
+
 (defn accessor-network?
   [x]
   (and (net/net? x)
@@ -280,12 +283,16 @@
 
 (defn refine-accessor-network
   [collection-net]
-  (let [slot-index (or (net/network-dict-entry collection-net core/slot-index-key) {})]
-    (reduce-kv
-     (fn [n slot-key parent-ids]
-       (ensure-accessor-slot-topology n slot-key parent-ids))
-     (as-accessor-network collection-net)
-     slot-index)))
+  (let [n0 (as-accessor-network collection-net)
+        slot-index (or (net/network-dict-entry n0 core/slot-index-key) {})]
+    (if (= slot-index (net/network-dict-entry n0 refined-slot-index-key))
+      n0
+      (-> (reduce-kv
+           (fn [n slot-key parent-ids]
+             (ensure-accessor-slot-topology n slot-key parent-ids))
+           n0
+           slot-index)
+          (net/assoc-net-dict-entry refined-slot-index-key slot-index)))))
 
 (defn attach-network-slot-sync
   [collection-net slot-key parent-id _parent-net]

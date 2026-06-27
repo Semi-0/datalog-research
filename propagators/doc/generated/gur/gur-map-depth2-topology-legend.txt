@@ -1,0 +1,690 @@
+Accumulating GUR map-list topology legend
+depth=2
+owner-count=2
+out-value=Net(nodes=17, edges=12)
+
+=== top-level HOP chain ===
+nodes=32 props=14 cells=18 edges=76
+
+propagators:
+  top:n17  prop cons.car source.node0 <- source.head0
+  top:n18  prop cons.cdr source.node0 <- source.node1
+  top:n19  prop cons.car source.node1 <- source.head1
+  top:n20  prop cons.cdr source.node1 <- source.node2
+  top:n21  prop cons.car source.node2 <- source.head2
+  top:n22  prop cons.cdr source.node2 <- source.node3
+  top:n23  prop cons.car source.node3 <- source.head3
+  top:n24  prop cons.cdr source.node3 <- source.node4
+  top:n25  prop cons.car source.node4 <- source.head4
+  top:n26  prop cons.cdr source.node4 <- source.tail-nothing
+  top:n28  prop apply.request map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n29  prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n31  prop apply.request map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n32  prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+
+cells:
+  top:n1  cell map-list-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  top:n2  cell double-value-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  top:n3  cell acc-list strongest=:graph.gur-mapper-topology-draw/unused-acc-list
+  top:n4  cell hop1.out strongest=Net(nodes=33)
+  top:n5  cell hop2.out strongest=Net(nodes=17)
+  top:n6  cell source.head0 strongest=1
+  top:n7  cell source.head1 strongest=1
+  top:n8  cell source.head2 strongest=1
+  top:n9  cell source.head3 strongest=1
+  top:n10  cell source.head4 strongest=1
+  top:n11  cell source.node0 strongest=Net(nodes=28)
+  top:n12  cell source.node1 strongest=Net(nodes=38)
+  top:n13  cell source.node2 strongest=Net(nodes=39)
+  top:n14  cell source.node3 strongest=Net(nodes=39)
+  top:n15  cell source.node4 strongest=Net(nodes=35)
+  top:n16  cell source.tail-nothing strongest=nothing
+  top:n27  cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:gur/application #propagat..."] strongest=Net(nodes=259)
+  top:n30  cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:gur/application #propagat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=Net(nodes=247)
+
+edges:
+  top:n1 -> top:n28    ; cell map-list-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop apply.request map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n1 -> top:n29    ; cell map-list-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n1 -> top:n31    ; cell map-list-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop apply.request map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n1 -> top:n32    ; cell map-list-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n2 -> top:n28    ; cell double-value-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop apply.request map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n2 -> top:n29    ; cell double-value-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n2 -> top:n31    ; cell double-value-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop apply.request map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n2 -> top:n32    ; cell double-value-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n3 -> top:n28    ; cell acc-list strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop apply.request map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n3 -> top:n29    ; cell acc-list strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n3 -> top:n31    ; cell acc-list strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop apply.request map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n3 -> top:n32    ; cell acc-list strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n4 -> top:n28    ; cell hop1.out strongest=Net(nodes=33) => prop apply.request map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n4 -> top:n29    ; cell hop1.out strongest=Net(nodes=33) => prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n4 -> top:n31    ; cell hop1.out strongest=Net(nodes=33) => prop apply.request map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n4 -> top:n32    ; cell hop1.out strongest=Net(nodes=33) => prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n5 -> top:n31    ; cell hop2.out strongest=Net(nodes=17) => prop apply.request map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n5 -> top:n32    ; cell hop2.out strongest=Net(nodes=17) => prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n6 -> top:n17    ; cell source.head0 strongest=1 => prop cons.car source.node0 <- source.head0
+  top:n7 -> top:n19    ; cell source.head1 strongest=1 => prop cons.car source.node1 <- source.head1
+  top:n8 -> top:n21    ; cell source.head2 strongest=1 => prop cons.car source.node2 <- source.head2
+  top:n9 -> top:n23    ; cell source.head3 strongest=1 => prop cons.car source.node3 <- source.head3
+  top:n10 -> top:n25    ; cell source.head4 strongest=1 => prop cons.car source.node4 <- source.head4
+  top:n11 -> top:n17    ; cell source.node0 strongest=Net(nodes=28) => prop cons.car source.node0 <- source.head0
+  top:n11 -> top:n18    ; cell source.node0 strongest=Net(nodes=28) => prop cons.cdr source.node0 <- source.node1
+  top:n11 -> top:n28    ; cell source.node0 strongest=Net(nodes=28) => prop apply.request map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n11 -> top:n29    ; cell source.node0 strongest=Net(nodes=28) => prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n12 -> top:n18    ; cell source.node1 strongest=Net(nodes=38) => prop cons.cdr source.node0 <- source.node1
+  top:n12 -> top:n19    ; cell source.node1 strongest=Net(nodes=38) => prop cons.car source.node1 <- source.head1
+  top:n12 -> top:n20    ; cell source.node1 strongest=Net(nodes=38) => prop cons.cdr source.node1 <- source.node2
+  top:n13 -> top:n20    ; cell source.node2 strongest=Net(nodes=39) => prop cons.cdr source.node1 <- source.node2
+  top:n13 -> top:n21    ; cell source.node2 strongest=Net(nodes=39) => prop cons.car source.node2 <- source.head2
+  top:n13 -> top:n22    ; cell source.node2 strongest=Net(nodes=39) => prop cons.cdr source.node2 <- source.node3
+  top:n14 -> top:n22    ; cell source.node3 strongest=Net(nodes=39) => prop cons.cdr source.node2 <- source.node3
+  top:n14 -> top:n23    ; cell source.node3 strongest=Net(nodes=39) => prop cons.car source.node3 <- source.head3
+  top:n14 -> top:n24    ; cell source.node3 strongest=Net(nodes=39) => prop cons.cdr source.node3 <- source.node4
+  top:n15 -> top:n24    ; cell source.node4 strongest=Net(nodes=35) => prop cons.cdr source.node3 <- source.node4
+  top:n15 -> top:n25    ; cell source.node4 strongest=Net(nodes=35) => prop cons.car source.node4 <- source.head4
+  top:n15 -> top:n26    ; cell source.node4 strongest=Net(nodes=35) => prop cons.cdr source.node4 <- source.tail-nothing
+  top:n16 -> top:n26    ; cell source.tail-nothing strongest=nothing => prop cons.cdr source.node4 <- source.tail-nothing
+  top:n17 -> top:n6    ; prop cons.car source.node0 <- source.head0 => cell source.head0 strongest=1
+  top:n17 -> top:n11    ; prop cons.car source.node0 <- source.head0 => cell source.node0 strongest=Net(nodes=28)
+  top:n18 -> top:n11    ; prop cons.cdr source.node0 <- source.node1 => cell source.node0 strongest=Net(nodes=28)
+  top:n18 -> top:n12    ; prop cons.cdr source.node0 <- source.node1 => cell source.node1 strongest=Net(nodes=38)
+  top:n19 -> top:n7    ; prop cons.car source.node1 <- source.head1 => cell source.head1 strongest=1
+  top:n19 -> top:n12    ; prop cons.car source.node1 <- source.head1 => cell source.node1 strongest=Net(nodes=38)
+  top:n20 -> top:n12    ; prop cons.cdr source.node1 <- source.node2 => cell source.node1 strongest=Net(nodes=38)
+  top:n20 -> top:n13    ; prop cons.cdr source.node1 <- source.node2 => cell source.node2 strongest=Net(nodes=39)
+  top:n21 -> top:n8    ; prop cons.car source.node2 <- source.head2 => cell source.head2 strongest=1
+  top:n21 -> top:n13    ; prop cons.car source.node2 <- source.head2 => cell source.node2 strongest=Net(nodes=39)
+  top:n22 -> top:n13    ; prop cons.cdr source.node2 <- source.node3 => cell source.node2 strongest=Net(nodes=39)
+  top:n22 -> top:n14    ; prop cons.cdr source.node2 <- source.node3 => cell source.node3 strongest=Net(nodes=39)
+  top:n23 -> top:n9    ; prop cons.car source.node3 <- source.head3 => cell source.head3 strongest=1
+  top:n23 -> top:n14    ; prop cons.car source.node3 <- source.head3 => cell source.node3 strongest=Net(nodes=39)
+  top:n24 -> top:n14    ; prop cons.cdr source.node3 <- source.node4 => cell source.node3 strongest=Net(nodes=39)
+  top:n24 -> top:n15    ; prop cons.cdr source.node3 <- source.node4 => cell source.node4 strongest=Net(nodes=35)
+  top:n25 -> top:n10    ; prop cons.car source.node4 <- source.head4 => cell source.head4 strongest=1
+  top:n25 -> top:n15    ; prop cons.car source.node4 <- source.head4 => cell source.node4 strongest=Net(nodes=35)
+  top:n26 -> top:n15    ; prop cons.cdr source.node4 <- source.tail-nothing => cell source.node4 strongest=Net(nodes=35)
+  top:n26 -> top:n16    ; prop cons.cdr source.node4 <- source.tail-nothing => cell source.tail-nothing strongest=nothing
+  top:n27 -> top:n29    ; cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:gur/application #propagat..."] strongest=Net(nodes=259) => prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out
+  top:n28 -> top:n27    ; prop apply.request map-list-closure source.node0,double-value-closure,acc-list -> hop1.out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:gur/application #propagat..."] strongest=Net(nodes=259)
+  top:n29 -> top:n1    ; prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out => cell map-list-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  top:n29 -> top:n2    ; prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out => cell double-value-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  top:n29 -> top:n3    ; prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out => cell acc-list strongest=:graph.gur-mapper-topology-draw/unused-acc-list
+  top:n29 -> top:n4    ; prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out => cell hop1.out strongest=Net(nodes=33)
+  top:n29 -> top:n11    ; prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out => cell source.node0 strongest=Net(nodes=28)
+  top:n29 -> top:n27    ; prop apply.runner map-list-closure source.node0,double-value-closure,acc-list -> hop1.out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:gur/application #propagat..."] strongest=Net(nodes=259)
+  top:n30 -> top:n32    ; cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:gur/application #propagat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=Net(nodes=247) => prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out
+  top:n31 -> top:n30    ; prop apply.request map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:gur/application #propagat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=Net(nodes=247)
+  top:n32 -> top:n1    ; prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out => cell map-list-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  top:n32 -> top:n2    ; prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out => cell double-value-closure strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  top:n32 -> top:n3    ; prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out => cell acc-list strongest=:graph.gur-mapper-topology-draw/unused-acc-list
+  top:n32 -> top:n4    ; prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out => cell hop1.out strongest=Net(nodes=33)
+  top:n32 -> top:n5    ; prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out => cell hop2.out strongest=Net(nodes=17)
+  top:n32 -> top:n30    ; prop apply.runner map-list-closure hop1.out,double-value-closure,acc-list -> hop2.out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:gur/application #propagat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=Net(nodes=247)
+
+=== accumulated owner 1 ===
+nodes=110 props=53 cells=57 edges=160
+
+propagators:
+  owner1:n12  prop id :map-list.:out -> :map-list.:mapped-rest
+  owner1:n14  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n17  prop id :map-list.:out -> :map-list.:mapped-rest
+  owner1:n20  prop when :map-list.[:arg 0]
+  owner1:n22  prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n23  prop mul :double-v....[:arg 0],cell -> cell
+  owner1:n24  prop id cell -> :double-v....:out
+  owner1:n25  prop mul :double-v....[:arg 0],cell -> cell
+  owner1:n26  prop car :map-list.[:arg 0] -> :double-v....[:arg 0]
+  owner1:n27  prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0]
+  owner1:n28  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n30  prop cdr :map-list.rest -> :map-list.rest
+  owner1:n34  prop when :map-list.rest
+  owner1:n35  prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n37  prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n38  prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n41  prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n42  prop mul :double-v....[:arg 0],cell -> cell
+  owner1:n44  prop mul :map-list.:head,cell -> cell
+  owner1:n45  prop mul :map-list.:head,cell -> cell
+  owner1:n46  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n47  prop id :map-list.:out -> :map-list.:mapped-rest
+  owner1:n48  prop when :map-list.rest
+  owner1:n49  prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n51  prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n52  prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner1:n54  prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner1:n56  prop car :map-list.rest -> :double-v....[:arg 0]
+  owner1:n59  prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n61  prop when :map-list.rest
+  owner1:n62  prop car :map-list.[:arg 0] -> :map-list.:head
+  owner1:n63  prop cdr :map-list.[:arg 0] -> :map-list.rest
+  owner1:n65  prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n66  prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n67  prop id cell -> :double-v....:out
+  owner1:n69  prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner1:n72  prop cdr :map-list.[:arg 0] -> :map-list.rest
+  owner1:n73  prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n75  prop id cell -> :map-list.:mapped
+  owner1:n77  prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n86  prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner1:n88  prop when :map-list.[:arg 0]
+  owner1:n89  prop id cell -> :double-v....:out
+  owner1:n90  prop id cell -> :map-list.:mapped
+  owner1:n91  prop car :map-list.[:arg 0] -> :double-v....[:arg 0]
+  owner1:n93  prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n94  prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n96  prop cdr :map-list.rest -> :map-list.[:arg 0]
+  owner1:n99  prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n102  prop id :map-list.:out -> :map-list.:mapped-rest
+  owner1:n103  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n104  prop car :map-list.rest -> :map-list.:head
+  owner1:n105  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+
+cells:
+  owner1:n1  cell cell strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner1:n2  cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner1:n3  cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list
+  owner1:n4  cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=44)
+  owner1:n5  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=28)
+  owner1:n6  cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n7  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner1:n8  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner1:n9  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner1:n10  cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=21)
+  owner1:n11  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner1:n13  cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2
+  owner1:n15  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n16  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=13)
+  owner1:n18  cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2
+  owner1:n19  cell cell strongest=4
+  owner1:n21  cell cell strongest=2
+  owner1:n29  cell cell strongest=Net(nodes=13)
+  owner1:n31  cell :map-list.rest aliases=[":map-list.:rest"] strongest=nothing
+  owner1:n32  cell cell strongest=4
+  owner1:n33  cell cell strongest=2
+  owner1:n36  cell cell strongest=4
+  owner1:n39  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner1:n40  cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4
+  owner1:n43  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n50  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner1:n53  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner1:n55  cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=13)
+  owner1:n57  cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n58  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n60  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n64  cell cell strongest=2
+  owner1:n68  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n70  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=13)
+  owner1:n71  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n74  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner1:n76  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner1:n78  cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2
+  owner1:n79  cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13)
+  owner1:n80  cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=2
+  owner1:n81  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner1:n82  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n83  cell cell strongest=2
+  owner1:n84  cell cell strongest=4
+  owner1:n85  cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=2
+  owner1:n87  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=nothing
+  owner1:n92  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner1:n95  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner1:n97  cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13)
+  owner1:n98  cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4
+  owner1:n100  cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n101  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n106  cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n107  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner1:n108  cell cell strongest=2
+  owner1:n109  cell cell strongest=2
+  owner1:n110  cell cell strongest=4
+
+edges:
+  owner1:n2 -> owner1:n37    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n2 -> owner1:n38    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n2 -> owner1:n59    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n2 -> owner1:n73    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n2 -> owner1:n93    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n3 -> owner1:n37    ; cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n3 -> owner1:n38    ; cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n3 -> owner1:n59    ; cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n3 -> owner1:n73    ; cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n4 -> owner1:n27    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=44) => prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0]
+  owner1:n4 -> owner1:n91    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=44) => prop car :map-list.[:arg 0] -> :double-v....[:arg 0]
+  owner1:n7 -> owner1:n59    ; cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n9 -> owner1:n59    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n9 -> owner1:n102    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop id :map-list.:out -> :map-list.:mapped-rest
+  owner1:n10 -> owner1:n27    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=21) => prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0]
+  owner1:n10 -> owner1:n37    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=21) => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n10 -> owner1:n88    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=21) => prop when :map-list.[:arg 0]
+  owner1:n12 -> owner1:n16    ; prop id :map-list.:out -> :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=13)
+  owner1:n13 -> owner1:n91    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2 => prop car :map-list.[:arg 0] -> :double-v....[:arg 0]
+  owner1:n13 -> owner1:n93    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n14 -> owner1:n16    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=13)
+  owner1:n14 -> owner1:n82    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n15 -> owner1:n103    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n16 -> owner1:n14    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=13) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n17 -> owner1:n71    ; prop id :map-list.:out -> :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n18 -> owner1:n51    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n18 -> owner1:n56    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2 => prop car :map-list.rest -> :double-v....[:arg 0]
+  owner1:n19 -> owner1:n90    ; cell cell strongest=4 => prop id cell -> :map-list.:mapped
+  owner1:n20 -> owner1:n6    ; prop when :map-list.[:arg 0] => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n22 -> owner1:n57    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n22 -> owner1:n82    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n23 -> owner1:n36    ; prop mul :double-v....[:arg 0],cell -> cell => cell cell strongest=4
+  owner1:n24 -> owner1:n100    ; prop id cell -> :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n25 -> owner1:n32    ; prop mul :double-v....[:arg 0],cell -> cell => cell cell strongest=4
+  owner1:n26 -> owner1:n55    ; prop car :map-list.[:arg 0] -> :double-v....[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=13)
+  owner1:n26 -> owner1:n78    ; prop car :map-list.[:arg 0] -> :double-v....[:arg 0] => cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2
+  owner1:n27 -> owner1:n4    ; prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=44)
+  owner1:n27 -> owner1:n10    ; prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=21)
+  owner1:n28 -> owner1:n58    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n28 -> owner1:n87    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=nothing
+  owner1:n30 -> owner1:n31    ; prop cdr :map-list.rest -> :map-list.rest => cell :map-list.rest aliases=[":map-list.:rest"] strongest=nothing
+  owner1:n30 -> owner1:n97    ; prop cdr :map-list.rest -> :map-list.rest => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13)
+  owner1:n31 -> owner1:n30    ; cell :map-list.rest aliases=[":map-list.:rest"] strongest=nothing => prop cdr :map-list.rest -> :map-list.rest
+  owner1:n31 -> owner1:n61    ; cell :map-list.rest aliases=[":map-list.:rest"] strongest=nothing => prop when :map-list.rest
+  owner1:n32 -> owner1:n24    ; cell cell strongest=4 => prop id cell -> :double-v....:out
+  owner1:n33 -> owner1:n44    ; cell cell strongest=2 => prop mul :map-list.:head,cell -> cell
+  owner1:n34 -> owner1:n6    ; prop when :map-list.rest => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n35 -> owner1:n70    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=13)
+  owner1:n36 -> owner1:n89    ; cell cell strongest=4 => prop id cell -> :double-v....:out
+  owner1:n37 -> owner1:n6    ; prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n38 -> owner1:n6    ; prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n39 -> owner1:n37    ; cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n40 -> owner1:n69    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner1:n40 -> owner1:n86    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4 => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner1:n41 -> owner1:n6    ; prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n42 -> owner1:n84    ; prop mul :double-v....[:arg 0],cell -> cell => cell cell strongest=4
+  owner1:n43 -> owner1:n52    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner1:n43 -> owner1:n65    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n43 -> owner1:n103    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n44 -> owner1:n110    ; prop mul :map-list.:head,cell -> cell => cell cell strongest=4
+  owner1:n45 -> owner1:n19    ; prop mul :map-list.:head,cell -> cell => cell cell strongest=4
+  owner1:n46 -> owner1:n60    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n46 -> owner1:n68    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n47 -> owner1:n68    ; prop id :map-list.:out -> :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n48 -> owner1:n6    ; prop when :map-list.rest => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n49 -> owner1:n100    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n49 -> owner1:n101    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n51 -> owner1:n6    ; prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n52 -> owner1:n43    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n52 -> owner1:n98    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4
+  owner1:n53 -> owner1:n17    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop id :map-list.:out -> :map-list.:mapped-rest
+  owner1:n53 -> owner1:n73    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n54 -> owner1:n6    ; prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n55 -> owner1:n20    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=13) => prop when :map-list.[:arg 0]
+  owner1:n55 -> owner1:n38    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=13) => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n55 -> owner1:n96    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=13) => prop cdr :map-list.rest -> :map-list.[:arg 0]
+  owner1:n56 -> owner1:n18    ; prop car :map-list.rest -> :double-v....[:arg 0] => cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2
+  owner1:n56 -> owner1:n79    ; prop car :map-list.rest -> :double-v....[:arg 0] => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13)
+  owner1:n57 -> owner1:n22    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4 => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n57 -> owner1:n51    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n58 -> owner1:n28    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n58 -> owner1:n86    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner1:n58 -> owner1:n94    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n59 -> owner1:n6    ; prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n60 -> owner1:n46    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n60 -> owner1:n66    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n60 -> owner1:n99    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n61 -> owner1:n6    ; prop when :map-list.rest => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n62 -> owner1:n10    ; prop car :map-list.[:arg 0] -> :map-list.:head => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=21)
+  owner1:n62 -> owner1:n80    ; prop car :map-list.[:arg 0] -> :map-list.:head => cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=2
+  owner1:n63 -> owner1:n10    ; prop cdr :map-list.[:arg 0] -> :map-list.rest => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=21)
+  owner1:n63 -> owner1:n79    ; prop cdr :map-list.[:arg 0] -> :map-list.rest => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13)
+  owner1:n64 -> owner1:n23    ; cell cell strongest=2 => prop mul :double-v....[:arg 0],cell -> cell
+  owner1:n65 -> owner1:n95    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner1:n66 -> owner1:n5    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=28)
+  owner1:n67 -> owner1:n106    ; prop id cell -> :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n68 -> owner1:n46    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n69 -> owner1:n6    ; prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n70 -> owner1:n12    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=13) => prop id :map-list.:out -> :map-list.:mapped-rest
+  owner1:n70 -> owner1:n38    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=13) => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n71 -> owner1:n105    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n72 -> owner1:n55    ; prop cdr :map-list.[:arg 0] -> :map-list.rest => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=13)
+  owner1:n72 -> owner1:n97    ; prop cdr :map-list.[:arg 0] -> :map-list.rest => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13)
+  owner1:n73 -> owner1:n6    ; prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n75 -> owner1:n98    ; prop id cell -> :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4
+  owner1:n76 -> owner1:n73    ; cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n77 -> owner1:n9    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner1:n78 -> owner1:n26    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2 => prop car :map-list.[:arg 0] -> :double-v....[:arg 0]
+  owner1:n78 -> owner1:n41    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n79 -> owner1:n34    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13) => prop when :map-list.rest
+  owner1:n79 -> owner1:n59    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13) => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n79 -> owner1:n63    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13) => prop cdr :map-list.[:arg 0] -> :map-list.rest
+  owner1:n80 -> owner1:n54    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=2 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner1:n80 -> owner1:n62    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=2 => prop car :map-list.[:arg 0] -> :map-list.:head
+  owner1:n82 -> owner1:n14    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n82 -> owner1:n22    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n82 -> owner1:n77    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n83 -> owner1:n25    ; cell cell strongest=2 => prop mul :double-v....[:arg 0],cell -> cell
+  owner1:n84 -> owner1:n67    ; cell cell strongest=4 => prop id cell -> :double-v....:out
+  owner1:n85 -> owner1:n69    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=2 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner1:n85 -> owner1:n104    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=2 => prop car :map-list.rest -> :map-list.:head
+  owner1:n86 -> owner1:n40    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4
+  owner1:n86 -> owner1:n58    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n87 -> owner1:n28    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=nothing => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n88 -> owner1:n6    ; prop when :map-list.[:arg 0] => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n89 -> owner1:n57    ; prop id cell -> :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n90 -> owner1:n40    ; prop id cell -> :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4
+  owner1:n91 -> owner1:n4    ; prop car :map-list.[:arg 0] -> :double-v....[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=44)
+  owner1:n91 -> owner1:n13    ; prop car :map-list.[:arg 0] -> :double-v....[:arg 0] => cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=2
+  owner1:n93 -> owner1:n6    ; prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner1:n94 -> owner1:n53    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner1:n95 -> owner1:n37    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n95 -> owner1:n47    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop id :map-list.:out -> :map-list.:mapped-rest
+  owner1:n96 -> owner1:n55    ; prop cdr :map-list.rest -> :map-list.[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=13)
+  owner1:n96 -> owner1:n79    ; prop cdr :map-list.rest -> :map-list.[:arg 0] => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13)
+  owner1:n97 -> owner1:n48    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13) => prop when :map-list.rest
+  owner1:n97 -> owner1:n72    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13) => prop cdr :map-list.[:arg 0] -> :map-list.rest
+  owner1:n97 -> owner1:n73    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13) => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n98 -> owner1:n52    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4 => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner1:n98 -> owner1:n54    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=4 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner1:n99 -> owner1:n60    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n99 -> owner1:n106    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4
+  owner1:n100 -> owner1:n41    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n100 -> owner1:n49    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4 => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n101 -> owner1:n35    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner1:n101 -> owner1:n49    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n101 -> owner1:n105    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner1:n102 -> owner1:n15    ; prop id :map-list.:out -> :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n103 -> owner1:n15    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n103 -> owner1:n43    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n104 -> owner1:n85    ; prop car :map-list.rest -> :map-list.:head => cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=2
+  owner1:n104 -> owner1:n97    ; prop car :map-list.rest -> :map-list.:head => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=13)
+  owner1:n105 -> owner1:n71    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner1:n105 -> owner1:n101    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner1:n106 -> owner1:n93    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner1:n106 -> owner1:n99    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=4 => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner1:n107 -> owner1:n38    ; cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner1:n108 -> owner1:n42    ; cell cell strongest=2 => prop mul :double-v....[:arg 0],cell -> cell
+  owner1:n109 -> owner1:n45    ; cell cell strongest=2 => prop mul :map-list.:head,cell -> cell
+  owner1:n110 -> owner1:n75    ; cell cell strongest=4 => prop id cell -> :map-list.:mapped
+
+=== accumulated owner 2 ===
+nodes=120 props=53 cells=67 edges=160
+
+propagators:
+  owner2:n17  prop mul :map-list.:head,cell -> cell
+  owner2:n18  prop id cell -> :double-v....:out
+  owner2:n19  prop cdr :map-list.[:arg 0] -> :map-list.rest
+  owner2:n21  prop id cell -> :map-list.:mapped
+  owner2:n22  prop when :map-list.[:arg 0]
+  owner2:n23  prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n30  prop cdr :map-list.[:arg 0] -> :map-list.rest
+  owner2:n31  prop when :map-list.rest
+  owner2:n35  prop id :map-list.:out -> :map-list.:mapped-rest
+  owner2:n36  prop mul :double-v....[:arg 0],cell -> cell
+  owner2:n38  prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n40  prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n48  prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n49  prop id cell -> :map-list.:mapped
+  owner2:n50  prop id :map-list.:out -> :map-list.:mapped-rest
+  owner2:n52  prop id cell -> :double-v....:out
+  owner2:n53  prop car :map-list.[:arg 0] -> :double-v....[:arg 0]
+  owner2:n55  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n57  prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n58  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n61  prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n63  prop id cell -> :map-list.:mapped
+  owner2:n64  prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner2:n65  prop car :map-list.[:arg 0] -> :map-list.:head
+  owner2:n67  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n68  prop cdr :map-list.rest -> :map-list.[:arg 0]
+  owner2:n73  prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n74  prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner2:n75  prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0]
+  owner2:n76  prop cdr :map-list.rest -> :map-list.rest
+  owner2:n77  prop id :map-list.:out -> :map-list.:mapped-rest
+  owner2:n78  prop mul :double-v....[:arg 0],cell -> cell
+  owner2:n80  prop mul :map-list.:head,cell -> cell
+  owner2:n81  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n85  prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n86  prop when :map-list.[:arg 0]
+  owner2:n87  prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n88  prop when :map-list.rest
+  owner2:n91  prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n92  prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n95  prop car :map-list.[:arg 0] -> :map-list.:head
+  owner2:n97  prop id :map-list.:out -> :map-list.:mapped-rest
+  owner2:n98  prop when :map-list.rest
+  owner2:n100  prop mul :map-list.:head,cell -> cell
+  owner2:n103  prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n104  prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n105  prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n108  prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n109  prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner2:n116  prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n117  prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner2:n118  prop car :map-list.rest -> :double-v....[:arg 0]
+  owner2:n119  prop car :map-list.rest -> :map-list.:head
+
+cells:
+  owner2:n1  cell cell strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner2:n2  cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner2:n3  cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list
+  owner2:n4  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=44)
+  owner2:n5  cell cell strongest=1
+  owner2:n6  cell cell strongest=1
+  owner2:n7  cell cell strongest=1
+  owner2:n8  cell cell strongest=1
+  owner2:n9  cell cell strongest=1
+  owner2:n10  cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n11  cell cell strongest=Net(nodes=38)
+  owner2:n12  cell cell strongest=Net(nodes=39)
+  owner2:n13  cell cell strongest=Net(nodes=39)
+  owner2:n14  cell cell strongest=Net(nodes=35)
+  owner2:n15  cell cell strongest=nothing
+  owner2:n16  cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n20  cell cell strongest=2
+  owner2:n24  cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1
+  owner2:n25  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n26  cell cell strongest=2
+  owner2:n27  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner2:n28  cell cell strongest=2
+  owner2:n29  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner2:n32  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=21)
+  owner2:n33  cell cell strongest=2
+  owner2:n34  cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n37  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n39  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner2:n41  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=13)
+  owner2:n42  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner2:n43  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner2:n44  cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2
+  owner2:n45  cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n46  cell cell strongest=2
+  owner2:n47  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner2:n51  cell cell strongest=2
+  owner2:n54  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner2:n56  cell cell strongest=2
+  owner2:n59  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n60  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n62  cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n66  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner2:n69  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner2:n70  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner2:n71  cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=1
+  owner2:n72  cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=35)
+  owner2:n79  cell cell strongest=2
+  owner2:n82  cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1
+  owner2:n83  cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n84  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner2:n89  cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n90  cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1
+  owner2:n93  cell cell strongest=nothing
+  owner2:n94  cell cell strongest=nothing
+  owner2:n96  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner2:n99  cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]}
+  owner2:n101  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner2:n102  cell :double-v....:self strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]}
+  owner2:n106  cell cell strongest=2
+  owner2:n107  cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=nothing
+  owner2:n110  cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n111  cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=13)
+  owner2:n112  cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2
+  owner2:n113  cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=38)
+  owner2:n114  cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=1
+  owner2:n115  cell :map-list.rest aliases=[":map-list.:rest"] strongest=nothing
+  owner2:n120  cell cell strongest=2
+
+edges:
+  owner2:n2 -> owner2:n38    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n2 -> owner2:n61    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n2 -> owner2:n92    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n2 -> owner2:n116    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n2 -> owner2:n117    ; cell :map-list.:mapper aliases=[":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper" ":map-list.:mapper" ":map-list.[:arg 1]" ":map-list.mapper"] strongest=#:gur{:accumulating-recursive-closure? true, :name :double-value, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x1e86b2d1 "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@1e86b2d1"]} => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner2:n3 -> owner2:n38    ; cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n3 -> owner2:n61    ; cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n3 -> owner2:n92    ; cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n3 -> owner2:n116    ; cell :map-list.acc-list aliases=[":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list" ":map-list.acc-list" ":map-list.[:arg 2]" ":map-list.:acc-list"] strongest=:graph.gur-mapper-topology-draw/unused-acc-list => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n10 -> owner2:n53    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=39) => prop car :map-list.[:arg 0] -> :double-v....[:arg 0]
+  owner2:n10 -> owner2:n75    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=39) => prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0]
+  owner2:n17 -> owner2:n79    ; prop mul :map-list.:head,cell -> cell => cell cell strongest=2
+  owner2:n18 -> owner2:n112    ; prop id cell -> :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2
+  owner2:n19 -> owner2:n89    ; prop cdr :map-list.[:arg 0] -> :map-list.rest => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n19 -> owner2:n113    ; prop cdr :map-list.[:arg 0] -> :map-list.rest => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=38)
+  owner2:n20 -> owner2:n36    ; cell cell strongest=2 => prop mul :double-v....[:arg 0],cell -> cell
+  owner2:n21 -> owner2:n45    ; prop id cell -> :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n22 -> owner2:n16    ; prop when :map-list.[:arg 0] => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n23 -> owner2:n16    ; prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n24 -> owner2:n57    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n24 -> owner2:n119    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1 => prop car :map-list.rest -> :map-list.:head
+  owner2:n25 -> owner2:n55    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n25 -> owner2:n73    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n25 -> owner2:n108    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n26 -> owner2:n21    ; cell cell strongest=2 => prop id cell -> :map-list.:mapped
+  owner2:n28 -> owner2:n52    ; cell cell strongest=2 => prop id cell -> :double-v....:out
+  owner2:n29 -> owner2:n50    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop id :map-list.:out -> :map-list.:mapped-rest
+  owner2:n29 -> owner2:n116    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n30 -> owner2:n72    ; prop cdr :map-list.[:arg 0] -> :map-list.rest => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=35)
+  owner2:n30 -> owner2:n115    ; prop cdr :map-list.[:arg 0] -> :map-list.rest => cell :map-list.rest aliases=[":map-list.:rest"] strongest=nothing
+  owner2:n31 -> owner2:n16    ; prop when :map-list.rest => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n32 -> owner2:n81    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=21) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n33 -> owner2:n17    ; cell cell strongest=2 => prop mul :map-list.:head,cell -> cell
+  owner2:n34 -> owner2:n23    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n34 -> owner2:n104    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2 => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n35 -> owner2:n41    ; prop id :map-list.:out -> :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=13)
+  owner2:n36 -> owner2:n28    ; prop mul :double-v....[:arg 0],cell -> cell => cell cell strongest=2
+  owner2:n37 -> owner2:n74    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner2:n37 -> owner2:n81    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n37 -> owner2:n103    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n38 -> owner2:n16    ; prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n39 -> owner2:n38    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n39 -> owner2:n77    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop id :map-list.:out -> :map-list.:mapped-rest
+  owner2:n40 -> owner2:n111    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=13)
+  owner2:n41 -> owner2:n67    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=13) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n42 -> owner2:n58    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n44 -> owner2:n64    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner2:n44 -> owner2:n109    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2 => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner2:n45 -> owner2:n57    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n45 -> owner2:n105    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2 => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n46 -> owner2:n18    ; cell cell strongest=2 => prop id cell -> :double-v....:out
+  owner2:n47 -> owner2:n61    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n47 -> owner2:n97    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12) => prop id :map-list.:out -> :map-list.:mapped-rest
+  owner2:n48 -> owner2:n16    ; prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n49 -> owner2:n34    ; prop id cell -> :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n50 -> owner2:n101    ; prop id :map-list.:out -> :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner2:n51 -> owner2:n80    ; cell cell strongest=2 => prop mul :map-list.:head,cell -> cell
+  owner2:n52 -> owner2:n44    ; prop id cell -> :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2
+  owner2:n53 -> owner2:n10    ; prop car :map-list.[:arg 0] -> :double-v....[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n53 -> owner2:n71    ; prop car :map-list.[:arg 0] -> :double-v....[:arg 0] => cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=1
+  owner2:n55 -> owner2:n25    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n55 -> owner2:n107    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=nothing
+  owner2:n56 -> owner2:n100    ; cell cell strongest=2 => prop mul :map-list.:head,cell -> cell
+  owner2:n57 -> owner2:n16    ; prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n58 -> owner2:n42    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner2:n58 -> owner2:n62    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n59 -> owner2:n40    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n59 -> owner2:n87    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n59 -> owner2:n109    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner2:n60 -> owner2:n67    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n60 -> owner2:n91    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n60 -> owner2:n105    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n61 -> owner2:n16    ; prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n62 -> owner2:n58    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n62 -> owner2:n85    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop id :map-list.:mapped-node -> :map-list.:out
+  owner2:n62 -> owner2:n104    ; cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12) => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n63 -> owner2:n83    ; prop id cell -> :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n64 -> owner2:n16    ; prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n65 -> owner2:n90    ; prop car :map-list.[:arg 0] -> :map-list.:head => cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1
+  owner2:n65 -> owner2:n113    ; prop car :map-list.[:arg 0] -> :map-list.:head => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=38)
+  owner2:n66 -> owner2:n61    ; cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n67 -> owner2:n41    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=13)
+  owner2:n67 -> owner2:n60    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n68 -> owner2:n72    ; prop cdr :map-list.rest -> :map-list.[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=35)
+  owner2:n68 -> owner2:n110    ; prop cdr :map-list.rest -> :map-list.[:arg 0] => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n70 -> owner2:n92    ; cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n71 -> owner2:n53    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=1 => prop car :map-list.[:arg 0] -> :double-v....[:arg 0]
+  owner2:n71 -> owner2:n117    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=1 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner2:n72 -> owner2:n22    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=35) => prop when :map-list.[:arg 0]
+  owner2:n72 -> owner2:n68    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=35) => prop cdr :map-list.rest -> :map-list.[:arg 0]
+  owner2:n72 -> owner2:n116    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=35) => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n73 -> owner2:n25    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n73 -> owner2:n83    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n74 -> owner2:n37    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n74 -> owner2:n112    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2
+  owner2:n75 -> owner2:n10    ; prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n75 -> owner2:n113    ; prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0] => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=38)
+  owner2:n76 -> owner2:n89    ; prop cdr :map-list.rest -> :map-list.rest => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n76 -> owner2:n110    ; prop cdr :map-list.rest -> :map-list.rest => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n77 -> owner2:n42    ; prop id :map-list.:out -> :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner2:n78 -> owner2:n46    ; prop mul :double-v....[:arg 0],cell -> cell => cell cell strongest=2
+  owner2:n79 -> owner2:n63    ; cell cell strongest=2 => prop id cell -> :map-list.:mapped
+  owner2:n80 -> owner2:n106    ; prop mul :map-list.:head,cell -> cell => cell cell strongest=2
+  owner2:n81 -> owner2:n32    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=21)
+  owner2:n81 -> owner2:n37    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n82 -> owner2:n48    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n82 -> owner2:n95    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1 => prop car :map-list.[:arg 0] -> :map-list.:head
+  owner2:n83 -> owner2:n48    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n83 -> owner2:n73    ; cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2 => prop cons.car :map-list.:mapped-node <- :map-list.:mapped
+  owner2:n84 -> owner2:n38    ; cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n85 -> owner2:n47    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner2:n86 -> owner2:n16    ; prop when :map-list.[:arg 0] => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n87 -> owner2:n59    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n87 -> owner2:n101    ; prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12)
+  owner2:n88 -> owner2:n16    ; prop when :map-list.rest => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n89 -> owner2:n19    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39) => prop cdr :map-list.[:arg 0] -> :map-list.rest
+  owner2:n89 -> owner2:n38    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39) => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n89 -> owner2:n98    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39) => prop when :map-list.rest
+  owner2:n90 -> owner2:n23    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1 => prop apply :map-list.:mapper :map-list.:head -> :map-list.:mapped
+  owner2:n90 -> owner2:n65    ; cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1 => prop car :map-list.[:arg 0] -> :map-list.:head
+  owner2:n91 -> owner2:n39    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner2:n92 -> owner2:n16    ; prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n95 -> owner2:n72    ; prop car :map-list.[:arg 0] -> :map-list.:head => cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=35)
+  owner2:n95 -> owner2:n82    ; prop car :map-list.[:arg 0] -> :map-list.:head => cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1
+  owner2:n96 -> owner2:n116    ; cell :map-list.:self strongest=#:gur{:accumulating-recursive-closure? true, :name :map-list, :body #object[propagators.gur.accumulating.source$source_recursive_closure$fn__6212 0x4db10b9f "propagators.gur.accumulating.source$source_recursive_closure$fn__6212@4db10b9f"]} => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n97 -> owner2:n32    ; prop id :map-list.:out -> :map-list.:mapped-rest => cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=21)
+  owner2:n98 -> owner2:n16    ; prop when :map-list.rest => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n100 -> owner2:n26    ; prop mul :map-list.:head,cell -> cell => cell cell strongest=2
+  owner2:n101 -> owner2:n87    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=Net(nodes=12) => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n103 -> owner2:n4    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=44)
+  owner2:n104 -> owner2:n34    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n104 -> owner2:n62    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n105 -> owner2:n45    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped aliases=[":map-list.mapped" ":double-v....:out" ":double-v....out"] strongest=2
+  owner2:n105 -> owner2:n60    ; prop cons.car :map-list.:mapped-node <- :map-list.:mapped => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n106 -> owner2:n49    ; cell cell strongest=2 => prop id cell -> :map-list.:mapped
+  owner2:n107 -> owner2:n55    ; cell :map-list.:mapped-rest aliases=[":map-list.mapped-rest"] strongest=nothing => prop cons.cdr :map-list.:mapped-node <- :map-list.:mapped-rest
+  owner2:n108 -> owner2:n29    ; prop id :map-list.:mapped-node -> :map-list.:out => cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=12)
+  owner2:n109 -> owner2:n44    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2
+  owner2:n109 -> owner2:n59    ; prop cons.car :map-list.:mapped-node <- :double-v....:out => cell :map-list.:mapped-node aliases=[":map-list.mapped-node"] strongest=Net(nodes=12)
+  owner2:n110 -> owner2:n31    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39) => prop when :map-list.rest
+  owner2:n110 -> owner2:n76    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39) => prop cdr :map-list.rest -> :map-list.rest
+  owner2:n110 -> owner2:n92    ; cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39) => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n111 -> owner2:n35    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=13) => prop id :map-list.:out -> :map-list.:mapped-rest
+  owner2:n111 -> owner2:n92    ; cell :map-list.:out aliases=[":map-list.out"] strongest=Net(nodes=13) => prop recur :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n112 -> owner2:n74    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2 => prop cons.car :map-list.:mapped-node <- :double-v....:out
+  owner2:n112 -> owner2:n117    ; cell :double-v....:out aliases=[":double-v....out" ":map-list.:mapped" ":map-list.mapped"] strongest=2 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner2:n113 -> owner2:n61    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=38) => prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  owner2:n113 -> owner2:n75    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=38) => prop cdr :map-list.[:arg 0] -> :map-list.[:arg 0]
+  owner2:n113 -> owner2:n86    ; cell :map-list.[:arg 0] aliases=[":map-list.:list" ":map-list.list" ":map-list.rest" ":map-list.:rest"] strongest=Net(nodes=38) => prop when :map-list.[:arg 0]
+  owner2:n114 -> owner2:n64    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=1 => prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out
+  owner2:n114 -> owner2:n118    ; cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=1 => prop car :map-list.rest -> :double-v....[:arg 0]
+  owner2:n115 -> owner2:n30    ; cell :map-list.rest aliases=[":map-list.:rest"] strongest=nothing => prop cdr :map-list.[:arg 0] -> :map-list.rest
+  owner2:n115 -> owner2:n88    ; cell :map-list.rest aliases=[":map-list.:rest"] strongest=nothing => prop when :map-list.rest
+  owner2:n116 -> owner2:n16    ; prop recur :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n117 -> owner2:n16    ; prop apply :map-list.:mapper :double-v....[:arg 0] -> :double-v....:out => cell [:env/scope [:gur/accumulat... aliases=["[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..." "[:env/scope [:gur/accumulat..."] strongest=nothing
+  owner2:n118 -> owner2:n110    ; prop car :map-list.rest -> :double-v....[:arg 0] => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n118 -> owner2:n114    ; prop car :map-list.rest -> :double-v....[:arg 0] => cell :double-v....[:arg 0] aliases=[":double-v....x" ":double-v....:x" ":map-list.:head" ":map-list.head"] strongest=1
+  owner2:n119 -> owner2:n24    ; prop car :map-list.rest -> :map-list.:head => cell :map-list.:head aliases=[":map-list.head" ":double-v....[:arg 0]" ":double-v....x" ":double-v....:x"] strongest=1
+  owner2:n119 -> owner2:n89    ; prop car :map-list.rest -> :map-list.:head => cell :map-list.rest aliases=[":map-list.:rest" ":map-list.[:arg 0]" ":map-list.:list" ":map-list.list"] strongest=Net(nodes=39)
+  owner2:n120 -> owner2:n78    ; cell cell strongest=2 => prop mul :double-v....[:arg 0],cell -> cell
+

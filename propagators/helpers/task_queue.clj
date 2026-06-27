@@ -4,7 +4,7 @@
 
 (def empty-queue
   {:task-queue/seen #{}
-   :task-queue/q []})
+   :task-queue/q clojure.lang.PersistentQueue/EMPTY})
 
 (defn task-queue? [x]
   (and (map? x)
@@ -53,6 +53,6 @@
   "Returns `[node-id queue']` or `nil` when empty."
   [q]
   (when (seq (fifo q))
-    (let [node-id (first (fifo q))]
+    (let [node-id (peek (fifo q))]
       [node-id {:task-queue/seen (disj (seen-set q) node-id)
-                :task-queue/q (vec (rest (fifo q)))}])))
+                :task-queue/q (pop (fifo q))}])))

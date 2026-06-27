@@ -37,9 +37,11 @@
 (defn merge-evidence
   "Merge named-network evidence without forcing a strongest join."
   [content update]
-  (reduce add-evidence
-          (evidence-set content)
-          (evidence-networks update)))
+  (let [evidence (evidence-set content)
+        updates (evidence-networks update)]
+    (if (every? #(contains? evidence %) updates)
+      evidence
+      (reduce add-evidence evidence updates))))
 
 (defn strongest
   "Strongest named-network view for an evidence set."

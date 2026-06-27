@@ -152,7 +152,7 @@ The routed installer delivery keeps ownership explicit:
 | Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Best previous ownership baseline. |
 | Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, scoped vector keys, scoped slot accessor registration, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, bidirectional late nested cdr through parent-visible output, constructed-accessor lazy cdr extension, and nested constructed lazy cdr extension through transitive scoped slot fanout. Accessor-linked hop smoke shows filter reaches 10 hops, while map is correct through 7 but blows up operationally before 8-10. | Current proposal validation; continue, but not compile target yet. |
 | Frame-publisher accessor export | Recursive accessor export can be ordinary propagation instead of a sub-env merge side effect. | `gur.subenv/p:apply-closure` installs a child-accessor publisher beside the frame runner. | Preserves lazy flat/nested cdr behavior while removing recursive accessor export from owner-cell registration. | Current implementation refinement; still leaves contextual slot accessors as future cleanup. |
-| Accumulating GUR | Recursive frames can accumulate into one owner network instead of nested child frame cells. | `gur.accumulating/p:apply-closure` emits deterministic frame fragments into one `applied-net-id`; frame/body/route/boundary/outbox obligations are monotone task facts; the executor keeps only a local `ran [task index]` cursor. `when` is topology-lazy: `nothing` waits, any other cdr builds the recursive tail. | Focused run on `2026-06-22` passes scalar fib/factorial/sqrt, list map/reduce/filter, nested map, late cdr routing, sibling-subenv routing, one compiler-2 linked-list lexical probe, true `obj/p:cons` HOP mapper depths `5/10/15`, filter depths `5/10`, and stable counted rerun. | Keep as parallel experiment; tested parity is improved, but the task-fact cursor remains experimental. |
+| Accumulating GUR | Recursive frames can accumulate into one owner network instead of nested child frame cells. | `gur.accumulating/p:apply-closure` emits deterministic frame fragments into one `applied-net-id`; frame/body/route/boundary/mailbox obligations are monotone task facts; the executor keeps only a local `ran [task index]` cursor. `when` is topology-lazy: `nothing` waits, any other cdr builds the recursive tail. | Focused run on `2026-06-22` passes scalar fib/factorial/sqrt, list map/reduce/filter, nested map, late cdr routing, sibling-subenv routing, one compiler-2 linked-list lexical probe, true `obj/p:cons` HOP mapper depths `5/10/15`, filter depths `5/10`, and stable counted rerun. | Keep as parallel experiment; tested parity is improved, but the task-fact cursor remains experimental. |
 
 ## Experiments
 
@@ -768,9 +768,9 @@ Optimization snapshot on `2026-06-23`, same command shape with `warmup=1`,
 
 Two small optimizations produced this snapshot:
 
-- Outbox task facts no longer use `(hash (pr-str outbox))` as their task
-  index. The accumulating runner owns a primitive-local `outbox-epoch` atom and
-  uses that epoch as the outbox task index. This removes whole-network printing
+- Mailbox task facts no longer use `(hash (pr-str mailbox))` as their task
+  index. The accumulating runner owns a primitive-local `mailbox-epoch` atom and
+  uses that epoch as the mailbox task index. This removes whole-network printing
   from the hot path while keeping runtime scheduling state out of recursive
   semantics and out of cell merge.
 - Scoped child accessor publishing now computes child accessor cells once per
@@ -825,12 +825,10 @@ Relational map-list experiment on `2026-06-23`:
 - Output-side accessor update now flows back to the input head for that
   same-owner relation. The focused test writes `9` through `out.car` and reads
   `9` from the original input head cell.
-- Marked bidirectional closure apply now works for the identity mapper case:
-  `map-list` with a `:bidirectional?` identity mapper receives `out.car = 9`
-  and propagates `9` back to the source head. The mapper frame is allowed to
-  build from output information only when the closure is explicitly marked
-  bidirectional; unmarked reduce/filter apply keeps the old all-args-ready
-  rule.
+- Bidirectional closure apply now works by default for the identity mapper
+  case: `map-list` receives `out.car = 9` and propagates `9` back to the source
+  head. The mapper frame is allowed to build from output information; there is
+  no longer a source-level `:bidirectional?` special case.
 - Follow-up same-parent HOP chain test now passes for bidirectional mapper
   backflow at depths `2` and `5`: writing `9` through the final output `car`
   propagates to the original unseeded source head without materializing the
@@ -839,7 +837,7 @@ Relational map-list experiment on `2026-06-23`:
   source head `1`.
 - The fixes were value publication alongside neighbor accessor declaration
   publication, boundary projection for imported args, and output-sensitive
-  frame creation for marked bidirectional closures. The accumulating runner
+  frame creation for bidirectional closures. The accumulating runner
   still emits messages only; cell merge still owns accessor topology
   refinement.
 - The actual cross-owner gap was narrower than the earlier hypothesis:
@@ -867,6 +865,299 @@ Relational map-list experiment on `2026-06-23`:
   `99 ms`. Plain `[:named-network :named-network]` remained much smaller.
 - Full correctness after this follow-up:
   `clojure -M:test` -> `1371 pass, 0 fail, 0 error`.
+
+Application-request ownership follow-up:
+
+- `p:accumulate-apply-closure` now emits a monotone application request fact
+  into `applied-net-id` instead of directly expanding the closure body into a
+  frame fragment. The request fact stores only ids: closure id, arg ids, and
+  output id.
+- The accumulating runner owns request expansion. It reads request facts from
+  the accumulated network, expands unseen recursive requests into deterministic
+  frame declarations, and stores `frame-declared` facts with the frame. This
+  keeps closure body execution out of cell merge while moving request
+  idempotence into monotone declaration content.
+- Duplicate request mailbox messages are pruned before assigning fresh mailbox
+  task indexes when their frame is already declared. Without that prune,
+  duplicate no-op requests became real changes because the runner attached a
+  new mailbox task index on every pass.
+- A failed intermediate design made request fragments declare empty
+  closure/arg/output cells. That was wrong: named-network join can let unnamed
+  empty cells overwrite live child cells, and mapper HOP chains truncated to
+  values like `[32 32 :bool4/nothing]`. The final version keeps request
+  fragments dict-only and creates/imports boundary cells inside
+  `prepare-run-net`.
+- Correctness after this follow-up:
+  `clojure -M:test propagators.gur-accumulating-test` passed twice, and
+  `clojure -M:test` -> `1378 pass, 0 fail, 0 error`.
+
+Precise boundary/mailbox scheduling experiment:
+
+- Evidence before the experiment showed broad boundary/mailbox task facts were
+  the main redundant scheduler source. For mapper depth `15`, boundary+mailbox
+  scheduled about `7718` prop occurrences against about `7509` actual
+  activations; frame+when scheduling was only about `813`.
+- A graph-reachable boundary slice was not correct for HOP. Even after adding
+  direct neighboring props and accessor parent ids from changed compound
+  values, mapper chains lost tails such as `[1024 :bool4/nothing]`, and nested
+  map-list returned partially raw accessor values. The missing dependency is
+  not represented as a plain downstream graph edge; it crosses scoped accessor
+  routing metadata.
+- A graph-reachable mailbox slice was also not stable enough. It reduced mailbox
+  scheduled props but missed the fourth mapper tail at depths `10` and `15`,
+  e.g. `[1024 1024 1024 :bool4/nothing 1024]`. Adding accessor parent ids and
+  existing `:when` props did not fix the gap.
+- The runner therefore keeps broad boundary/mailbox scheduling for correctness.
+  The next viable optimization needs an explicit dependency index for scoped
+  accessor routes, not only graph traversal from changed cells.
+
+Runner-local unchanged-prop guard:
+
+- The accumulating runner now keeps a primitive-local `prop-id -> observed
+  input/output cell state` cache. When broad boundary/mailbox scheduling wakes a
+  prop whose declared input and output cells are unchanged since the runner last
+  executed that prop, the runner skips that activation. The cache is runtime
+  executor state only; it is not stored in recursive declaration facts, not cell
+  content, and not part of GUR semantics.
+- The guard fingerprints both inputs and outputs because HOP mapper frames are
+  bidirectional: output-side information can legitimately cause a frame to
+  build or propagate backward. Input-only fingerprints would be too narrow for
+  current HOP behavior.
+- Counter run after the guard, using the current HOP benchmark shapes:
+
+  | Scenario | Scheduled prop occurrences | Ran | Skipped |
+  | --- | ---: | ---: | ---: |
+  | mapper depth `5` | `2314` | `1296` | `1018` |
+  | mapper depth `10` | `4609` | `2504` | `2105` |
+  | mapper depth `15` | `6904` | `3677` | `3227` |
+  | filter depth `5` | `3612` | `1518` | `2094` |
+  | filter depth `10` | `6384` | `2722` | `3662` |
+- Local benchmark after the guard, `clojure -M:gur-accumulating-bench 1 5`:
+
+  | Scenario | Median |
+  | --- | ---: |
+  | mapper depth `5` | `460.104 ms` |
+  | mapper depth `10` | `679.582 ms` |
+  | mapper depth `15` | `873.373 ms` |
+  | filter depth `5` | `314.475 ms` |
+  | filter depth `10` | `499.260 ms` |
+- Correctness after the guard:
+  `clojure -M:test propagators.gur-accumulating-test`,
+  `clojure -M:test propagators.gur-subenv-test propagators.recursive-compound-test propagators.compiler-2-gur-linked-list-test propagators.linked-list-access-test`,
+  and full `clojure -M:test` all pass. Full-suite result:
+  `1378 pass, 0 fail, 0 error`.
+
+Request-expansion cost estimate and fast path:
+
+- Moving request expansion into named-network merge is plausible if expansion is
+  treated as pure declaration closure: merge request facts, deterministically
+  expand unseen ready requests into frame topology, and leave runtime execution
+  to the runner. That would be closer to the MIT-style idea where cell merge can
+  refine an inner network as long as the operation is pure and monotone.
+- Measurement after the unchanged-prop guard showed the current request path is
+  meaningful but not the whole runtime. For mapper depth `15`,
+  `expand-application-requests` was about `153 ms` before the request fast path
+  and about `111 ms` after it in the temporary profiler. Request-fragment merge
+  remained about `112-125 ms`, task-fragment merge about `103-116 ms`, and total
+  cell merge about `330-340 ms`.
+- The retained low-risk fast path keeps expansion in the runner but avoids
+  rescanning/sorting the request map once every request fact has either been
+  expanded or is already covered by a `frame-declared` fact. Non-expandable
+  requests are not cached, so late information can still make them eligible.
+- Local benchmark after this request fast path,
+  `clojure -M:gur-accumulating-bench 1 5`:
+
+  | Scenario | Median |
+  | --- | ---: |
+  | mapper depth `5` | `430.418 ms` |
+  | mapper depth `10` | `628.197 ms` |
+  | mapper depth `15` | `806.645 ms` |
+  | filter depth `5` | `281.373 ms` |
+  | filter depth `10` | `449.293 ms` |
+- Full correctness after this fast path:
+  `clojure -M:test` -> `1378 pass, 0 fail, 0 error`.
+- Estimate: merge-time expansion can likely remove some remaining request
+  mailbox/scan overhead, but current evidence says it is not a standalone path
+  to sub-`100 ms` HOP chains. The larger remaining head is still named-network
+  merge and broad boundary/mailbox-triggered propagation.
+
+Task-selection and exact-duplicate merge follow-up:
+
+- Profiling after the unchanged-prop guard showed task selection itself became
+  a visible cost. The old `pending-task-facts` path rebuilt and sorted the full
+  pending task vector every child loop, even though the runner only consumed the
+  first task. Temporary instrumentation measured task selection at about `15%`
+  of mapper depth `15` and about `37%` of filter depth `10`.
+- The runner now uses a single-pass `next-pending-task-fact` selector. It keeps
+  the same ordering rule: declaration/frame/when/mailbox tasks before boundary
+  tasks, then deterministic task-key/index order. A later attempt to cache
+  sort keys was rejected because the atom/cache overhead regressed timing.
+- `core/eval-cell` also skips an exact-content duplicate before calling
+  `cell-merge`. This only applies when the incoming message value is exactly
+  equal to the cell content, not merely equal to the strongest value. Strongest-
+  only equality can still represent useful evidence/content, so it is not
+  skipped.
+- Local benchmark after retaining the task selector and exact-content duplicate
+  guard, `clojure -M:gur-accumulating-bench 1 5`:
+
+  | Scenario | Median |
+  | --- | ---: |
+  | mapper depth `5` | `356.721 ms` |
+  | mapper depth `10` | `535.438 ms` |
+  | mapper depth `15` | `702.450 ms` |
+  | filter depth `5` | `190.394 ms` |
+  | filter depth `10` | `306.110 ms` |
+- Full correctness after this follow-up:
+  `clojure -M:test` -> `1378 pass, 0 fail, 0 error`.
+- Status: this is the best retained HOP timing so far, but it is still well
+  above the target of sub-`100 ms` chains. The evidence still points to
+  named-network merge cost and broad boundary/mailbox-triggered propagation as
+  the remaining large design heads.
+
+Scheduler queue and strongest-only runner guard follow-up:
+
+- The task queue now uses `clojure.lang.PersistentQueue` internally. The old
+  vector queue copied `(vec (rest q))` on every pop, making each task pop
+  proportional to the remaining queue length. The public queue shape remains a
+  map with `:task-queue/q`; existing debug/test code only depends on sequence
+  and count behavior.
+- The runner-local unchanged-prop guard now fingerprints declared input/output
+  strongest values only. This is intentionally scoped to the accumulating
+  executor, where primitive activations read strongest values. It is not a
+  global cell-merge rule and does not discard cell content.
+- The remaining sort of broad task prop ids was removed before creating task
+  facts, because `add-task-facts` stores those prop ids in a set. A separate
+  attempt to remove set sorting from the general task queue was rejected because
+  it did not improve the HOP benchmark consistently.
+- A mailbox-only scheduling retry was also rejected. Scheduling only props from
+  the mailbox fragment was faster, but it reproduced the known HOP tail loss:
+  mapper depths `10` and `15` produced
+  `[1024 1024 1024 :bool4/nothing 1024]` and
+  `[32768 32768 32768 :bool4/nothing 32768]`.
+- Warmer local benchmark after these retained changes,
+  `clojure -M:gur-accumulating-bench 2 7`:
+
+  | Scenario | Median | Min |
+  | --- | ---: | ---: |
+  | mapper depth `5` | `235.055 ms` | `229.368 ms` |
+  | mapper depth `10` | `410.500 ms` | `401.524 ms` |
+  | mapper depth `15` | `582.305 ms` | `556.840 ms` |
+  | filter depth `5` | `107.331 ms` | `98.812 ms` |
+  | filter depth `10` | `167.290 ms` | `162.680 ms` |
+- Full correctness after this follow-up:
+  `clojure -M:test` -> `1378 pass, 0 fail, 0 error`.
+- Status: the smallest filter case can now dip below `100 ms`, but median HOP
+  chains are still not below target. The map chain remains the clearest
+  remaining failure for the goal.
+
+Accessor-refinement marker and merge-time expansion estimate:
+
+- Accessor-network merge now records the slot index that has already been
+  refined into deterministic canonical/avatar/bi-sync topology. When the same
+  accessor network is read or merged again without a slot-index change,
+  `refine-accessor-network` returns the existing value instead of re-walking
+  every slot participant and rechecking topology markers. This is still
+  merge-owned declaration refinement; no propagator mutates a collection cell.
+- Focused correctness after this change:
+  `clojure -M:test propagators.compound-object-network-slot-test
+  propagators.compound-object-test propagators.gur-accumulating-test`, and full
+  `clojure -M:test` both pass. Full-suite result: `1378 pass, 0 fail, 0 error`.
+- Warmer local benchmark after this change and the retained runner fast paths,
+  `clojure -M:gur-accumulating-bench 2 9`:
+
+  | Scenario | Median | Min |
+  | --- | ---: | ---: |
+  | mapper depth `5` | `268.142 ms` | `212.590 ms` |
+  | mapper depth `10` | `345.567 ms` | `327.225 ms` |
+  | mapper depth `15` | `472.565 ms` | `458.405 ms` |
+  | filter depth `5` | `88.131 ms` | `77.100 ms` |
+  | filter depth `10` | `136.046 ms` | `126.481 ms` |
+- The current estimate for moving GUR request expansion into cell merge is
+  limited. It is plausible only if expansion is a pure deterministic closure
+  over application-request facts: cell merge may add frame declaration facts,
+  but runner-local cursors and subnet execution must stay out of cell content.
+  Profiling shows this could remove a meaningful part of request/build/mailbox
+  overhead, but not enough by itself to make mapper HOP chains sub-`100 ms`.
+  After the refinement marker, accessor refinement is around `5-9%` of the
+  measured HOP run and named-network join is around `6-13%`; the remaining cost
+  is spread across repeated `eval-cell`/`cell-merge` and broad
+  boundary/mailbox-triggered propagation.
+- Two micro-optimizations were rejected here:
+  a duplicate accessor-declaration shortcut helped filter slightly but regressed
+  mapper depth `15`, and `named-network/join` equality guards did not improve
+  HOP timing enough to justify keeping them. This is kept as design evidence
+  that the remaining goal needs a structural dependency/scheduling improvement,
+  not more speculative equality checks.
+- `p:accumulate-apply-closure` no longer declares `out-id` as an output edge,
+  because it never sends messages to `out-id`. `out-id` remains an input, so
+  reverse/bidirectional application demand is still observed. This is a graph
+  cleanup with small/noisy performance impact, not the main optimization.
+
+Depth-15 mapper phase diagnostic after the output-aware compiler and runner
+fast paths:
+
+- Diagnostic command:
+  `clojure -M -m graph.gur-mapper-topology-draw 15 15
+  propagators/doc/generated/gur/gur-map-depth summary-only`.
+- The diagnostic is opt-in. `runner/*phase-observer*`,
+  `runner/*prop-run-observer*`, and
+  `network-slot/*network-slot-observer*` collect evidence for the graph tool;
+  normal propagation semantics do not read those events.
+- Current topology size remains bounded for the HOP shape:
+
+  | Kind | Count |
+  | --- | ---: |
+  | total props | `685` |
+  | `ctx/apply` props | `75` |
+  | `ctx/recur` props | `60` |
+  | `ctx/when` props | `75` |
+  | `obj/p:car` props | `75` |
+  | `obj/p:cdr` props | `75` |
+
+- Phase timing in the instrumented depth-15 run:
+
+  | Phase | Calls | Elapsed |
+  | --- | ---: | ---: |
+  | `settle-child` | `60` | about `551 ms` |
+  | `settle/run-child` | `195` | about `498 ms` |
+  | `run-child/run-props` | `486` | about `298 ms` |
+  | `run-child/expand-initial` | `195` | about `180 ms` |
+  | `accessor-export` | `60` | about `51 ms` |
+  | `externalize-output` | `60` | about `43 ms` |
+  | `settle/merge-mailbox` | `135` | about `45 ms` |
+
+- Accessor branch counts show that `obj/p:cdr` is not mainly spending time in
+  inner accessor execution in this run. The `:cdr` inner-net branch ran only
+  once; the repeated work is mostly source/declaration/synced projection around
+  live `p:cons` topology plus the runner's child prop execution.
+- A scoped-address duplicate-projection guard was tested and rejected for now:
+  it preserved focused correctness, but did not reduce `:cdr` source messages
+  enough and regressed mapper depth-15 timing relative to the best retained
+  baseline.
+- `expand-application-requests` now uses an actual key membership check instead
+  of `request-count == cache-count`. This is kept as a correctness tightening:
+  a same-count/different-key request map must not be skipped, and a smaller
+  current request map whose keys are already cached should not force a rescan.
+  It did not materially reduce the depth-15 `expand-initial` phase, which means
+  that phase is mostly real frame-fragment construction for the HOP shape.
+- Current conclusion: sub-`100 ms` mapper HOP will need a structural reduction
+  in per-frame topology construction or child prop execution. Mailbox merge,
+  accessor export, and one-off equality guards are too small to close the gap by
+  themselves.
+- Practical current bar: after making the debug hooks avoid event allocation
+  when unbound, `clojure -M:gur-accumulating-bench 3 11` initially reported:
+
+  | Scenario | Median | Min |
+  | --- | ---: | ---: |
+  | mapper depth `5` | `232.703 ms` | `192.963 ms` |
+  | mapper depth `10` | `289.406 ms` | `277.884 ms` |
+  | mapper depth `15` | `393.631 ms` | `382.119 ms` |
+  | filter depth `5` | `88.638 ms` | `85.155 ms` |
+  | filter depth `10` | `145.363 ms` | `140.165 ms` |
+
+  A later broad benchmark pass measured mapper depth `15` at `400.751 ms`
+  median, with min `388.554 ms`. Treat the current state as being on the
+  `400 ms` boundary, not as stable evidence for the original sub-`100 ms` goal.
 
 Compound-scope-object experiment on `2026-06-23`:
 
@@ -935,7 +1226,7 @@ Analysis: the failures that led here were real design evidence.
   `map-list-fib` run had its queue token recorded as scheduled and ran while its
   input `n` had later strengthened to `2` and its output `base?` remained
   `nothing`; manual activation emitted `false`. The runner now records
-  frame/body/route/boundary/outbox obligations as monotone task facts and keeps
+  frame/body/route/boundary/mailbox obligations as monotone task facts and keeps
   a primitive-local cursor of consumed task indexes. This is a pragmatic
   experiment mechanism, not the final ideal scheduler. A cleaner version would
   make named-network merge surface internal dirty cells or equivalent
@@ -959,6 +1250,12 @@ Analysis: the failures that led here were real design evidence.
   `nothing`, or whose child-local target was not present in the owner network.
   Dispatch now self-routes only for locals present in the current accumulated
   owner network; ordinary subenv routes still go through the owner cell.
+- Focused regression: `accumulating-gur-strict-pcons-late-cdr-stops-at-nothing`
+  builds `[0 . ?]` with public `obj/p:cons`, runs accumulating `map-list`, then
+  later installs `[1 . nothing]` into the original tail with another
+  `obj/p:cons`. The output advances from `[0]` to `[0 1]` and stays `[0 1]`
+  after rerunning the application props. This test intentionally uses
+  `value/nothing` as the terminal tail, not `empty-list`.
 
 Historical caveat: topology-only terminal accessors still exist and
 `empty-list?` still conflates route declarations with data shape in legacy list

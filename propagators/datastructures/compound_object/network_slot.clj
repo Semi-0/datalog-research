@@ -13,6 +13,15 @@
             [propagators.propagator :as prop]
             [propagators.scoped-address :as scoped]))
 
+(def ^:dynamic *network-slot-observer*
+  "Debug hook for measuring accessor routing. Bound by benchmark/debug tooling."
+  nil)
+
+(defmacro observe-network-slot!
+  [event]
+  `(when *network-slot-observer*
+     (*network-slot-observer* ~event)))
+
 (defn- seed-accessor-avatars
   [stable-net slot-key parent-net parent-ids]
   (reduce
@@ -147,25 +156,53 @@
   (let [known-parent? (contains? (compound-merge/accessor-parent-ids collection-net slot-key)
                                  parent-id)]
     (if-not known-parent?
-      (into [(message collection-id
-                      (compound-merge/accessor-declaration slot-key parent-id))]
-            (source-slot-message collection-net slot-key parent-id parent-net))
+      (let [source-messages (source-slot-message collection-net
+                                                 slot-key
+                                                 parent-id
+                                                 parent-net)
+            msgs (into [(message collection-id
+                                  (compound-merge/accessor-declaration
+                                   slot-key
+                                   parent-id))]
+                       source-messages)]
+        (observe-network-slot! {:slot-key slot-key
+                                :branch :declare
+                                :known-parent? false
+                                :source-count (count source-messages)
+                                :message-count (count msgs)})
+        msgs)
       (let [stable-net (compound-merge/refine-accessor-network collection-net)
             source-messages (source-slot-messages stable-net slot-key parent-net)
             peer-messages (peer-accessor-messages stable-net slot-key parent-net)]
         (if (or (seq source-messages)
                 (seq peer-messages)
                 (accessor-synced? stable-net slot-key parent-net))
-          (into source-messages peer-messages)
+          (let [msgs (into source-messages peer-messages)]
+            (observe-network-slot! {:slot-key slot-key
+                                    :branch (cond
+                                              (seq source-messages) :source
+                                              (seq peer-messages) :peer
+                                              :else :synced)
+                                    :known-parent? true
+                                    :source-count (count source-messages)
+                                    :peer-count (count peer-messages)
+                                    :message-count (count msgs)})
+            msgs)
           (let [{:keys [executed-net parent-ids]}
                 (run-accessor-inner-net stable-net
                                         slot-key
                                         parent-net
-                                        [parent-id])]
-            (projected-accessor-messages executed-net
-                                         slot-key
-                                         parent-ids
-                                         parent-net)))))))
+                                        [parent-id])
+                msgs (projected-accessor-messages executed-net
+                                                  slot-key
+                                                  parent-ids
+                                                  parent-net)]
+            (observe-network-slot! {:slot-key slot-key
+                                    :branch :inner-run
+                                    :known-parent? true
+                                    :parent-count (count parent-ids)
+                                    :message-count (count msgs)})
+            msgs))))))
 
 (defn network-slot-activation
   [slot-key parent-id collection-id]

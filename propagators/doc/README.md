@@ -93,10 +93,39 @@ to one or more indexes. Re-seeing the same task with a new index means the task
 is stronger and must be run again; the executor primitive keeps only a local
 `ran [task index]` cursor. That runtime cursor is not recursive semantics and is
 not stored in the named network. The accumulating executor also keeps a
-runner-local outbox epoch as a scheduling token instead of hashing printed
+runner-local mailbox epoch as a scheduling token instead of hashing printed
 network values. Current evidence: the stricter `obj/p:cons` source builder now
 passes accumulating HOP mapper depths `5/10/15` and filter depths `5/10` without
 materializing the source or output lists.
+
+The accumulating executor also has a runner-local unchanged-prop guard. Broad
+boundary/mailbox scheduling is still used for correctness, but a scheduled prop
+is skipped when its declared input and output cells match the last state this
+runner executed for that prop. This cut about `44-57%` of scheduled HOP prop
+occurrences in the local counter run while keeping full-suite correctness green.
+The request-expansion path also has a runner-local fast path: once every current
+application request is known expanded or frame-declared, the runner skips the
+request-map scan/sort until a new request fact appears.
+The runner also selects only the next pending task instead of rebuilding the
+whole pending task vector on each child loop, and `core/eval-cell` skips exact
+content-duplicate messages before cell merge. Accessor-network merge records the
+slot index it has already refined, so repeated merge reads do not reinstall the
+same canonical/avatar/sync topology. The task queue now uses `PersistentQueue`
+internally to avoid copying the remaining vector on every pop.
+
+Current retained local HOP timing is still above the original sub-`100 ms`
+target, but it is now around the current practical depth-15 bar. Recent
+`clojure -M:gur-accumulating-bench 3 11` runs put mapper depth `15` at
+`393.631-400.751 ms`, filter depth `10` around `145 ms`, and filter depth `5`
+around `89 ms`. Moving GUR request expansion into
+`cell-merge` remains plausible only as a pure deterministic declaration
+closure, but current profiling says request/mailbox work is not the dominant
+head. The depth-15 mapper diagnostic now records coarse runner phase timings:
+most time is inside child settling, split mainly between frame/request
+expansion and child prop execution/skipping; mailbox merge and accessor export
+are visible but smaller. The next optimization needs to reduce per-frame
+topology construction or broad child prop execution while preserving live
+`obj/p:cons` accessor semantics.
 
 The runtime compound model is still experimental, but the main fragility today
 is in compound data: `compound_data.clj` centralizes dispatch in the
