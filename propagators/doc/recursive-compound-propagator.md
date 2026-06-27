@@ -1256,6 +1256,11 @@ Analysis: the failures that led here were real design evidence.
   `obj/p:cons`. The output advances from `[0]` to `[0 1]` and stays `[0 1]`
   after rerunning the application props. This test intentionally uses
   `value/nothing` as the terminal tail, not `empty-list`.
+- Chained regression:
+  `accumulating-gur-strict-pcons-late-cdr-propagates-through-hop-chain` repeats
+  the same late source-tail attachment through accumulating mapper HOP depths
+  `1`, `2`, `5`, and `10`. Running only the late `obj/p:cons` props advances the
+  final chained output from `[2^depth]` to `[2^depth 2^depth]`.
 
 Historical caveat: topology-only terminal accessors still exist and
 `empty-list?` still conflates route declarations with data shape in legacy list

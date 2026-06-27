@@ -1,0 +1,122 @@
+Accumulating GUR map-list frame graph legend
+depth=3
+owner-count=3
+out-value=Net(nodes=17, edges=12)
+
+=== accumulated owner 1 frame graph ===
+
+frames:
+  :double-value[5]  :double-value :map-list.:head -> :map-list.:mapped
+  :double-value[1]  :double-value :map-list.:head -> :map-list.:mapped
+  :map-list[5]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  :map-list[1]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  when  when cdr-present
+  recur-request  unmatched ctx/recur request
+  :map-list[4]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  :double-value[3]  :double-value :map-list.:head -> :map-list.:mapped
+  recur-request  unmatched ctx/recur request
+  :map-list[2]  :map-list :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  when  when cdr-present
+  :double-value[2]  :double-value :map-list.:head -> :map-list.:mapped
+  :map-list[3]  :map-list :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  when  when cdr-present
+  when  when cdr-present
+  recur-request  unmatched ctx/recur request
+  when  when cdr-present
+  :double-value[4]  :double-value :map-list.:head -> :map-list.:mapped
+  recur-request  unmatched ctx/recur request
+
+links:
+  :map-list[4] --when--> when
+  :map-list[2] --when--> when
+  :map-list[3] --recur--> recur-request
+  :map-list[2] --apply--> :double-value[5]
+  :map-list[5] --when--> when
+  :map-list[3] --apply--> :double-value[4]
+  :map-list[1] --apply--> :double-value[1]
+  :map-list[1] --recur--> recur-request
+  :map-list[5] --apply--> :double-value[3]
+  :map-list[4] --apply--> :double-value[2]
+  :map-list[5] --recur--> recur-request
+  :map-list[3] --when--> when
+  :map-list[1] --when--> when
+  :map-list[2] --recur--> recur-request
+
+=== accumulated owner 2 frame graph ===
+
+frames:
+  :map-list[5]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  :double-value[2]  :double-value :double-v....[:arg 0] -> :double-v....:out
+  when  when cdr-present
+  :map-list[1]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  recur-request  unmatched ctx/recur request
+  :double-value[3]  :double-value :map-list.:head -> :map-list.:mapped
+  :double-value[5]  :double-value :map-list.:head -> :map-list.:mapped
+  :map-list[4]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  when  when cdr-present
+  :double-value[1]  :double-value :double-v....[:arg 0] -> :double-v....:out
+  recur-request  unmatched ctx/recur request
+  when  when cdr-present
+  :map-list[2]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  when  when cdr-present
+  :double-value[4]  :double-value :map-list.:head -> :map-list.:mapped
+  :map-list[3]  :map-list :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  when  when cdr-present
+  recur-request  unmatched ctx/recur request
+  recur-request  unmatched ctx/recur request
+
+links:
+  :map-list[1] --when--> when
+  :map-list[2] --apply--> :double-value[5]
+  :map-list[5] --when--> when
+  :map-list[2] --recur--> recur-request
+  :map-list[4] --recur--> recur-request
+  :map-list[5] --apply--> :double-value[4]
+  :map-list[4] --apply--> :double-value[3]
+  :map-list[1] --recur--> recur-request
+  :map-list[3] --apply--> :double-value[1]
+  :map-list[4] --when--> when
+  :map-list[2] --when--> when
+  :map-list[3] --when--> when
+  :map-list[3] --recur--> recur-request
+  :map-list[1] --apply--> :double-value[2]
+
+=== accumulated owner 3 frame graph ===
+
+frames:
+  recur-request  unmatched ctx/recur request
+  :map-list[5]  :map-list :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  :double-value[4]  :double-value :map-list.:head -> :map-list.:mapped
+  recur-request  unmatched ctx/recur request
+  recur-request  unmatched ctx/recur request
+  when  when cdr-present
+  :double-value[2]  :double-value :double-v....[:arg 0] -> :double-v....:out
+  when  when cdr-present
+  when  when cdr-present
+  :map-list[1]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  when  when cdr-present
+  recur-request  unmatched ctx/recur request
+  :double-value[3]  :double-value :double-v....[:arg 0] -> :double-v....:out
+  :double-value[1]  :double-value :map-list.:head -> :map-list.:mapped
+  when  when cdr-present
+  :map-list[3]  :map-list :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  :map-list[4]  :map-list :map-list.[:arg 0],:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+  :double-value[5]  :double-value :map-list.:head -> :map-list.:mapped
+  :map-list[2]  :map-list :map-list.rest,:map-list.:mapper,:map-list.acc-list -> :map-list.:out
+
+links:
+  :map-list[5] --apply--> :double-value[5]
+  :map-list[2] --recur--> recur-request
+  :map-list[4] --when--> when
+  :map-list[1] --recur--> recur-request
+  :map-list[2] --when--> when
+  :map-list[5] --when--> when
+  :map-list[3] --apply--> :double-value[2]
+  :map-list[4] --apply--> :double-value[1]
+  :map-list[3] --when--> when
+  :map-list[1] --apply--> :double-value[4]
+  :map-list[2] --apply--> :double-value[3]
+  :map-list[3] --recur--> recur-request
+  :map-list[5] --recur--> recur-request
+  :map-list[1] --when--> when
+
