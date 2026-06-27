@@ -113,19 +113,25 @@ slot index it has already refined, so repeated merge reads do not reinstall the
 same canonical/avatar/sync topology. The task queue now uses `PersistentQueue`
 internally to avoid copying the remaining vector on every pop.
 
-Current retained local HOP timing is still above the original sub-`100 ms`
-target, but it is now around the current practical depth-15 bar. Recent
-`clojure -M:gur-accumulating-bench 3 11` runs put mapper depth `15` at
-`393.631-400.751 ms`, filter depth `10` around `145 ms`, and filter depth `5`
-around `89 ms`. Moving GUR request expansion into
-`cell-merge` remains plausible only as a pure deterministic declaration
-closure, but current profiling says request/mailbox work is not the dominant
-head. The depth-15 mapper diagnostic now records coarse runner phase timings:
-most time is inside child settling, split mainly between frame/request
-expansion and child prop execution/skipping; mailbox merge and accessor export
-are visible but smaller. The next optimization needs to reduce per-frame
-topology construction or broad child prop execution while preserving live
-`obj/p:cons` accessor semantics.
+Current retained local HOP timing is below the current practical sub-`300 ms`
+depth-15 bar, while still not claiming the older sub-`100 ms` target. On
+`2026-06-27`, after accumulating-GUR and named-network merge fast paths,
+`clojure -M:gur-accumulating-bench 5 21` measured mapper depth `15` at
+`273.273 ms` median and `292.267 ms` max, and
+`clojure -M:gur-accumulating-bench 10 31` measured mapper depth `15` at
+`266.642 ms` median. Both benchmark runs kept every scenario `ok=true`.
+Full regression after the shared named-network change:
+`clojure -M:test` -> `1393 pass, 0 fail, 0 error`.
+
+The retained optimization keeps declaration and evaluation separate. Cell merge
+still only refines declaration facts; runner-local cursors/cache state stay in
+the executor primitive. The useful cuts were: idempotent accumulated-fragment
+merge for GUR network facts, less allocation in named-network preorder/join,
+request-only mailbox suppression, cached boundary/request scans, and cached
+accessor export collection lookup. A direct "always join accumulated fragments"
+cell-merge path was rejected because it returned fresh equal network values and
+made the focused accumulating suite hang; idempotence must return the existing
+network value when the update is already subsumed.
 
 The runtime compound model is still experimental, but the main fragility today
 is in compound data: `compound_data.clj` centralizes dispatch in the

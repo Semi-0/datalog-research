@@ -90,13 +90,21 @@
   (and (named/named-network? x)
        (contains? (net/net-dict-or-empty x) [:gur/accumulating :frames])))
 
+(defn- accumulating-gur-fragment?
+  [x]
+  (and (named/named-network? x)
+       (some (fn [k]
+               (and (vector? k)
+                    (= :gur/accumulating (first k))))
+             (keys (net/net-dict-or-empty x)))))
+
 (defmethod cell-updated? :named-network
   [new old network]
   (let [new* (strongest-value new network)
         old* (strongest-value old network)]
     (if (or (accumulating-gur-network? new*)
             (accumulating-gur-network? old*))
-      (not= new* old*)
+      (not (identical? new* old*))
       (not (named-strongest-equal? new* old*)))))
 
 (defmulti built-in-cell-merge
@@ -167,19 +175,37 @@
    content
    update))
 
+(defn- merge-accumulating-gur-fragment
+  [content update]
+  (let [current (if (evidence/evidence-set? content)
+                  (evidence/strongest content)
+                  content)]
+    (cond
+      (value/contradiction? current) value/contradiction
+      (value/contradiction? update) value/contradiction
+      (value/nothing? current) update
+      (value/nothing? update) current
+      (not (and (named/named-network? current)
+                (named/named-network? update))) value/contradiction
+      (= true (named/named-network->= current update)) current
+      :else (named/join current update))))
+
 (defmethod built-in-cell-merge :named-network
   [content update _network]
   (if (accessor-network-update? update)
     (merge-accessor-network-content content update)
     (let [content* (normalize-named-network-content content)]
-      (cond
-        (value/contradiction? content*) value/contradiction
-        (value/contradiction? update) value/contradiction
-        (value/nothing? update) (evidence/merge-evidence value/nothing content*)
-        (or (value/nothing? content*)
-            (named/named-network? content*)
-            (evidence/evidence-set? content*)) (evidence/merge-evidence content* update)
-        :else value/contradiction))))
+      (if (or (accumulating-gur-fragment? content*)
+              (accumulating-gur-fragment? update))
+        (merge-accumulating-gur-fragment content* update)
+        (cond
+          (value/contradiction? content*) value/contradiction
+          (value/contradiction? update) value/contradiction
+          (value/nothing? update) (evidence/merge-evidence value/nothing content*)
+          (or (value/nothing? content*)
+              (named/named-network? content*)
+              (evidence/evidence-set? content*)) (evidence/merge-evidence content* update)
+          :else value/contradiction)))))
 
 (defmethod built-in-cell-merge :reducer-subnet
   [content update _network]

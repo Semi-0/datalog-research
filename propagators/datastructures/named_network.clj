@@ -31,7 +31,7 @@
 (declare metadata->=)
 
 (defn- map->= [a b]
-  (if-not (set/subset? (set (keys b)) (set (keys a)))
+  (if-not (every? #(contains? a %) (keys b))
     false
     (reduce
      b/and
@@ -70,19 +70,19 @@
   `a >= b` when every named commitment in `b` is present in `a`, and every
   corresponding named entry in `a` subsumes the entry in `b`."
   [a b]
-  (let [a-keys (named-keys a)
-        b-keys (named-keys b)]
-    (if-not (set/subset? b-keys a-keys)
+  (let [a-dict (net/net-dict-or-empty a)
+        b-dict (net/net-dict-or-empty b)]
+    (if-not (every? #(contains? a-dict %) (keys b-dict))
       false
       (reduce
        b/and
        true
        (map (fn [k]
-              (let [a-id (get (net/net-dict-or-empty a) k)
-                    b-id (get (net/net-dict-or-empty b) k)]
+              (let [a-id (get a-dict k)
+                    b-id (get b-dict k)]
                 (named-entry->= a-id (get (net/net-env a) a-id)
                                 b-id (get (net/net-env b) b-id))))
-            b-keys)))))
+            (keys b-dict))))))
 
 (def named-network-subsume? named-network->=)
 
@@ -157,8 +157,11 @@
   propagators are only joinable by identical internal id."
   [a b]
   (let [a-dict (net/net-dict-or-empty a)
-        b-dict (net/net-dict-or-empty b)]
-    (loop [ks (seq (set/union (set (keys a-dict)) (set (keys b-dict))))
+        b-dict (net/net-dict-or-empty b)
+        shared-keys (if (< (count a-dict) (count b-dict))
+                      (filter #(contains? b-dict %) (keys a-dict))
+                      (filter #(contains? a-dict %) (keys b-dict)))]
+    (loop [ks (seq shared-keys)
            env (merge (net/net-env a) (net/net-env b))
            dict (merge-with merge-metadata a-dict b-dict)]
       (if-not ks
@@ -166,18 +169,13 @@
         (let [k (first ks)
               a-id (get a-dict k)
               b-id (get b-dict k)]
-          (cond
-            (or (nil? a-id) (nil? b-id))
-            (recur (next ks) env dict)
-
-            :else
-            (let [a-entry (get (net/net-env a) a-id)
-                  b-entry (get (net/net-env b) b-id)
-                  target-id (get dict k)
-                  entry (if (and (not= a-id b-id)
-                                 (or (prop/prop? a-entry) (prop/prop? b-entry)))
-                          value/contradiction
-                          (merge-entry a-entry b-entry))]
-              (if (value/contradiction? entry)
-                value/contradiction
-                (recur (next ks) (assoc env target-id entry) dict)))))))))
+          (let [a-entry (get (net/net-env a) a-id)
+                b-entry (get (net/net-env b) b-id)
+                target-id (get dict k)
+                entry (if (and (not= a-id b-id)
+                               (or (prop/prop? a-entry) (prop/prop? b-entry)))
+                        value/contradiction
+                        (merge-entry a-entry b-entry))]
+            (if (value/contradiction? entry)
+              value/contradiction
+              (recur (next ks) (assoc env target-id entry) dict))))))))

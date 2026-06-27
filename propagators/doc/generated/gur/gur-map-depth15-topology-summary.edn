@@ -3,82 +3,22 @@
    :nodes 84,
    :props 40,
    :cells 44,
-   :edges 310,
+   :edges 295,
    :prop-ops
-   {chain/apply-runner 15,
-    chain/apply-request 15,
+   {chain/apply-request 15,
     cons/car 5,
+    chain/apply-runner 15,
     cons/cdr 5},
    :cell-categories
    {:source-pcons-list-cell 11,
-    :hop-output-cell 15,
     :owner-mailbox-or-application-cell 15,
+    :hop-output-cell 15,
     :top-closure-or-arg-cell 3}}
   {:title "accumulated owner 1",
-   :nodes 92,
+   :nodes 90,
    :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:anonymous-literal-or-internal-cell 10,
-    :map-list-frame-local-cell 27,
-    :double-value-mapper-cell 11,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 2",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:double-value-mapper-cell 9,
-    :anonymous-literal-or-internal-cell 10,
-    :map-list-frame-local-cell 29,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 3",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:map-list-frame-local-cell 27,
-    :double-value-mapper-cell 11,
-    :anonymous-literal-or-internal-cell 10,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 4",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
+   :cells 47,
+   :edges 143,
    :prop-ops
    {obj/p:cdr 5,
     cons/cdr 5,
@@ -91,14 +31,34 @@
     ctx/apply 5},
    :cell-categories
    {:map-list-frame-local-cell 29,
-    :anonymous-literal-or-internal-cell 10,
     :double-value-mapper-cell 9,
+    :anonymous-literal-or-internal-cell 8,
     :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 5",
-   :nodes 92,
+  {:title "accumulated owner 2",
+   :nodes 90,
    :props 43,
-   :cells 49,
-   :edges 132,
+   :cells 47,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:map-list-frame-local-cell 29,
+    :owner-mailbox-or-application-cell 1,
+    :anonymous-literal-or-internal-cell 8,
+    :double-value-mapper-cell 9}}
+  {:title "accumulated owner 3",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
    :prop-ops
    {obj/p:cdr 5,
     cons/cdr 5,
@@ -112,153 +72,53 @@
    :cell-categories
    {:map-list-frame-local-cell 25,
     :double-value-mapper-cell 13,
-    :anonymous-literal-or-internal-cell 10,
+    :anonymous-literal-or-internal-cell 8,
+    :owner-mailbox-or-application-cell 1}}
+  {:title "accumulated owner 4",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:map-list-frame-local-cell 27,
+    :double-value-mapper-cell 11,
+    :anonymous-literal-or-internal-cell 8,
+    :owner-mailbox-or-application-cell 1}}
+  {:title "accumulated owner 5",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:double-value-mapper-cell 7,
+    :anonymous-literal-or-internal-cell 8,
+    :map-list-frame-local-cell 31,
     :owner-mailbox-or-application-cell 1}}
   {:title "accumulated owner 6",
-   :nodes 92,
+   :nodes 90,
    :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:anonymous-literal-or-internal-cell 10,
-    :map-list-frame-local-cell 27,
-    :double-value-mapper-cell 11,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 7",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:map-list-frame-local-cell 31,
-    :anonymous-literal-or-internal-cell 10,
-    :double-value-mapper-cell 7,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 8",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:double-value-mapper-cell 11,
-    :anonymous-literal-or-internal-cell 10,
-    :map-list-frame-local-cell 27,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 9",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:map-list-frame-local-cell 29,
-    :anonymous-literal-or-internal-cell 10,
-    :double-value-mapper-cell 9,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 10",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:map-list-frame-local-cell 29,
-    :double-value-mapper-cell 9,
-    :anonymous-literal-or-internal-cell 10,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 11",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:map-list-frame-local-cell 29,
-    :double-value-mapper-cell 9,
-    :anonymous-literal-or-internal-cell 10,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 12",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
-   :prop-ops
-   {obj/p:cdr 5,
-    cons/cdr 5,
-    ctx/recur 4,
-    prop/* 5,
-    p:id 4,
-    obj/p:car 5,
-    ctx/when 5,
-    cons/car 5,
-    ctx/apply 5},
-   :cell-categories
-   {:double-value-mapper-cell 11,
-    :anonymous-literal-or-internal-cell 10,
-    :map-list-frame-local-cell 27,
-    :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 13",
-   :nodes 92,
-   :props 43,
-   :cells 49,
-   :edges 132,
+   :cells 47,
+   :edges 143,
    :prop-ops
    {obj/p:cdr 5,
     cons/cdr 5,
@@ -272,13 +132,33 @@
    :cell-categories
    {:double-value-mapper-cell 7,
     :map-list-frame-local-cell 31,
-    :anonymous-literal-or-internal-cell 10,
+    :anonymous-literal-or-internal-cell 8,
     :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 14",
+  {:title "accumulated owner 7",
    :nodes 90,
    :props 43,
    :cells 47,
-   :edges 132,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:map-list-frame-local-cell 27,
+    :anonymous-literal-or-internal-cell 8,
+    :double-value-mapper-cell 11,
+    :owner-mailbox-or-application-cell 1}}
+  {:title "accumulated owner 8",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
    :prop-ops
    {obj/p:cdr 5,
     cons/cdr 5,
@@ -294,11 +174,71 @@
     :anonymous-literal-or-internal-cell 8,
     :double-value-mapper-cell 9,
     :owner-mailbox-or-application-cell 1}}
-  {:title "accumulated owner 15",
-   :nodes 100,
+  {:title "accumulated owner 9",
+   :nodes 90,
    :props 43,
-   :cells 57,
-   :edges 132,
+   :cells 47,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:double-value-mapper-cell 13,
+    :map-list-frame-local-cell 25,
+    :anonymous-literal-or-internal-cell 8,
+    :owner-mailbox-or-application-cell 1}}
+  {:title "accumulated owner 10",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:double-value-mapper-cell 13,
+    :owner-mailbox-or-application-cell 1,
+    :map-list-frame-local-cell 25,
+    :anonymous-literal-or-internal-cell 8}}
+  {:title "accumulated owner 11",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:double-value-mapper-cell 15,
+    :map-list-frame-local-cell 23,
+    :anonymous-literal-or-internal-cell 8,
+    :owner-mailbox-or-application-cell 1}}
+  {:title "accumulated owner 12",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
    :prop-ops
    {obj/p:cdr 5,
     cons/cdr 5,
@@ -311,14 +251,74 @@
     ctx/apply 5},
    :cell-categories
    {:map-list-frame-local-cell 29,
-    :anonymous-literal-or-internal-cell 18,
+    :anonymous-literal-or-internal-cell 8,
     :double-value-mapper-cell 9,
+    :owner-mailbox-or-application-cell 1}}
+  {:title "accumulated owner 13",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:map-list-frame-local-cell 25,
+    :double-value-mapper-cell 13,
+    :anonymous-literal-or-internal-cell 8,
+    :owner-mailbox-or-application-cell 1}}
+  {:title "accumulated owner 14",
+   :nodes 90,
+   :props 43,
+   :cells 47,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:map-list-frame-local-cell 29,
+    :double-value-mapper-cell 9,
+    :anonymous-literal-or-internal-cell 8,
+    :owner-mailbox-or-application-cell 1}}
+  {:title "accumulated owner 15",
+   :nodes 98,
+   :props 43,
+   :cells 55,
+   :edges 143,
+   :prop-ops
+   {obj/p:cdr 5,
+    cons/cdr 5,
+    ctx/recur 4,
+    prop/* 5,
+    p:id 4,
+    obj/p:car 5,
+    ctx/when 5,
+    cons/car 5,
+    ctx/apply 5},
+   :cell-categories
+   {:map-list-frame-local-cell 27,
+    :anonymous-literal-or-internal-cell 16,
+    :double-value-mapper-cell 11,
     :owner-mailbox-or-application-cell 1}}],
  :totals
- {:nodes 1470,
+ {:nodes 1442,
   :props 685,
-  :cells 785,
-  :edges 2290,
+  :cells 757,
+  :edges 2440,
   :prop-ops
   {chain/apply-runner 15,
    obj/p:cdr 75,
@@ -333,1492 +333,1408 @@
    ctx/apply 75},
   :cell-categories
   {:source-pcons-list-cell 11,
-   :hop-output-cell 15,
    :owner-mailbox-or-application-cell 30,
+   :hop-output-cell 15,
    :top-closure-or-arg-cell 3,
-   :anonymous-literal-or-internal-cell 156,
-   :map-list-frame-local-cell 425,
-   :double-value-mapper-cell 145}},
+   :map-list-frame-local-cell 411,
+   :double-value-mapper-cell 159,
+   :anonymous-literal-or-internal-cell 128}},
  :activation
  {cons/car
-  {:considered 768,
-   :skipped 558,
-   :ran 210,
-   :elapsed-ns 30743371,
-   :elapsed-ms 30.743371},
+  {:considered 570,
+   :skipped 349,
+   :ran 221,
+   :elapsed-ns 24891878,
+   :elapsed-ms 24.891878},
   cons/cdr
-  {:considered 777,
-   :skipped 552,
-   :ran 225,
-   :elapsed-ns 23594116,
-   :elapsed-ms 23.594116},
+  {:considered 583,
+   :skipped 335,
+   :ran 248,
+   :elapsed-ns 42226542,
+   :elapsed-ms 42.226542},
   ctx/apply
-  {:considered 803,
-   :skipped 581,
-   :ran 222,
-   :elapsed-ns 10622252,
-   :elapsed-ms 10.622252},
+  {:considered 542,
+   :skipped 333,
+   :ran 209,
+   :elapsed-ns 9088955,
+   :elapsed-ms 9.088955},
   ctx/recur
-  {:considered 669,
-   :skipped 498,
-   :ran 171,
-   :elapsed-ns 8081796,
-   :elapsed-ms 8.081796},
+  {:considered 422,
+   :skipped 270,
+   :ran 152,
+   :elapsed-ns 8615589,
+   :elapsed-ms 8.615589},
   ctx/when
-  {:considered 795,
-   :skipped 218,
-   :ran 577,
-   :elapsed-ns 39945024,
-   :elapsed-ms 39.945024},
+  {:considered 556,
+   :skipped 350,
+   :ran 206,
+   :elapsed-ns 35974908,
+   :elapsed-ms 35.974908},
   obj/p:car
-  {:considered 758,
-   :skipped 574,
-   :ran 184,
-   :elapsed-ns 31649744,
-   :elapsed-ms 31.649744},
+  {:considered 517,
+   :skipped 354,
+   :ran 163,
+   :elapsed-ns 33090586,
+   :elapsed-ms 33.090586},
   obj/p:cdr
-  {:considered 831,
-   :skipped 595,
-   :ran 236,
-   :elapsed-ns 69211165,
-   :elapsed-ms 69.211165},
+  {:considered 644,
+   :skipped 400,
+   :ran 244,
+   :elapsed-ns 62597381,
+   :elapsed-ms 62.597381},
   p:id
-  {:considered 634,
-   :skipped 468,
-   :ran 166,
-   :elapsed-ns 11726787,
-   :elapsed-ms 11.726787},
+  {:considered 403,
+   :skipped 245,
+   :ran 158,
+   :elapsed-ns 8157428,
+   :elapsed-ms 8.157428},
   prop/*
-  {:considered 495,
-   :skipped 408,
-   :ran 87,
-   :elapsed-ns 3973131,
-   :elapsed-ms 3.973131}},
+  {:considered 376,
+   :skipped 294,
+   :ran 82,
+   :elapsed-ns 4679247,
+   :elapsed-ms 4.679247}},
  :activation-by-task-kind
  {:boundary
-  {cons/car {:ran 25, :elapsed-ns 3832957, :elapsed-ms 3.832957},
-   cons/cdr {:ran 7, :elapsed-ns 353791, :elapsed-ms 0.353791},
-   ctx/apply {:ran 14, :elapsed-ns 2010751, :elapsed-ms 2.010751},
-   ctx/recur {:ran 17, :elapsed-ns 140127, :elapsed-ms 0.140127},
-   ctx/when {:ran 68, :elapsed-ns 9411335, :elapsed-ms 9.411335},
-   obj/p:car {:ran 43, :elapsed-ns 1782205, :elapsed-ms 1.782205},
-   obj/p:cdr {:ran 39, :elapsed-ns 8393544, :elapsed-ms 8.393544},
-   p:id {:ran 29, :elapsed-ns 4547125, :elapsed-ms 4.547125}},
+  {cons/car {:ran 30, :elapsed-ns 1656335, :elapsed-ms 1.656335},
+   cons/cdr {:ran 31, :elapsed-ns 6501878, :elapsed-ms 6.501878},
+   obj/p:car {:ran 30, :elapsed-ns 1179165, :elapsed-ms 1.179165},
+   p:id {:ran 15, :elapsed-ns 2141292, :elapsed-ms 2.141292}},
   :frame
-  {cons/car {:ran 151, :elapsed-ns 24362039, :elapsed-ms 24.362039},
-   cons/cdr {:ran 144, :elapsed-ns 18487910, :elapsed-ms 18.48791},
-   ctx/apply {:ran 167, :elapsed-ns 7352711, :elapsed-ms 7.352711},
-   ctx/recur {:ran 62, :elapsed-ns 592046, :elapsed-ms 0.592046},
-   ctx/when {:ran 162, :elapsed-ns 27739121, :elapsed-ms 27.739121},
-   obj/p:car {:ran 112, :elapsed-ns 26658790, :elapsed-ms 26.65879},
-   obj/p:cdr {:ran 155, :elapsed-ns 50842623, :elapsed-ms 50.842623},
-   p:id {:ran 62, :elapsed-ns 4941999, :elapsed-ms 4.941999},
-   prop/* {:ran 75, :elapsed-ns 3431256, :elapsed-ms 3.431256}},
+  {cons/car {:ran 179, :elapsed-ns 22846209, :elapsed-ms 22.846209},
+   cons/cdr {:ran 178, :elapsed-ns 29923622, :elapsed-ms 29.923622},
+   ctx/apply {:ran 193, :elapsed-ns 9013038, :elapsed-ms 9.013038},
+   ctx/recur {:ran 69, :elapsed-ns 549586, :elapsed-ms 0.549586},
+   ctx/when {:ran 164, :elapsed-ns 22899746, :elapsed-ms 22.899746},
+   obj/p:car {:ran 121, :elapsed-ns 29928004, :elapsed-ms 29.928004},
+   obj/p:cdr {:ran 185, :elapsed-ns 46396005, :elapsed-ms 46.396005},
+   p:id {:ran 62, :elapsed-ns 3981256, :elapsed-ms 3.981256},
+   prop/* {:ran 75, :elapsed-ns 4403038, :elapsed-ms 4.403038}},
   :mailbox
-  {cons/car {:ran 19, :elapsed-ns 2004751, :elapsed-ms 2.004751},
-   cons/cdr {:ran 46, :elapsed-ns 1410417, :elapsed-ms 1.410417},
-   ctx/apply {:ran 25, :elapsed-ns 168748, :elapsed-ms 0.168748},
-   ctx/recur {:ran 89, :elapsed-ns 7319540, :elapsed-ms 7.31954},
-   ctx/when {:ran 342, :elapsed-ns 1143525, :elapsed-ms 1.143525},
-   obj/p:car {:ran 13, :elapsed-ns 1959206, :elapsed-ms 1.959206},
-   obj/p:cdr {:ran 25, :elapsed-ns 4937497, :elapsed-ms 4.937497},
-   p:id {:ran 75, :elapsed-ns 2237663, :elapsed-ms 2.237663},
-   prop/* {:ran 12, :elapsed-ns 541875, :elapsed-ms 0.541875}},
+  {cons/car {:ran 12, :elapsed-ns 389334, :elapsed-ms 0.389334},
+   cons/cdr {:ran 25, :elapsed-ns 3031791, :elapsed-ms 3.031791},
+   ctx/apply {:ran 16, :elapsed-ns 75917, :elapsed-ms 0.075917},
+   ctx/recur {:ran 79, :elapsed-ns 8047336, :elapsed-ms 8.047336},
+   ctx/when {:ran 14, :elapsed-ns 53374, :elapsed-ms 0.053374},
+   obj/p:car {:ran 8, :elapsed-ns 1867084, :elapsed-ms 1.867084},
+   obj/p:cdr {:ran 25, :elapsed-ns 3337084, :elapsed-ms 3.337084},
+   p:id {:ran 81, :elapsed-ns 2034880, :elapsed-ms 2.03488},
+   prop/* {:ran 7, :elapsed-ns 276209, :elapsed-ms 0.276209}},
   :route
-  {cons/car {:ran 15, :elapsed-ns 543624, :elapsed-ms 0.543624},
-   cons/cdr {:ran 28, :elapsed-ns 3341998, :elapsed-ms 3.341998},
-   ctx/apply {:ran 16, :elapsed-ns 1090042, :elapsed-ms 1.090042},
-   ctx/recur {:ran 3, :elapsed-ns 30083, :elapsed-ms 0.030083},
-   ctx/when {:ran 5, :elapsed-ns 1651043, :elapsed-ms 1.651043},
-   obj/p:car {:ran 16, :elapsed-ns 1249543, :elapsed-ms 1.249543},
-   obj/p:cdr {:ran 17, :elapsed-ns 5037501, :elapsed-ms 5.037501}}},
+  {cons/cdr {:ran 14, :elapsed-ns 2769251, :elapsed-ms 2.769251},
+   ctx/recur {:ran 4, :elapsed-ns 18667, :elapsed-ms 0.018667},
+   ctx/when {:ran 28, :elapsed-ns 13021788, :elapsed-ms 13.021788},
+   obj/p:car {:ran 4, :elapsed-ns 116333, :elapsed-ms 0.116333},
+   obj/p:cdr {:ran 34, :elapsed-ns 12864292, :elapsed-ms 12.864292}}},
  :network-slot
  {:car
   {:declare
-   {:calls 168,
-    :messages 218,
-    :source-messages 50,
+   {:calls 165,
+    :messages 238,
+    :source-messages 73,
     :peer-messages 0,
     :parent-count 0},
-   :inner-run
-   {:calls 30,
-    :messages 15,
+   :peer
+   {:calls 1,
+    :messages 1,
     :source-messages 0,
-    :peer-messages 0,
-    :parent-count 88},
+    :peer-messages 1,
+    :parent-count 0},
    :source
-   {:calls 73,
-    :messages 126,
-    :source-messages 126,
-    :peer-messages 0,
+   {:calls 81,
+    :messages 161,
+    :source-messages 157,
+    :peer-messages 4,
     :parent-count 0},
    :synced
-   {:calls 138,
+   {:calls 152,
     :messages 0,
     :source-messages 0,
     :peer-messages 0,
     :parent-count 0}},
   :cdr
   {:declare
-   {:calls 157,
-    :messages 201,
-    :source-messages 44,
+   {:calls 159,
+    :messages 196,
+    :source-messages 37,
     :peer-messages 0,
     :parent-count 0},
    :inner-run
-   {:calls 1,
-    :messages 0,
+   {:calls 37,
+    :messages 19,
     :source-messages 0,
     :peer-messages 0,
-    :parent-count 3},
-   :peer
-   {:calls 2,
-    :messages 3,
-    :source-messages 0,
-    :peer-messages 3,
-    :parent-count 0},
+    :parent-count 109},
    :source
-   {:calls 177,
-    :messages 342,
-    :source-messages 278,
-    :peer-messages 64,
+   {:calls 187,
+    :messages 379,
+    :source-messages 326,
+    :peer-messages 53,
     :parent-count 0},
    :synced
-   {:calls 139,
+   {:calls 124,
     :messages 0,
     :source-messages 0,
     :peer-messages 0,
     :parent-count 0}}},
  :phases
  {:accessor-export
-  {:calls 60, :elapsed-ns 50784797, :elapsed-ms 50.784797},
+  {:calls 60, :elapsed-ns 60266791, :elapsed-ms 60.266791},
   :boundary-tasks
-  {:calls 60, :elapsed-ns 5131165, :elapsed-ms 5.131165},
+  {:calls 60, :elapsed-ns 5420087, :elapsed-ms 5.420087},
   :clear-runtime-mailboxes
-  {:calls 60, :elapsed-ns 407542, :elapsed-ms 0.407542},
+  {:calls 60, :elapsed-ns 457460, :elapsed-ms 0.45746},
   :external-messages
-  {:calls 60, :elapsed-ns 211580, :elapsed-ms 0.21158},
+  {:calls 60, :elapsed-ns 227295, :elapsed-ms 0.227295},
   :externalize-output
-  {:calls 60, :elapsed-ns 43499918, :elapsed-ms 43.499918},
-  :output-diff {:calls 60, :elapsed-ns 4292956, :elapsed-ms 4.292956},
+  {:calls 60, :elapsed-ns 41798418, :elapsed-ms 41.798418},
+  :output-diff {:calls 60, :elapsed-ns 3961038, :elapsed-ms 3.961038},
   :prepare-run-net
-  {:calls 60, :elapsed-ns 37028376, :elapsed-ms 37.028376},
+  {:calls 60, :elapsed-ns 33962000, :elapsed-ms 33.962},
   :run-child/expand-after-task
-  {:calls 486, :elapsed-ns 970079, :elapsed-ms 0.970079},
+  {:calls 387, :elapsed-ns 574742, :elapsed-ms 0.574742},
   :run-child/expand-initial
-  {:calls 195, :elapsed-ns 179533040, :elapsed-ms 179.53304},
+  {:calls 210, :elapsed-ns 135029043, :elapsed-ms 135.029043},
   :run-child/next-pending
-  {:calls 681, :elapsed-ns 15366094, :elapsed-ms 15.366094},
+  {:calls 597, :elapsed-ns 19026459, :elapsed-ms 19.026459},
   :run-child/run-props
-  {:calls 486, :elapsed-ns 298004372, :elapsed-ms 298.004372},
+  {:calls 387, :elapsed-ns 290601749, :elapsed-ms 290.601749},
   :settle-child
-  {:calls 60, :elapsed-ns 551082624, :elapsed-ms 551.082624},
+  {:calls 60, :elapsed-ns 480650671, :elapsed-ms 480.650671},
   :settle/mailbox-task-facts
-  {:calls 135, :elapsed-ns 4709623, :elapsed-ms 4.709623},
+  {:calls 150, :elapsed-ns 3386166, :elapsed-ms 3.386166},
   :settle/merge-mailbox
-  {:calls 135, :elapsed-ns 44661959, :elapsed-ms 44.661959},
+  {:calls 150, :elapsed-ns 24629844, :elapsed-ms 24.629844},
   :settle/prune-mailbox
-  {:calls 135, :elapsed-ns 1677700, :elapsed-ms 1.6777},
+  {:calls 150, :elapsed-ns 1941046, :elapsed-ms 1.941046},
   :settle/read-mailbox
-  {:calls 195, :elapsed-ns 278450, :elapsed-ms 0.27845},
+  {:calls 210, :elapsed-ns 270785, :elapsed-ms 0.270785},
   :settle/reset-mailbox
-  {:calls 135, :elapsed-ns 572622, :elapsed-ms 0.572622},
+  {:calls 150, :elapsed-ns 568791, :elapsed-ms 0.568791},
   :settle/run-child
-  {:calls 195, :elapsed-ns 497683746, :elapsed-ms 497.683746}},
+  {:calls 210, :elapsed-ns 448788835, :elapsed-ms 448.788835}},
  :topology-change
  {:by-op
-  #:ctx{apply {:ran 222, :changed 75, :env-delta 0, :dict-delta 0},
-        recur {:ran 171, :changed 60, :env-delta 0, :dict-delta 0},
-        when {:ran 577, :changed 68, :env-delta 0, :dict-delta 2370}},
+  #:ctx{apply {:ran 209, :changed 75, :env-delta 0, :dict-delta 0},
+        recur {:ran 152, :changed 60, :env-delta 0, :dict-delta 0},
+        when {:ran 206, :changed 70, :env-delta 0, :dict-delta 2370}},
   :by-task-cause
-  {[:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a0"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 3, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 6, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a1"}]
-   #:ctx{recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 6, :changed 2, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a2"}]
-   #:ctx{apply {:ran 2, :changed 2, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a3"}]
-   #:ctx{recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 5, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a4"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a5"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 4, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a6"}]
-   #:ctx{apply {:ran 2, :changed 2, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 5, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a7"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 5, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a8"}]
-   #:ctx{recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 6, :changed 2, :env-delta 0, :dict-delta 64}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a9"}]
-   #:ctx{apply {:ran 2, :changed 2, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 5, :changed 2, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845aa"}]
-   #:ctx{recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 5, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ab"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 4, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ac"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 2, :env-delta 0, :dict-delta 64}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ad"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 6, :changed 2, :env-delta 0, :dict-delta 32}},
-   [:boundary {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ae"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:boundary {:uuid #uuid "019f0ab0-a56a-7819-bfa8-df6b2f26d9bd"}]
-   #:ctx{recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+  {[:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d1"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d2"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
          when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "00640d19-04a4-34de-8e29-1c09ca8f8db3"}
-     [{:uuid #uuid "0aa47f80-e37e-346b-b2ee-c1d3f17cde12"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "beba83fd-a474-3215-82ea-46a142e036ce"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d2"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d3"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a0"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a1"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d3"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d4"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a1"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a2"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d4"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d5"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a2"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a3"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 1, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d5"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d6"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a3"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a4"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d6"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d7"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a4"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a5"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 1, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d7"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d8"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a5"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a6"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 1, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d8"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d9"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a6"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a7"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d9"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7da"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a7"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a8"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7da"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7db"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a8"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a9"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7db"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7dc"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a9"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845aa"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 1, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7dc"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7dd"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845aa"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ab"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7dd"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7de"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ab"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ac"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7de"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7df"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ac"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ad"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 1, :changed 1, :env-delta 0, :dict-delta 32}},
+     {:uuid #uuid "019f0b0a-be1e-7464-8b87-a9adbd35d858"}
+     [{:uuid #uuid "019f0b0a-be20-7aed-829c-679f8e4bd6c9"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d1"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ad"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845ae"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459d"}
-     [{:uuid #uuid "019f0ab0-a56a-7819-bfa8-df6b2f26d9bd"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e9845a0"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "014d6532-68ed-3043-91bd-e518a13a930e"}]
-     {:uuid #uuid "f4974b79-ead3-3059-a533-0b306b7fea40"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "09ff7a3d-1335-37dd-804f-4a178c220456"}]
+     {:uuid #uuid "156205c3-94c1-3f11-99e5-7d50789d2314"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "031a7a10-433d-3539-8cb8-60cb35028680"}]
-     {:uuid #uuid "c4ca6712-12d8-3674-9fea-c36ec8a88598"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "0a3e70a5-14f0-3e8e-9ae3-1eeeb50d9812"}]
+     {:uuid #uuid "dc71907c-96c3-3602-855d-3cae64210a74"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "0d260d9b-5ae9-38a9-8854-9098b3944c34"}]
-     {:uuid #uuid "eb1e197c-c7f4-3e2e-8510-c39849846fb1"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "0c14f5e7-4be9-39dd-94ac-66d15792200c"}]
+     {:uuid #uuid "11312455-828f-33bf-825c-d9c9cbd4c291"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "10f6eb9b-360e-3aeb-9d03-c5c4105efb7e"}]
-     {:uuid #uuid "0c0b9727-64ee-3587-a483-d47904d97eb1"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "0da8542a-80c3-3978-be53-7d14dd99bf6c"}]
+     {:uuid #uuid "38f11e14-1df3-3fe7-8613-f5fadd7e401b"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "1350deae-d6b0-326a-a32e-1f6e4dda331b"}]
-     {:uuid #uuid "9b43d4c4-7ba6-325e-9bab-370e1bf363b3"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "14becd39-8975-39ed-b765-138b0dca3741"}]
-     {:uuid #uuid "2fc65d4d-2ac1-38e0-b603-4c873614e16e"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "14c4ea21-e915-3048-a46d-b73887a95448"}]
-     {:uuid #uuid "d7114fa3-392d-373b-a62f-ec39f266e770"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "1520394e-135f-34ef-b14b-601f8de66abd"}]
-     {:uuid #uuid "d5516b55-b6d8-31db-960c-da1518e970f7"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "175c4c60-c9ad-345c-93ad-9e5154fa5f9b"}]
-     {:uuid #uuid "2b177205-d8fb-3627-8f0a-ddc884232c5e"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "1b260625-e3d8-3a77-820a-bd2cf34ccb0d"}]
-     {:uuid #uuid "a868658a-58a2-30b6-94af-44c5cc8ef07e"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "1e49859b-0e82-31a2-8a82-7dc6db655e39"}]
-     {:uuid #uuid "c917334f-d142-3d21-9099-3e4cf50e9f60"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "1e7afeef-3f9f-3675-a518-fdaf21bebac5"}]
-     {:uuid #uuid "2da6bc4f-93ce-3ce4-a875-068c895d67f1"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "20781b90-9605-379f-a4cc-e9158f43aebd"}]
-     {:uuid #uuid "e6793616-465f-350b-8d9d-059256559023"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "25a04813-cff3-3e00-9eb8-46b82a93ab1c"}]
-     {:uuid #uuid "6c5d89b4-123e-3efc-8d4f-69ee5cfc53d9"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "26073f9a-57c2-3fa4-92ba-dd5ab00f654f"}]
-     {:uuid #uuid "e659ab29-4afa-3ff4-849e-0a95d6d457e4"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "27188dda-e13c-358b-82dd-30f31cab14f2"}]
-     {:uuid #uuid "d6be056c-3f57-3543-92b9-3a86f8ca4039"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "2b74ae1b-2260-335c-8156-81690a2df41c"}]
-     {:uuid #uuid "ea225622-326a-32c7-8b9a-c6286619b18c"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "2c00964e-ad15-3f2f-8505-fd6c79d77338"}]
-     {:uuid #uuid "8236259f-4f2a-38fb-8e08-4905562fabf1"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "2e8b73eb-f92b-3541-800c-8225d9a65dae"}]
-     {:uuid #uuid "c2cd6430-4a5e-37b0-b180-8e922f592141"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "2ed9fb16-5331-34f6-afba-e74e33056e6b"}]
-     {:uuid #uuid "ee7985ef-5642-3df4-8251-738e2289bbfa"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "3669eaf5-878e-3015-a939-292fc139e55b"}]
-     {:uuid #uuid "9e5c863f-c660-3cc6-b5a1-e4903f133abd"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "368a4697-2556-33e0-8b46-b74ec8c2f8e3"}]
-     {:uuid #uuid "b7b12001-329a-3641-82b7-84609af7f4f3"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "39b9cbf0-040b-3081-b0c8-90e505818e9a"}]
-     {:uuid #uuid "56d0a285-8a73-3c7c-8e04-662b2b265d6a"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "3b4b1e87-25b7-313a-ada8-4150efb570e0"}]
-     {:uuid #uuid "e8a244e3-5873-3d92-988a-7c1c9bc20ecb"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "3c59bf65-f59d-330b-8a1b-331c4cda0d69"}]
-     {:uuid #uuid "6149a4bd-71f5-39d4-a1bd-132b824c90a2"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "3eba3e88-c69a-3827-889c-823ca839776e"}]
-     {:uuid #uuid "1aa570b4-2c2b-313f-bf65-c5266633c912"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "4424b5aa-6851-32ca-bfea-9c512a27f5cd"}]
-     {:uuid #uuid "9538460d-1a66-3210-b3cb-da2f3bc8d4e1"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "48ed4df0-2a70-3596-9243-33ddaa7d1978"}]
-     {:uuid #uuid "3589029a-a244-370d-b511-a1a7795ec962"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "11ef0ebc-305e-32cd-958e-2e5f037b8f60"}]
+     {:uuid #uuid "f980e1e7-6a81-3ef9-859b-640b712a8701"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "4e2c025e-a010-32a3-ab2b-b4fa0c84dbf4"}]
-     {:uuid #uuid "611efe82-e0a1-3dae-99cb-f5e324f01367"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "126cc4d8-bebd-309c-b9da-7761e50aa13b"}]
+     {:uuid #uuid "8140aab4-c7e5-3806-8f31-5b75df503b00"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "595a06c7-6feb-3518-b0a7-6bd86d803583"}]
-     {:uuid #uuid "378b8bfa-d985-33e8-bd38-422424538d43"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "1770bf51-6758-349d-a736-91fc6b55b7b8"}]
+     {:uuid #uuid "bcfc1ac6-c060-3a88-92b3-202447b79dc0"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "597be83f-254c-30a4-959f-e3272754363a"}]
-     {:uuid #uuid "ff59efe9-6f01-3a42-a421-32d17201fe57"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "190bfbce-4da4-32ff-a364-c39580b495d7"}]
+     {:uuid #uuid "c0a28cd6-3d2f-3c32-8680-83872c3aac86"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "5cd1b05e-303b-3d5f-8dd4-19cf84d5d58e"}]
-     {:uuid #uuid "683132a1-067e-3df3-b138-62ed73bbeac3"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "1af13cf7-1743-3553-a839-8bbad1a2c79b"}]
+     {:uuid #uuid "bee6ce4c-8674-3b91-8026-80b2c3ebd6bc"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "6229c55b-8fc5-3ba1-9a5f-1425f85377b6"}]
-     {:uuid #uuid "181c7afd-117a-35fe-9709-719207e9a54d"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "1b0849ab-8466-3bb8-b96a-6246dfc614fb"}]
+     {:uuid #uuid "f0389710-14a6-3b42-be31-2a19c3077575"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "6513d306-5339-3b00-92d5-1cd51cf7c42d"}]
-     {:uuid #uuid "211e7752-011c-315e-9ede-5ff5699f96bf"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "21d8e884-4fc1-3dcc-b3e1-022e512a5809"}]
+     {:uuid #uuid "0c9b8eeb-13a5-3d9e-b4f8-454f26c7fc80"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "6b3031ce-bef1-3b45-affd-b5636ec97f06"}]
-     {:uuid #uuid "0f9a8b58-775e-3696-ba40-03251c0a7043"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "25e63583-9c1d-38d6-bb81-37a9839e6f42"}]
+     {:uuid #uuid "58193dcc-61d1-3eaa-aabe-f444b543af0b"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "76f6b30c-53f3-354a-8d1b-0448e1b12078"}]
-     {:uuid #uuid "81f4b754-fc85-329d-86b7-0bb3c0d8bc35"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "26056d22-3f06-3ebf-ad1b-6ae47a546c1d"}]
+     {:uuid #uuid "bb2158fb-6c5f-3cd6-9830-7053c4ea1113"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "7732474c-2bdc-31ea-aa31-d536e9ca2e39"}]
-     {:uuid #uuid "7bc9c941-aed5-39dd-a55f-9c79bd4c71a5"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "26c621a8-bf65-31cd-853e-740c422a4dbc"}]
+     {:uuid #uuid "39e3cc14-e8d1-3cbd-9dd3-b4cc4364d183"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "7ed6c908-53e1-3f6d-8f2a-805e5b2d69ba"}]
-     {:uuid #uuid "e53c35a9-9a4b-3943-ab91-831504e9fd19"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "2832e788-3526-3604-b0c2-214ba91907a8"}]
+     {:uuid #uuid "810c18e3-e19c-393e-bb52-d6e2050df07a"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "8289bc07-9540-344f-9cef-5e2a8f4085c1"}]
-     {:uuid #uuid "b4f2bdb5-14e1-3490-a62a-1eab4bc5c86e"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "28518b88-c773-3c02-b21e-fce72389c52f"}]
+     {:uuid #uuid "ce7c2b1c-ce13-38e7-82bd-4680ba098d5b"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "865926d0-6714-3c25-b0c2-8da8b53b41b9"}]
-     {:uuid #uuid "65473793-a564-3c3b-8f58-26e203fc66e2"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "31484e28-2f37-38d4-a68b-6b2c18a035d9"}]
+     {:uuid #uuid "0525ef5c-6422-3308-a0ba-d41fa8e6612a"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "87b4cbc3-3436-3c4d-97c9-6b96d1bdebe6"}]
-     {:uuid #uuid "dbf513b7-9b93-384b-bb97-f9aba5570b98"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "3213fd54-33d0-3257-9378-270e9f231673"}]
+     {:uuid #uuid "749e2f37-9855-39f3-b333-1449553eecfe"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "8dca540f-c52d-3b05-bacd-4868dba50725"}]
-     {:uuid #uuid "30df816c-08a1-3d47-ae2f-74fe24af924b"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "32c9714e-d9d1-3b4c-ba26-f6a3a1cdde3e"}]
+     {:uuid #uuid "7fbf61fd-04d5-30f6-b040-068ffe3055f2"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "92e58738-8f76-3a29-9c17-e4a82769f5fa"}]
-     {:uuid #uuid "2f454b55-ff78-3f08-8393-c7cea6410026"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "37498715-38a3-3dd3-bd9b-f7f567b52431"}]
+     {:uuid #uuid "52910847-e59a-3d87-a0f2-01c5426810e5"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "97002d14-59fd-327a-86ad-c7954d53086e"}]
-     {:uuid #uuid "8a339d6d-f8b8-30b4-8c46-114539eeac09"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "375775b1-b25d-3614-9a1f-e32fc2179483"}]
+     {:uuid #uuid "bc3b9ee6-d3ee-3aa7-8520-8a030e7e47e9"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "98c95a7f-fc97-3298-bd90-be9defdd250f"}]
-     {:uuid #uuid "5852e5e9-7886-3975-bf06-52666c516b29"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "38a494d6-7eb0-33c1-9923-28a54a6a1bb2"}]
+     {:uuid #uuid "9011c065-90fc-370b-9b71-52f3cb04f93e"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "ac2ec180-ffc7-3ebf-b5b8-a056378f865c"}]
-     {:uuid #uuid "eca1bee9-4c3c-3cd3-a011-f7f658dbbaf1"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "38df354d-82f8-3039-828e-f50f4d8c031d"}]
+     {:uuid #uuid "3b6cb17c-b12a-37df-977d-2f072998891a"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "ad1d8d41-e006-3acc-8130-154bbf0cc3ba"}]
-     {:uuid #uuid "40df1161-36b0-3d24-82ee-21fe6e8735a7"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "421aa441-c7cd-3ccb-8b45-37e660d74f43"}]
+     {:uuid #uuid "21b62c75-91a0-379d-bf4d-e4509c8e2d91"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "af55c69c-3b16-3475-b039-c9df567fae17"}]
-     {:uuid #uuid "181c349d-415f-3cb7-a9e6-a0e10826b3cd"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "43335d70-3f5a-33f4-a8c5-1cdc01bb6102"}]
+     {:uuid #uuid "aa3d2849-a679-31a4-a116-29ada75fd326"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "b7385faf-3cad-39c7-b3e9-a826fae0e82a"}]
-     {:uuid #uuid "2dac54d7-0d55-33cc-bf46-e371e78fadf9"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "4e693836-4e99-32cc-b2a3-da96c9fa6ebc"}]
+     {:uuid #uuid "8f13d203-acab-3f45-a37d-8213c2fc3721"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "bb35f14f-fc4c-30ad-b74b-4e05f97f36ef"}]
-     {:uuid #uuid "5fc5f946-6374-30f9-aa6b-04a95ac2b136"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "535f4256-1db7-3574-ab96-534d9537e5f4"}]
+     {:uuid #uuid "754178fd-42fe-3646-adb8-9fa951d2dd34"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "bc932265-e13e-376e-97e3-055357a4a948"}]
-     {:uuid #uuid "7b7d9faf-fc19-3007-8b1d-3528da61efe0"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "5434316b-4f5a-3822-9b59-595fea069a41"}]
+     {:uuid #uuid "be54063f-d8e3-3f1e-a842-1ff8dd9199a3"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "570c1623-5c68-30fc-a436-ec5cf3d534b1"}]
+     {:uuid #uuid "b87decec-247d-326b-b85c-afca3c113315"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "57a3f5eb-4e66-391a-b651-0795895984be"}]
+     {:uuid #uuid "9f43481f-f9d1-3f75-9dff-c26877d869b9"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "c42c5de5-4474-3183-8d28-3b1d7189a215"}]
-     {:uuid #uuid "85ac83b1-326f-34c1-89ce-13a0a1591ac2"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "58ed9995-e9e1-3edc-b943-8dc13ff88490"}]
+     {:uuid #uuid "64779c37-af34-3263-bebc-0b180e63805d"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "d0b75711-3381-3322-aac3-5a389129278e"}]
-     {:uuid #uuid "315a9b33-9289-3482-ab93-718bcd6968bb"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "638f3c47-c681-38c4-93a3-5b18bd19d991"}]
+     {:uuid #uuid "e7c78186-1308-3519-b96c-9c1452e3c4cf"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "d22d716d-0d29-3663-bd5d-0612de54e27b"}]
-     {:uuid #uuid "ea797abf-3bb3-30f1-8a80-95f10b0fa49c"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "69c3e23a-8b3e-3c10-be18-5d60d2ad96c9"}]
+     {:uuid #uuid "21bd0b95-ce44-3da3-be7d-9f70035a5bcb"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "d348999a-289c-3040-ae71-52f299ef6bd4"}]
-     {:uuid #uuid "db957ab6-01e4-3317-86d0-a68539471c69"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "71b5b469-69db-3fe0-80db-5acd01c99c0c"}]
+     {:uuid #uuid "9ecab5d7-490b-393a-9789-37323958c68e"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "dc3b37da-dc72-321f-8438-46dfb3cfc69e"}]
-     {:uuid #uuid "32d7f7e7-f034-3732-9c1c-c831e4a06ee0"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "71ca9249-64db-384c-8e81-5e3cf2ab20f5"}]
+     {:uuid #uuid "035649ac-41a3-3949-842b-f1d464d89908"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "dd4c0e14-b6e8-369f-9b5e-c59ab42d4835"}]
-     {:uuid #uuid "c66e6e59-f566-3c2f-9cd2-cb55cfd60e2f"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "7390d7f6-5b46-3cbf-aa74-40c0e94e8448"}]
+     {:uuid #uuid "10ac131a-1b7c-3d27-9358-0acb48c56fc6"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "dd91836a-23bf-399c-b0ff-aa898e29d861"}]
-     {:uuid #uuid "537c4669-db2a-3b3a-8807-f9f1d867fc7c"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "7a637211-4017-3fb9-af59-41e0b028d4ee"}]
+     {:uuid #uuid "d80e5d58-1ef7-3bcf-99a5-fc703f740389"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "dfe07334-6bf0-3f81-be76-81f8d90d8d68"}]
-     {:uuid #uuid "543a04da-5867-37a5-a05d-9619d228690e"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "83941682-ce80-36bd-966a-8a3587e8eeca"}]
+     {:uuid #uuid "045e31d9-0c63-3cbb-900d-9379959c4cd5"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "dfeba419-ff9b-3419-a15a-fe9853ca4c01"}]
-     {:uuid #uuid "a0e756c2-b2aa-307b-98e1-4f8a17ea932a"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "943279b5-0728-38d6-a404-e6ae73529d35"}]
+     {:uuid #uuid "ec0466b3-c221-3600-9413-4c00178ecdc9"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "e036473f-b14c-3fab-ad1d-53624e2f3ea3"}]
-     {:uuid #uuid "cb7b1b26-3401-331b-b6e5-54b1fee80fcd"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "980a0d40-f15f-399a-b666-7c7a5fe2d270"}]
+     {:uuid #uuid "4cb0f529-7278-317f-af9b-0fe18ca9b5ac"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "eec2986f-cc14-3e38-921c-ed07860c7220"}]
-     {:uuid #uuid "ba2cd41d-e4c2-3035-bfcc-8578d15a6670"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "9a985835-3cca-332c-ade4-075d7bbfa7ce"}]
+     {:uuid #uuid "ea469f4d-2d01-34a7-ae86-c9f6ac54fc32"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "f1fdc52a-2c93-38bb-a2c6-90beda0bc285"}]
-     {:uuid #uuid "0f6197ee-0949-3dfa-af34-3d41c6e7f0d1"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "9c74d870-6d88-3ce7-9e4f-7cab2061a88b"}]
+     {:uuid #uuid "9f2346e3-9174-342e-b43f-669e016ed78f"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "f27e924c-5bd2-3f69-b79c-4c76ca697f50"}]
-     {:uuid #uuid "aa2e5693-a8fa-3a53-931d-bccc0399b03a"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "a0d869df-69cc-3730-ad93-dddcbe194c36"}]
+     {:uuid #uuid "6267fd6e-9338-3087-9718-268ea42faff6"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "f3bf2875-7f0b-38ff-adba-e050b5b927d8"}]
-     {:uuid #uuid "004c7adb-23af-3c14-90b5-2b3835bac24e"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "a1fed1a4-715d-36dd-b7a6-b3089a13d05c"}]
+     {:uuid #uuid "dfc86b1c-c24d-38a6-a933-ee12ec38b087"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "f56846f2-d1e5-33f0-b7b7-0a0916c799f9"}]
-     {:uuid #uuid "374b7767-23d4-3ee0-bcb9-5f158b4b6101"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "a4c0117a-0f54-3817-99b6-c7e5877295c7"}]
+     {:uuid #uuid "76355a11-7f8e-3895-a5d6-e8567a2bb874"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "f9e012f6-78cc-340f-8375-8244f11398bb"}]
-     {:uuid #uuid "ee6339b9-9085-32b1-9157-62bc68b5ee4a"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "b1deb520-8c94-38e8-85b2-0f0c86cd0f73"}]
+     {:uuid #uuid "9a85c727-2ecb-32b6-98ff-adcd86a5fc8d"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-     [{:uuid #uuid "faa96878-3083-3bef-9191-d0b7362b6588"}]
-     {:uuid #uuid "38861c1f-64ef-3763-90d6-662240da6294"}]]
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "b2130393-a604-3795-b8f6-06150e9c2da3"}]
+     {:uuid #uuid "3eb59a5b-588f-3202-9ad3-376da31f9fc4"}]]
    #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "0465034a-5c56-3083-803b-bcf853141139"}
-     [{:uuid #uuid "0ae1435f-eaf8-3ea1-8f5c-955c4a23e2ee"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "65b1a0b8-4a87-3cb0-821d-01f6edcd9dea"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "b370f872-4b42-37bf-8064-560693286901"}]
+     {:uuid #uuid "2a647649-6142-35b9-a40e-f8e0d95253fe"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "b92555fd-3adf-3a56-b4e7-865b38f77644"}]
+     {:uuid #uuid "fe0f61f5-aca4-39a9-b3d6-dbdc12594f36"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "bebcad47-52ec-3cca-8895-4e20a1b7d7f3"}]
+     {:uuid #uuid "feece0ce-4fbf-3d0f-8dbc-dd7642900336"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "c265d38e-5501-32d6-a3e1-d043ecd7ed58"}]
+     {:uuid #uuid "f6b07d6a-c036-36ca-ba21-d1a694553b3f"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "c6c4e7b9-196c-383e-8303-e4ad1f9dd9a1"}]
+     {:uuid #uuid "27d7aaae-b01f-3f18-b522-1efeca3d78be"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "ca6ea221-a063-3b3f-ae3b-8954c96a829e"}]
+     {:uuid #uuid "dd053295-4b6c-38bc-8cc6-c364fe3af157"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "d41a2dc1-0a86-3351-90a2-23e196524dac"}]
+     {:uuid #uuid "09f6a745-b0ad-3699-94d3-86621f38c9f3"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "d49f71d3-8e41-3594-a0ca-2ebc77a39472"}]
+     {:uuid #uuid "ebcfdd0f-879a-3a3c-8bba-9961942fcce8"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "d6297e0d-1a43-33e3-81f3-60734b28af95"}]
+     {:uuid #uuid "6a1d10d2-5fc5-3892-b25a-e6aca295d5c1"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "d974452a-5962-3bf7-979e-671723ddafdb"}]
+     {:uuid #uuid "a74cbe67-8c07-3164-8714-3da6706fb181"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "daceb514-57e8-3ce7-b44d-b2d5dbd1cea4"}]
+     {:uuid #uuid "47a9a796-8f1e-3576-a00a-249a7be66b9a"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "dd96160a-065e-3566-ad92-ffbc2338b0b1"}]
+     {:uuid #uuid "63e47f34-4669-3f63-acb0-fab1f54fcd5f"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "e2598d97-88da-3f66-b9c6-bec0438edc89"}]
+     {:uuid #uuid "fd84480e-d51c-330c-8265-2896d82680b6"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "e52861c6-e70e-3bf6-b7c1-5745c93b1910"}]
+     {:uuid #uuid "a307576d-a9e3-3a6b-887d-a76fa3607546"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "ec8a7161-633b-3a81-9c71-ce6adbf213df"}]
+     {:uuid #uuid "793cee24-874d-3138-991f-4ede65315b91"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "ed108d89-6750-38c1-be00-eedc30bbceee"}]
+     {:uuid #uuid "75eb2506-db74-38ba-9e1a-50e82016adf6"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "f12b2400-8b17-323b-bf90-f9e07d751e7e"}]
+     {:uuid #uuid "e6814509-fe17-3ac5-8c2b-9a84caf6ba25"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "f339d1c0-6d5d-3319-ab50-c81016ba872d"}]
+     {:uuid #uuid "5548caad-d04c-39b4-a09b-ec7dabe1e7b1"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "fe090e37-693c-398d-95fc-db6e652f3b83"}]
+     {:uuid #uuid "ecfb68cb-d250-37ba-9d47-1d78d9029454"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "fe09d603-ea53-323d-8df0-ebf99687f846"}]
+     {:uuid #uuid "49c31a67-cd41-3f90-bd39-d5ec682a3f05"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+     [{:uuid #uuid "fee8a8cd-db2d-32af-bf84-34f6f6c3975c"}]
+     {:uuid #uuid "52673db3-5c03-36b4-8298-35ca186bd2df"}]]
+   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "04443f1a-111c-3796-b5d3-2bb9589679ea"}
+     [{:uuid #uuid "a617d1e3-9feb-3a2f-90ce-af44f61a0183"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "94eb6263-ca06-33cb-9f63-f57337910b69"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
          when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
    [:frame
     [:gur/application
-     {:uuid #uuid "0ad91451-2a9e-3836-a3a1-dfdb2f82caf2"}
-     [{:uuid #uuid "4d904231-57fb-34e9-9644-bd61798e337d"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "6b7691bc-219b-3d05-866b-00bbbc8273c7"}]]
+     {:uuid #uuid "053f4727-4f5e-3492-ad4a-889627b63e18"}
+     [{:uuid #uuid "a625b09c-7c58-3f53-a86a-f80a665c9298"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "ee73adbc-f372-347d-a3cf-2596d5fd6ff0"}]]
    #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "15a00357-5263-3386-b8af-6812a6767381"}
-     [{:uuid #uuid "261533f3-f77b-3ea3-a570-d351e568a1a2"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "c8628f1b-6450-3782-b1b6-53fdd10dd3c8"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "1872fec9-c8cd-3f4b-9319-afb013b4bdd9"}
-     [{:uuid #uuid "d4ae85cb-c0a5-3575-9a75-d503749f208c"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "48c15c94-f9c5-3cc7-8120-a955df61d3f7"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "1b384326-5736-357e-899b-97571e0b7be2"}
-     [{:uuid #uuid "62b8a587-0b36-32e7-9160-6223d9cc025b"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "ec353bb6-6589-3c82-8742-d594829ee0ae"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "1c14b944-72e3-348a-9ae9-508d6d6aa459"}
-     [{:uuid #uuid "e2e2fdc6-479f-3dea-a65a-d787c8b4e861"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "1433181b-20b2-3d2a-9dc1-88e83d43a4a0"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "2332e329-ff4d-3e5b-9157-e04cce226bec"}
-     [{:uuid #uuid "f31f8a11-e998-354d-9ad3-26819a309b4b"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "aa0a6bf7-0b80-3a33-afa7-c2ce5ee686a9"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "25e8e68f-99e9-3ebc-84fb-07b72f806430"}
-     [{:uuid #uuid "ce5b8f5f-bf39-3924-ba57-ba24754d5b30"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "7256af35-68ce-3890-bc99-9075c7ca288a"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "26d960a7-553c-3cab-9f72-2db909d5c418"}
-     [{:uuid #uuid "82842351-9596-3e0a-9307-bcc2bed2d9a8"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "f0bb7713-8000-3a94-a61f-415a4fc7c848"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "2a5ce9a9-7dde-3999-a3e3-fb1c2b19f31f"}
-     [{:uuid #uuid "c042e11d-2537-3112-9bbb-fd74f62e539e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "50509c88-c120-30ae-bcbe-46c3ef651be8"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "2a793767-39f8-36ca-a819-7965b7cf89db"}
-     [{:uuid #uuid "5b447b2f-68ba-3f69-a90c-dc95252cdd6f"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "c679f487-06be-31ac-ac93-e153bd5caaf6"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "2f6749ff-d8ed-3f54-b66e-80de7fab60a7"}
-     [{:uuid #uuid "54c7dbe1-4693-3b79-a726-9997d4dd6b28"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "47673e6a-7d71-3f66-b721-37854423240b"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "3539a30c-1523-3c0c-95c3-dda1d673c910"}
-     [{:uuid #uuid "8e726d2f-eadb-3148-a86d-d7d497820cfa"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "b25bd926-b0a5-35b9-b668-e0ab6e418c31"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "363005fa-791e-3e7f-9d94-8fcd61d70981"}
-     [{:uuid #uuid "d7ad12f1-9f45-3740-bcc2-6a7941b48b80"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "410ef602-9038-315f-8c37-bda77d50c6ee"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "38b0486f-a789-307d-9d44-28aa144b98cb"}
-     [{:uuid #uuid "4e748f35-63d8-30d4-8c59-0ef271915eb4"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "f29071c8-84cd-3e39-94cc-b8cd7d38c855"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "4214b013-3d28-3160-9d8c-d77845a61078"}
-     [{:uuid #uuid "efbfd6c1-78b1-32f5-a778-0f73e8c7e9dd"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "ba327c37-4f77-35f5-a2f8-d3508e5587d5"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "4442cb20-0f0b-3583-9b76-a3fb0c28872d"}
-     [{:uuid #uuid "453e4274-8838-3f9d-bfa0-ed48478eff31"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "d4050c1e-7540-3f38-8d87-b42e54a7683f"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "49a72faa-8884-3f42-a082-68f1a89aaee7"}
-     [{:uuid #uuid "caa93266-5ca3-38d8-9d86-861253459f96"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "102fc666-c5a9-3d05-91be-be05b2aa09f4"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "4bf0994a-f0b2-38b6-8a4d-aac36d73ca12"}
-     [{:uuid #uuid "2610a1b0-ee4a-31f0-8c9f-6c3db726008c"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "d6b557dc-e935-3141-a7cc-78baa7889825"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "4cdb8e30-4910-3c65-845e-bb39aad60657"}
-     [{:uuid #uuid "14cbd7c5-56d0-3788-9e0c-2890ff0b975d"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "f7eed6f6-3aec-3be1-8ce7-4f5c2eceebce"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "53aa3e29-b7a4-365a-a21b-f1782693fe95"}
-     [{:uuid #uuid "a1705dbf-e181-3a78-bd3f-249ffd805fcf"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "122c4697-e093-3e89-ba2d-9a9bfe05f6b4"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "54508f3d-8c70-3c53-af07-e1f3ed5b3543"}
-     [{:uuid #uuid "58781722-2ec5-34e2-aef6-193d1bcd3354"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "b8c38010-9728-3bbf-9202-733ae2982b23"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "56169a0c-38ff-3089-9341-431259fe3625"}
-     [{:uuid #uuid "26a406d9-eeee-37c5-8de8-574f0e614fb1"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "8eac4799-0c45-3f62-b517-10de43495348"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "587ff415-6982-3f54-a49a-dfcb41c56645"}
-     [{:uuid #uuid "6cfe4b45-93e7-31cb-a633-348bd3aad94b"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "aa561cbd-c8fb-3c16-b268-79ff30cee3e4"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
          when {:ran 3, :changed 2, :env-delta 0, :dict-delta 42}},
    [:frame
     [:gur/application
-     {:uuid #uuid "590dcc0a-89e2-30de-bfb3-169d8798abfd"}
-     [{:uuid #uuid "23db0d33-a4fc-3a0f-8800-6b047bfb0df4"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "f24540d9-45ee-31af-aa21-b43efc56a408"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "5a8d3129-8422-38d8-8e4b-9dae4117bc20"}
-     [{:uuid #uuid "8a0280b4-b8e9-3942-8ffd-a659d8b961c8"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "8452ef03-2f3f-3936-bd92-b8574f6ff1da"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "65fdc282-572f-3aa1-b838-18d4f88b403d"}
-     [{:uuid #uuid "c1260802-aaa0-33ae-9b80-93b62161c267"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "3f654ca1-5d70-379d-ae7e-19a4078e690d"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "71d61852-9d94-3adc-bf1c-8ecee8234490"}
-     [{:uuid #uuid "86fa9264-bef5-3477-b960-0c1b26ad3818"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "b560e396-30ff-3e53-b5ab-2ee1596f907f"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "72665358-0003-3fe2-848c-03dad812a30d"}
-     [{:uuid #uuid "743a411f-ed0b-3560-8268-fd1ffeb4adb0"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "75b72a6c-fbab-3579-99bd-31ada6efa827"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "7842cd78-d204-3f81-b594-7a797f85ad9b"}
-     [{:uuid #uuid "434f8556-9154-3e94-9570-4768f560dea2"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "2286a278-3ac2-3886-9924-4fd15e581561"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "7918d758-a03c-38d0-80bd-d3e0f63841ed"}
-     [{:uuid #uuid "6386c08b-2656-3157-b310-1cf36d548d44"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "6162aaa5-8b1c-3f84-b0d2-cc4a2fc69d7e"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "79f65ef2-b3d7-3cc6-87aa-580013257354"}
-     [{:uuid #uuid "c87be436-9f11-365f-931f-6416366a2bde"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "a832dc1f-a5fc-389e-84bc-b6168d43a9e6"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "7cf09820-2872-301d-9273-fa3d643cf6c2"}
-     [{:uuid #uuid "8010579f-1474-3c9f-a369-7f192e680e24"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "9d0aeac9-d24e-37b6-b013-e024ddc1f25b"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 2, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "84eba7f4-eaeb-3599-bcd4-ef81a3f6bd83"}
-     [{:uuid #uuid "d21be8f2-9912-3618-be17-1991a0259fed"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "abd7a53a-d65f-3ab3-bfdc-2f251a97d0db"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "89d1d265-82c0-31b8-8df7-9ed3b9ad2259"}
-     [{:uuid #uuid "70876632-7eea-3187-8268-c2b76a277596"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "bd61cb96-044b-3bdb-9a33-68dfcac224ee"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "8f53e3d5-12f8-3acb-998a-e6f1d0506db6"}
-     [{:uuid #uuid "4ee1e1cf-2c5e-3ea1-8f0e-05c51eda299b"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "38a04869-448c-3e4d-b2f7-6868c4eb04af"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "91434802-8ba1-3ff9-81c9-ab90ad4b9967"}
-     [{:uuid #uuid "8184098b-7622-33d7-b054-d38945f294dc"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "c46bf185-9bbf-3248-b8ee-59357e81eb33"}]]
+     {:uuid #uuid "07fefde5-902a-37c2-a5b8-fc78bf03bc91"}
+     [{:uuid #uuid "8ec584aa-e028-3b2a-bcb6-296a7e45bc13"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "0eff6b3c-3163-3011-b6f4-b75338d65317"}]]
    #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
          when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
    [:frame
     [:gur/application
-     {:uuid #uuid "97489b60-d68d-31a4-9917-48d167081f81"}
-     [{:uuid #uuid "39acb689-f021-37c5-9e81-af26e5e1f62e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "9ca09b40-82a1-37dc-b3ef-8d0c825d1ff7"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+     {:uuid #uuid "0b427476-a758-32f6-a350-dbf788da4024"}
+     [{:uuid #uuid "e01c3cb0-692f-328d-afb8-121fa7562352"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "c4924b9a-0fca-39a9-ad76-8b5cec75ca0f"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
    [:frame
     [:gur/application
-     {:uuid #uuid "98a4a391-61ac-3f33-9f72-f8eedd0a1b8a"}
-     [{:uuid #uuid "b647c086-59ad-3e57-aab4-fa13593ba6e7"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "6cb62fec-4288-3390-902c-1257c06ea017"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "a5ae787d-50c8-30ce-b814-45b0f52019bf"}
-     [{:uuid #uuid "5f2627e6-13fc-3c0b-af20-24c12a29c7c7"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "c9c83bd7-a269-3f71-b64e-501cd15c39a0"}]]
+     {:uuid #uuid "0dd944c9-84eb-3cae-b4f1-c7975d4e4314"}
+     [{:uuid #uuid "18da74fb-97c1-3990-b287-5a428734b2e3"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "86d6ad65-bdfb-3010-9924-d0fcf12800b1"}]]
    #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
          when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
    [:frame
     [:gur/application
-     {:uuid #uuid "a9728861-ffe7-3b53-8ac8-aab9ba108b2b"}
-     [{:uuid #uuid "d2c9f271-c605-3f6d-88b2-5c04d7b2f040"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "68a10126-06ff-36b3-897c-4b445c527a8b"}]]
+     {:uuid #uuid "136cce9e-ecdc-3cc6-a1f0-63383f0f9dd9"}
+     [{:uuid #uuid "8c7aa2a7-adc3-3137-a0f0-c1e28f7c217d"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "6ecf06bd-0615-3fbe-9600-76d5cfc8265f"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "18d1698f-28b3-3cfc-b0bd-fd0786605357"}
+     [{:uuid #uuid "36b40551-1e0e-3a75-9d86-fb6ab1cba42b"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "72ff3c47-5e56-3e29-9a50-4889056731e3"}]]
    #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
          when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
    [:frame
     [:gur/application
-     {:uuid #uuid "ac5d8f68-8aa4-3531-af95-b47c2a7cc987"}
-     [{:uuid #uuid "002ef321-1683-3738-86d0-0dff7d4853ac"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "9708dba8-42d8-3a34-be8f-9ba3cec282ef"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "b015eb1b-c531-303d-a1ab-b57b92db0cf9"}
-     [{:uuid #uuid "46538a5d-ce12-356c-b888-0eb0c7d4c892"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "0452cde0-78ec-3c12-9b40-ad1843017433"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "be010627-df99-3745-8d5d-22a6043c6255"}
-     [{:uuid #uuid "46d7be71-2b07-39d2-b4ec-12d87419ae77"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "aa8d4894-46d6-313a-b139-e6db402f6347"}]]
+     {:uuid #uuid "1e5a72cd-74da-39cf-9c55-9d826cd78336"}
+     [{:uuid #uuid "9dd4a537-5410-30ad-be6f-25931c8b337d"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "4225c002-1ffc-34a5-b4d4-9eaf7e920027"}]]
    #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
    [:frame
     [:gur/application
-     {:uuid #uuid "c088ac15-2ed7-3da7-9d28-62f71dbaa004"}
-     [{:uuid #uuid "66b59d59-81d9-385a-ac8d-34bcc625852c"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "93626bbf-7f45-31f0-aa7a-12fef34a939d"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "c40b679e-f397-3ea4-90c7-041ecb4522d6"}
-     [{:uuid #uuid "91dbc0ad-9eaa-304d-b424-db3bb36e5c71"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "6a3140fe-cac9-363b-9471-15c3c5a359ab"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "c4db0ab8-d79f-3f4a-9874-06990574b08a"}
-     [{:uuid #uuid "ae4307b9-239d-3ccf-894c-011cace9f0ef"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "cdb51b04-2233-3428-a419-355d79daa765"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "ca602c12-8d87-3e91-bcd6-f8fe86343b1f"}
-     [{:uuid #uuid "c4e513ed-d3f6-3db5-acb7-7c0ec25d40bf"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "ca4636da-962d-3243-9cf0-7d94ff32fcc9"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "d16b904e-22cf-32a9-ab1f-501812626adc"}
-     [{:uuid #uuid "f470d63f-d871-3f07-a9c9-2645ab451d05"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "fc8d8e83-ccdf-3f64-8f26-59100119830c"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "d2af8ed6-d54a-361b-b045-67d688268a01"}
-     [{:uuid #uuid "8b05d645-8e15-32a0-9cb1-f2cc12495510"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "6b29a455-082c-397e-a3e4-9ff5e37919b0"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "dc926bd9-c8ac-3cdc-ac54-6ef8067c5452"}
-     [{:uuid #uuid "cbc81559-448c-373b-ab27-766a5f326dae"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "59378b0a-c167-39e7-b327-e7ebd07d299f"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "dd59c773-25e5-31f4-995e-fd8ce2042af7"}
-     [{:uuid #uuid "f5c3d5ae-32fe-3fde-b126-96a3c9e3993a"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "55697e90-40b0-3a0c-9a96-95d85d570ebc"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "def68385-4dd9-38df-bb3c-e107e4672145"}
-     [{:uuid #uuid "1b60549e-3429-3511-a378-107b38bd71f7"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "b37b8197-f1af-3a21-90e9-aca36288a129"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "df3333d6-d5c7-3c88-b1db-01f3d1f4c63c"}
-     [{:uuid #uuid "524ba144-473d-3069-bedf-ae50cf101d26"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "e69c1fdc-de49-3d2b-8d49-2ec85273467c"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "e72b159a-c531-31dd-bbf8-0caf02fd6350"}
-     [{:uuid #uuid "dc5b7708-0b65-3e47-8a7d-ba2044b6ebe4"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "9cc0b6f5-429f-3220-bb86-59914cd3e958"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "e9b6ccd7-23c1-375b-8bd5-e7de240ac251"}
-     [{:uuid #uuid "48ebda6a-d63d-3cd9-9dda-4a002f28503c"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "6176e1e7-379c-39a6-9d39-674fc2be82a4"}]]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "f279aae7-b890-3663-9f46-858570db3ad3"}
-     [{:uuid #uuid "5ec6ca2b-e8e2-363c-858c-5e48bb739e23"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "63d35867-bc68-36fe-91c7-20dc1d945132"}]]
-   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 52}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "f29e5caf-0d50-3d18-b220-65715365ef97"}
-     [{:uuid #uuid "807adbe5-1a76-3f9e-a237-21cd275339b6"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "cf2bd583-c995-31d1-86cd-5c76780ec87e"}]]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:frame
-    [:gur/application
-     {:uuid #uuid "f3073aef-1821-3055-ba29-e3e652aca1f6"}
-     [{:uuid #uuid "5fb996eb-7c0d-36b7-a2ad-0eb86aad8448"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459e"}
-      {:uuid #uuid "019f0ab0-a569-7807-ac96-5d5d8e98459f"}]
-     {:uuid #uuid "0238c28b-dfb4-369a-b7c4-3ce8748c272f"}]]
+     {:uuid #uuid "28f20f5b-aabd-3a25-8432-fd56984b75fc"}
+     [{:uuid #uuid "c7171e60-86fc-394f-a096-ddb27a3d365a"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "cbc001d5-df58-33f3-b34c-732ad48c0e44"}]]
    #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
          recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
          when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
-   [:mailbox {:uuid #uuid "019f0ab0-a56d-793e-8f3e-7e40ed576584"}]
-   #:ctx{recur {:ran 10, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 24, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a56e-7d8f-af4f-ea1f479f8df5"}]
-   #:ctx{recur {:ran 5, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 21, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a56e-7d8f-af4f-ea1f479f8df8"}]
-   #:ctx{apply {:ran 8, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 7, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 24, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a56f-77b0-9074-cda1a8fea9ea"}]
-   #:ctx{recur {:ran 5, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 24, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a56f-77b0-9074-cda1a8fea9ed"}]
-   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 22, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a56f-77b0-9074-cda1a8fea9f0"}]
-   #:ctx{recur {:ran 5, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 24, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a56f-77b0-9074-cda1a8fea9f3"}]
-   #:ctx{recur {:ran 5, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 23, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a570-79fa-8377-61bfb8c53d68"}]
+   [:frame
+    [:gur/application
+     {:uuid #uuid "29ccda82-5643-32ca-8bf0-fa2be53e2de6"}
+     [{:uuid #uuid "0e1e3e80-11eb-33b0-ab3b-af9a2396e224"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "0df2b7cc-7da5-3192-a9d8-aef768d7e6d1"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "2cf85f87-e529-3ccb-88ce-4166bc8f53a4"}
+     [{:uuid #uuid "1613d522-1026-3863-be64-25c156a5cee0"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "7c091dfa-693c-392d-8a37-62fad854d234"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 4, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "30d65358-bc7e-34f8-8bef-09191be3b2df"}
+     [{:uuid #uuid "ede0ddd2-cd76-3b01-baff-d1e198c61a9d"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "70932150-2ea6-3f01-9c65-05a239928e05"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "38399106-80ab-327f-9baa-0ed657fc25c8"}
+     [{:uuid #uuid "7d5d31e6-16fd-3b50-898d-b85b504ca57c"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "27697c3d-5343-3f1b-a643-f685c5434f6b"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "3aeddf6c-17bc-3a7a-a47f-1d920be778cf"}
+     [{:uuid #uuid "6d6be8fb-e827-35a8-87dc-d7e8c901dcd4"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "55972284-9d8d-3ef4-9c59-004928bb7e63"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "3c7a93df-f5fb-3246-80c6-459b1c0af11a"}
+     [{:uuid #uuid "6531aa47-0efe-393a-977f-b6cb4a047d5c"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "2b7bdc1b-5db3-37f8-9f4d-8f15885de565"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "3dfc8666-3aed-302d-be6a-9c422e094dc0"}
+     [{:uuid #uuid "606edc77-3736-39b9-835c-9549f5a4ccb6"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "f5d55f15-70d8-3dca-bd0a-38630af6522b"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "3ea0ca06-370e-3aed-972c-b94486740c57"}
+     [{:uuid #uuid "a17bebdd-e640-3126-801d-ac6264455593"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "d882e17f-71c3-398f-a5ad-23802cc10a3b"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "4525c82f-a5ad-30b0-a9ec-f5a9d2ecf7a9"}
+     [{:uuid #uuid "5a9083d9-e3ff-3334-a3aa-d00607ddc512"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "d93ed1a1-b191-300a-849a-a6bdc15eeba3"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "4940ad5d-35c6-3294-ad79-588575a33c6a"}
+     [{:uuid #uuid "fd1e6db6-f047-3e59-b180-ee838d7c67be"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "279736d4-4501-30f0-a75e-f1fd1f498ad9"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "4acedd4b-74c3-33ad-a02f-9903db5de704"}
+     [{:uuid #uuid "f825bfcf-3d22-3d1f-96b0-59d16f1981c7"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "0090793b-21f4-3e1f-bacd-1343c1e17974"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "4e419a92-88e1-385b-b59a-e8ae9df5673d"}
+     [{:uuid #uuid "29afb8bc-1e49-3e7f-80c9-dbba1bd0ec61"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "a5c7e488-ad88-3f4f-9219-4125f954f04f"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "542d85b4-f999-3123-94d3-909c7753061a"}
+     [{:uuid #uuid "6a5ec256-9db1-34b6-93ae-bdcf97f1eb6f"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "3150d375-657a-3d63-b393-1a78ec36470d"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "58477a43-742a-3b19-ba37-6cb83746711a"}
+     [{:uuid #uuid "1b3c3acd-ba93-3150-ae60-b3c3ef9c0e33"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "55cfb157-bf4a-34e2-b893-11debcafe500"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "58dbeef0-54dd-3834-a31a-0cb522cc9b38"}
+     [{:uuid #uuid "b02a2c71-50df-3098-9133-8168984e5b99"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "182b0234-a35c-3df6-84c2-d16f69b2b06f"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "5d5164c8-336c-3846-8bcb-e8029ca9d261"}
+     [{:uuid #uuid "3e829823-31cc-3949-93b7-66538de1bbb9"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "90f166d0-2091-3ff9-892c-c67d039face1"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "5ed15d4b-d7b2-3329-895e-0479339a8195"}
+     [{:uuid #uuid "949d59d2-5a1e-3f60-ac2f-3ce77070afeb"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "6d9a763c-3ebd-3459-a140-f5fa623009c8"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "6276177d-c11f-336b-abf0-608901381762"}
+     [{:uuid #uuid "0338ac23-ed37-37ff-a90f-848455081dea"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "6d08632c-9623-369a-83b5-9f9a57ebb497"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "67a287ad-4cc9-3fc9-bfcd-8ae495ee18fc"}
+     [{:uuid #uuid "ef3f9cab-0ef3-38a6-95ca-f00479f57a6a"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "549d046b-3993-36f3-a196-b5fb5421af34"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "67ad85f6-f581-3de9-83e7-cb490dc58448"}
+     [{:uuid #uuid "4c86cd1d-b37d-3d10-8153-22ba8f7d3237"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "107135e7-5363-3a68-a4b4-91fb7d9666d2"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "6c99f6ac-7c17-3498-a888-47233bcb7d12"}
+     [{:uuid #uuid "ae341316-db07-32b7-a70a-8b96c5ffb22d"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "65f318b7-50f9-3583-adc9-435b7e26559a"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "702acee6-186c-3ad9-a183-a6dbaf256480"}
+     [{:uuid #uuid "db073fd2-3b30-33d6-a5b4-dc9cd803f453"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "abf767d1-5afd-387b-80d5-cff759792fee"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "72e3429e-6c57-37bf-ad1b-298634c5370d"}
+     [{:uuid #uuid "1549d3fd-7e67-3887-b0ed-e770568a99e3"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "bf67ce0d-d00f-30f0-ba6d-db508c5a824c"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "72f728be-6d65-3e6e-ae13-46b76845a138"}
+     [{:uuid #uuid "062acffc-8bf3-32ac-9121-e1f219f7ae29"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "6cf56b80-3598-3cd8-a3cf-4ed5880bf151"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "762cce7b-355c-33a4-a829-46e034d14e3c"}
+     [{:uuid #uuid "a6fa8751-b397-361a-b896-146a726188fb"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "1241b399-e56a-3994-bffe-88119517c481"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "7c66a03d-0b47-3019-aef9-5cfadf18f8fb"}
+     [{:uuid #uuid "adb15ea5-62e5-3935-bbf9-cfdc818d8ddd"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "a1952224-683b-3bfe-ac89-79cd29bf64cd"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "86bf1b1b-33a6-3f70-98a4-85fce024fc20"}
+     [{:uuid #uuid "a4f9969e-1fd2-37a2-ad26-332742c771e7"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "70df062e-8b07-355a-9e1b-f028097b797e"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "88f53c35-dfd3-3a2b-b2ba-7b76cbb23553"}
+     [{:uuid #uuid "f4fe7dc6-2463-3abe-8e28-c5bb8a5c386f"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "7ba9ad38-184f-3765-8ed9-ccc9355267ad"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "8b6d771a-5af3-3664-b086-d50aa7c2eda3"}
+     [{:uuid #uuid "f658e66f-a79f-346f-9862-fbf68732e175"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "31ebc44f-67f5-345c-b8ab-f54ed72d129e"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "8cac0bb3-66a1-3eaf-91d5-98c6c73947ae"}
+     [{:uuid #uuid "f7a99ab2-bb08-38c6-b079-6b575d86d9e1"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "74ea51b8-76ad-3f71-80c2-7973fc408422"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "8e5fdf7f-ad7e-3a80-b399-aa5cce252fe3"}
+     [{:uuid #uuid "8d939fd7-0d11-3d45-89da-29c744a4e2b6"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "ecbd4069-d393-3bc9-8239-f3562c0d056f"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "9325a6cc-febb-39ac-82b5-1caec7edeb74"}
+     [{:uuid #uuid "0c6068a0-af9f-3008-b72e-f19325a19661"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "9895914c-1529-32e4-bff8-ab304a0e63d0"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "9b544097-4742-333e-900f-6a86f126f564"}
+     [{:uuid #uuid "d9af95fd-9231-3b84-ba2a-b7ea3dc09640"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "99a49905-427f-3339-8cef-a48a071699bc"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "9c5550fe-68dd-3ae0-87b3-2b29ee4c67f3"}
+     [{:uuid #uuid "733f208d-a73b-38e7-871a-903d88ec605e"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "30f17188-da57-3517-a241-4f8ec5f3252c"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "a38340a6-f583-31a9-aed4-07d74de10a6b"}
+     [{:uuid #uuid "9c3e05b4-c52b-3fd6-b536-dcbbade2ea43"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "e21e6b4b-5a3a-3135-8a23-49de8b607544"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 4, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "ae9c73f3-6ce9-336c-a2b4-b249f7719f57"}
+     [{:uuid #uuid "6e61ef24-afda-344d-b797-f7787b1351e8"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "bfa959cd-c143-374b-b0db-bb312ddfdc76"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "b40d14ac-0456-35a8-8378-892fe6f127f7"}
+     [{:uuid #uuid "0a8c1fe2-9483-36eb-b8ee-74c992ab46f7"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "6baeac50-0132-3e17-b428-746e41fa3e41"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "b57bea03-b5c9-3ae2-8142-f472308e5678"}
+     [{:uuid #uuid "078fc1a0-85e5-3c4f-8298-519a0806e52b"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "4b30f86d-7196-36b9-b7b0-37f5736aa182"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "bdc35470-d043-3982-9ebd-1692c9047f54"}
+     [{:uuid #uuid "bac3dc93-acbb-3d9b-97f1-0ebc12f03a1e"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "af73d4bc-4821-3192-97db-aa2d8d596d9a"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "bde26eda-9ffa-325b-ba51-d7f8b086fc51"}
+     [{:uuid #uuid "2d88927e-6eb9-3b41-a319-bbc652d5cc46"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "dc48c367-4a2b-35bc-9845-eadf00027a0e"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "c62cff8c-97e8-3e06-aee1-651a39ba0d0d"}
+     [{:uuid #uuid "5d30c8b8-4560-3011-aad2-3a7ea1d88bc9"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "e41b7e5b-cf6a-3d5e-ad8d-4604b2a591fa"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "d47405b7-8e07-34f5-bacb-47c6ea5ad1a3"}
+     [{:uuid #uuid "1d72fbf4-030b-3261-8d97-a86bcf3ea426"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "4f2e5ac5-1a6c-3ba2-a4e0-0d8f789b5525"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "d782413d-a6b6-3f65-9601-629f6740e3c0"}
+     [{:uuid #uuid "3d7a6683-ab47-38e7-944c-f40f01810024"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "4dcc343b-f7a3-3dfa-ad3f-6ca8fbefb80c"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "d84276c9-942a-3c5c-ab81-c2d8fcc25b09"}
+     [{:uuid #uuid "e492dc3e-af03-3f1d-b3c7-0e9b2996fe6c"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "b043680f-e19a-3869-a845-991bb0734934"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "db626658-520f-3e3d-a754-d3fe2cc3a877"}
+     [{:uuid #uuid "c7740e48-fec5-3c0f-a0a7-1a64eef15706"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "b80eca39-e4b4-3881-918f-6c1bacc4b810"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "e43f4cab-1556-3c64-8add-32268bf0778f"}
+     [{:uuid #uuid "261b889e-7713-3245-beaa-483f3bad696d"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "cede76cd-237b-3e1b-8f6c-b9d146bbcdea"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "ea2dd050-198a-32ed-9c72-657e17da0f65"}
+     [{:uuid #uuid "3651463d-70a5-3b77-a954-58d195c44efe"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "4d370a82-1dae-3de2-a972-047986a03f9b"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "f38f9b48-fb7e-342a-8958-e9070ef7fd1b"}
+     [{:uuid #uuid "34cfaab3-c9d9-34c3-bbe6-1c233252ad4b"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "c1a19994-257d-3014-ae73-99d7863bca20"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "f3ddccee-d445-3837-b9c1-b39767dbea09"}
+     [{:uuid #uuid "95fcef63-30ef-3bfd-bd23-c2183b83df27"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "20e2c02a-ef47-3216-b804-5234889f8da4"}]]
+   #:ctx{apply {:ran 2, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 4, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "f44df883-6ff3-39e9-8326-1e5886a7bd0a"}
+     [{:uuid #uuid "7499f721-3ee5-3fcb-95eb-46dea609f423"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "edc06549-cebc-3d62-a33d-d0ef6b9a678a"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 3, :changed 1, :env-delta 0, :dict-delta 32}},
+   [:frame
+    [:gur/application
+     {:uuid #uuid "f56e23cf-2fd4-3b40-8a50-2cf7d2900e68"}
+     [{:uuid #uuid "849dbef5-6ee4-39fb-a0b7-4c0237f6c8e7"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7cf"}
+      {:uuid #uuid "019f0b0a-be1f-77fb-aa57-29a4f8d0c7d0"}]
+     {:uuid #uuid "00036bed-4ede-35c0-902b-e027c90907d5"}]]
+   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0},
+         recur {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:mailbox {:uuid #uuid "019f0b0a-be24-7788-9a1d-341b1daacbff"}]
+   #:ctx{recur {:ran 6, :changed 4, :env-delta 0, :dict-delta 0},
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be26-7e45-be24-9e1aa3062aaf"}]
    #:ctx{apply {:ran 3, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 7, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 23, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a570-79fa-8377-61bfb8c53d6b"}]
-   #:ctx{apply {:ran 5, :changed 0, :env-delta 0, :dict-delta 0},
+         recur {:ran 6, :changed 4, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be26-7e45-be24-9e1aa3062ab2"}]
+   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be26-7e45-be24-9e1aa3062ab5"}]
+   #:ctx{apply {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
+         recur {:ran 6, :changed 4, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be26-7e45-be24-9e1aa3062ab8"}]
+   #:ctx{apply {:ran 3, :changed 0, :env-delta 0, :dict-delta 0},
          recur {:ran 8, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 22, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a570-79fa-8377-61bfb8c53d6e"}]
-   #:ctx{recur {:ran 5, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 21, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a570-79fa-8377-61bfb8c53d71"}]
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be27-780d-a5a4-31c29c28a7d7"}]
+   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be27-780d-a5a4-31c29c28a7da"}]
+   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be27-780d-a5a4-31c29c28a7dd"}]
    #:ctx{apply {:ran 3, :changed 0, :env-delta 0, :dict-delta 0},
          recur {:ran 7, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 23, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a570-79fa-8377-61bfb8c53d74"}]
-   #:ctx{recur {:ran 5, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 22, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a570-79fa-8377-61bfb8c53d77"}]
-   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 23, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a570-79fa-8377-61bfb8c53d7a"}]
-   #:ctx{apply {:ran 5, :changed 0, :env-delta 0, :dict-delta 0},
-         recur {:ran 7, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 23, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:mailbox {:uuid #uuid "019f0ab0-a571-7f4c-9e83-311ad56ea65d"}]
-   #:ctx{apply {:ran 1, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 2, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be28-7aa3-9055-f658065541b9"}]
+   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be28-7aa3-9055-f658065541bc"}]
+   #:ctx{apply {:ran 2, :changed 0, :env-delta 0, :dict-delta 0},
          recur {:ran 5, :changed 4, :env-delta 0, :dict-delta 0},
-         when {:ran 23, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "014d6532-68ed-3043-91bd-e518a13a930e"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "0d260d9b-5ae9-38a9-8854-9098b3944c34"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "1b260625-e3d8-3a77-820a-bd2cf34ccb0d"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "1e49859b-0e82-31a2-8a82-7dc6db655e39"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "25a04813-cff3-3e00-9eb8-46b82a93ab1c"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "2e8b73eb-f92b-3541-800c-8225d9a65dae"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "595a06c7-6feb-3518-b0a7-6bd86d803583"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "5cd1b05e-303b-3d5f-8dd4-19cf84d5d58e"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "6229c55b-8fc5-3ba1-9a5f-1425f85377b6"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "6513d306-5339-3b00-92d5-1cd51cf7c42d"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "76f6b30c-53f3-354a-8d1b-0448e1b12078"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "8010579f-1474-3c9f-a369-7f192e680e24"}]
-   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 32}},
-   [:route {:uuid #uuid "8b05d645-8e15-32a0-9cb1-f2cc12495510"}]
-   #:ctx{recur {:ran 3, :changed 0, :env-delta 0, :dict-delta 0},
-         when {:ran 3, :changed 0, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "92e58738-8f76-3a29-9c17-e4a82769f5fa"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "ac2ec180-ffc7-3ebf-b5b8-a056378f865c"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "d0b75711-3381-3322-aac3-5a389129278e"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "f1fdc52a-2c93-38bb-a2c6-90beda0bc285"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}},
-   [:route {:uuid #uuid "f9e012f6-78cc-340f-8375-8244f11398bb"}]
-   #:ctx{apply {:ran 1, :changed 1, :env-delta 0, :dict-delta 0}}}}}
+         when {:ran 1, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be28-7aa3-9055-f658065541bf"}]
+   #:ctx{apply {:ran 3, :changed 0, :env-delta 0, :dict-delta 0},
+         recur {:ran 7, :changed 4, :env-delta 0, :dict-delta 0},
+         when {:ran 4, :changed 0, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be28-7aa3-9055-f658065541c2"}]
+   #:ctx{recur {:ran 6, :changed 4, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be28-7aa3-9055-f658065541c5"}]
+   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be29-7ba0-80bb-10ccfae2c93b"}]
+   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0}},
+   [:mailbox {:uuid #uuid "019f0b0a-be29-7ba0-80bb-10ccfae2c93e"}]
+   #:ctx{recur {:ran 4, :changed 4, :env-delta 0, :dict-delta 0}},
+   [:route {:uuid #uuid "062acffc-8bf3-32ac-9121-e1f219f7ae29"}]
+   #:ctx{when {:ran 1, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "0c6068a0-af9f-3008-b72e-f19325a19661"}]
+   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "1613d522-1026-3863-be64-25c156a5cee0"}]
+   #:ctx{recur {:ran 4, :changed 0, :env-delta 0, :dict-delta 0},
+         when {:ran 6, :changed 2, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "1b3c3acd-ba93-3150-ae60-b3c3ef9c0e33"}]
+   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "5a9083d9-e3ff-3334-a3aa-d00607ddc512"}]
+   #:ctx{when {:ran 1, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "6531aa47-0efe-393a-977f-b6cb4a047d5c"}]
+   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "6a5ec256-9db1-34b6-93ae-bdcf97f1eb6f"}]
+   #:ctx{when {:ran 1, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "7499f721-3ee5-3fcb-95eb-46dea609f423"}]
+   #:ctx{when {:ran 1, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "7d5d31e6-16fd-3b50-898d-b85b504ca57c"}]
+   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "8c7aa2a7-adc3-3137-a0f0-c1e28f7c217d"}]
+   #:ctx{when {:ran 1, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "95fcef63-30ef-3bfd-bd23-c2183b83df27"}]
+   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "9c3e05b4-c52b-3fd6-b536-dcbbade2ea43"}]
+   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "b02a2c71-50df-3098-9133-8168984e5b99"}]
+   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "f7a99ab2-bb08-38c6-b079-6b575d86d9e1"}]
+   #:ctx{when {:ran 1, :changed 1, :env-delta 0, :dict-delta 42}},
+   [:route {:uuid #uuid "f825bfcf-3d22-3d1f-96b0-59d16f1981c7"}]
+   #:ctx{when {:ran 2, :changed 2, :env-delta 0, :dict-delta 42}}}}}

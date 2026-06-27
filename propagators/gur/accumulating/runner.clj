@@ -67,13 +67,8 @@
       child-net)))
 
 (defn- prepare-run-net
-  [parent-net acc-net applied-net-id import-ids external-output-ids]
-  (let [boundary-ids (acc/boundary-cell-ids
-                      parent-net
-                      (distinct (concat import-ids external-output-ids))
-                      (map #(acc/strongest-or-nothing parent-net %)
-                           (concat import-ids external-output-ids)))
-        n0 (reduce #(import-parent-cell %1 parent-net %2)
+  [parent-net acc-net applied-net-id import-ids external-output-ids boundary-ids]
+  (let [n0 (reduce #(import-parent-cell %1 parent-net %2)
                    (reduce nb/ensure-cell
                            (reset-mailbox acc-net applied-net-id)
                            boundary-ids)
@@ -244,45 +239,62 @@
                                 arg-values
                                 out-value))))
 
+(defn- fully-expanded-requests?
+  [requests expanded?]
+  (every? expanded? (keys requests)))
+
 (defn- expand-application-requests
-  [n applied-net-id request-cache]
+  [n applied-net-id request-cache request-scan-cache]
   (let [requests (acc/application-requests n)
-        expanded? @request-cache]
-    (if (every? expanded? (keys requests))
+        cached @request-scan-cache]
+    (if (and (identical? requests (:requests cached))
+             (:fully-expanded? cached))
       n
-      (reduce (fn [current [app-key request]]
-                (cond
-                  (contains? expanded? app-key)
-                  current
+      (let [expanded? @request-cache]
+        (if (fully-expanded-requests? requests expanded?)
+          (do
+            (reset! request-scan-cache {:requests requests
+                                        :fully-expanded? true})
+            n)
+          (let [expanded-net
+                (reduce (fn [current [app-key request]]
+                          (cond
+                            (contains? expanded? app-key)
+                            current
 
-                  (acc/frame-declared? current nil app-key)
-                  (do
-                    (swap! request-cache conj app-key)
-                    current)
+                            (acc/frame-declared? current nil app-key)
+                            (do
+                              (swap! request-cache conj app-key)
+                              current)
 
-                  :else
-                  (if-let [fragment (expandable-request current
-                                                        applied-net-id
-                                                        app-key
-                                                        request)]
-                    (do
-                      (swap! request-cache conj app-key)
-                      (merge/strongest-value
-                       (merge/cell-merge current fragment current)
-                       current))
-                    current)))
-              n
-              (sort-by (comp pr-str key) requests)))))
+                            :else
+                            (if-let [fragment (expandable-request current
+                                                                  applied-net-id
+                                                                    app-key
+                                                                    request)]
+                              (do
+                                (swap! request-cache conj app-key)
+                                (merge/strongest-value
+                                 (merge/cell-merge current fragment current)
+                                 current))
+                              current)))
+                        n
+                        requests)]
+            (when (fully-expanded-requests? requests @request-cache)
+              (reset! request-scan-cache {:requests requests
+                                          :fully-expanded? true}))
+            expanded-net))))))
 
 (defn- run-accumulated-child
-  [child-net task-cursor request-cache prop-state-cache prop-io-cache applied-net-id]
+  [child-net task-cursor request-cache request-scan-cache prop-state-cache prop-io-cache applied-net-id]
   ;; ponytail: task facts grow monotonically; this cursor is primitive-local
   ;; runtime state and only records which task indexes have been consumed.
   (loop [remaining max-child-steps
          current (timed-phase :run-child/expand-initial
                    (expand-application-requests child-net
                                                 applied-net-id
-                                                request-cache))]
+                                                request-cache
+                                                request-scan-cache))]
     (let [pending (timed-phase :run-child/next-pending
                     (next-pending-task-fact current @task-cursor))]
       (cond
@@ -306,7 +318,8 @@
               next (timed-phase :run-child/expand-after-task
                      (expand-application-requests ran
                                                   applied-net-id
-                                                  request-cache))]
+                                                  request-cache
+                                                  request-scan-cache))]
           (swap! task-cursor
                  update
                  task-key
@@ -316,11 +329,18 @@
 
 (defn- mailbox-with-task-facts
   [child-net applied-net-id mailbox mailbox-index]
-  (acc/add-task-facts mailbox
-                      [:mailbox applied-net-id]
-                      (distinct (concat (indexed-prop-ids child-net)
-                                        (indexed-prop-ids mailbox)))
-                      mailbox-index))
+  (let [mailbox-props (indexed-prop-ids mailbox)
+        request-only? (and (seq (acc/application-requests mailbox))
+                           (empty? mailbox-props)
+                           (empty? (net/net-env mailbox))
+                           (empty? (net/net-graph mailbox)))]
+    (if request-only?
+      mailbox
+      (acc/add-task-facts mailbox
+                          [:mailbox applied-net-id]
+                          (distinct (concat (indexed-prop-ids child-net)
+                                            mailbox-props))
+                          mailbox-index))))
 
 (defn- prune-expanded-requests
   [child-net mailbox]
@@ -344,7 +364,7 @@
   (seq (net/net-dict-or-empty mailbox)))
 
 (defn- settle-accumulated-child
-  [task-cursor request-cache prop-state-cache prop-io-cache mailbox-epoch parent-net child-net applied-net-id]
+  [task-cursor request-cache request-scan-cache prop-state-cache prop-io-cache mailbox-epoch parent-net child-net applied-net-id]
   ;; ponytail: owner-local reconciliation; do not publish a half-merged mailbox
   ;; and wait for a later runner turn to discover its tasks.
   (loop [remaining 64
@@ -354,10 +374,11 @@
                       {:max-steps 64})))
     (let [child1 (timed-phase :settle/run-child
                    (run-accumulated-child current
-                                          task-cursor
-                                          request-cache
-                                          prop-state-cache
-                                          prop-io-cache
+                                           task-cursor
+                                           request-cache
+                                           request-scan-cache
+                                           prop-state-cache
+                                           prop-io-cache
                                           applied-net-id))
           mailbox (timed-phase :settle/read-mailbox
                     (acc/strongest-or-nothing child1 applied-net-id))]
@@ -383,7 +404,7 @@
         child1))))
 
 (defn- run-accumulated-messages
-  [task-cursor request-cache prop-state-cache prop-io-cache mailbox-epoch parent-net applied-net-id import-ids external-output-ids]
+  [task-cursor request-cache request-scan-cache prop-state-cache prop-io-cache mailbox-epoch parent-net applied-net-id import-ids external-output-ids boundary-ids]
   (let [acc0 (acc/strongest-or-nothing parent-net applied-net-id)]
     (if-not (net/net? acc0)
       []
@@ -396,10 +417,12 @@
                                       acc1
                                       applied-net-id
                                       import-ids
-                                      external-output-ids))
+                                      external-output-ids
+                                      boundary-ids))
             child1 (timed-phase :settle-child
                      (settle-accumulated-child task-cursor
                                                request-cache
+                                               request-scan-cache
                                                prop-state-cache
                                                prop-io-cache
                                                mailbox-epoch
@@ -432,6 +455,32 @@
           (not= acc0 child2)
           (conj (message applied-net-id child2)))))))
 
+(defn- runner-input-token
+  [parent-net input-ids]
+  (mapv (fn [id]
+          (get (net/net-env parent-net) id))
+        input-ids))
+
+(defn- same-input-token?
+  [a b]
+  (and (= (count a) (count b))
+       (every? true? (map identical? a b))))
+
+(defn- cached-boundary-cell-ids
+  [boundary-cache parent-net import-ids external-output-ids]
+  (let [ids (vec (distinct (concat import-ids external-output-ids)))
+        token (runner-input-token parent-net ids)
+        cached @boundary-cache]
+    (if (same-input-token? token (:token cached))
+      (:ids cached)
+      (let [boundary-ids (acc/boundary-cell-ids
+                          parent-net
+                          ids
+                          (map #(acc/strongest-or-nothing parent-net %)
+                               ids))]
+        (reset! boundary-cache {:token token :ids boundary-ids})
+        boundary-ids))))
+
 (defn p:run-accumulated-network
   ([applied-net-id external-output-ids]
    (p:run-accumulated-network applied-net-id [] external-output-ids))
@@ -443,21 +492,35 @@
                                        external-output-ids)))
          task-cursor (atom {})
          request-cache (atom #{})
+         request-scan-cache (atom nil)
          prop-state-cache (atom {})
          prop-io-cache (atom {})
          ;; ponytail: runner-local scheduling token; not recursive semantics.
-         mailbox-epoch (atom 0)]
+         mailbox-epoch (atom 0)
+         last-input-token (atom nil)
+         boundary-cache (atom nil)]
      (prop/construct-propagator
       (fn [_inputs _outputs parent-net]
-        (run-accumulated-messages task-cursor
-                                  request-cache
-                                  prop-state-cache
-                                  prop-io-cache
-                                  mailbox-epoch
-                                  parent-net
-                                  applied-net-id
-                                  import-ids
-                                  external-output-ids))
+        (let [token (runner-input-token parent-net inputs)]
+          (if (same-input-token? token @last-input-token)
+            []
+            (do
+              (reset! last-input-token token)
+              (let [boundary-ids (cached-boundary-cell-ids boundary-cache
+                                                           parent-net
+                                                           import-ids
+                                                           external-output-ids)]
+                (run-accumulated-messages task-cursor
+                                          request-cache
+                                          request-scan-cache
+                                          prop-state-cache
+                                          prop-io-cache
+                                          mailbox-epoch
+                                          parent-net
+                                          applied-net-id
+                                          import-ids
+                                          external-output-ids
+                                          boundary-ids))))))
       inputs
       (into [applied-net-id] (distinct (concat import-ids
                                                external-output-ids)))))))

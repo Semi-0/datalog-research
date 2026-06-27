@@ -302,10 +302,19 @@
         (net/net-env parent-net)))
 
 (defn- export-collection-ids
-  [parent-net {:keys [collection-id slot-key parent-id]}]
+  [parent-net collection-cache {:keys [collection-id slot-key parent-id]}]
   (if collection-id
     [collection-id]
-    (collection-cell-ids-for-parent parent-net slot-key parent-id)))
+    (let [cache-key [slot-key parent-id]
+          missing ::missing
+          cached (get @collection-cache cache-key missing)]
+      (if-not (= missing cached)
+        cached
+        (let [ids (vec (collection-cell-ids-for-parent parent-net
+                                                       slot-key
+                                                       parent-id))]
+          (swap! collection-cache assoc cache-key ids)
+          ids)))))
 
 (defn- declaration-missing?
   [parent-net collection-id slot-key child-ref]
@@ -316,19 +325,22 @@
 
 (defn- accumulated-export-messages
   [parent-net exports]
-  (->> exports
-       (remove :value-only?)
-       (mapcat (fn [{:keys [slot-key child-ref] :as export}]
-                 (for [collection-id (export-collection-ids parent-net export)
-                       :when (declaration-missing? parent-net
-                                                   collection-id
-                                                   slot-key
-                                                   child-ref)]
-                   [collection-id slot-key child-ref])))
-       distinct
-       (mapv (fn [[collection-id slot-key child-ref]]
-               (message collection-id
-                        (obj/accessor-declaration slot-key child-ref))))))
+  (let [collection-cache (atom {})]
+    (->> exports
+         (remove :value-only?)
+         (mapcat (fn [{:keys [slot-key child-ref] :as export}]
+                   (for [collection-id (export-collection-ids parent-net
+                                                              collection-cache
+                                                              export)
+                         :when (declaration-missing? parent-net
+                                                     collection-id
+                                                     slot-key
+                                                     child-ref)]
+                     [collection-id slot-key child-ref])))
+         distinct
+         (mapv (fn [[collection-id slot-key child-ref]]
+                 (message collection-id
+                          (obj/accessor-declaration slot-key child-ref)))))))
 
 (defn- accumulated-export-value-messages
   [parent-net child-net exports]

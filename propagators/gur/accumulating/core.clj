@@ -88,11 +88,18 @@
     (.getBytes (pr-str (into [:gur/accumulating] parts))
                StandardCharsets/UTF_8))))
 
+(defn- stable-node-id-from-string
+  [s]
+  (ids/->NodeId
+   (UUID/nameUUIDFromBytes (.getBytes s StandardCharsets/UTF_8))))
+
 (defn stable-id-generator
   [seed]
-  (let [counter (atom 0)]
+  (let [prefix (pr-str [:gur/accumulating seed])
+        counter (atom 0)]
     (fn []
-      (stable-node-id [seed (swap! counter inc)]))))
+      (stable-node-id-from-string
+       (str prefix ":" (swap! counter inc))))))
 
 (defn frame-scope-key
   [app-key]
@@ -307,7 +314,7 @@
                                                         applied-net-id
                                                         out-id))
                            inputs
-                           [applied-net-id])
+                           [])
                           n0)
             entry (net/network-lookup-propagator n1 prop-id)]
         [prop-id (net/assoc-net-prop n1 prop-id (assoc entry :observe :inputs))]))))
@@ -355,4 +362,4 @@
                                             body-expr
                                             installers))])))
      [condition-id]
-     [applied-net-id])))
+     [])))

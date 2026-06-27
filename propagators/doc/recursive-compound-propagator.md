@@ -1155,9 +1155,69 @@ fast paths:
   | filter depth `5` | `88.638 ms` | `85.155 ms` |
   | filter depth `10` | `145.363 ms` | `140.165 ms` |
 
-  A later broad benchmark pass measured mapper depth `15` at `400.751 ms`
-  median, with min `388.554 ms`. Treat the current state as being on the
-  `400 ms` boundary, not as stable evidence for the original sub-`100 ms` goal.
+	  A later broad benchmark pass measured mapper depth `15` at `400.751 ms`
+	  median, with min `388.554 ms`. Treat the current state as being on the
+	  `400 ms` boundary, not as stable evidence for the original sub-`100 ms` goal.
+
+Sub-`300 ms` practical HOP follow-up on `2026-06-27`:
+
+- The retained optimization keeps the same semantic boundaries:
+  propagators emit messages/facts only, cell merge owns declaration refinement,
+  and runner cursors/caches stay primitive-local. No compound source or output
+  list is materialized; the HOP benchmark still uses `obj/p:cons`,
+  `obj/p:car`, and `obj/p:cdr`.
+- Accumulating GUR named-network fragments now have an idempotent merge path.
+  If the current accumulated network already subsumes a frame/request fragment,
+  merge returns the current network object. This matters because the
+  accumulating runner uses identity-based update detection for accumulated
+  networks; returning a fresh equal network can create repeated wakeups.
+- A more aggressive direct accumulated-fragment join was tested first and
+  rejected. It made `clojure -M:test propagators.gur-accumulating-test` run for
+  over a minute until interrupted, which is evidence that idempotent merge must
+  preserve object identity for already-subsumed accumulated declarations.
+- `named-network->=` and `named/join` now avoid building temporary key-union or
+  key-subset sets. The preorder checks required keys directly, and `join` walks
+  only the shared named keys while preserving the same merged env/dict result.
+  This is shared named-network code, so the full suite was rerun after the
+  change.
+- The runner keeps small local fast paths: boundary ids and fully-expanded
+  request maps are cached by parent-entry identity, and request-only mailboxes do
+  not schedule the whole accumulated prop index. Non-request mailbox fragments
+  still use the conservative broad schedule; earlier precise mailbox/slice
+  attempts either lost HOP tails or did not improve depth-15 timing reliably.
+- Accessor export now caches repeated `[slot-key parent-id] -> collection ids`
+  lookups for one export pass, avoiding repeated parent-env scans without
+  changing scoped routing semantics.
+- Benchmark evidence for the retained code:
+
+  ```bash
+  clojure -M:gur-accumulating-bench 5 21
+  clojure -M:gur-accumulating-bench 10 31
+  ```
+
+  | Scenario | `5 21` median | `5 21` max | `10 31` median |
+  | --- | ---: | ---: | ---: |
+  | mapper depth `5` | `131.484 ms` | `153.603 ms` | `118.485 ms` |
+  | mapper depth `10` | `191.572 ms` | `221.104 ms` | `188.715 ms` |
+  | mapper depth `15` | `273.273 ms` | `292.267 ms` | `266.642 ms` |
+  | filter depth `5` | `60.850 ms` | `72.016 ms` | `64.481 ms` |
+  | filter depth `10` | `103.158 ms` | `114.490 ms` | `111.185 ms` |
+
+  All rows reported `ok=true`.
+- Regression evidence:
+
+  ```bash
+  clojure -M:test propagators.named-network-test propagators.gur-accumulating-test
+  clojure -M:test
+  ```
+
+  Focused result: `114 pass, 0 fail, 0 error`. Full-suite result:
+  `1393 pass, 0 fail, 0 error`.
+- Status: the practical depth-15 chain target is met locally with meaningful
+  headroom in the retained benchmark runs. The older sub-`100 ms` mapper HOP
+  target is still not met; reaching it likely requires a structural reduction in
+  per-frame topology construction or child prop execution, not more equality
+  guards.
 
 Compound-scope-object experiment on `2026-06-23`:
 
