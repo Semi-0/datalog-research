@@ -65,7 +65,7 @@
        (<= v 1)
        value/contradiction))))
 
-(compile/def-recursive fib
+(source/def-recursive fib
   [n out]
   {:installers example-installers}
   (let [one 1
@@ -80,7 +80,7 @@
 (defn fib-closure []
   fib)
 
-(compile/def-recursive factorial
+(source/def-recursive factorial
   [n out]
   {:installers example-installers}
   (let [one 1
@@ -93,7 +93,7 @@
 (defn factorial-closure []
   factorial)
 
-(compile/def-recursive int-sqrt-search
+(source/def-recursive int-sqrt-search
   [n lo hi out]
   {:installers example-installers}
   (let [one 1
@@ -171,7 +171,7 @@
        (even? v)
        value/contradiction))))
 
-(compile/def-recursive map-list
+(source/def-recursive map-list
   [list mapper acc out]
   {:installers example-installers}
   (let-cell [head rest]
@@ -196,7 +196,7 @@
 (defn map-list-closure []
   map-list)
 
-(compile/def-recursive map-list-fib
+(source/def-recursive map-list-fib
   [list out]
   {:installers example-installers
    :seed-values {map-list map-list
@@ -207,7 +207,7 @@
 (defn map-list-fib-closure []
   map-list-fib)
 
-(compile/def-recursive sum-step
+(source/def-recursive sum-step
   [acc value out]
   {:installers example-installers}
   (::+ acc value))
@@ -215,7 +215,7 @@
 (defn sum-step-closure []
   sum-step)
 
-(compile/def-recursive sum-present-step
+(source/def-recursive sum-present-step
   [acc value out]
   {:installers example-installers}
   (::+-present acc value))
@@ -223,7 +223,7 @@
 (defn sum-present-step-closure []
   sum-present-step)
 
-(compile/def-recursive even-predicate
+(source/def-recursive even-predicate
   [value out]
   {:installers example-installers}
   (::even? value))
@@ -231,7 +231,7 @@
 (defn even-predicate-closure []
   even-predicate)
 
-(compile/def-recursive reduce-list
+(source/def-recursive reduce-list
   [list step acc out]
   {:installers example-installers}
   (let-cell [head rest]
@@ -251,7 +251,7 @@
 (defn reduce-list-closure []
   reduce-list)
 
-(compile/def-recursive prefix-reduce-list
+(source/def-recursive prefix-reduce-list
   [list step acc out]
   {:installers example-installers}
   (let-cell [head rest]
@@ -273,7 +273,7 @@
 (defn prefix-reduce-list-closure []
   prefix-reduce-list)
 
-(compile/def-recursive filter-list
+(source/def-recursive filter-list
   [list predicate acc out]
   {:installers example-installers}
   (let-cell [head rest]

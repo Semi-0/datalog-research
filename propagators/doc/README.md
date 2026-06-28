@@ -47,6 +47,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Behavior Reactivity](behavior-reactivity.md) describes sparse event-to-history
   behavior reducers, the content/strongest split, and why behavior strongest
   carries a summary without changing the scheduler kernel.
+- [Accumulating GUR](accumulating-gur.md) explains the current main GUR
+  implementation, from `propagators.gur` through the accumulating submodules and
+  runner.
 - [Compiler 2](compiler-2.md) describes AST-based compiler-2 network expansion,
   slot-backed closure data, activation-local application evaluation, contextual
   dependency arithmetic, and common algebra shared with compound/layered/generic
@@ -129,9 +132,12 @@ operators, explicit behavior reducers, slots, and retained application data.
 GUR is the advanced layer for recursive declaration problems: macros, compiler
 construction, recursive AST/list traversal, recursive lexical accessor
 construction, and higher-order operators that need unbounded but idempotent
-network expansion. That makes the current accumulating-GUR performance good
-enough for prototype compiler work, while leaving long-term GC and behavior
-version retention to behavior-aware propagators and behavior merge policies.
+network expansion. The canonical namespace for that layer is now
+`propagators.gur`, which re-exports the accumulating implementation; older
+subenv/routed/accessor GUR paths are compatibility and regression baselines.
+That makes the current accumulating-GUR performance good enough for prototype
+compiler work, while leaving long-term GC and behavior version retention to
+behavior-aware propagators and behavior merge policies.
 Compound objects are similarly scoped as structural carriers: they should
 preserve behavior/TMS-like partial-information content through slots and
 accessors, but behavior owns time/version policy and a future TMS owns support,

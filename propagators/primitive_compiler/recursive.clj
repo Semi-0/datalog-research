@@ -3,17 +3,17 @@
 (defn recursive-closure
   "Compile-facing entry point for source-level GUR recursive closures.
 
-  The implementation stays in `propagators.gur.subenv.source`; resolving it
+  The implementation stays in `propagators.gur.accumulating.source`; resolving it
   lazily keeps this namespace from depending on the experiment namespace during
   compiler load.
   "
   ([name params body]
-   ((requiring-resolve 'propagators.gur.subenv.source/recursive-closure)
+   ((requiring-resolve 'propagators.gur.accumulating.source/source-recursive-closure)
     name
     params
     body))
   ([name params body installer-fn]
-   ((requiring-resolve 'propagators.gur.subenv.source/recursive-closure)
+   ((requiring-resolve 'propagators.gur.accumulating.source/source-recursive-closure)
     name
     params
     body

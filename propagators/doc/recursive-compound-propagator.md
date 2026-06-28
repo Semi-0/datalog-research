@@ -8,7 +8,10 @@ Source files:
 - `propagators/datastructures/compound_object/reduce.clj`
 - `propagators/datastructures/reducer_subnet.clj`
 - `propagators/gur.clj`
-- `propagators/gur_routed.clj`
+- `propagators/gur/accumulating.clj`
+- `propagators/gur/accumulating/core.clj`
+- `propagators/gur/accumulating/facts.clj`
+- `propagators/gur/accumulating/runner.clj`
 - `propagators/gur/subenv.clj`
 - `propagators/gur/subenv/env.clj`
 - `propagators/gur/subenv/dispatch.clj`
@@ -16,11 +19,10 @@ Source files:
 - `propagators/gur/subenv/output.clj`
 - `propagators/gur/subenv/frame.clj`
 - `propagators/gur/subenv/examples.clj`
-- `propagators/gur/accumulating.clj`
 - `test/propagators/recursive_compound_test.clj`
-- `test/propagators/gur_routed_test.clj`
 - `test/propagators/gur_subenv_test.clj`
 - `test/propagators/gur_accumulating_test.clj`
+- `test/propagators/compiler_2_gur_linked_list_test.clj`
 
 ## Current Conclusion
 
@@ -31,7 +33,7 @@ ordinary scheduler evaluate that topology. Direct recursive activation remains
 as a compatibility path, but it is not the preferred model for general nested
 compound objects.
 
-The strongest previous ownership result is the routed GUR experiment:
+The strongest previous ownership lesson came from the routed GUR experiment:
 
 ```text
 child frame discovers next recursive topology
@@ -40,11 +42,12 @@ child frame discovers next recursive topology
 -> ordinary propagation evaluates the installed topology
 ```
 
-The newer lexical sub-env GUR experiment keeps that ownership split, but moves
-the routing into a generalized parent dict model. The implementation is now
-split into a thin `propagators.gur.subenv` facade plus focused namespaces for
-env registration, dispatch, child queues, output projection, frame application,
-and concrete probes:
+The lexical sub-env GUR experiment kept that ownership split, but moved the
+routing into a generalized parent dict model. It is now a deprecated comparison
+path, though accumulating GUR still reuses its scoped routing helpers. The
+implementation is split into a thin `propagators.gur.subenv` facade plus focused
+namespaces for env registration, dispatch, child queues, output projection,
+frame application, and concrete probes:
 
 ```text
 parent scoped message
@@ -60,14 +63,14 @@ a registered owner route no longer points at a child network, that is an invalid
 route/state error. Contradictions still arise from ordinary cell merges or from
 domain propagators that explicitly publish contradiction values.
 
-The parallel accumulating GUR experiment collapses recursive frames into one
-owner cell per application while reusing the same scoped dispatch substrate. It
-now records executor obligations as monotone task facts in the accumulated
-network, while the executor primitive keeps only a local `ran [task index]`
-cursor. It validates scalar recursion, list map/reduce/filter, nested map
-composition, late cdr routing, and one compiler-2 linked-list lexical-access
-slice. The stricter `p:cons`-built HOP source now passes mapper depths
-`5/10/15` and filter depths `5/10` in focused and full-suite runs.
+The main accumulating GUR path collapses recursive frames into one owner cell
+per application while reusing the same scoped dispatch substrate. It records
+executor obligations as monotone task facts in the accumulated network, while
+the executor primitive keeps only a local `ran [task index]` cursor. It
+validates scalar recursion, list map/reduce/filter, nested map composition, late
+cdr routing, and one compiler-2 linked-list lexical-access slice. The stricter
+`p:cons`-built HOP source now passes mapper depths `5/10/15` and filter depths
+`5/10` in focused and full-suite runs.
 
 ## Core Concepts
 
@@ -148,11 +151,11 @@ The routed installer delivery keeps ownership explicit:
 | Network-valued expansion | Recursion can declare topology first and evaluate later. | `closure/p:apply-network` emits expanded network values. | Works better for nested map/reduce because declaration and evaluation are separated. | Default direction. |
 | Declared accessor recursive map | Nested compound traversal can be represented by accessor routes. | `obj/p:accessor-recursive-map` over visible `p:cons` topology. | Works when topology is visible up front. | Keep as accessor baseline. |
 | Lexical-pointer GUR | Dynamic frames can be addressed through lexical env refs. | `io/name-ref` / `io/cell-ref` into stored child envs. | Works for dispatch, but topology ownership leaks into lexical scope. | Investigate only; not preferred. |
-| Accessor GUR | Lazy terminal cdr expansion can run as child frame values. | `gur/p:run-frame` plus branch network values and accessor snapshots. | Works for current cases, but needs snapshots/subscribers/lexical env coupling. | Keep as comparison. |
-| Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | `gur-routed/p:routed-run-frame` and parent-side installers. | Passes route, late cdr, nested cons, and incrementality tests. | Best previous ownership baseline. |
-| Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, scoped vector keys, scoped slot accessor registration, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, bidirectional late nested cdr through parent-visible output, constructed-accessor lazy cdr extension, and nested constructed lazy cdr extension through transitive scoped slot fanout. Accessor-linked hop smoke shows filter reaches 10 hops, while map is correct through 7 but blows up operationally before 8-10. | Current proposal validation; continue, but not compile target yet. |
-| Frame-publisher accessor export | Recursive accessor export can be ordinary propagation instead of a sub-env merge side effect. | `gur.subenv/p:apply-closure` installs a child-accessor publisher beside the frame runner. | Preserves lazy flat/nested cdr behavior while removing recursive accessor export from owner-cell registration. | Current implementation refinement; still leaves contextual slot accessors as future cleanup. |
-| Accumulating GUR | Recursive frames can accumulate into one owner network instead of nested child frame cells. | `gur.accumulating/p:apply-closure` emits deterministic frame fragments into one `applied-net-id`; frame/body/route/boundary/mailbox obligations are monotone task facts; the executor keeps only a local `ran [task index]` cursor. `when` is topology-lazy: `nothing` waits, any other cdr builds the recursive tail. | Focused run on `2026-06-22` passes scalar fib/factorial/sqrt, list map/reduce/filter, nested map, late cdr routing, sibling-subenv routing, one compiler-2 linked-list lexical probe, true `obj/p:cons` HOP mapper depths `5/10/15`, filter depths `5/10`, and stable counted rerun. | Keep as parallel experiment; tested parity is improved, but the task-fact cursor remains experimental. |
+| Legacy accessor GUR | Lazy terminal cdr expansion can run as child frame values. | Historical `p:run-frame` plus branch network values and accessor snapshots. | Worked for current cases, but needed snapshots/subscribers/lexical env coupling. | Deprecated historical comparison path. |
+| Routed GUR | Child frames can emit topology declarations instead of owning parent topology. | Historical `gur-routed/p:routed-run-frame` and parent-side installers. | Passed route, late cdr, nested cons, and incrementality tests in the old experiment. | Deprecated historical comparison path; keep the ownership lesson. |
+| Lexical Sub-Env GUR | Routed owner/child split can be generalized as lexical sub-env dispatch. | `core/eval-cell*`, scoped vector keys, scoped slot accessor registration, `gur.subenv/p:run-subenv-frame`, contextual apply/recur. | Passes owner-only routing, sub-env registration, Fibonacci, flat map-list, composed nested map-list, bidirectional late nested cdr through parent-visible output, constructed-accessor lazy cdr extension, and nested constructed lazy cdr extension through transitive scoped slot fanout. Accessor-linked hop smoke shows filter reaches 10 hops, while map is correct through 7 but blows up operationally before 8-10. | Deprecated implementation baseline; scoped routing helpers remain reused. |
+| Frame-publisher accessor export | Recursive accessor export can be ordinary propagation instead of a sub-env merge side effect. | `gur.subenv/p:apply-closure` installs a child-accessor publisher beside the frame runner. | Preserves lazy flat/nested cdr behavior while removing recursive accessor export from owner-cell registration. | Deprecated with subenv; keep as regression evidence only. |
+| Accumulating GUR | Recursive frames can accumulate into one owner network instead of nested child frame cells. | `propagators.gur/p:apply-closure` / `gur.accumulating/p:apply-closure` emits deterministic frame fragments into one `applied-net-id`; frame/body/route/boundary/mailbox obligations are monotone task facts; the executor keeps only a local `ran [task index]` cursor. `when` is topology-lazy: `nothing` waits, any other cdr builds the recursive tail. | Focused run on `2026-06-22` passes scalar fib/factorial/sqrt, list map/reduce/filter, nested map, late cdr routing, sibling-subenv routing, one compiler-2 linked-list lexical probe, true `obj/p:cons` HOP mapper depths `5/10/15`, filter depths `5/10`, and stable counted rerun. | Main GUR implementation for new compiler/macro work. |
 
 ## Experiments
 
@@ -292,7 +295,7 @@ for snapshots, subscribers, and frame-env synchronization.
 
 Decision: useful evidence, but not the preferred GUR ownership model.
 
-### Experiment F: Accessor GUR In `propagators.gur`
+### Experiment F: Legacy Accessor GUR
 
 Hypothesis: a lazy terminal cdr can emit a branch frame network and evaluate it
 through a continuation boundary.
@@ -312,15 +315,15 @@ and writes the updated frame back.
             [(message frame-id (store-frame child'))])))
 ```
 
-Evidence: current `obj/p:accessor-recursive-map` tests cover late cdr frame
-declaration and nested cons cells.
+Evidence: historical `obj/p:accessor-recursive-map` tests covered late cdr
+frame declaration and nested cons cells.
 
 Limit: branch-local accessor outputs need source-slot externalization, and the
 lexical env table becomes part of frame synchronization.
 
 Decision: keep as the comparison path and evidence for boundary requirements.
 
-### Experiment G: Routed GUR In `propagators.gur-routed`
+### Experiment G: Historical Routed GUR
 
 Hypothesis: child frames can emit topology declarations, while the parent owns
 installation.
@@ -340,7 +343,7 @@ as declarations, and a parent-side installer applies each declaration once.
         (seed frame-id (clear-io child')))))
 ```
 
-Evidence: `propagators.gur-routed-test` covers route IO, idempotent topology
+Evidence: the old routed test path covered route IO, idempotent topology
 installation, prebuilt cons-list map, Fibonacci-style leaf mapping, late cdr
 expansion, nested cons-in-car traversal, and depth-stable public accessor
 updates.
@@ -470,20 +473,19 @@ the child frame, because doing so would erase child-local accessor routes needed
 for later output assembly.
 
 Contextual recursion is represented as ordinary propagators. The core
-`gur.subenv.frame/def-recursive` remains a runtime constructor function, while
-`propagators.compile/def-recursive` is now the source-level macro front door. It
-lowers through `gur.subenv.source`, passes contextual `apply` and `recur`
-functions into the closure, and applying a closure extends and accumulates the
-child network with an applied-frame fact.
+`gur.subenv.frame/def-recursive` remains a runtime constructor function, and
+the deprecated subenv examples use `gur.subenv.source/def-recursive` as their
+local source macro. The public `propagators.compile/def-recursive` facade now
+targets accumulating GUR instead.
 
-The concrete probes in `subenv/examples.clj` use `compile/def-recursive`.
+The concrete probes in `subenv/examples.clj` use the local subenv macro.
 Source definitions get contextual recursion installers layered on top of the
 default compiler installers, so ordinary arithmetic such as `::+`, `::-`,
 `::*`, and `::quot` resolves to `propagators.stdlib.prop`, while `::apply` and
 `::recur` resolve only inside a recursive body:
 
 ```clojure
-(compile/def-recursive fib
+(source/def-recursive fib
   [n out]
   {:installers example-installers}
   (let [one 1
@@ -667,11 +669,11 @@ builds all branch topology. Recursive branch expressions must gate their
 arguments with an effective branch predicate such as `(and search? fits?)`, or
 the inactive recursive branch can still install a self-recursive frame.
 
-Decision: continue this as the current generalized GUR proposal validation. It
-does not replace the routed ownership lesson; it lifts that lesson into the
-lexical sub-env dispatch model.
+Decision: deprecated as the main implementation path. Keep this as regression
+evidence for scoped routing and as the source of routing helpers reused by
+accumulating GUR, but new compiler/macro work should target accumulating GUR.
 
-### Experiment I: Accumulating GUR In `propagators.gur.accumulating`
+### Experiment I: Main Accumulating GUR In `propagators.gur`
 
 Hypothesis: recursive GUR does not need nested frame owner cells. A closure
 application can use one `applied-net-id` cell as the owner for the whole
@@ -682,7 +684,7 @@ and projects selected external outputs.
 Mechanism:
 
 ```clojure
-(acc/p:apply-closure closure-id arg-ids out-id)
+(gur/p:apply-closure closure-id arg-ids out-id)
 ;; installs:
 ;; - p:accumulate-apply-closure closure-id arg-ids applied-net-id out-id
 ;; - p:run-accumulated-network applied-net-id [out-id]
@@ -1328,10 +1330,10 @@ paths. The corrected `map-list` avoids that by treating `cdr = nothing` as the
 only terminal signal. Filter tests that intentionally use the old empty-list
 accumulator remain separate and pass for the tested chains.
 
-Decision: keep this beside `gur.subenv`. It is now equivalent for the tested
-scalar, recursive compound, compiler-2 lexical probe, and same-parent HOP
-chains. The task-fact cursor is still an experiment mechanism, not the final
-scheduler.
+Decision: make this the main GUR path. `propagators.gur` now re-exports the
+accumulating implementation, and `propagators.compile/def-recursive` builds
+accumulating source closures. `gur.subenv` remains as a deprecated compatibility
+and regression namespace.
 
 ## Current APIs
 
@@ -1341,17 +1343,17 @@ scheduler.
 (recursive/p:accumulating-recursive-compound closure-id arg-id acc-id out-id)
 (closure/p:apply-network closure-id network-id out-id)
 (obj/p:accessor-recursive-map closure-id acc-id source-id out-id)
-(gur/p:run-frame frame-net-id input-routes output-routes)
-(gur-routed/p:routed-run-frame frame-net-id input-routes output-routes :topology)
-(gur-routed/p:routed-accessor-recursive-map closure-id acc-id source-id out-id)
 (core/eval-cell* directory msg network)
-(gur-subenv/def-recursive name closure)
+(gur/def-recursive name [args... out] body...)
+(gur/p:apply-closure closure-id arg-ids out-id)
+(gur/p:accumulate-apply-closure closure-id arg-ids applied-net-id out-id)
+(gur/p:run-accumulated-network applied-net-id external-output-ids)
+
+;; Deprecated comparison/compatibility surface:
 (gur-subenv/p:apply-closure closure-id arg-ids out-id)
 (gur-subenv/p:run-subenv-frame owner-id external-output-ids)
-(gur-acc/recursive-closure name body-fn)
-(gur-acc/p:accumulate-apply-closure closure-id arg-ids applied-net-id out-id)
-(gur-acc/p:run-accumulated-network applied-net-id external-output-ids)
-(gur-acc/p:apply-closure closure-id arg-ids out-id)
+
+;; Historical routed/accessor GUR APIs are no longer current public targets.
 ```
 
 ## Test Evidence
@@ -1365,31 +1367,29 @@ Current behavior is covered by:
   lexical ref dispatch.
 - `test/propagators/compound_object_network_slot_test.clj` for accessor route
   semantics, detached shell snapshots, and subscriber dispatch.
-- `test/propagators/gur_routed_test.clj` for routed GUR and route-owned
-  topology installation.
 - `test/propagators/gur_subenv_test.clj` for lexical sub-env GUR dispatch,
   contextual apply/recur, Fibonacci, flat and composed nested map-list
   recursion, reduce-list, filter-list, and bidirectional late nested cdr
   delivery asserted through the parent-visible output.
-- `test/propagators/gur_accumulating_test.clj` for the parallel accumulating
-  GUR experiment: scalar/list parity, nested map, late cdr routing through one
+- `test/propagators/gur_accumulating_test.clj` for the main accumulating GUR
+  implementation: scalar/list parity, nested map, late cdr routing through one
   owner, topology/idempotence checks, compiler-2 linked-list lexical access,
   true `obj/p:cons` same-parent HOP mapper depths `5/10/15`, filter depths
   `5/10`, and late cdr propagation through chained mapper outputs.
 - Manual `2026-06-21` accessor-hop smoke over public `obj/p:cons` linked-list
   topology, which kept the source unmaterialized: filter reached `10` hops,
   while Fibonacci map passed through `7` hops and stalled before `8`.
-- `test/propagators/compiler_2_gur_linked_list_test.clj` for the parallel
-  compiler-2/GUR linked-list probe: declaration AST traversal through
+- `test/propagators/compiler_2_gur_linked_list_test.clj` for the compiler-2/GUR
+  linked-list prototype path: declaration AST traversal through
   `obj/p:cons`, GUR closure declaration/application, and accessor-backed lexical
   lookup without source-list materialization.
 
 ## Open Problems
 
-- decide how routed GUR and lexical sub-env GUR should relate in the final
-  compile-2 target;
-- decide whether `compile/def-recursive` should become compile-2 output syntax
-  or remain a small source-level convenience macro;
+- decide how long to keep routed GUR and lexical sub-env GUR compatibility tests
+  now that accumulating GUR is the main path;
+- decide whether `compile/def-recursive` should remain a small source-level
+  convenience macro or be replaced by compiler-2 output syntax;
 - define bidirectional nested writer semantics over arbitrary compound shapes,
   beyond the current cons-style compound/list tests;
 - replace the remaining post-build direct accessor inference with contextual
@@ -1704,13 +1704,13 @@ It is declaration-only:
 - It does not run the expanded network.
 - It does not install the expanded network into the outer graph.
 
-`propagators.gur/p:run-frame` is the corresponding evaluation boundary for
-these frame values. A frame records its own propagator ids plus declared
-`reality.in` / `reality.out` ports. The runner injects parent input values into
-the child inbox, invokes the existing evaluator continuation on the child
-network, drains the child outbox, and translates matching outbox records back
-to parent messages. The child frame value can be written back to its frame
-cell, but no branch declarations are spliced into the live outer graph during
+The legacy accessor runner was the corresponding evaluation boundary for these
+frame values. A frame recorded its own propagator ids plus declared
+`reality.in` / `reality.out` ports. The runner injected parent input values into
+the child inbox, invoked the existing evaluator continuation on the child
+network, drained the child outbox, and translated matching outbox records back
+to parent messages. The child frame value could be written back to its frame
+cell, but no branch declarations were spliced into the live outer graph during
 activation.
 
 For accessor-network outputs, GUR also exports source-slot snapshots for slot
@@ -1718,12 +1718,13 @@ route values that live only inside the child frame. This is what lets a parent
 `p:car` / `p:cdr` reader observe a branch-local mapped car after a late cdr
 frame runs, without installing the branch's internal graph in the parent.
 
-#### GUR Frame Runner Logic
+#### Legacy Accessor Frame Runner Logic
 
-`propagators.gur` is the lexical-frame implementation. It treats a branch frame
-as a network value with declared `reality.in` / `reality.out` ports, then stores
-the updated child frame as both the frame-cell value and a lexical env entry.
-The live parent graph is still not rewritten by the child activation.
+The legacy accessor frame runner treated a branch frame as a network value with
+declared `reality.in` / `reality.out` ports, then stored the updated child frame
+as both the frame-cell value and a lexical env entry. The live parent graph was
+still not rewritten by the child activation. This is historical terminology:
+the current `propagators.gur` namespace now means the accumulating GUR facade.
 
 The boundary declaration is small: install reality ports inside the frame and
 remember their propagator ids so the runner can wake them.
@@ -1740,8 +1741,8 @@ The runner injects parent values, runs the child continuation, translates
 outbox records, and writes the updated frame back through the frame cell.
 
 ```clojure
-(defn example-gur-runner [frame-id source out]
-  (gur/p:run-frame
+(defn example-legacy-accessor-runner [frame-id source out]
+  (legacy/p:run-frame
    frame-id
    [[:source source source]]
    [[:out out] [:source source]]))
@@ -1756,19 +1757,19 @@ boundary so parent readers can inspect a detached branch output.
   (obj/externalize-accessor-cell parent coll))
 ```
 
-The current `obj/p:accessor-recursive-map` path uses this runner for lazy
-terminal cdr frames: an initially empty tail waits; a later slot update creates
-a branch network; `gur/p:run-frame` evaluates that branch and publishes mapped
-values through declared outputs.
+The historical `obj/p:accessor-recursive-map` path used this runner for lazy
+terminal cdr frames: an initially empty tail waited; a later slot update created
+a branch network; the runner evaluated that branch and published mapped values
+through declared outputs.
 
 #### Routed GUR Experiment
 
-`propagators.gur-routed` is the parallel 2026-06-15 experiment. It keeps the
-old `d1cce22` route-boundary style: child frames emit ordinary outbox records,
+The routed GUR path was the 2026-06-15 historical experiment. It kept the old
+`d1cce22` route-boundary style: child frames emitted ordinary outbox records,
 including a dedicated topology route such as `:topology`. The parent runner
-interprets topology records as declarations and applies parent-side installers
-idempotently. This tests whether GUR can avoid lexical env mutation while still
-accumulating new recursive topology.
+interpreted topology records as declarations and applied parent-side installers
+idempotently. This tested whether GUR could avoid lexical env mutation while
+still accumulating new recursive topology.
 
 The route declaration is just data. The child can emit it through
 `reality/p:reality-out`; the parent decides how to install it.
@@ -1781,8 +1782,8 @@ The route declaration is just data. The child can emit it through
    {:source-id source :out-id out}))
 ```
 
-The routed frame runner has the same value IO shape as `gur/p:run-frame`, plus
-one explicit topology channel.
+The routed frame runner had the same value IO shape as the legacy accessor
+runner, plus one explicit topology channel.
 
 ```clojure
 (defn example-routed-runner [frame-id source out]
@@ -1822,17 +1823,16 @@ The important contrast is ownership:
 
 | Path | Child can emit | Parent graph changes during child activation? | State written back |
 | --- | --- | --- | --- |
-| `propagators.gur` | normal outbox values | no branch splicing | frame cell + lexical env table |
-| `propagators.gur-routed` | normal values + topology declarations | only via parent-side installer delivery | frame cell + installed declaration set |
+| legacy accessor runner | normal outbox values | no branch splicing | frame cell + lexical env table |
+| historical routed runner | normal values + topology declarations | only via parent-side installer delivery | frame cell + installed declaration set |
 
-The routed experiment currently passes the focused route tests, prebuilt cons
-map, Fibonacci-style leaf map, late cdr expansion, nested cons-in-car traversal,
-and depth-stable public accessor update probe in
-`propagators.gur-routed-test`.
+The routed experiment passed the focused route tests, prebuilt cons map,
+Fibonacci-style leaf map, late cdr expansion, nested cons-in-car traversal, and
+depth-stable public accessor update probe in the historical routed test path.
 
 #### Lexical Sub-Env GUR Experiment
 
-`propagators.gur.subenv` is the newer generalized-subenv experiment. It keeps
+`propagators.gur.subenv` is the deprecated generalized-subenv experiment. It keeps
 the owner-cell rule from routed GUR: a parent-scoped message never evaluates a
 child avatar as if it were a parent cell. Instead, the parent dict resolves the
 message target to the owner cell, the child network receives the local message,
@@ -1857,9 +1857,11 @@ Dispatch itself does not emit contradiction messages; invalid owner routes are
 reported as routing errors, while contradictions still arise from value
 propagators and cell merge.
 
-The example definitions are built with `compile/def-recursive` plus
+The example definitions are built with `gur.subenv.source/def-recursive` plus
 experiment-local installers for contextual `apply` / `recur`, not host-side
-branch functions. `fib` uses stdlib arithmetic plus `switch`, `cond`, and
+branch functions. This keeps them on the old subenv implementation after
+`compile/def-recursive` moved to accumulating GUR. `fib` uses stdlib arithmetic
+plus `switch`, `cond`, and
 recursive applications. `map-list` uses accessor-network cons cells, explicit
 `obj/p:car` / `obj/p:cdr` calls into named `head` and `rest` cells, contextual
 `apply` over the `car`, contextual `recur` over the `cdr`, and `::cons`. It is

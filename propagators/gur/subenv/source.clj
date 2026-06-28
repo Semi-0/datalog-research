@@ -106,14 +106,36 @@
                         (recursive-definition params body installer-fn))))
 
 (defmacro def-recursive
-  "Define a recursive closure value from source DSL.
+  "Define a deprecated subenv recursive closure value from source DSL.
 
-  This default macro uses `compile/default-installers` plus contextual
-  `::apply`/`::recur`. Use `recursive-closure` directly when a namespace needs
-  experiment-local primitive installers.
+  This macro keeps the same option shape as `propagators.compile/def-recursive`
+  so legacy subenv examples can stay on the old implementation after the compile
+  facade moves to accumulating GUR.
   "
   [name params & body]
-  `(def ~name
-     (recursive-closure ~(keyword name)
-                        '~params
-                        '~(body-expr (cons 'do body)))))
+  (let [[opts body] (if (map? (first body))
+                      [(first body) (rest body)]
+                      [{} body])
+        closure-name (or (:name opts) (keyword name))
+        installer-fn (:installers opts)
+        seed-values (:seed-values opts)
+        do-sym (symbol "do")
+        seed-sym (symbol "seed")
+        body-code (if (seq seed-values)
+                    `(list* '~do-sym
+                            (concat
+                             (list ~@(map (fn [[sym value-expr]]
+                                            `(list '~seed-sym '~sym ~value-expr))
+                                          seed-values))
+                             '~body))
+                    `'(~do-sym ~@body))]
+    (if installer-fn
+      `(def ~name
+         (recursive-closure ~closure-name
+                            '~params
+                            ~body-code
+                            ~installer-fn))
+      `(def ~name
+         (recursive-closure ~closure-name
+                            '~params
+                            ~body-code)))))

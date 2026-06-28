@@ -1,5 +1,5 @@
 (ns propagators.gur.accumulating
-  "Public surface for the accumulating GUR experiment.
+  "Public surface for the main accumulating GUR implementation.
 
   Core idea:
   - applying a recursive closure emits frame/topology facts into one owner cell;

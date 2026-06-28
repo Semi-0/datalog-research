@@ -1,5 +1,9 @@
 (ns propagators.gur.subenv
-  "Facade for the lexical sub-env GUR experiment.
+  "Compatibility facade for the deprecated lexical sub-env GUR experiment.
+
+  New compiler/macro work should use `propagators.gur`, which points at
+  accumulating GUR. This namespace remains for regression tests, comparison, and
+  the scoped routing helpers that accumulating GUR still reuses internally.
 
   The implementation is split by responsibility under `propagators.gur.subenv.*`:
   env/dispatch-directory, child queues, output projection, frame application,

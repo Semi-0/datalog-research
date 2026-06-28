@@ -294,9 +294,10 @@ procedure layers, generic method slots, and compiler traversal.
 
 ### 2. Make lexical-aware apply closure replayable
 
-`gur.subenv/p:apply-closure` currently has the right location in the graph, but
-its frame key is still operational. The target primitive should record stable
-application facts:
+`propagators.gur/p:apply-closure` now has the right location in the graph: it is
+the accumulating GUR facade used for new compiler/macro work. The deprecated
+`gur.subenv/p:apply-closure` remains as comparison evidence, but its frame key
+is operational. The target primitive records stable application facts:
 
 ```text
 closure id + argument identity + output identity -> applied frame fact
