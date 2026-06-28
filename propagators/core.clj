@@ -7,6 +7,7 @@
             [propagators.helpers.task-queue :as tq]
             [propagators.message :refer [message-id message-value]]
             [propagators.network :as net]
+            [propagators.network-vm.flat.effects :as effects]
             [propagators.propagator :as prop]))
 
 (defn- maybe-register-subenv
@@ -55,6 +56,27 @@
             [poped new-n] (eval-cell* (net/net-dict-or-empty n') msg n')]
         (recur (rest ms) (tq/merge-queues tasks poped) new-n)))))
 
+(defn eval-effects
+  "Apply kernel declaration effects and then merge any effect-produced messages."
+  [effects n]
+  (if (empty? effects)
+    [tq/empty-queue n]
+    (let [{effect-tasks :tasks n* :net messages :messages}
+          (effects/apply-effects tq/empty-queue n effects)
+          [message-tasks n**] (if (empty? messages)
+                                [tq/empty-queue n*]
+                                (eval-cells messages n*))]
+      [(tq/merge-queues effect-tasks message-tasks) n**])))
+
+(defn eval-activation-result
+  [ret n]
+  (let [{:keys [messages effects]} (effects/normalize-activation-return ret)
+        [effect-tasks n*] (eval-effects effects n)
+        [message-tasks n**] (if (empty? messages)
+                              [tq/empty-queue n*]
+                              (eval-cells messages n*))]
+    [(tq/merge-queues effect-tasks message-tasks) n**]))
+
 (defn eval-propagator [current-id tasks n]
   (let [g (net/net-graph n)
         e (net/net-env n)
@@ -62,8 +84,8 @@
         inputs (graph/node-input-ids current-node)
         outputs (graph/node-output-ids current-node)
         f (prop/prop-f (net/env-get e current-id))
-        messages (f inputs outputs n)
-        [poped new-net] (eval-cells messages n)]
+        ret (f inputs outputs n)
+        [poped new-net] (eval-activation-result ret n)]
     [(tq/merge-queues tasks poped) new-net]))
 
 (defn run-tasks [tasks n]

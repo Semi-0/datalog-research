@@ -28,6 +28,9 @@
     propagators.layered-procedure-test
     propagators.linked-list-access-test
     propagators.named-network-test
+    propagators.network-vm-flat-test
+    propagators.network-vm-test
+    propagators.network-vm-nested-test
     propagators.primitive-basis-test
     propagators.recursive-compound-test
     propagators.network-test

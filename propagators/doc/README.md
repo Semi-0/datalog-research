@@ -50,6 +50,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Accumulating GUR](accumulating-gur.md) explains the current main GUR
   implementation, from `propagators.gur` through the accumulating submodules and
   runner.
+- [Monotone Network VM GUR Experiment](network-vm-gur-experiment.md) describes
+  the parallel non-canonical experiment that compiles scalar and nested-HOP GUR
+  into a small `declare-cell` / `declare-prop` / `tell` / `schedule` vocabulary.
 - [Compiler 2](compiler-2.md) describes AST-based compiler-2 network expansion,
   slot-backed closure data, activation-local application evaluation, contextual
   dependency arithmetic, and common algebra shared with compound/layered/generic

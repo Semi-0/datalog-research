@@ -98,6 +98,12 @@
                     (= :gur/accumulating (first k))))
              (keys (net/net-dict-or-empty x)))))
 
+(defn- network-vm-nested-delta?
+  [x]
+  (and (map? x)
+       (= "propagators.network_vm.nested.NetworkDelta"
+          (.getName (class x)))))
+
 (defmethod cell-updated? :named-network
   [new old network]
   (let [new* (strongest-value new network)
@@ -113,6 +119,7 @@
       (update/compound-sync? update) :compound-sync
       (update/compound-data? update) :compound-data
       (reducer/reducer-subnet? update) :reducer-subnet
+      (network-vm-nested-delta? update) :network-vm-nested-delta
       (or (closure-value? _content)
           (closure-value? update)) :closure
       (evidence/evidence-set? update) :named-network
@@ -189,6 +196,13 @@
                 (named/named-network? update))) value/contradiction
       (= true (named/named-network->= current update)) current
       :else (named/join current update))))
+
+(defmethod built-in-cell-merge :network-vm-nested-delta
+  [content update _network]
+  ((requiring-resolve
+    'propagators.network-vm.nested/merge-network-delta-content)
+   content
+   update))
 
 (defmethod built-in-cell-merge :named-network
   [content update _network]
