@@ -132,6 +132,12 @@
       (or (reducer-cell/reducer-cell? _content)
           (reducer-cell/reducer-cell? update)) :reducer-cell
       (network-vm-nested-delta? update) :network-vm-nested-delta
+      (or ((requiring-resolve 'propagators.semantic-trace/semantic-trace-graph?) _content)
+          ((requiring-resolve 'propagators.semantic-trace/semantic-trace-graph?) update))
+      :semantic-trace-graph
+      (or ((requiring-resolve 'propagators.semantic-trace/epoch?) _content)
+          ((requiring-resolve 'propagators.semantic-trace/epoch?) update))
+      :semantic-trace-epoch
       (or (closure-value? _content)
           (closure-value? update)) :closure
       (evidence/evidence-set? update) :named-network
@@ -213,6 +219,18 @@
   [content update _network]
   ((requiring-resolve
     'propagators.network-vm.nested/merge-network-delta-content)
+   content
+   update))
+
+(defmethod built-in-cell-merge :semantic-trace-graph
+  [content update _network]
+  ((requiring-resolve 'propagators.semantic-trace/graph-union)
+   content
+   update))
+
+(defmethod built-in-cell-merge :semantic-trace-epoch
+  [content update _network]
+  ((requiring-resolve 'propagators.semantic-trace/merge-epoch)
    content
    update))
 
