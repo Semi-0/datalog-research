@@ -5,6 +5,7 @@
   from the canonical accumulating GUR and from the nested network VM."
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
+            [propagators.install :as install]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-vm.flat :as fvm]))
@@ -55,9 +56,10 @@
 (declare apply-closure-effect when-effect)
 
 (defn- frame-context
-  [closure-id app-key]
+  [network closure-id app-key]
   {:closure-id closure-id
    :app-key app-key
+   :network network
    :stable-id (fn [& parts] (fvm/stable-node-id (into [app-key] parts)))
    :apply (fn [closure-id arg-ids out-id]
             (apply-closure-effect closure-id arg-ids out-id))
@@ -82,7 +84,7 @@
         []
 
         :else
-        (let [ctx (frame-context closure-id app-key)
+        (let [ctx (frame-context network closure-id app-key)
               body (:network-vm.flat.gur/body closure)]
           (into [(declare-frame-marker app-key out-id)
                  (fvm/bind-name app-key :self closure-id)
@@ -121,6 +123,22 @@
                                                    condition-id)]
                                    (body-f)))))]
     (fvm/declare-prop prop-id [condition-id] [] activate)))
+
+(defn recursive-declaration
+  "Recursive closure whose body writes through `propagators.install`.
+
+  `body` receives an install context, argument ids, and output id. It returns an
+  updated install context; emitted effects become the recursive frame topology.
+  "
+  [name body]
+  (recursive-closure
+   name
+   (fn [{:keys [network app-key apply recur when]} arg-ids out-id]
+     (let [ctx (assoc (install/context network app-key)
+                      :apply apply
+                      :recur recur
+                      :when when)]
+       (install/effects (body ctx arg-ids out-id))))))
 
 (defn const-prop
   [v]

@@ -156,6 +156,28 @@ Focused flat-effect result from `propagators.network-vm-flat-test`:
 | rerun after quiescence does not grow topology | passes |
 | flat GUR does not directly call `merge-cell-entry` | passes |
 
+### Threaded Installer Surface
+
+`propagators.install` is now the preferred authoring surface for flat
+declarations. It keeps installers as the core abstraction, but lets declaration
+code use scoped cell names:
+
+```clojure
+(-> ctx
+    (i/$ {:xs xs :mapper mapper :acc acc :out out})
+    (i/car :head :xs)
+    (i/cdr :rest :xs)
+    (i/>> :mapper :head :mapped)
+    (i/cons :mapped :mapped-rest :out)
+    (i/when :rest
+      (i/recur [:rest :mapper :acc] :mapped-rest)))
+```
+
+The helpers only emit flat VM declaration effects. They do not run propagation
+and do not mutate cell entries; `core/eval-effects` and `core/run-tasks` remain
+the execution path. The raw installers (`obj/p:car`, `prop/*`, etc.) remain the
+substrate for compatibility and custom declarations.
+
 ## Speed Snapshot
 
 The network VM HOP paths are currently correctness/performance experiments, not
