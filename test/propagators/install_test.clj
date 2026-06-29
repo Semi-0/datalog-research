@@ -6,7 +6,7 @@
             [propagators.ids :as ids]
             [propagators.install :as i]
             [propagators.network :as net]
-            [propagators.network-vm.flat :as fvm]
+            [propagators.gur.flat :as fvm]
             [propagators.propagator :as prop]
             [propagators.stdlib.prop :as stdprop]))
 

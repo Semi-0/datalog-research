@@ -17,6 +17,8 @@
    'prop/nothing? (requiring-resolve 'propagators.stdlib.prop/nothing?)
    'prop/switch (requiring-resolve 'propagators.stdlib.prop/switch)
    'prop/when (requiring-resolve 'propagators.stdlib.prop/when)
+   'scope-source/p:scope-value
+   (requiring-resolve 'propagators.datastructures.scope-source/p:scope-value)
    'closure/p:apply-closure (requiring-resolve 'propagators.closure/p:apply-closure)
    'closure/p:apply-network (requiring-resolve 'propagators.closure/p:apply-network)
    'closure/p:when-network (requiring-resolve 'propagators.closure/p:when-network)
@@ -29,8 +31,8 @@
    'decl/reduce-cursor (requiring-resolve 'propagators.declaration/reduce-cursor)
    'decl/reduce-slots (requiring-resolve 'propagators.declaration/reduce-slots)
    'recursive/p:recursive-compound
-   (requiring-resolve 'propagators.recursive/p:recursive-compound)
+   (requiring-resolve 'propagators.gur.recursive/p:recursive-compound)
    'recursive/p:self-refining-recursive-compound
-   (requiring-resolve 'propagators.recursive/p:self-refining-recursive-compound)
+   (requiring-resolve 'propagators.gur.recursive/p:self-refining-recursive-compound)
    'recursive/p:accumulating-recursive-compound
-   (requiring-resolve 'propagators.recursive/p:accumulating-recursive-compound)})
+   (requiring-resolve 'propagators.gur.recursive/p:accumulating-recursive-compound)})

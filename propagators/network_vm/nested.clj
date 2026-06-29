@@ -4,7 +4,7 @@
   A network-valued cell can be addressed as a child VM. Propagators only return
   messages/effects; this executor performs declaration and message effects and
   writes changed child network declarations back through ordinary cell tells."
-  (:require [propagators.cells.cell :as cell]
+  (:require [propagators.application :as app]
             [propagators.cells.value :as value]
             [propagators.core :as core]
             [propagators.datastructures.evidence-set :as evidence]
@@ -234,13 +234,6 @@
   [vm-state prop-id]
   (update vm-state :tasks add-task [:declare-prop prop-id] [prop-id] 0))
 
-(defn- strongest-or-nothing
-  [n id]
-  (let [entry (get (net/net-env n) id)]
-    (if (cell/cell? entry)
-      (cell/cell-strongest entry)
-      value/nothing)))
-
 (defn- normalize-activation-return
   [ret]
   (cond
@@ -278,7 +271,7 @@
 
 (defn- child-cell-value
   [vm-state child-id]
-  (let [v (strongest-or-nothing (:net vm-state) child-id)]
+  (let [v (app/cell-strongest-or-nothing (:net vm-state) child-id)]
     (if (net/net? v) v (vm-net))))
 
 (defn child-state
@@ -425,7 +418,7 @@
                                     m
                                     (:net vm-state))
         child-id (:id m)
-        v* (strongest-or-nothing n* child-id)
+        v* (app/cell-strongest-or-nothing n* child-id)
         vm-state* (-> vm-state
                       (assoc :net n*
                              :messages remaining)
@@ -529,4 +522,4 @@
 
 (defn strongest-or-nothing-in
   [vm-state id]
-  (strongest-or-nothing (:net vm-state) id))
+  (app/cell-strongest-or-nothing (:net vm-state) id))

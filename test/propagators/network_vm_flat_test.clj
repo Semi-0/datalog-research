@@ -1,14 +1,20 @@
 (ns propagators.network-vm-flat-test
   (:require [clojure.test :refer [deftest is]]
+            [propagators.cells.cell-protocol :as protocol]
             [propagators.cells.value :as value]
+            [propagators.compile :as compile]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.dependency :as dependency]
+            [propagators.datastructures.scope-source :as scope-source]
             [propagators.install :as i]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-vm.flat :as fvm]
-            [propagators.network-vm.flat.gur :as fgur]
-            [propagators.propagator :as prop]))
+            [propagators.gur.flat :as fvm]
+            [propagators.gur.flat :as fgur]
+            [propagators.propagator :as prop]
+            [propagators.stdlib.flat :as flat-stdlib]
+            [propagators.stdlib.provenance-arithmetic :as prov-arith]))
 
 (defn- id
   [& parts]
@@ -33,14 +39,32 @@
   [ids]
   (mapv fvm/declare-cell ids))
 
+(defn- topology
+  [install-key cell-ids installer]
+  (i/installer-effects (fvm/vm-net) install-key cell-ids installer))
+
 (defn- apply-kernel-effects
-  [vm-state effects]
-  (let [[tasks n] (core/eval-effects effects (:net vm-state))]
+  [vm-state ret]
+  (let [[tasks n] (core/eval-activation-result ret (:net vm-state))]
     {:net (core/run-tasks tasks n)}))
 
 (defn- run-kernel-effects
   [effects]
   (apply-kernel-effects {:net (fvm/vm-net)} effects))
+
+(defn- run-kernel-effects-on
+  [n effects]
+  (apply-kernel-effects {:net n} effects))
+
+(defn- scope-source-vm-net
+  []
+  (-> (fvm/vm-net)
+      (compile/install-and-run (protocol/install-cell-protocol))
+      (compile/install-and-run (protocol/install-scope-source-protocol))))
+
+(defn- layered-value
+  [base provenance]
+  (obj/compound-object {:base base :provenance provenance}))
 
 (defn- read-list-prefix
   [vm-state root-id max-count]
@@ -54,12 +78,14 @@
             cdr-id (id :reader root-id i :cdr)
             state* (apply-kernel-effects
                     state
-                    [(fvm/declare-cell car-id)
-                     (fvm/declare-cell cdr-id)
-                     (fvm/install-topology [:reader root-id i :car]
-                                           (obj/p:car car-id current-id))
-                     (fvm/install-topology [:reader root-id i :cdr]
-                                           (obj/p:cdr cdr-id current-id))])
+                      [(fvm/declare-cell car-id)
+                       (fvm/declare-cell cdr-id)
+                       (topology [:reader root-id i :car]
+                                 [car-id current-id]
+                                 (obj/p:car car-id current-id))
+                       (topology [:reader root-id i :cdr]
+                                 [cdr-id current-id]
+                                 (obj/p:cdr cdr-id current-id))])
             car-value (strongest state* car-id)
             cdr-value (strongest state* cdr-id)]
         (cond
@@ -84,12 +110,14 @@
             cdr-id (id :reader :including-nothing root-id i :cdr)
             state* (apply-kernel-effects
                     state
-                    [(fvm/declare-cell car-id)
-                     (fvm/declare-cell cdr-id)
-                     (fvm/install-topology [:reader :including-nothing root-id i :car]
-                                           (obj/p:car car-id current-id))
-                     (fvm/install-topology [:reader :including-nothing root-id i :cdr]
-                                           (obj/p:cdr cdr-id current-id))])
+                      [(fvm/declare-cell car-id)
+                       (fvm/declare-cell cdr-id)
+                       (topology [:reader :including-nothing root-id i :car]
+                                 [car-id current-id]
+                                 (obj/p:car car-id current-id))
+                       (topology [:reader :including-nothing root-id i :cdr]
+                                 [cdr-id current-id]
+                                 (obj/p:cdr cdr-id current-id))])
             car-value (strongest state* car-id)
             cdr-value (strongest state* cdr-id)]
         (cond
@@ -133,24 +161,6 @@
          (i/* :value :two :out)
          (i// :out :two :value)))))
 
-(def unused-acc-list :unused)
-
-(def map-list
-  (fgur/recursive-declaration
-   'map-list
-   (fn [ctx [list-id mapper-id acc-id] out-id]
-     (-> ctx
-         (i/$ {:xs list-id
-               :mapper mapper-id
-               :acc acc-id
-               :out out-id})
-         (i/car :head :xs)
-         (i/cdr :rest :xs)
-         (i/>> :mapper :head :mapped)
-         (i/cons :mapped :mapped-rest :out)
-         (i/when :rest
-           (i/recur [:rest :mapper :acc] :mapped-rest))))))
-
 (def factorial-value
   (fgur/recursive-closure
    'factorial-value
@@ -176,7 +186,7 @@
                      mul-id (stable-id :mul)]
                  [(fvm/declare-cell next-id)
                   (fvm/declare-cell recur-out-id)
-                  (fvm/tell next-id (dec n))
+                    (message next-id (dec n))
                   (recur-fn [next-id] recur-out-id)
                   (fvm/declare-prop mul-id
                                      [recur-out-id]
@@ -212,8 +222,8 @@
                   (fvm/declare-cell n-2-id)
                   (fvm/declare-cell fib-1-id)
                   (fvm/declare-cell fib-2-id)
-                  (fvm/tell n-1-id (dec n))
-                  (fvm/tell n-2-id (- n 2))
+                    (message n-1-id (dec n))
+                    (message n-2-id (- n 2))
                   (recur-fn [n-1-id] fib-1-id)
                   (recur-fn [n-2-id] fib-2-id)
                   (fvm/declare-prop plus-id
@@ -245,10 +255,12 @@
            parent-id (stable-id :parent)]
        [(fvm/declare-cell x-id)
         (fvm/declare-cell parent-id)
-        (fvm/install-topology [app-key :x]
-                              (obj/p:slot :x x-id env-id))
-        (fvm/install-topology [app-key :parent]
-                              (obj/p:slot :parent parent-id env-id))
+        (topology [app-key :x]
+                  [x-id env-id]
+                  (obj/p:slot :x x-id env-id))
+          (topology [app-key :parent]
+                    [parent-id env-id]
+                    (obj/p:slot :parent parent-id env-id))
         (fvm/declare-prop (stable-id :current-x)
                            [x-id]
                            [out-id]
@@ -257,6 +269,146 @@
                   parent-id
                   (fn []
                     [(recur-fn [parent-id] out-id)]))]))))
+
+(defn- lexical-scope-source-slot-accessor
+  [slot-key]
+  (fgur/recursive-closure
+   (symbol (str "lexical-scope-source-" (name slot-key) "-lookup"))
+   (fn [{:keys [app-key stable-id]
+         recur-fn :recur
+         when-fn :when} [scope-object-id] out-id]
+     (let [slot-id (stable-id :slot)
+           value-id (stable-id :value)
+           parent-id (stable-id :parent)
+           source-id (stable-id :source)
+           chain-id (stable-id :chain)]
+       [(fvm/declare-cell slot-id)
+        (fvm/declare-cell value-id)
+        (fvm/declare-cell parent-id)
+        (fvm/declare-cell source-id)
+        (fvm/declare-cell chain-id)
+        (topology [app-key :slot slot-key]
+                  [slot-id scope-object-id]
+                  (obj/p:slot slot-key slot-id scope-object-id))
+        (topology [app-key :value]
+                  [value-id slot-id]
+                  (obj/p:slot :value value-id slot-id))
+        (topology [app-key :parent]
+                  [parent-id scope-object-id]
+                  (obj/p:slot :parent parent-id scope-object-id))
+        (topology [app-key :source]
+                  [source-id scope-object-id]
+                  (obj/p:slot :source source-id scope-object-id))
+        (topology [app-key :chain]
+                  [chain-id scope-object-id]
+                  (obj/p:slot :chain chain-id scope-object-id))
+        (topology [app-key :current-value]
+                  [source-id chain-id value-id out-id]
+                  (scope-source/p:scope-value source-id chain-id value-id out-id))
+        (when-fn [app-key :when-parent]
+                  parent-id
+                  (fn []
+                    [(recur-fn [parent-id] out-id)]))]))))
+
+(def lexical-scope-source-lookup
+  (lexical-scope-source-slot-accessor :slot))
+
+(defn- dependency-from-scope-source
+  [v]
+  (let [base (if (scope-source/scope-value? v)
+               (scope-source/base-value v)
+               v)]
+    (when (dependency/dependency-value? base)
+      base)))
+
+(defn- provenance-plus-prop
+  [left-id right-id out-id]
+  (let [prop-id (id :scope-source-provenance-plus left-id right-id out-id)]
+    (fvm/declare-prop
+     prop-id
+     [left-id right-id]
+     [out-id]
+     (fn [_inputs _outputs network]
+       (let [left (dependency-from-scope-source
+                   (net/network-cell-strongest network left-id))
+             right (dependency-from-scope-source
+                    (net/network-cell-strongest network right-id))]
+         (if (and left right)
+           [(message out-id
+                     (dependency/dependency-value
+                      (+ (dependency/base-value left)
+                         (dependency/base-value right))
+                      (into (dependency/sources left)
+                            (dependency/sources right))))]
+           []))))))
+
+(defn- unwrap-scope-source-prop
+  [in-id out-id]
+  (let [prop-id (id :unwrap-scope-source in-id out-id)]
+    (fvm/declare-prop
+     prop-id
+     [in-id]
+     [out-id]
+     (fn [_inputs _outputs network]
+       (let [v (net/network-cell-strongest network in-id)]
+         (cond
+           (scope-source/scope-value? v)
+           [(message out-id (scope-source/base-value v))]
+
+           (value/unusable? v)
+           []
+
+           :else
+           [(message out-id v)]))))))
+
+(defn- scope-env-effects
+  [run-key label source chain slots parent-scope-id]
+  (let [scope-id (id run-key label :scope)
+        source-id (id run-key label :source)
+        chain-id (id run-key label :chain)
+        parent-id (id run-key label :parent)
+        slot-effects (mapcat
+                      (fn [[slot-key value]]
+                        (let [slot-id (id run-key label slot-key :slot)
+                              value-id (id run-key label slot-key :value)]
+                          [(fvm/declare-cell slot-id)
+                           (fvm/declare-cell value-id)
+                           (topology [run-key label :slot slot-key]
+                                     [slot-id scope-id]
+                                     (obj/p:slot slot-key slot-id scope-id))
+                           (topology [run-key label :value slot-key]
+                                     [value-id slot-id]
+                                     (obj/p:slot :value value-id slot-id))
+                           (message value-id value)]))
+                      slots)]
+    {:scope-id scope-id
+     :effects (cond-> [(fvm/declare-cell scope-id)
+                       (fvm/declare-cell source-id)
+                       (fvm/declare-cell chain-id)
+                       (topology [run-key label :source]
+                                 [source-id scope-id]
+                                 (obj/p:slot :source source-id scope-id))
+                       (topology [run-key label :chain]
+                                 [chain-id scope-id]
+                                 (obj/p:slot :chain chain-id scope-id))
+                       (message source-id source)
+                       (message chain-id chain)]
+                true
+                (into slot-effects)
+
+                parent-scope-id
+                (into [(fvm/declare-cell parent-id)
+                       (topology [run-key label :parent]
+                                 [parent-id scope-id]
+                                 (obj/p:slot :parent parent-id scope-id))
+                       (fvm/declare-prop (id run-key label :parent-link)
+                                         [parent-scope-id]
+                                         [parent-id]
+                                         (fgur/unary-prop identity))]))}))
+
+(defn- scope-object-effects
+  [run-key label source chain value parent-scope-id]
+  (scope-env-effects run-key label source chain {:slot value} parent-scope-id))
 
 (defn- source-list-effects
   [run-key values terminal-value seed-heads?]
@@ -268,22 +420,27 @@
         cells (vec (concat heads colls [terminal-id]))
         cons-effects
         (mapv (fn [i]
-                (fvm/install-topology
-                 [run-key :source :cons i]
-                 (obj/p:cons (heads i)
-                             (if (= i (dec len))
-                               terminal-id
-                               (colls (inc i)))
-                             (colls i))))
+                  (topology
+                   [run-key :source :cons i]
+                   [(heads i)
+                    (if (= i (dec len))
+                      terminal-id
+                      (colls (inc i)))
+                    (colls i)]
+                   (obj/p:cons (heads i)
+                               (if (= i (dec len))
+                                 terminal-id
+                                 (colls (inc i)))
+                               (colls i))))
               (range len))
         seed-effects
         (cond-> []
           seed-heads?
-          (into (map-indexed (fn [i v]
-                               (fvm/tell (heads i) v))
-                             values))
-          true
-          (conj (fvm/tell terminal-id terminal-value)))]
+            (into (map-indexed (fn [i v]
+                                 (message (heads i) v))
+                               values))
+            true
+            (conj (message terminal-id terminal-value)))]
     {:root-id (first colls)
      :head-id (first heads)
      :effects (vec (concat (declare-cells cells)
@@ -315,9 +472,9 @@
          initial-effects (vec (concat [(fvm/declare-cell op-id)
                                        (fvm/declare-cell mapper-id)
                                        (fvm/declare-cell acc-id)
-                                       (fvm/tell op-id map-list)
-                                       (fvm/tell mapper-id mapper)
-                                       (fvm/tell acc-id unused-acc-list)]
+                                         (message op-id flat-stdlib/map-list)
+                                         (message mapper-id mapper)
+                                         (message acc-id flat-stdlib/unused-acc-list)]
                                       effects
                                       (declare-cells out-ids)
                                       apply-effects))
@@ -333,10 +490,10 @@
         out-id (id run-key :out)
         effects (vec (concat [(fvm/declare-cell closure-id)
                               (fvm/declare-cell out-id)
-                              (fvm/tell closure-id closure)]
+                                (message closure-id closure)]
                              (declare-cells arg-ids)
                              (mapv (fn [arg-id value]
-                                     (fvm/tell arg-id value))
+                                       (message arg-id value))
                                    arg-ids
                                    arg-values)
                              [(fgur/apply-closure-effect closure-id
@@ -368,9 +525,9 @@
         initial-effects (vec (concat [(fvm/declare-cell op-id)
                                       (fvm/declare-cell mapper-id)
                                       (fvm/declare-cell acc-id)
-                                      (fvm/tell op-id map-list)
-                                      (fvm/tell mapper-id even-or-nothing)
-                                      (fvm/tell acc-id unused-acc-list)]
+                                        (message op-id flat-stdlib/filter-list)
+                                        (message mapper-id even-or-nothing)
+                                        (message acc-id flat-stdlib/unused-acc-list)]
                                      effects
                                      (declare-cells out-ids)
                                      apply-effects))]
@@ -394,14 +551,17 @@
                (fvm/declare-cell child-env-id)
                (fvm/declare-cell child-parent-id)
                (fvm/declare-cell child-x-id)
-               (fvm/install-topology [run-key :parent-x-slot]
-                                     (obj/p:slot :x parent-x-id parent-env-id))
-               (fvm/install-topology [run-key :child-x-slot]
-                                     (obj/p:slot :x child-x-id child-env-id))
-               (fvm/install-topology [run-key :child-parent-slot]
-                                     (obj/p:slot :parent
-                                                 child-parent-id
-                                                 child-env-id))
+                 (topology [run-key :parent-x-slot]
+                           [parent-x-id parent-env-id]
+                           (obj/p:slot :x parent-x-id parent-env-id))
+                 (topology [run-key :child-x-slot]
+                           [child-x-id child-env-id]
+                           (obj/p:slot :x child-x-id child-env-id))
+                 (topology [run-key :child-parent-slot]
+                           [child-parent-id child-env-id]
+                           (obj/p:slot :parent
+                                       child-parent-id
+                                       child-env-id))
                (fvm/declare-prop (id run-key :parent-env-link)
                                  [parent-env-id]
                                  [child-parent-id]
@@ -414,7 +574,7 @@
         out-id (id run-key :out)
         initial-effects (vec (concat [(fvm/declare-cell lookup-id)
                                       (fvm/declare-cell out-id)
-                                      (fvm/tell lookup-id lexical-x-lookup)]
+                                        (message lookup-id lexical-x-lookup)]
                                      effects
                                      extra-effects
                                      [(fgur/apply-closure-effect
@@ -461,7 +621,7 @@
   (let [run-key [:lexical :parent-late]
         {:keys [state out-id parent-x-id]}
         (run-lexical-lookup run-key [])
-        state* (apply-kernel-effects state [(fvm/tell parent-x-id 15)])]
+          state* (apply-kernel-effects state [(message parent-x-id 15)])]
     (is (value/nothing? (strongest state out-id)))
     (is (value/nothing? (strongest state* out-id))
         "Parent env slot updates do not yet wake the recursive lexical lookup.")))
@@ -470,11 +630,184 @@
   (let [run-key [:lexical :child-late-gap]
         {:keys [state out-id child-x-id]}
         (run-lexical-lookup run-key
-                            [(fvm/tell (id run-key :parent-x) 10)])
-        state* (apply-kernel-effects state [(fvm/tell child-x-id 20)])]
+                              [(message (id run-key :parent-x) 10)])
+          state* (apply-kernel-effects state [(message child-x-id 20)])]
     (is (= 10 (strongest state out-id)))
     (is (value/contradiction? (strongest state* out-id))
         "This flat probe has recursive traversal, but not lexical precedence refinement yet.")))
+
+(deftest flat-gur-generalized-lexical-slot-accessor-reads-different-slots
+  (let [run-key [:lexical :general-slot-accessor]
+        parent (scope-env-effects
+                run-key
+                :parent
+                :root
+                [:root]
+                {:x (dependency/dependency-value 10 #{:x-parent})
+                 :y (dependency/dependency-value 3 #{:y-parent})}
+                nil)
+        child (scope-env-effects
+               run-key
+               :child
+               :child
+               [:root :child]
+               {:x (dependency/dependency-value 20 #{:x-child})}
+               (:scope-id parent))
+        lookup-x-id (id run-key :lookup-x)
+        lookup-y-id (id run-key :lookup-y)
+        x-id (id run-key :x)
+        y-id (id run-key :y)
+        state (run-kernel-effects-on
+               (scope-source-vm-net)
+               (vec
+                (concat [(fvm/declare-cell lookup-x-id)
+                         (fvm/declare-cell lookup-y-id)
+                         (fvm/declare-cell x-id)
+                         (fvm/declare-cell y-id)
+                         (message lookup-x-id
+                                  (lexical-scope-source-slot-accessor :x))
+                         (message lookup-y-id
+                                  (lexical-scope-source-slot-accessor :y))]
+                        (:effects parent)
+                        (:effects child)
+                        [(fgur/apply-closure-effect lookup-x-id
+                                                    [(:scope-id child)]
+                                                    x-id)
+                         (fgur/apply-closure-effect lookup-y-id
+                                                    [(:scope-id child)]
+                                                    y-id)])))
+        x (strongest state x-id)
+        y (strongest state y-id)]
+    (is (scope-source/scope-value? x))
+    (is (= :child (scope-source/source-scope x)))
+    (is (= 20 (dependency/base-value (scope-source/base-value x))))
+    (is (scope-source/scope-value? y))
+    (is (= :root (scope-source/source-scope y)))
+    (is (= 3 (dependency/base-value (scope-source/base-value y))))))
+
+(deftest flat-gur-scope-source-lexical-access-feeds-provenance-arithmetic
+  (let [run-key [:lexical :scope-source-provenance]
+        parent-x (scope-object-effects
+                  run-key
+                  :parent-x
+                  :root
+                  [:root]
+                  (dependency/dependency-value 10 #{:x-parent})
+                  nil)
+        child-x (scope-object-effects
+                 run-key
+                 :child-x
+                 :child
+                 [:root :child]
+                 (dependency/dependency-value 20 #{:x-child})
+                 (:scope-id parent-x))
+        parent-y (scope-object-effects
+                  run-key
+                  :parent-y
+                  :root
+                  [:root]
+                  (dependency/dependency-value 3 #{:y-parent})
+                  nil)
+        lookup-x-id (id run-key :lookup-x)
+        lookup-y-id (id run-key :lookup-y)
+        x-id (id run-key :x)
+        y-id (id run-key :y)
+        sum-id (id run-key :sum)
+        state (run-kernel-effects-on
+               (scope-source-vm-net)
+               (vec
+                (concat [(fvm/declare-cell lookup-x-id)
+                         (fvm/declare-cell lookup-y-id)
+                         (fvm/declare-cell x-id)
+                         (fvm/declare-cell y-id)
+                         (fvm/declare-cell sum-id)
+                         (message lookup-x-id lexical-scope-source-lookup)
+                         (message lookup-y-id lexical-scope-source-lookup)]
+                        (:effects parent-x)
+                        (:effects child-x)
+                        (:effects parent-y)
+                        [(fgur/apply-closure-effect lookup-x-id
+                                                    [(:scope-id child-x)]
+                                                    x-id)
+                         (fgur/apply-closure-effect lookup-y-id
+                                                    [(:scope-id parent-y)]
+                                                    y-id)
+                         (provenance-plus-prop x-id y-id sum-id)])))
+        x (strongest state x-id)
+        y (strongest state y-id)
+        sum (strongest state sum-id)]
+    (is (scope-source/scope-value? x))
+    (is (= :child (scope-source/source-scope x)))
+    (is (= 20 (dependency/base-value (scope-source/base-value x))))
+    (is (scope-source/scope-value? y))
+    (is (= :root (scope-source/source-scope y)))
+    (is (dependency/dependency-value? sum))
+    (is (= 23 (dependency/base-value sum)))
+    (is (= #{:x-child :y-parent} (dependency/sources sum)))))
+
+(deftest flat-gur-scope-source-lexical-access-feeds-layered-procedure
+  (let [run-key [:lexical :scope-source-layered]
+        {:keys [net proc operator]} (prov-arith/+ (scope-source-vm-net))
+        parent-x (scope-object-effects
+                  run-key
+                  :parent-x
+                  :root
+                  [:root]
+                  (layered-value 10 #{:x-parent})
+                  nil)
+        child-x (scope-object-effects
+                 run-key
+                 :child-x
+                 :child
+                 [:root :child]
+                 (layered-value 20 #{:x-child})
+                 (:scope-id parent-x))
+        parent-y (scope-object-effects
+                  run-key
+                  :parent-y
+                  :root
+                  [:root]
+                  (layered-value 3 #{:y-parent})
+                  nil)
+        lookup-x-id (id run-key :lookup-x)
+        lookup-y-id (id run-key :lookup-y)
+        scoped-x-id (id run-key :scoped-x)
+        scoped-y-id (id run-key :scoped-y)
+        x-id (id run-key :x)
+        y-id (id run-key :y)
+        sum-id (id run-key :sum)
+        state (run-kernel-effects-on
+               net
+               (vec
+                (concat [(fvm/declare-cell lookup-x-id)
+                         (fvm/declare-cell lookup-y-id)
+                         (fvm/declare-cell scoped-x-id)
+                         (fvm/declare-cell scoped-y-id)
+                         (fvm/declare-cell x-id)
+                         (fvm/declare-cell y-id)
+                         (fvm/declare-cell sum-id)
+                         (message lookup-x-id lexical-scope-source-lookup)
+                         (message lookup-y-id lexical-scope-source-lookup)]
+                        (:effects parent-x)
+                        (:effects child-x)
+                        (:effects parent-y)
+                        [(fgur/apply-closure-effect lookup-x-id
+                                                    [(:scope-id child-x)]
+                                                    scoped-x-id)
+                         (fgur/apply-closure-effect lookup-y-id
+                                                    [(:scope-id parent-y)]
+                                                    scoped-y-id)
+                         (unwrap-scope-source-prop scoped-x-id x-id)
+                         (unwrap-scope-source-prop scoped-y-id y-id)
+                         (topology [run-key :layered-plus]
+                                   [proc x-id y-id sum-id]
+                                   (operator x-id y-id sum-id))])))
+        scoped-x (strongest state scoped-x-id)
+        sum (strongest state sum-id)]
+    (is (scope-source/scope-value? scoped-x))
+    (is (= :child (scope-source/source-scope scoped-x)))
+    (is (= 23 (obj/slot-strongest sum :base)))
+    (is (= #{:x-child :y-parent} (obj/slot-strongest sum :provenance)))))
 
 (deftest flat-effects-map-list-hops-over-live-pcons-source
   (doseq [depth [1 5 10 15]]
@@ -499,9 +832,10 @@
           state* (apply-kernel-effects
                   state
                   [(fvm/declare-cell out-head-id)
-                   (fvm/install-topology [:output-write depth :car]
-                                         (obj/p:car out-head-id out-id))
-                   (fvm/tell out-head-id 9)])
+                     (topology [:output-write depth :car]
+                               [out-head-id out-id]
+                               (obj/p:car out-head-id out-id))
+                     (message out-head-id 9)])
           {:keys [values]} (read-list-prefix state* out-id 1)]
       (is (= 9 (strongest state* head-id))
           (str "depth " depth))
@@ -518,9 +852,10 @@
         state* (apply-kernel-effects
                 state
                 [(fvm/declare-cell out-head-id)
-                 (fvm/install-topology [:output-write :double-car]
-                                       (obj/p:car out-head-id out-id))
-                 (fvm/tell out-head-id 32)])
+                   (topology [:output-write :double-car]
+                             [out-head-id out-id]
+                             (obj/p:car out-head-id out-id))
+                   (message out-head-id 32)])
         {:keys [values]} (read-list-prefix state* out-id 1)]
     (is (= 1 (strongest state* head-id)))
     (is (= [32] values))))
@@ -540,11 +875,12 @@
                 [(fvm/declare-cell late-head-id)
                  (fvm/declare-cell late-terminal-id)
                  (fvm/declare-cell late-coll-id)
-                 (fvm/install-topology [:late-tail :cons]
-                                       (obj/p:cons late-head-id
-                                                   late-terminal-id
-                                                   late-coll-id))
-                 (fvm/tell late-head-id 7)
+                   (topology [:late-tail :cons]
+                             [late-head-id late-terminal-id late-coll-id]
+                             (obj/p:cons late-head-id
+                                         late-terminal-id
+                                         late-coll-id))
+                   (message late-head-id 7)
                  (fvm/declare-prop attach-prop-id
                                    [late-coll-id]
                                    [source-tail-id]
@@ -561,4 +897,4 @@
 
 (deftest flat-effects-gur-does-not-directly-merge-cell-entries
   (is (not (re-find #"merge-cell-entry"
-                    (slurp "propagators/network_vm/flat/gur.clj")))))
+                    (slurp "propagators/gur/flat.clj")))))

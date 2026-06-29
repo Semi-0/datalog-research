@@ -7,7 +7,7 @@
             [propagators.helpers.task-queue :as tq]
             [propagators.message :refer [message-id message-value]]
             [propagators.network :as net]
-            [propagators.network-vm.flat.effects :as effects]
+            [propagators.gur.flat.effects :as effects]
             [propagators.propagator :as prop]))
 
 (defn- maybe-register-subenv

@@ -5,7 +5,8 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.graph :as graph]
             [propagators.ids :as ids]
-            [propagators.network :as net])
+            [propagators.network :as net]
+            [propagators.propagator :as prop])
   (:import [java.nio.charset StandardCharsets]
            [java.util UUID]))
 
@@ -176,3 +177,13 @@
   (if (scope-value? v)
     (base-value v)
     v))
+
+(def p:scope-value
+  "Primitive propagator: source + chain + payload -> scope-source candidate."
+  (prop/primitive-propagator
+   (fn [source chain payload]
+     (if (or (value/unusable? source)
+             (value/unusable? chain)
+             (value/unusable? payload))
+       value/nothing
+       (scope-value source chain payload)))))

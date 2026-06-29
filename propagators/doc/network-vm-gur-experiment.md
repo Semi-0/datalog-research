@@ -119,18 +119,24 @@ accessor internals.
 
 ## Flat Main-Network Effects
 
-`propagators.network-vm.flat` is a smaller parallel experiment. It removes the
+`propagators.gur.flat` is a smaller parallel experiment. It removes the
 child VM and treats recursive GUR as delayed topology effects over the main
 network:
 
 ```clojure
 (fvm/declare-cell id)
 (fvm/declare-prop prop-id inputs outputs activate)
-(fvm/install-topology install-key (obj/p:car head-id list-id))
-(fvm/tell cell-id partial-info)
+(message cell-id partial-info)
+(install/installer-effects net install-key [head-id list-id]
+                           (obj/p:car head-id list-id))
 ```
 
-The recursive layer in `propagators.network-vm.flat.gur` keeps the same
+The flat effect set is intentionally bounded to cell declarations, propagator
+declarations, and name bindings. Cell writes are ordinary messages, and existing
+installer-shaped APIs are expanded by the authoring layer before the flat effect
+dispatcher sees them.
+
+The recursive layer in `propagators.gur.flat` keeps the same
 high-level shape as nested GUR: `apply` declares an application prop, `recur`
 declares another application prop with a deterministic frame key, and `when`
 declares no body topology while the condition is `nothing`. The difference is
@@ -173,10 +179,10 @@ code use scoped cell names:
       (i/recur [:rest :mapper :acc] :mapped-rest)))
 ```
 
-The helpers only emit flat VM declaration effects. They do not run propagation
-and do not mutate cell entries; `core/eval-effects` and `core/run-tasks` remain
-the execution path. The raw installers (`obj/p:car`, `prop/*`, etc.) remain the
-substrate for compatibility and custom declarations.
+The helpers only emit flat VM declaration effects and ordinary messages. They
+do not run propagation and do not mutate cell entries; `core/eval-activation-result`
+and `core/run-tasks` remain the execution path. The raw installers (`obj/p:car`,
+`prop/*`, etc.) remain the substrate for compatibility and custom declarations.
 
 ## Speed Snapshot
 

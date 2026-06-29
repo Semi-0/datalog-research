@@ -8,7 +8,7 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.recursive :as recursive]))
+            [propagators.gur.recursive :as recursive]))
 
 (def unusable-result ::unusable)
 

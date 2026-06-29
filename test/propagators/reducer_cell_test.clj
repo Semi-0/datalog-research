@@ -9,8 +9,8 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.network-vm.flat :as fvm]
-            [propagators.network-vm.flat.gur :as fgur]
+            [propagators.gur.flat :as fvm]
+            [propagators.gur.flat :as fgur]
             [propagators.propagator :as prop]))
 
 (defn- node-id
@@ -20,6 +20,10 @@
 (defn- strongest
   [n cell-id]
   (net/network-cell-strongest n cell-id))
+
+(defn- topology
+  [install-key cell-ids installer]
+  (i/installer-effects (fvm/vm-net) install-key cell-ids installer))
 
 (defn- projection-net
   [tag project & {:keys [explicit-meta?]}]
@@ -121,7 +125,7 @@
 
 (defn- apply-effects
   [effects]
-  (let [[tasks n] (core/eval-effects effects (fvm/vm-net))]
+  (let [[tasks n] (core/eval-activation-result effects (fvm/vm-net))]
     (core/run-tasks tasks n)))
 
 (defn- source-list-effects
@@ -136,18 +140,24 @@
                (concat
                 (mapv fvm/declare-cell (concat heads colls [terminal-id]))
                 (mapv (fn [i]
-                        (fvm/install-topology
+                        (topology
                          [run-key :cons i]
-                         (obj/p:cons (heads i)
-                                     (if (= i (dec len))
-                                       terminal-id
-                                       (colls (inc i)))
-                                     (colls i))))
+                         [(heads i)
+                          (if (= i (dec len))
+                            terminal-id
+                            (colls (inc i)))
+                          (colls i)]
+                         (obj/p:cons
+                          (heads i)
+                          (if (= i (dec len))
+                            terminal-id
+                            (colls (inc i)))
+                          (colls i))))
                       (range len))
                 (map-indexed (fn [i v]
-                               (fvm/tell (heads i) v))
+                               (message (heads i) v))
                              values)
-                [(fvm/tell terminal-id value/nothing)]))}))
+                [(message terminal-id value/nothing)]))}))
 
 (def collect-list-values
   (fgur/recursive-declaration
@@ -293,7 +303,7 @@
            (vec (concat [(fvm/declare-cell closure-id)
                          (fvm/declare-cell reducer-id)
                          (fvm/declare-cell out-id)
-                         (fvm/tell closure-id collect-list-values)]
+                         (message closure-id collect-list-values)]
                         effects
                         [(fgur/apply-closure-effect closure-id
                                                     [root-id reducer-id]

@@ -8,10 +8,11 @@
             [propagators.datastructures.tms :as tms]
             [propagators.gur.subenv.env :as env]
             [propagators.install :as i]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.network-vm.flat :as fvm]
-            [propagators.network-vm.flat.gur :as fgur]
+            [propagators.gur.flat :as fvm]
+            [propagators.gur.flat :as fgur]
             [propagators.scoped-address :as scoped]))
 
 (defn- node-id
@@ -22,11 +23,15 @@
   [n cell-id]
   (net/network-cell-strongest n cell-id))
 
+(defn- topology
+  [install-key cell-ids installer]
+  (i/installer-effects (fvm/vm-net) install-key cell-ids installer))
+
 (defn- apply-effects
   ([effects]
    (apply-effects (fvm/vm-net) effects))
   ([n effects]
-   (let [[tasks n*] (core/eval-effects effects n)]
+   (let [[tasks n*] (core/eval-activation-result effects n)]
      (core/run-tasks tasks n*))))
 
 (defn- merge-updates
@@ -60,18 +65,24 @@
                (concat
                 (mapv fvm/declare-cell (concat heads colls [terminal-id]))
                 (mapv (fn [idx]
-                        (fvm/install-topology
+                        (topology
                          [run-key :cons idx]
-                         (obj/p:cons (heads idx)
-                                     (if (= idx (dec len))
-                                       terminal-id
-                                       (colls (inc idx)))
-                                     (colls idx))))
+                         [(heads idx)
+                          (if (= idx (dec len))
+                            terminal-id
+                            (colls (inc idx)))
+                          (colls idx)]
+                         (obj/p:cons
+                          (heads idx)
+                          (if (= idx (dec len))
+                            terminal-id
+                            (colls (inc idx)))
+                          (colls idx))))
                       (range len))
                 (map-indexed (fn [idx v]
-                               (fvm/tell (heads idx) v))
+                               (message (heads idx) v))
                              values)
-                [(fvm/tell terminal-id value/nothing)]))}))
+                [(message terminal-id value/nothing)]))}))
 
 (def collect-tms-claims
   (fgur/recursive-declaration
@@ -207,21 +218,23 @@
                          (fvm/declare-cell out-id)
                          (fvm/declare-cell a-active-id)
                          (fvm/declare-cell b-active-id)
-                         (fvm/tell closure-id collect-tms-claims)
-                         (fvm/tell a-active-id true)
-                         (fvm/tell b-active-id false)
-                         (fvm/install-topology [run-key :premise :a]
-                                               (tms/p:tms-premise :truth
-                                                                  :a
-                                                                  0
-                                                                  a-active-id
-                                                                  tms-id))
-                         (fvm/install-topology [run-key :premise :b]
-                                               (tms/p:tms-premise :truth
-                                                                  :b
-                                                                  0
-                                                                  b-active-id
-                                                                  tms-id))]
+                         (message closure-id collect-tms-claims)
+                         (message a-active-id true)
+                         (message b-active-id false)
+                         (topology [run-key :premise :a]
+                                   [a-active-id tms-id]
+                                   (tms/p:tms-premise :truth
+                                                      :a
+                                                      0
+                                                      a-active-id
+                                                      tms-id))
+                         (topology [run-key :premise :b]
+                                   [b-active-id tms-id]
+                                   (tms/p:tms-premise :truth
+                                                      :b
+                                                      0
+                                                      b-active-id
+                                                      tms-id))]
                         effects
                         [(fgur/apply-closure-effect closure-id
                                                     [root-id tms-id]
@@ -229,13 +242,14 @@
         view (-> (strongest n tms-id) reducer/reduced-result)
         b-active-late-id (node-id run-key :b-active-late)
         n* (apply-effects n [(fvm/declare-cell b-active-late-id)
-                             (fvm/tell b-active-late-id true)
-                             (fvm/install-topology [run-key :premise :b :late]
-                                                   (tms/p:tms-premise :truth
-                                                                      :b
-                                                                      1
-                                                                      b-active-late-id
-                                                                      tms-id))])
+                             (message b-active-late-id true)
+                             (topology [run-key :premise :b :late]
+                                       [b-active-late-id tms-id]
+                                       (tms/p:tms-premise :truth
+                                                          :b
+                                                          1
+                                                          b-active-late-id
+                                                          tms-id))])
         view* (-> (strongest n* tms-id) reducer/reduced-result)]
     (is (= 10 (tms/proposition-value view :answer)))
     (is (= value/contradiction

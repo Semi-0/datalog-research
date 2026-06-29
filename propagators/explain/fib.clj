@@ -7,7 +7,7 @@
             [propagators.explain.llm :as llm]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.recursive :as recursive]))
+            [propagators.gur.recursive :as recursive]))
 
 (defn- strongest
   [n id]

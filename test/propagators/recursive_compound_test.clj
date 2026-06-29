@@ -9,7 +9,7 @@
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.recursive :as recursive]
+            [propagators.gur.recursive :as recursive]
             [propagators.stdlib.prop :as stdlib-prop]))
 
 (defn- strongest

@@ -6,7 +6,7 @@
             [propagators.graph :as graph]
             [propagators.network :as net]
             [propagators.propagator :as prop]
-            [propagators.recursive :as recursive]))
+            [propagators.gur.recursive :as recursive]))
 
 (defn- sorted-by-pr-str
   [xs]

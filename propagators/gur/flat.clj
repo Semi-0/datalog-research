@@ -1,66 +1,90 @@
-(ns propagators.network-vm.flat.gur
+(ns propagators.gur.flat
   "Small GUR-on-flat-network-effects experiment.
 
   This tests recursive HOP as delayed main-network topology. It is separate
   from the canonical accumulating GUR and from the nested network VM."
-  (:require [propagators.cells.cell :as cell]
+  (:require [propagators.application :as app]
             [propagators.cells.value :as value]
-            [propagators.install :as install]
+            [propagators.gur.flat.effects :as effects]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-vm.flat :as fvm]))
+            [propagators.network-vm.instructions :as instr]))
 
-(def recursive-closure-tag :network-vm.flat.gur/recursive-closure?)
-(def frame-scope [:network-vm.flat.gur :frames])
-(def when-scope [:network-vm.flat.gur :when])
+(def root-key effects/root-key)
+(def cell-index-key effects/cell-index-key)
+(def prop-index-key effects/prop-index-key)
+(def name-bindings-key effects/name-bindings-key)
+
+(def stable-node-id effects/stable-node-id)
+(def vm-net effects/vm-net)
+
+(def declare-cell instr/declare-cell)
+(def declare-prop instr/declare-prop)
+(def bind-name instr/bind-name)
+
+(def recursive-closure-tag :gur.flat/recursive-closure?)
+(def frame-scope [:gur.flat :frames])
+(def when-scope [:gur.flat :when])
 
 (defn recursive-closure
   [name body]
   {recursive-closure-tag true
-   :network-vm.flat.gur/name name
-   :network-vm.flat.gur/body body})
+   :gur.flat/name name
+   :gur.flat/body body})
 
 (defn recursive-closure?
   [x]
   (and (map? x)
        (true? (get x recursive-closure-tag))
-       (ifn? (:network-vm.flat.gur/body x))))
+       (ifn? (:gur.flat/body x))))
 
 (defn application-key
   [closure-id arg-ids out-id]
-  [:network-vm.flat.gur/application closure-id (vec arg-ids) out-id])
-
-(defn- strongest-or-nothing
-  [n id]
-  (let [entry (get (net/net-env n) id)]
-    (if (cell/cell? entry)
-      (cell/cell-strongest entry)
-      value/nothing)))
+  [:gur.flat/application closure-id (vec arg-ids) out-id])
 
 (defn frame-declared?
   [n app-key]
   (boolean
-   (get-in (net/network-dict-entry n fvm/name-bindings-key)
+   (get-in (net/network-dict-entry n name-bindings-key)
            [frame-scope app-key])))
 
 (defn when-declared?
   [n when-key]
   (boolean
-   (get-in (net/network-dict-entry n fvm/name-bindings-key)
+   (get-in (net/network-dict-entry n name-bindings-key)
            [when-scope when-key])))
 
 (defn- declare-frame-marker
   [app-key out-id]
-  (fvm/bind-name frame-scope app-key out-id))
+  (bind-name frame-scope app-key out-id))
 
 (declare apply-closure-effect when-effect)
+
+(defn- application-inputs
+  [closure-id arg-ids out-id]
+  (distinct (into [closure-id out-id] arg-ids)))
+
+(defn- application-outputs
+  [arg-ids out-id]
+  (distinct (into [out-id] arg-ids)))
+
+(defn- unusable-closure?
+  [closure]
+  (or (value/nothing? closure)
+      (value/contradiction? closure)))
+
+(defn- frame-bootstrap
+  [app-key closure-id out-id]
+  [(declare-frame-marker app-key out-id)
+   (bind-name app-key :self closure-id)
+   (bind-name app-key :out out-id)])
 
 (defn- frame-context
   [network closure-id app-key]
   {:closure-id closure-id
    :app-key app-key
    :network network
-   :stable-id (fn [& parts] (fvm/stable-node-id (into [app-key] parts)))
+   :stable-id (fn [& parts] (stable-node-id (into [app-key] parts)))
    :apply (fn [closure-id arg-ids out-id]
             (apply-closure-effect closure-id arg-ids out-id))
    :recur (fn [arg-ids out-id]
@@ -71,10 +95,9 @@
 (defn- apply-closure-activation
   [closure-id arg-ids out-id app-key]
   (fn [_inputs _outputs network]
-    (let [closure (strongest-or-nothing network closure-id)]
+    (let [closure (app/cell-strongest-or-nothing network closure-id)]
       (cond
-        (or (value/nothing? closure)
-            (value/contradiction? closure))
+        (unusable-closure? closure)
         []
 
         (not (recursive-closure? closure))
@@ -85,11 +108,9 @@
 
         :else
         (let [ctx (frame-context network closure-id app-key)
-              body (:network-vm.flat.gur/body closure)]
-          (into [(declare-frame-marker app-key out-id)
-                 (fvm/bind-name app-key :self closure-id)
-                 (fvm/bind-name app-key :out out-id)]
-                (body ctx arg-ids out-id)))))))
+              body (:gur.flat/body closure)]
+          [(frame-bootstrap app-key closure-id out-id)
+           (body ctx arg-ids out-id)])))))
 
 (defn apply-closure-effect
   "Declare a recursive closure application into the main network.
@@ -98,12 +119,10 @@
   input lets late output writes wake bidirectional body topology."
   [closure-id arg-ids out-id]
   (let [app-key (application-key closure-id arg-ids out-id)
-        prop-id (fvm/stable-node-id [app-key :apply-prop])
-        inputs (distinct (into [closure-id out-id] arg-ids))
-        outputs (distinct (into [out-id] arg-ids))]
-    (fvm/declare-prop prop-id
-                      inputs
-                      outputs
+        prop-id (stable-node-id [app-key :apply-prop])]
+    (declare-prop prop-id
+                      (application-inputs closure-id arg-ids out-id)
+                      (application-outputs arg-ids out-id)
                       (apply-closure-activation closure-id
                                                 (vec arg-ids)
                                                 out-id
@@ -111,18 +130,26 @@
 
 (defn when-effect
   [when-key condition-id body-f]
-  (let [prop-id (fvm/stable-node-id [:when when-key :prop])
+  (let [prop-id (stable-node-id [:when when-key :prop])
         activate (fn [_inputs _outputs network]
-                   (let [condition (strongest-or-nothing network condition-id)]
+                   (let [condition (app/cell-strongest-or-nothing network condition-id)]
                      (cond
                        (value/nothing? condition) []
                        (value/contradiction? condition) []
                        (when-declared? network when-key) []
-                       :else (into [(fvm/bind-name when-scope
-                                                   when-key
-                                                   condition-id)]
-                                   (body-f)))))]
-    (fvm/declare-prop prop-id [condition-id] [] activate)))
+                       :else [(bind-name when-scope
+                                             when-key
+                                             condition-id)
+                              (body-f)])))]
+    (declare-prop prop-id [condition-id] [] activate)))
+
+(defn- install-context
+  [network app-key]
+  ((requiring-resolve 'propagators.install/context) network app-key))
+
+(defn- install-result
+  [ctx]
+  ((requiring-resolve 'propagators.install/result) ctx))
 
 (defn recursive-declaration
   "Recursive closure whose body writes through `propagators.install`.
@@ -134,11 +161,11 @@
   (recursive-closure
    name
    (fn [{:keys [network app-key apply recur when]} arg-ids out-id]
-     (let [ctx (assoc (install/context network app-key)
+     (let [ctx (assoc (install-context network app-key)
                       :apply apply
                       :recur recur
                       :when when)]
-       (install/effects (body ctx arg-ids out-id))))))
+       (install-result (body ctx arg-ids out-id))))))
 
 (defn const-prop
   [v]
@@ -148,7 +175,7 @@
 (defn unary-prop
   [f]
   (fn [inputs outputs network]
-    (let [v (strongest-or-nothing network (first inputs))]
+    (let [v (app/cell-strongest-or-nothing network (first inputs))]
       (if (value/unusable? v)
         []
         [(message (first outputs) (f v))]))))
@@ -156,8 +183,8 @@
 (defn binary-prop
   [f]
   (fn [inputs outputs network]
-    (let [a (strongest-or-nothing network (first inputs))
-          b (strongest-or-nothing network (second inputs))]
+    (let [a (app/cell-strongest-or-nothing network (first inputs))
+          b (app/cell-strongest-or-nothing network (second inputs))]
       (if (or (value/unusable? a) (value/unusable? b))
         []
         [(message (first outputs) (f a b))]))))

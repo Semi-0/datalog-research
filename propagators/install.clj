@@ -10,9 +10,13 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.reducer-cell :as reducer-cell]
             [propagators.datastructures.tms :as tms]
+            [propagators.graph :as graph]
             [propagators.ids :as ids]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-vm.flat :as fvm]
+            [propagators.network-builder :as nb]
+            [propagators.gur.flat :as fvm]
+            [propagators.propagator :as p]
             [propagators.stdlib.prop :as prop]))
 
 (def cell-bindings-scope-tag :propagators.install/cells)
@@ -22,22 +26,78 @@
   {:net (fvm/vm-net network)
    :scope scope
    :cells {}
-   :effects []})
+   :effects []
+   :messages []})
 
 (defn effects
   [ctx]
   (:effects ctx))
+
+(defn result
+  [ctx]
+  {:effects (:effects ctx)
+   :messages (:messages ctx)})
 
 (defn context?
   [x]
   (c/and (map? x)
          (contains? x :net)
          (contains? x :scope)
-         (contains? x :effects)))
+         (contains? x :effects)
+         (contains? x :messages)))
 
 (defn- emit
   [ctx effect]
   (update ctx :effects conj effect))
+
+(defn- emit-all
+  [ctx effects]
+  (update ctx :effects into effects))
+
+(defn- emit-message
+  [ctx m]
+  (update ctx :messages conj m))
+
+(defn- deterministic-id-fn
+  [install-key]
+  (let [counter (atom -1)]
+    (fn []
+      (fvm/stable-node-id [:installer install-key (swap! counter inc)]))))
+
+(defn- installer-prop-ids
+  [result]
+  (->> (tree-seq sequential? seq result)
+       (filter ids/node-id?)
+       vec))
+
+(defn- prop-declaration
+  [n prop-id]
+  (let [node (graph/get-node (net/net-graph n) prop-id)
+        prop (net/network-env-lookup n prop-id)]
+    (fvm/declare-prop prop-id
+                      (vec (graph/node-input-ids node))
+                      (vec (graph/node-output-ids node))
+                      (p/prop-f prop))))
+
+(defn- installer-effects*
+  [base-net install-key cell-ids installer-f]
+  (let [cell-ids (vec (distinct cell-ids))
+        n0 (reduce nb/ensure-cell (fvm/vm-net base-net) cell-ids)
+        [ids* n*] (with-redefs [ids/new-node-id
+                                (deterministic-id-fn install-key)]
+                    ((installer-f) n0))
+        prop-ids (installer-prop-ids ids*)]
+    (vec (concat (map fvm/declare-cell cell-ids)
+                 (map #(prop-declaration n* %) prop-ids)))))
+
+(defn installer-effects
+  "Expand an existing installer function into bounded flat VM declarations."
+  [base-net install-key cell-ids installer]
+  (installer-effects* base-net install-key cell-ids (constantly installer)))
+
+(defn- emit-installer
+  [ctx install-key cell-ids installer]
+  (emit-all ctx (installer-effects* (:net ctx) install-key cell-ids installer)))
 
 (defn- cell-scope
   [ctx]
@@ -122,9 +182,7 @@
 (defn install*
   [ctx tag installer args]
   (let [[ctx* ids] (resolve-args ctx args)]
-    (emit ctx*
-          (fvm/install-topology [(:scope ctx*) tag ids]
-                                (apply installer ids)))))
+    (emit-installer ctx* [(:scope ctx*) tag ids] ids #(apply installer ids))))
 
 (defn install
   [& xs]
@@ -152,16 +210,16 @@
      (tell ctx target value)))
   ([ctx target value]
    (let [[ctx* id] (resolve-arg ctx target)]
-     (emit ctx* (fvm/tell id value)))))
+     (emit-message ctx* (message id value)))))
 
 (defn commit
   [ctx]
-  (let [[_tasks n] (kernel/eval-effects (:effects ctx) (:net ctx))]
+  (let [[_tasks n] (kernel/eval-activation-result (result ctx) (:net ctx))]
     n))
 
 (defn run
   [ctx]
-  (let [[tasks n] (kernel/eval-effects (:effects ctx) (:net ctx))]
+  (let [[tasks n] (kernel/eval-activation-result (result ctx) (:net ctx))]
     (kernel/run-tasks tasks n)))
 
 (defn relation
@@ -197,9 +255,10 @@
   ([ctx slot-key elem coll]
    (let [[ctx* elem-id] (resolve-arg ctx elem)
          [ctx** coll-id] (resolve-arg ctx* coll)]
-     (emit ctx**
-           (fvm/install-topology [(:scope ctx**) :slot slot-key elem-id coll-id]
-                                 (obj/p:slot slot-key elem-id coll-id))))))
+     (emit-installer ctx**
+                     [(:scope ctx**) :slot slot-key elem-id coll-id]
+                     [elem-id coll-id]
+                     #(obj/p:slot slot-key elem-id coll-id)))))
 
 (defn- reducer-slot*
   [ctx reducer-id args]
@@ -210,21 +269,22 @@
                           {:reducer-id reducer-id :args args})))
         [ctx* value-id] (resolve-arg ctx value)
         [ctx** reducer-id*] (resolve-arg ctx* reducer)]
-    (emit ctx**
-          (fvm/install-topology [(:scope ctx**)
-                                 :reducer-slot
-                                 reducer-id
-                                 (some-> merge-net pr-str hash)
-                                 (hash (pr-str strongest-net))
-                                 slot-key
-                                 value-id
-                                 reducer-id*]
-                                (reducer-cell/p:reducer-slot reducer-id
-                                                             merge-net
-                                                             strongest-net
-                                                             slot-key
-                                                             value-id
-                                                             reducer-id*)))))
+    (emit-installer ctx**
+                    [(:scope ctx**)
+                     :reducer-slot
+                     reducer-id
+                     (some-> merge-net pr-str hash)
+                     (hash (pr-str strongest-net))
+                     slot-key
+                     value-id
+                     reducer-id*]
+                    [value-id reducer-id*]
+                    #(reducer-cell/p:reducer-slot reducer-id
+                                                  merge-net
+                                                  strongest-net
+                                                  slot-key
+                                                  value-id
+                                                  reducer-id*))))
 
 (defn reducer-slot
   [& xs]
@@ -245,19 +305,20 @@
   ([ctx tms-id premise epoch active reducer]
    (let [[ctx* active-id] (resolve-arg ctx active)
          [ctx** reducer-id*] (resolve-arg ctx* reducer)]
-     (emit ctx**
-           (fvm/install-topology [(:scope ctx**)
-                                  :tms-premise
-                                  tms-id
-                                  premise
-                                  epoch
-                                  active-id
-                                  reducer-id*]
-                                 (tms/p:tms-premise tms-id
-                                                    premise
-                                                    epoch
-                                                    active-id
-                                                    reducer-id*))))))
+     (emit-installer ctx**
+                     [(:scope ctx**)
+                      :tms-premise
+                      tms-id
+                      premise
+                     epoch
+                     active-id
+                     reducer-id*]
+                     [active-id reducer-id*]
+                     #(tms/p:tms-premise tms-id
+                                         premise
+                                         epoch
+                                         active-id
+                                         reducer-id*)))))
 
 (defn tms-claim
   ([tms-id claim-id proposition supports value reducer]
@@ -266,21 +327,22 @@
   ([ctx tms-id claim-id proposition supports value reducer]
    (let [[ctx* value-id] (resolve-arg ctx value)
          [ctx** reducer-id*] (resolve-arg ctx* reducer)]
-     (emit ctx**
-           (fvm/install-topology [(:scope ctx**)
-                                  :tms-claim
-                                  tms-id
-                                  claim-id
-                                  proposition
-                                  supports
-                                  value-id
-                                  reducer-id*]
-                                 (tms/p:tms-claim tms-id
-                                                  claim-id
-                                                  proposition
-                                                  supports
-                                                  value-id
-                                                  reducer-id*))))))
+     (emit-installer ctx**
+                     [(:scope ctx**)
+                      :tms-claim
+                      tms-id
+                      claim-id
+                      proposition
+                      supports
+                     value-id
+                     reducer-id*]
+                     [value-id reducer-id*]
+                     #(tms/p:tms-claim tms-id
+                                       claim-id
+                                       proposition
+                                       supports
+                                       value-id
+                                       reducer-id*)))))
 
 (defn tms-proposition
   ([proposition reducer out]
@@ -289,15 +351,16 @@
   ([ctx proposition reducer out]
    (let [[ctx* reducer-id*] (resolve-arg ctx reducer)
          [ctx** out-id] (resolve-arg ctx* out)]
-     (emit ctx**
-           (fvm/install-topology [(:scope ctx**)
-                                  :tms-proposition
-                                  proposition
-                                  reducer-id*
-                                  out-id]
-                                 (tms/p:tms-proposition reducer-id*
-                                                        proposition
-                                                        out-id))))))
+     (emit-installer ctx**
+                     [(:scope ctx**)
+                      :tms-proposition
+                      proposition
+                      reducer-id*
+                      out-id]
+                     [reducer-id* out-id]
+                     #(tms/p:tms-proposition reducer-id*
+                                             proposition
+                                             out-id)))))
 
 (defn >>
   ([closure arg out]
@@ -346,5 +409,6 @@
              (when-f when-key
                      condition-id
                      (fn []
-                       (effects (body-transform (assoc ctx*
-                                                       :effects []))))))))))
+                       (result (body-transform (assoc ctx*
+                                                      :effects []
+                                                      :messages []))))))))))

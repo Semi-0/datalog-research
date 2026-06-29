@@ -3,7 +3,7 @@
 
   This is deliberately separate from the canonical accumulating GUR. It tests
   whether recursive HOP topology can be expressed as effects over a network VM."
-  (:require [propagators.cells.cell :as cell]
+  (:require [propagators.application :as app]
             [propagators.cells.value :as value]
             [propagators.message :refer [message]]
             [propagators.network :as net]
@@ -28,13 +28,6 @@
 (defn application-key
   [closure-id arg-ids out-id]
   [:network-vm.nested.gur/application closure-id (vec arg-ids) out-id])
-
-(defn- strongest-or-nothing
-  [n id]
-  (let [entry (get (net/net-env n) id)]
-    (if (cell/cell? entry)
-      (cell/cell-strongest entry)
-      value/nothing)))
 
 (defn frame-declared?
   [n app-key]
@@ -69,7 +62,7 @@
 (defn- apply-closure-activation
   [closure-id arg-ids out-id app-key]
   (fn [_inputs _outputs network]
-    (let [closure (strongest-or-nothing network closure-id)]
+    (let [closure (app/cell-strongest-or-nothing network closure-id)]
       (cond
         (or (value/nothing? closure)
             (value/contradiction? closure))
@@ -113,7 +106,7 @@
   [target when-key condition-id body-f]
   (let [prop-id (nvm/stable-node-id [:when when-key :prop])
         activate (fn [_inputs _outputs network]
-                   (let [condition (strongest-or-nothing network condition-id)]
+                   (let [condition (app/cell-strongest-or-nothing network condition-id)]
                      (cond
                        (value/nothing? condition) []
                        (value/contradiction? condition) []
@@ -133,7 +126,7 @@
 (defn unary-prop
   [f]
   (fn [inputs outputs network]
-    (let [v (strongest-or-nothing network (first inputs))]
+    (let [v (app/cell-strongest-or-nothing network (first inputs))]
       (if (value/unusable? v)
         []
         [(message (first outputs) (f v))]))))
@@ -141,8 +134,8 @@
 (defn binary-prop
   [f]
   (fn [inputs outputs network]
-    (let [a (strongest-or-nothing network (first inputs))
-          b (strongest-or-nothing network (second inputs))]
+    (let [a (app/cell-strongest-or-nothing network (first inputs))
+          b (app/cell-strongest-or-nothing network (second inputs))]
       (if (or (value/unusable? a) (value/unusable? b))
         []
         [(message (first outputs) (f a b))]))))

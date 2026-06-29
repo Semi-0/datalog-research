@@ -190,6 +190,31 @@
       (is (= [:root :child] (scope-source/context-chain candidate)))
       (is (= :child (scope-source/closure-scope candidate)))))
 
+  (testing "primitive propagator builds a scope-source candidate"
+    (let [n (scope-source-net)
+          source-id (new-node-id)
+          chain-id (new-node-id)
+          value-id (new-node-id)
+          out-id (new-node-id)
+          n0 (-> n
+                 (#(reduce nb/install-cell
+                           %
+                           [source-id chain-id value-id out-id]))
+                 (nb/seed-cell source-id :child)
+                 (nb/seed-cell chain-id [:root :child])
+                 (nb/seed-cell value-id :payload))
+          [prop-id n1] ((scope-source/p:scope-value source-id
+                                                      chain-id
+                                                      value-id
+                                                      out-id)
+                        n0)
+          n2 (nb/run-propagators n1 [prop-id])
+          selected (net/network-cell-strongest n2 out-id)]
+      (is (scope-source/scope-value? selected))
+      (is (= :child (scope-source/source-scope selected)))
+      (is (= [:root :child] (scope-source/context-chain selected)))
+      (is (= :payload (scope-source/base-value selected)))))
+
   (testing "scope-source does not store dependency or closure layers"
     (let [candidate (scope-source/scope-value :root :ignored [:root] :same #{:dep})]
       (is (nil? (obj/slot-value candidate :scope/dependencies)))

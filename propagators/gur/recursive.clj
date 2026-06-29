@@ -1,4 +1,4 @@
-(ns propagators.recursive
+(ns propagators.gur.recursive
   "Recursive compound propagation over activation-local network values."
   (:require [propagators.boundary :as boundary]
             [propagators.cells.diff :as diff]
