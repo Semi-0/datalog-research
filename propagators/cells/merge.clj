@@ -8,11 +8,12 @@
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.datastructures.named-network :as named]
             [propagators.network :as net]
+            [propagators.datastructures.reducer-cell :as reducer-cell]
             [propagators.datastructures.reducer-subnet :as reducer]))
 
 (def cell-equal? value/cell-value-equal?)
 
-(declare strongest-value)
+(declare cell-merge strongest-value)
 
 (defn- closure-value?
   [x]
@@ -43,6 +44,10 @@
           (reducer/reducer-subnet? old))
       :reducer-subnet
 
+      (or (reducer-cell/reducer-cell? new)
+          (reducer-cell/reducer-cell? old))
+      :reducer-cell
+
       (or (closure-value? new)
           (closure-value? old))
       :closure
@@ -66,6 +71,11 @@
   (not (cell-equal? new old)))
 
 (defmethod cell-updated? :reducer-subnet
+  [new old network]
+  (not (cell-equal? (strongest-value new network)
+                    (strongest-value old network))))
+
+(defmethod cell-updated? :reducer-cell
   [new old network]
   (not (cell-equal? (strongest-value new network)
                     (strongest-value old network))))
@@ -119,6 +129,8 @@
       (update/compound-sync? update) :compound-sync
       (update/compound-data? update) :compound-data
       (reducer/reducer-subnet? update) :reducer-subnet
+      (or (reducer-cell/reducer-cell? _content)
+          (reducer-cell/reducer-cell? update)) :reducer-cell
       (network-vm-nested-delta? update) :network-vm-nested-delta
       (or (closure-value? _content)
           (closure-value? update)) :closure
@@ -249,6 +261,10 @@
     content
     :else value/contradiction))
 
+(defmethod built-in-cell-merge :reducer-cell
+  [content update network]
+  (reducer-cell/merge-content content update cell-merge network))
+
 (defmethod built-in-cell-merge :closure
   [content update _network]
   (cond
@@ -305,6 +321,7 @@
       (evidence/evidence-set? x) :named-network-evidence
       (cell/cell? x) :cell
       (reducer/reducer-subnet? x) :reducer-subnet
+      (reducer-cell/reducer-cell? x) :reducer-cell
       (state/compound-subnet-state? x) :compound-subnet
       (named/named-network? x) :named-network
       :else :content)))
@@ -328,6 +345,10 @@
 (defmethod built-in-strongest-value :reducer-subnet
   [content _network]
   (reducer/strongest content))
+
+(defmethod built-in-strongest-value :reducer-cell
+  [content _network]
+  (reducer-cell/strongest content))
 
 ;; :compound-subnet — structural state only; effectful run in c:linked-list.
 (defmethod built-in-strongest-value :compound-subnet

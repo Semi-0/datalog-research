@@ -25,6 +25,7 @@
     propagators.generic-procedure-test
     propagators.gur-accumulating-test
     propagators.gur-subenv-test
+    propagators.install-test
     propagators.layered-procedure-test
     propagators.linked-list-access-test
     propagators.named-network-test
@@ -32,9 +33,11 @@
     propagators.network-vm-test
     propagators.network-vm-nested-test
     propagators.primitive-basis-test
+    propagators.reducer-cell-test
     propagators.recursive-compound-test
     propagators.network-test
-    propagators.structural-records-test])
+    propagators.structural-records-test
+    propagators.tms-test])
 
 (def graph-test-namespaces
   '[graph.vijual.math-test

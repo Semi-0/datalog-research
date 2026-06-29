@@ -142,6 +142,84 @@ evidence with unequal retained history also contradicts. A behavior update whose
 source evidence is a superset replaces the older retained view, except for
 explicit retained-version reducers that accumulate version history.
 
+## General Reducer Cell
+
+`propagators.datastructures.reducer-cell` is a parallel, smaller reducer value
+for slotful evidence:
+
+```clojure
+{:reducer/id id
+ :reducer/net reducer-net
+ :reducer/slots slots}
+```
+
+Cell merge owns the retained `:reducer/slots` map. Matching reducer id/net
+updates merge by slot key, and same-slot values are merged through ordinary
+`cell-merge`. Different reducer ids or reducer nets contradict. The strongest
+view runs the reducer net once as a pure projection and exposes:
+
+```clojure
+{:reduced/dependence dependence
+ :reduced/epoch epoch
+ :reduced/result result}
+```
+
+The reducer net must bind `:slots` and `:out` in its dict. It may also bind
+`:dependence` and `:epoch`; otherwise the strongest view uses a default
+dependence of `#{[:reducer/id id]}` and a deterministic epoch derived from the
+reducer id, reducer net identity, and merged slots.
+
+This is not a migration of the existing behavior protocol. It is the shared
+shape we can specialize later:
+
+- behavior events can be reducer slots, with the reducer net computing retained
+  history and current value;
+- lexical traversal can emit candidate slots, with the reducer net choosing the
+  nearest candidate and recording selected scope dependence;
+- future TMS support can put supports/premises in slot values, while strongest
+  projects the currently active result and dependence.
+
+The current tests cover reducer-cell merge/idempotence/conflict behavior, raw
+projection through `p:reduced-result`, installer helpers, a lexical-candidate
+selection probe, and a flat-GUR traversal that emits reducer slots while walking
+a live `p:cons` list. Behavior and compiler-2 still use their existing paths.
+
+## Reducer-Cell TMS Experiment
+
+`propagators.datastructures.tms` specializes reducer-cell into a small truth
+maintenance projection. It does not add a kernel TMS. Claims and premise states
+are ordinary reducer slots:
+
+```clojure
+(tms/claim :c1 :answer 10 #{:a})
+(tms/premise-state :a 0 true)
+(tms/premise-state :a 1 false)
+```
+
+The reducer strongest view computes:
+
+- latest premise state by premise id and epoch;
+- active claims whose supports are all active;
+- proposition entries, including conflict when active claims for one proposition
+  justify different values;
+- reduced dependence and epoch metadata through the reducer net.
+
+This gives retraction-like behavior at the reducer-cell strongest boundary:
+adding a later false premise does not delete old cell content, but the projected
+TMS view can change from `:answer -> 10` to `:answer -> nothing`.
+
+Raw projection to an ordinary output cell is intentionally weaker.
+`tms/p:tms-proposition` can tell the currently active value to a plain cell, but
+if a later TMS epoch makes that proposition inactive, the old plain value cannot
+be retracted by sending `nothing`. TMS-aware consumers should inspect the reducer
+cell strongest view or use a future TMS-aware cell protocol, not rely on a raw
+plain-cell adapter for retraction.
+
+The recursive traversal test follows the intended no-materialization shape:
+a flat-GUR recursive declaration walks a live linked list with `i/car` and
+`i/cdr`, then emits each claim as slotful reducer evidence with
+`i/reducer-slot`. The reducer does not inspect or materialize the source list.
+
 ## History Algebra
 
 `propagators.datastructures.behavior-algebra` defines pure operations over

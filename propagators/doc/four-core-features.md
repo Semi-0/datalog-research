@@ -63,7 +63,12 @@ eval-propagator  →  messages  →  eval-cell  →  cell-merge  →  [dependenc
 
 `eval-propagator` and `eval-cell` stay dumb: enqueue topology, merge payload, compare strongest, wake neighbors. Any future TMS records **what merge accepted** and **from which contribution**, not “which step ran” in the evaluator.
 
-**This repo:** **Not implemented** as a subsystem. `cell-merge` today only combines partial **values** (default, named-network evidence, compound updates). Layered **`:provenance`** is still separate **domain data** merged like any other slot — not generic dependence.
+**This repo:** **Not implemented** as a generic subsystem. `cell-merge` today
+only combines partial **values** (default, named-network evidence, compound
+updates, reducer-cell slot evidence). Layered **`:provenance`** is still
+separate **domain data** merged like any other slot — not generic dependence.
+`propagators.datastructures.tms` is a reducer-cell experiment that projects TMS
+views from monotone claim/premise slots; it is not yet a repo-wide merge-time TMS.
 
 See [Provenance vs dependence](#provenance-vs-dependence-layered) below and [Compound Object Slot Sync](compound-object-slot-sync.md) § future dependence tracking.
 
@@ -88,7 +93,7 @@ See [Provenance vs dependence](#provenance-vs-dependence-layered) below and [Com
 | 1 | **Networked semantics** | **Done** — `graph`, installers | **Done** — immutable `Net` (`graph` + `env` + `dict`), variadic installers, `compile` DSL, runtime compounds, layered/compound-object subnets as network-shaped values |
 | 2 | **Fixpoint evaluation** | **Done** — `run-tasks` | **Done** — same core loop; inner fixpoints in compounds and `p:apply-layered`; explicit `nb/run-propagators` / `install-propagator!` for caller-controlled drains |
 | 3 | **Partial information** | **Partial** — `CellValue` kinds; strongest often identity | **Stronger partial** — named-network evidence merge, layered slots, compound subnet state, arithmetic **provenance layer** on outputs; still not full generic merge lattice; contradiction stub |
-| 4 | **Dependence tracking** | **No** — merge-time subsystem | **Still no** — `cell-merge` has no TMS; layered `:provenance` is domain data, not merge justifications |
+| 4 | **Dependence tracking** | **No** — merge-time subsystem | **Still no generic subsystem** — reducer-cell TMS can project claim/premise slots, but `cell-merge` has no repo-wide TMS; layered `:provenance` is domain data, not merge justifications |
 
 ---
 
