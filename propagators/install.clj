@@ -201,26 +201,39 @@
            (fvm/install-topology [(:scope ctx**) :slot slot-key elem-id coll-id]
                                  (obj/p:slot slot-key elem-id coll-id))))))
 
+(defn- reducer-slot*
+  [ctx reducer-id args]
+  (let [[merge-net strongest-net slot-key value reducer]
+        (if (= 5 (count args))
+          args
+          (throw (ex-info "reducer-slot expects merge net and strongest net"
+                          {:reducer-id reducer-id :args args})))
+        [ctx* value-id] (resolve-arg ctx value)
+        [ctx** reducer-id*] (resolve-arg ctx* reducer)]
+    (emit ctx**
+          (fvm/install-topology [(:scope ctx**)
+                                 :reducer-slot
+                                 reducer-id
+                                 (some-> merge-net pr-str hash)
+                                 (hash (pr-str strongest-net))
+                                 slot-key
+                                 value-id
+                                 reducer-id*]
+                                (reducer-cell/p:reducer-slot reducer-id
+                                                             merge-net
+                                                             strongest-net
+                                                             slot-key
+                                                             value-id
+                                                             reducer-id*)))))
+
 (defn reducer-slot
-  ([reducer-id reducer-net slot-key value reducer]
-   (fn [ctx]
-     (reducer-slot ctx reducer-id reducer-net slot-key value reducer)))
-  ([ctx reducer-id reducer-net slot-key value reducer]
-   (let [[ctx* value-id] (resolve-arg ctx value)
-         [ctx** reducer-id*] (resolve-arg ctx* reducer)]
-     (emit ctx**
-           (fvm/install-topology [(:scope ctx**)
-                                  :reducer-slot
-                                  reducer-id
-                                  (hash (pr-str reducer-net))
-                                  slot-key
-                                  value-id
-                                  reducer-id*]
-                                 (reducer-cell/p:reducer-slot reducer-id
-                                                              reducer-net
-                                                              slot-key
-                                                              value-id
-                                                              reducer-id*))))))
+  [& xs]
+  (if (context? (first xs))
+    (let [[ctx reducer-id & args] xs]
+      (reducer-slot* ctx reducer-id args))
+    (let [[reducer-id & args] xs]
+      (fn [ctx]
+        (reducer-slot* ctx reducer-id args)))))
 
 (def reduced-result
   (relation :reduced-result reducer-cell/p:reduced-result))

@@ -104,3 +104,11 @@
 (deftest install-namespace-does-not-call-merge-cell-entry
   (is (not (re-find #"merge-cell-entry"
                     (slurp "propagators/install.clj")))))
+
+(deftest reducer-slot-requires-merge-and-strongest-nets
+  (try
+    (-> (i/context net/empty-net [:strict-reducer])
+        (i/reducer-slot :r net/empty-net :a :value :reducer))
+    (is false "expected old one-net reducer-slot shape to throw")
+    (catch clojure.lang.ExceptionInfo e
+      (is (re-find #"merge net and strongest net" (ex-message e))))))

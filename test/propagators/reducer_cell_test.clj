@@ -50,6 +50,42 @@
       explicit-meta? (net/assoc-net-dict-entry :dependence dep-id)
       explicit-meta? (net/assoc-net-dict-entry :epoch epoch-id))))
 
+(defn- slot-merge-net
+  [tag]
+  (let [content-id (node-id tag :content)
+        update-id (node-id tag :update)
+        out-id (node-id tag :merge-out)
+        n0 (-> net/empty-net
+               (nb/install-cell content-id)
+               (nb/install-cell update-id)
+               (nb/install-cell out-id))
+        [_ n1] ((prop/construct-propagator
+                 (fn [_inputs _outputs network]
+                   (let [content (net/network-cell-strongest network content-id)
+                         update (net/network-cell-strongest network update-id)
+                         content* (if (value/nothing? content) {} content)
+                         update* (if (value/nothing? update) {} update)
+                         merged (reduce-kv
+                                 (fn [slots k v]
+                                   (if (contains? slots k)
+                                     (if (= (get slots k) v)
+                                       slots
+                                       (reduced value/contradiction))
+                                     (assoc slots k v)))
+                                 content*
+                                 update*)]
+                     [(message out-id merged)]))
+                 [content-id update-id]
+                 [out-id])
+                n0)]
+    (-> n1
+        (net/assoc-net-dict-entry :content content-id)
+        (net/assoc-net-dict-entry :update update-id)
+        (net/assoc-net-dict-entry :out out-id))))
+
+(def default-merge-net
+  (slot-merge-net :default-merge))
+
 (def map-reducer-net
   (projection-net :map (fn [slots] {:out (or slots {})})))
 
@@ -123,7 +159,8 @@
                :out out-id})
          (i/car :head :xs)
          (i/cdr :rest :xs)
-         (i/reducer-slot :collect
+        (i/reducer-slot :collect
+                         default-merge-net
                          collect-reducer-net
                          [:head (:scope ctx)]
                          :head
@@ -133,15 +170,23 @@
            (i/recur [:rest :reducer] :out))))))
 
 (deftest empty-reducer-returns-reduced-value
-  (let [v (merge/strongest-value (reducer/reducer-cell :r map-reducer-net)
+  (let [v (merge/strongest-value (reducer/reducer-cell :r
+                                                       default-merge-net
+                                                       map-reducer-net)
                                 net/empty-net)]
     (is (reducer/reduced-value? v))
     (is (= {} (reducer/reduced-result v)))
     (is (= #{[:reducer/id :r]} (reducer/reduced-dependence v)))))
 
+(deftest reducer-cell-retains-explicit-merge-and-strongest-nets
+  (let [content (reducer/reducer-cell :r default-merge-net map-reducer-net)]
+    (is (= default-merge-net (reducer/merge-net content)))
+    (is (= map-reducer-net (reducer/strongest-net content)))
+    (is (not (contains? content :reducer/net)))))
+
 (deftest slot-updates-merge-into-one-reducer-cell
-  (let [a (reducer/reducer-slot-update :r map-reducer-net :a 1)
-        b (reducer/reducer-slot-update :r map-reducer-net :b 2)
+  (let [a (reducer/reducer-slot-update :r default-merge-net map-reducer-net :a 1)
+        b (reducer/reducer-slot-update :r default-merge-net map-reducer-net :b 2)
         merged (merge/cell-merge a b net/empty-net)]
     (is (reducer/reducer-cell? merged))
     (is (= {:a 1 :b 2} (reducer/reducer-slots merged)))
@@ -151,33 +196,39 @@
                reducer/reduced-result)))))
 
 (deftest repeated-slot-update-is-idempotent
-  (let [update (reducer/reducer-slot-update :r map-reducer-net :a 1)
+  (let [update (reducer/reducer-slot-update :r default-merge-net map-reducer-net :a 1)
         merged (merge/cell-merge update update net/empty-net)]
     (is (= update merged))))
 
 (deftest conflicting-slot-values-contradict
-  (let [a (reducer/reducer-slot-update :r map-reducer-net :a 1)
-        b (reducer/reducer-slot-update :r map-reducer-net :a 2)]
+  (let [a (reducer/reducer-slot-update :r default-merge-net map-reducer-net :a 1)
+        b (reducer/reducer-slot-update :r default-merge-net map-reducer-net :a 2)]
     (is (= value/contradiction
            (merge/cell-merge a b net/empty-net)))))
 
 (deftest different-reducer-ids-contradict
-  (let [a (reducer/reducer-slot-update :r1 map-reducer-net :a 1)
-        b (reducer/reducer-slot-update :r2 map-reducer-net :b 2)]
+  (let [a (reducer/reducer-slot-update :r1 default-merge-net map-reducer-net :a 1)
+        b (reducer/reducer-slot-update :r2 default-merge-net map-reducer-net :b 2)]
     (is (= value/contradiction
            (merge/cell-merge a b net/empty-net)))))
 
 (deftest strongest-uses-explicit-dependence-and-epoch-when-present
-  (let [content (reducer/reducer-cell :r meta-reducer-net {:a 1 :b 2})
+  (let [content (reducer/reducer-cell :r default-merge-net meta-reducer-net {:a 1 :b 2})
         reduced (merge/strongest-value content net/empty-net)]
     (is (= 2 (reducer/reduced-result reduced)))
     (is (= #{[:selected :a]} (reducer/reduced-dependence reduced)))
     (is (= [:count 2] (reducer/reduced-epoch reduced)))))
 
 (deftest changing-slots-changes-default-epoch
-  (let [a (merge/strongest-value (reducer/reducer-cell :r map-reducer-net {:a 1})
+  (let [a (merge/strongest-value (reducer/reducer-cell :r
+                                                       default-merge-net
+                                                       map-reducer-net
+                                                       {:a 1})
                                 net/empty-net)
-        b (merge/strongest-value (reducer/reducer-cell :r map-reducer-net {:a 2})
+        b (merge/strongest-value (reducer/reducer-cell :r
+                                                       default-merge-net
+                                                       map-reducer-net
+                                                       {:a 2})
                                 net/empty-net)]
     (is (not= (reducer/reduced-epoch a)
               (reducer/reduced-epoch b)))))
@@ -190,7 +241,12 @@
                (nb/install-cell value-id)
                (nb/install-cell reducer-id)
                (nb/install-cell out-id))
-        [_ n1] ((reducer/p:reducer-slot :r map-reducer-net :a value-id reducer-id)
+        [_ n1] ((reducer/p:reducer-slot :r
+                                        default-merge-net
+                                        map-reducer-net
+                                        :a
+                                        value-id
+                                        reducer-id)
                 n0)
         [_ n2] ((reducer/p:reduced-result reducer-id out-id)
                 n1)
@@ -201,7 +257,7 @@
 (deftest install-helpers-emit-slots-and-project-result
   (let [n (-> (i/context net/empty-net [:install-reducer])
               (i/tell :value 9)
-              (i/reducer-slot :r map-reducer-net :a :value :reducer)
+              (i/reducer-slot :r default-merge-net map-reducer-net :a :value :reducer)
               (i/reduced-result :reducer :out)
               (i/run))
         out-id (i/cell-id (i/context n [:install-reducer]) :out)]
@@ -210,9 +266,17 @@
 (deftest lexical-candidate-reducer-selects-child-without-contradiction
   (let [parent {:scope :parent :distance 1 :value 10}
         child {:scope :child :distance 0 :value 20}
-        content (-> (reducer/reducer-slot-update :lex lexical-reducer-net [:x :parent] parent)
+        content (-> (reducer/reducer-slot-update :lex
+                                                 default-merge-net
+                                                 lexical-reducer-net
+                                                 [:x :parent]
+                                                 parent)
                     (merge/cell-merge
-                     (reducer/reducer-slot-update :lex lexical-reducer-net [:x :child] child)
+                     (reducer/reducer-slot-update :lex
+                                                  default-merge-net
+                                                  lexical-reducer-net
+                                                  [:x :child]
+                                                  child)
                      net/empty-net))
         reduced (merge/strongest-value content net/empty-net)]
     (is (reducer/reduced-value? reduced))

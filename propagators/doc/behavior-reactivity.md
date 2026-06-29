@@ -149,14 +149,23 @@ for slotful evidence:
 
 ```clojure
 {:reducer/id id
- :reducer/net reducer-net
+ :reducer/merge-net merge-net
+ :reducer/strongest-net strongest-net
  :reducer/slots slots}
 ```
 
-Cell merge owns the retained `:reducer/slots` map. Matching reducer id/net
-updates merge by slot key, and same-slot values are merged through ordinary
-`cell-merge`. Different reducer ids or reducer nets contradict. The strongest
-view runs the reducer net once as a pure projection and exposes:
+Cell merge owns the retained `:reducer/slots` map, but the retention policy is
+itself a reducer network. Matching reducer id, merge-net, and strongest-net
+updates run the merge net over:
+
+```clojure
+:content -> current retained slots
+:update  -> incoming slot update
+:out     -> new retained slots
+```
+
+Different reducer ids or reducer nets contradict. The strongest view runs the
+strongest net once as a pure projection and exposes:
 
 ```clojure
 {:reduced/dependence dependence
@@ -188,21 +197,46 @@ a live `p:cons` list. Behavior and compiler-2 still use their existing paths.
 
 `propagators.datastructures.tms` specializes reducer-cell into a small truth
 maintenance projection. It does not add a kernel TMS. Claims and premise states
-are ordinary reducer slots:
+are compound-object values stored as ordinary reducer slots:
 
 ```clojure
-(tms/claim :c1 :answer 10 #{:a})
+(tms/claim :c1
+           :answer
+           10
+           [(tms/support :a
+                         (scoped/name-ref [:scope :child] 'x)
+                         :lexical/read)])
+
 (tms/premise-state :a 0 true)
 (tms/premise-state :a 1 false)
 ```
 
-The reducer strongest view computes:
+The claim, support, and premise-state records expose their fields through
+compound-object slots. A support has:
 
-- latest premise state by premise id and epoch;
+```clojure
+{:support/premise premise
+ :support/source source
+ :support/kind kind}
+```
+
+The `:support/source` value may be a `propagators.scoped-address/name-ref`.
+The focused test registers a child scope with `gur.subenv.env` and verifies that
+the same source address resolves through `env/resolve-dispatch` to
+`[:dispatch/subenv owner local]`. That means provenance can carry the same
+scoped addresses used by sub-env routing. It does not mean the TMS projection
+executes lexical routing itself; reducer strongest still decides the active
+truth view from retained slots.
+
+The TMS merge net retains raw claim/premise facts and also normalizes latest
+premise state into `[:tms/latest-premise premise]` slots. The reducer strongest
+view computes:
+
+- active premise state from those merge-retained latest-premise slots;
 - active claims whose supports are all active;
 - proposition entries, including conflict when active claims for one proposition
   justify different values;
-- reduced dependence and epoch metadata through the reducer net.
+- reduced dependence and epoch metadata through the strongest net.
 
 This gives retraction-like behavior at the reducer-cell strongest boundary:
 adding a later false premise does not delete old cell content, but the projected
@@ -219,6 +253,13 @@ The recursive traversal test follows the intended no-materialization shape:
 a flat-GUR recursive declaration walks a live linked list with `i/car` and
 `i/cdr`, then emits each claim as slotful reducer evidence with
 `i/reducer-slot`. The reducer does not inspect or materialize the source list.
+
+This makes the current TMS experiment a useful bridge for future lexical/TMS
+work: recursive traversal can emit compound claim/support facts, support sources
+can point at scoped sub-env addresses, and reducer strongest can project a
+truth view with dependence/epoch metadata. The missing piece is still a
+repo-wide TMS-aware cell protocol for retraction/justification; plain output
+cells remain monotone.
 
 ## History Algebra
 

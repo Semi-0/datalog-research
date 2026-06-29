@@ -6,10 +6,13 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.reducer-cell :as reducer]
             [propagators.datastructures.tms :as tms]
+            [propagators.gur.subenv.env :as env]
             [propagators.install :as i]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.network-vm.flat :as fvm]
-            [propagators.network-vm.flat.gur :as fgur]))
+            [propagators.network-vm.flat.gur :as fgur]
+            [propagators.scoped-address :as scoped]))
 
 (defn- node-id
   [& parts]
@@ -38,6 +41,12 @@
   (-> content
       (merge/strongest-value net/empty-net)
       reducer/reduced-result))
+
+(defn- support
+  ([premise]
+   (support premise [:premise premise]))
+  ([premise source]
+   (tms/support premise source :test/support)))
 
 (defn- source-list-effects
   [run-key values]
@@ -74,8 +83,9 @@
                :out out-id})
          (i/car :claim :claims)
          (i/cdr :rest :claims)
-        (i/reducer-slot :truth
-                         tms/reducer-net
+         (i/reducer-slot :truth
+                         tms/merge-net
+                         tms/strongest-net
                          [:claim (:scope ctx)]
                          :claim
                          :tms)
@@ -84,22 +94,67 @@
            (i/recur [:rest :tms] :out))))))
 
 (deftest tms-view-activates-supported-claims
-  (let [view (tms/tms-view
-              {(tms/claim-slot-key :c1)
-               (tms/claim :c1 :answer 10 #{:a})
-               (tms/premise-slot-key :a 0)
-               (tms/premise-state :a 0 true)})]
+  (let [raw-slots {(tms/claim-slot-key :c1)
+                (tms/claim :c1 :answer 10 [(support :a)])
+                   (tms/premise-slot-key :a 0)
+                   (tms/premise-state :a 0 true)}
+        raw-view (tms/tms-view raw-slots)
+        slots (tms/merge-slots
+               {}
+               raw-slots)
+        view (tms/tms-view slots)]
+    (is (value/nothing? (tms/proposition-value raw-view :answer))
+        "TMS strongest consumes merge-normalized latest-premise slots only.")
     (is (= #{:a} (tms/active-premises view)))
+    (is (= (tms/premise-state-data (tms/premise-state :a 0 true))
+           (tms/premise-state-data
+            (get slots (tms/latest-premise-slot-key :a)))))
     (is (= 10 (tms/proposition-value view :answer)))))
+
+(deftest tms-facts-are-compound-objects-with-slotful-supports
+  (let [source (scoped/name-ref [:scope :child] 'x)
+        s (support :a source)
+        c (tms/claim :c1 :answer 10 [s])
+        p (tms/premise-state :a 0 true)]
+    (is (= #{:tms/kind :tms/claim-id :tms/proposition :tms/value :tms/supports}
+           (obj/public-slot-keys c)))
+    (is (= #{:tms/kind :support/premise :support/source :support/kind}
+           (obj/public-slot-keys s)))
+    (is (= #{:tms/kind :tms/premise :tms/epoch :tms/active?}
+           (obj/public-slot-keys p)))
+    (is (tms/claim? c))
+    (is (tms/support? s))
+    (is (tms/premise-state? p))
+    (is (= :c1 (tms/claim-id c)))
+    (is (= [s] (tms/support-objects c)))
+    (is (= #{:a} (tms/supports c)))
+    (is (= source (tms/support-source s)))))
+
+(deftest compound-support-source-reuses-subenv-routing-address
+  (let [scope [:scope :child]
+        local-id (node-id :routing :local)
+        owner-id (node-id :routing :owner)
+        source (scoped/name-ref scope 'x)
+        s (support :a source)
+        child-net (-> net/empty-net
+                      (nb/ensure-cell local-id)
+                      (env/extend-env scope)
+                      (env/bind 'x local-id))
+        directory (env/register-subenv-from-owner net/empty-net
+                                                  owner-id
+                                                  child-net)]
+    (is (= source (tms/support-source s)))
+    (is (= [:dispatch/subenv owner-id local-id]
+           (env/resolve-dispatch directory source net/empty-net)))))
 
 (deftest tms-reducer-cell-projects-active-conflict
   (let [content (merge-updates
                  (tms/premise-update :truth :a 0 true)
                  (tms/premise-update :truth :b 0 true)
                  (tms/claim-update :truth
-                                   (tms/claim :c1 :answer 10 #{:a}))
+                                   (tms/claim :c1 :answer 10 [(support :a)]))
                  (tms/claim-update :truth
-                                   (tms/claim :c2 :answer 20 #{:b})))
+                                   (tms/claim :c2 :answer 20 [(support :b)])))
         view (reduced-view content)
         entry (tms/proposition-entry-for view :answer)]
     (is (= #{:a :b} (tms/active-premises view)))
@@ -111,7 +166,7 @@
   (let [content (merge-updates
                  (tms/premise-update :truth :a 0 true)
                  (tms/claim-update :truth
-                                   (tms/claim :c1 :answer 10 #{:a})))
+                                   (tms/claim :c1 :answer 10 [(support :a)])))
         before (merge/strongest-value content net/empty-net)
         content* (merge/cell-merge content
                                    (tms/premise-update :truth :a 1 false)
@@ -130,7 +185,7 @@
               (i/tell :active true)
               (i/tell :claim-value 42)
               (i/tms-premise :truth :a 0 :active :tms)
-              (i/tms-claim :truth :c1 :answer #{:a} :claim-value :tms)
+              (i/tms-claim :truth :c1 :answer [(support :a)] :claim-value :tms)
               (i/tms-proposition :answer :tms :out)
               (i/run))
         out-id (i/cell-id (i/context n [:tms-installer]) :out)]
@@ -138,8 +193,8 @@
 
 (deftest recursive-linked-list-claims-feed-tms-reducer-without-materializing-list
   (let [run-key [:recursive-claims]
-        claims [(tms/claim :c1 :answer 10 #{:a})
-                (tms/claim :c2 :answer 20 #{:b})]
+        claims [(tms/claim :c1 :answer 10 [(support :a)])
+                (tms/claim :c2 :answer 20 [(support :b)])]
         {:keys [root-id effects]} (source-list-effects run-key claims)
         closure-id (node-id run-key :closure)
         tms-id (node-id run-key :tms)

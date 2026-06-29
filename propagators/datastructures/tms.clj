@@ -3,8 +3,8 @@
 
   This is not a kernel TMS. Claims and premise states are monotone reducer slots;
   the strongest reducer projection computes the currently active view."
-  (:require [propagators.cells.cell :as cell]
-            [propagators.cells.value :as value]
+  (:require [propagators.cells.value :as value]
+            [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.reducer-cell :as reducer]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -15,6 +15,9 @@
            [java.util UUID]))
 
 (def reducer-id :tms/default)
+(def claim-kind :claim)
+(def premise-state-kind :premise-state)
+(def support-kind :support)
 
 (defn- stable-node-id
   [& seed]
@@ -24,44 +27,79 @@
 
 (defn claim
   [claim-id proposition v supports]
-  {:tms/kind :claim
-   :tms/claim-id claim-id
-   :tms/proposition proposition
-   :tms/value v
-   :tms/supports (set supports)})
+  (obj/compound-object
+   {:tms/kind claim-kind
+    :tms/claim-id claim-id
+    :tms/proposition proposition
+    :tms/value v
+    :tms/supports (obj/compound-object (vec supports))}))
+
+(defn support
+  [premise source kind]
+  (obj/compound-object
+   {:tms/kind support-kind
+    :support/premise premise
+    :support/source source
+    :support/kind kind}))
 
 (defn claim?
   [x]
-  (and (map? x)
-       (= :claim (:tms/kind x))
-       (contains? x :tms/claim-id)
-       (contains? x :tms/proposition)
-       (contains? x :tms/value)
-       (set? (:tms/supports x))))
+  (= claim-kind (obj/slot-value x :tms/kind)))
 
-(defn claim-id [x] (:tms/claim-id x))
-(defn proposition [x] (:tms/proposition x))
-(defn claim-value [x] (:tms/value x))
-(defn supports [x] (:tms/supports x))
+(defn support?
+  [x]
+  (= support-kind (obj/slot-value x :tms/kind)))
+
+(defn claim-id [x] (obj/slot-value x :tms/claim-id))
+(defn proposition [x] (obj/slot-value x :tms/proposition))
+(defn claim-value [x] (obj/slot-value x :tms/value))
+(defn support-premise [x] (obj/slot-value x :support/premise))
+(defn support-source [x] (obj/slot-value x :support/source))
+(defn support-kind-value [x] (obj/slot-value x :support/kind))
+
+(defn- compound-seq-values
+  [x]
+  (let [count-value (obj/slot-value x :count)]
+    (if (integer? count-value)
+      (mapv #(obj/slot-value x %) (range count-value))
+      (mapv #(obj/slot-value x %)
+            (sort-by pr-str (remove #{:count} (obj/public-slot-keys x)))))))
+
+(defn support-objects
+  [x]
+  (filterv support? (compound-seq-values (obj/slot-value x :tms/supports))))
+
+(defn supports
+  [x]
+  (set (map support-premise (support-objects x))))
 
 (defn premise-state
   [premise epoch active?]
-  {:tms/kind :premise-state
-   :tms/premise premise
-   :tms/epoch epoch
-   :tms/active? (boolean active?)})
+  (obj/compound-object
+   {:tms/kind premise-state-kind
+    :tms/premise premise
+    :tms/epoch epoch
+    :tms/active? (boolean active?)}))
 
 (defn premise-state?
   [x]
-  (and (map? x)
-       (= :premise-state (:tms/kind x))
-       (contains? x :tms/premise)
-       (contains? x :tms/epoch)
-       (contains? x :tms/active?)))
+  (= premise-state-kind (obj/slot-value x :tms/kind)))
 
-(defn premise [x] (:tms/premise x))
-(defn epoch [x] (:tms/epoch x))
-(defn active? [x] (:tms/active? x))
+(defn premise [x] (obj/slot-value x :tms/premise))
+(defn epoch [x] (obj/slot-value x :tms/epoch))
+(defn active? [x] (obj/slot-value x :tms/active?))
+
+(defn claim-slot-key
+  [claim-id]
+  [:tms/claim claim-id])
+
+(defn premise-slot-key
+  [premise epoch]
+  [:tms/premise premise epoch])
+
+(defn latest-premise-slot-key
+  [premise]
+  [:tms/latest-premise premise])
 
 (defn- epoch-rank
   [e]
@@ -76,6 +114,20 @@
        (map (fn [[p xs]]
               [p (last (sort-by (comp epoch-rank epoch) xs))]))
        (into {})))
+
+(defn- latest-premise-slots
+  [slots]
+  (->> (or slots {})
+       (keep (fn [[k v]]
+               (when (and (vector? k)
+                          (= :tms/latest-premise (first k))
+                          (premise-state? v))
+                 [(second k) v])))
+       (into {})))
+
+(defn- current-premise-states
+  [slots]
+  (latest-premise-slots slots))
 
 (defn- claim-active?
   [active-premises c]
@@ -97,7 +149,7 @@
   [slots]
   (let [facts (vals (or slots {}))
         claims (filterv claim? facts)
-        latest-premises (latest-premise-states (filter premise-state? facts))
+        latest-premises (current-premise-states slots)
         active-premises (->> latest-premises
                              (filter (comp active? val))
                              (map key)
@@ -140,12 +192,92 @@
   [slots]
   [:tms/epoch (hash (pr-str (sort-by (comp pr-str key) (or slots {}))))])
 
-(def reducer-net
-  (let [slots-id (stable-node-id ::reducer :slots)
-        out-id (stable-node-id ::reducer :out)
-        dependence-id (stable-node-id ::reducer :dependence)
-        epoch-id (stable-node-id ::reducer :epoch)
-        prop-id (stable-node-id ::reducer :project)
+(defn support-data
+  [x]
+  {:support/premise (support-premise x)
+   :support/source (support-source x)
+   :support/kind (support-kind-value x)})
+
+(defn claim-data
+  [x]
+  {:tms/claim-id (claim-id x)
+   :tms/proposition (proposition x)
+   :tms/value (claim-value x)
+   :tms/supports (set (map support-data (support-objects x)))})
+
+(defn premise-state-data
+  [x]
+  {:tms/premise (premise x)
+   :tms/epoch (epoch x)
+   :tms/active? (active? x)})
+
+(defn- fact-data
+  [x]
+  (cond
+    (claim? x) [:claim (claim-data x)]
+    (premise-state? x) [:premise-state (premise-state-data x)]
+    :else [:value x]))
+
+(defn- fact-equal?
+  [a b]
+  (= (fact-data a) (fact-data b)))
+
+(defn- merge-slot-maps
+  [content update]
+  (reduce-kv
+   (fn [slots k v]
+     (if (contains? slots k)
+       (if (fact-equal? (get slots k) v)
+         slots
+         (reduced value/contradiction))
+       (assoc slots k v)))
+   (or content {})
+   (or update {})))
+
+(defn merge-slots
+  [content update]
+  (let [merged (merge-slot-maps content update)]
+    (if (value/contradiction? merged)
+      value/contradiction
+      (let [latest (latest-premise-states
+                    (filter premise-state? (vals merged)))]
+        (reduce-kv
+         (fn [slots p state]
+           (assoc slots (latest-premise-slot-key p) state))
+         merged
+         latest)))))
+
+(def merge-net
+  (let [content-id (stable-node-id ::merge :content)
+        update-id (stable-node-id ::merge :update)
+        out-id (stable-node-id ::merge :out)
+        prop-id (stable-node-id ::merge :project)
+        n0 (-> net/empty-net
+               (nb/install-cell content-id)
+               (nb/install-cell update-id)
+               (nb/install-cell out-id))
+        [_ n1] ((prop/construct-propagator
+                 prop-id
+                 (fn [_inputs _outputs network]
+                   (let [content (net/network-cell-strongest network content-id)
+                         update (net/network-cell-strongest network update-id)
+                         content* (if (value/nothing? content) {} content)
+                         update* (if (value/nothing? update) {} update)]
+                     [(message out-id (merge-slots content* update*))]))
+                 [content-id update-id]
+                 [out-id])
+                n0)]
+    (-> n1
+        (net/assoc-net-dict-entry :content content-id)
+        (net/assoc-net-dict-entry :update update-id)
+        (net/assoc-net-dict-entry :out out-id))))
+
+(def strongest-net
+  (let [slots-id (stable-node-id ::strongest :slots)
+        out-id (stable-node-id ::strongest :out)
+        dependence-id (stable-node-id ::strongest :dependence)
+        epoch-id (stable-node-id ::strongest :epoch)
+        prop-id (stable-node-id ::strongest :project)
         n0 (-> net/empty-net
                (nb/install-cell slots-id)
                (nb/install-cell out-id)
@@ -170,27 +302,24 @@
 
 (defn tms-cell
   ([] (tms-cell reducer-id))
-  ([id] (reducer/reducer-cell id reducer-net)))
-
-(defn claim-slot-key
-  [claim-id]
-  [:tms/claim claim-id])
-
-(defn premise-slot-key
-  [premise epoch]
-  [:tms/premise premise epoch])
+  ([id] (reducer/reducer-cell id merge-net strongest-net {})))
 
 (defn claim-update
   ([c] (claim-update reducer-id c))
   ([id c]
-   (reducer/reducer-slot-update id reducer-net (claim-slot-key (claim-id c)) c)))
+   (reducer/reducer-slot-update id
+                                merge-net
+                                strongest-net
+                                (claim-slot-key (claim-id c))
+                                c)))
 
 (defn premise-update
   ([premise epoch active?]
    (premise-update reducer-id premise epoch active?))
   ([id premise epoch active?]
    (reducer/reducer-slot-update id
-                                reducer-net
+                                merge-net
+                                strongest-net
                                 (premise-slot-key premise epoch)
                                 (premise-state premise epoch active?))))
 
