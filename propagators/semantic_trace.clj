@@ -1,18 +1,51 @@
 (ns propagators.semantic-trace
   "Semantic graph tracing as data and as a propagator."
-  (:require [propagators.cells.value :as value]
+  (:require [clojure.set :as set]
+            [propagators.cells.value :as value]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
+(defn- alias-node-set
+  [v]
+  (cond
+    (nil? v) #{}
+    (set? v) v
+    (sequential? v) (set v)
+    :else #{v}))
+
+(defn- merge-node-aliases
+  [graphs]
+  (apply merge-with
+         set/union
+         (map (fn [aliases]
+                (into {}
+                      (map (fn [[k v]] [k (alias-node-set v)]))
+                      aliases))
+              (map #(or (:node-aliases %) {}) graphs))))
+
 (defn- target-nodes
   [{:keys [nodes node-aliases]} {:keys [node label]}]
   (cond
-    node (set (remove nil? [node (get node-aliases node)]))
+    node (into #{node} (alias-node-set (get node-aliases node)))
     label (set (keep (fn [[id node-label]]
                        (when (= label node-label) id))
                      nodes))
     :else #{}))
+
+(defn- alias-equivalents
+  [node-aliases]
+  (reduce (fn [equiv nodes]
+            (reduce (fn [equiv node]
+                      (update equiv node (fnil into #{}) nodes))
+                    equiv
+                    nodes))
+          {}
+          (map alias-node-set (vals node-aliases))))
+
+(defn- expand-equivalents
+  [equiv nodes]
+  (into nodes (mapcat #(get equiv % #{})) nodes))
 
 (defn- step-edges
   [edges direction frontier]
@@ -47,7 +80,7 @@
   (let [graphs (remove value/unusable? graphs)]
     {:semantic-trace/graph true
      :nodes (apply merge (map :nodes graphs))
-     :node-aliases (apply merge (map #(or (:node-aliases %) {}) graphs))
+     :node-aliases (merge-node-aliases graphs)
      :values (apply merge (map :values graphs))
      :edges (vec (distinct (mapcat :edges graphs)))}))
 
@@ -59,7 +92,8 @@
   [graph request]
   (let [edges (:edges graph)
         direction (or (:direction request) :upstream)
-        start (target-nodes graph request)]
+        equiv (alias-equivalents (:node-aliases graph))
+        start (expand-equivalents equiv (target-nodes graph request))]
     (loop [seen start
            frontier start
            kept []]
@@ -69,7 +103,7 @@
                         :values (select-keys (:values graph) seen)
                         :edges kept}))
         (let [next-edges (vec (step-edges edges direction frontier))
-              next-nodes (set (mapcat identity next-edges))
+              next-nodes (expand-equivalents equiv (set (mapcat identity next-edges)))
               new-nodes (set (remove seen next-nodes))]
           (recur (into seen new-nodes)
                  new-nodes
