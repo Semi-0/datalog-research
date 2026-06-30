@@ -6,19 +6,12 @@
             [propagators.propagator :as prop]))
 
 (defn- target-nodes
-  [{:keys [nodes node-aliases values]} {:keys [node label value-label]}]
+  [{:keys [nodes node-aliases]} {:keys [node label]}]
   (cond
-    node (set (concat (remove nil? [node (get node-aliases node)])
-                      (when value-label
-                        (keep (fn [[id v]]
-                                (when (= value-label v) id))
-                              values))))
+    node (set (remove nil? [node (get node-aliases node)]))
     label (set (keep (fn [[id node-label]]
                        (when (= label node-label) id))
                      nodes))
-    value-label (set (keep (fn [[id v]]
-                             (when (= value-label v) id))
-                           values))
     :else #{}))
 
 (defn- step-edges
@@ -54,6 +47,7 @@
   (let [graphs (remove value/unusable? graphs)]
     {:semantic-trace/graph true
      :nodes (apply merge (map :nodes graphs))
+     :node-aliases (apply merge (map #(or (:node-aliases %) {}) graphs))
      :values (apply merge (map :values graphs))
      :edges (vec (distinct (mapcat :edges graphs)))}))
 
