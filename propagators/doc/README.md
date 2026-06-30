@@ -57,6 +57,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
   slot-backed closure data, activation-local application evaluation, contextual
   dependency arithmetic, and common algebra shared with compound/layered/generic
   systems.
+- [Live Runtime Surface](live-runtime-surface.md) describes the current
+  compiler-2 TUI/runtime experiment as a live interface model where blocks,
+  named cells, graph traces, and shared client views are all runtime data.
 - [Recursive Compound Propagator](recursive-compound-propagator.md) describes
   activation-local recursive network expansion, compile DSL wiring, and the
   Fibonacci proof.
