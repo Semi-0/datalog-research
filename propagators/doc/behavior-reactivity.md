@@ -336,12 +336,17 @@ Compiler-2 currently covers these pieces:
 - behavior arithmetic can be compiled through `behavior-env`;
 - `execute-sub-env` can compile a behavior expression in a child environment and
   react to later behavior input updates;
-- compiler-2 exposes `premise-closure` as a small sugar that wraps a
-  declared-output `network`, delegates to existing closure application, and
-  emits TMS reducer-cell facts for the explicit output cell;
-- compiler-2 also exposes `distributed-premise-closure` for the distributed TMS
-  path: it runs the wrapped network through a hidden output and emits only the
-  premise-marked distributed update to the explicit output cell;
+- compiler-2 now keeps the compiler-facing TMS/behavior operators in
+  `propagators.compiler-2.tms-behavior`;
+- compiler-2 default envs use distributed TMS primitives: premise/content input,
+  premise believe/retract, `tms-closure`, and distributed `premise-closure`;
+- `distributed-premise-closure` remains as the explicit long name for the same
+  distributed sugar;
+- centralized `premise-closure` is legacy compatibility only and is exposed
+  through a legacy env helper for old reducer-cell storage tests;
+- distributed `premise-closure` runs the wrapped network through a hidden output
+  and emits only the premise-marked distributed update to the explicit output
+  cell;
 - test-local TMS primitives can still be called from compiler-2 expressions to
   emit premise states, claims, and TMS insert facts;
 - compiler-2 tests cover multi-round premise bring-in/retraction, arithmetic
@@ -351,8 +356,8 @@ Compiler-2 currently covers these pieces:
 What is not yet present is a full compiler-2 syntax that says "compile this
 behavior-producing expression as a TMS-supported behavior definition" with
 implicit storage and epoch policy. For now, the stable substrate is explicit:
-behavior values, `premise-closure`, `distributed-premise-closure`, TMS
-claims/premises, distributed premise annotations, and reducer-cell slots.
+behavior values, distributed `premise-closure`, distributed premise
+annotations, and legacy reducer-cell TMS slots where old callers opt in.
 
 ## History Algebra
 
@@ -706,12 +711,12 @@ introduced as a hidden behavior change.
 - compiled interval-overlap arithmetic
 - late behavior input updates re-firing compiled applications
 - `execute-sub-env` compiling behavior arithmetic in a child env
-- compiler-2 TMS premise/source/epoch primitives used from compiled
+- distributed compiler-2 TMS premise/source/epoch primitives used from compiled
   expressions
 - multiple premise bring-in/retraction rounds through the same compiled network
 - TMS over an arithmetic propagator chain
-- `premise-closure` sugar for premise-marked declared-output closures, without
-  patching `p:apply-application`
+- legacy centralized `premise-closure` sugar for premise-marked declared-output
+  closures, without patching `p:apply-application`
 - `distributed-premise-closure` sugar for premise-marked distributed TMS
   outputs, including definition retraction/bring-in and upstream premise
   retraction

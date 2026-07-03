@@ -460,6 +460,9 @@
         (net/assoc-net-dict-entry :dependence dependence-id)
         (net/assoc-net-dict-entry :epoch epoch-id))))
 
+;; Legacy centralized reducer-cell TMS compatibility. Compiler-2 now uses
+;; distributed premise/content updates by default; these remain for tests and
+;; callers that still want one explicit reducer storage cell.
 (defn tms-cell
   ([] (tms-cell reducer-id))
   ([id] (reducer/reducer-cell id merge-net strongest-net {})))
