@@ -338,6 +338,8 @@ Compiler-2 currently covers these pieces:
   react to later behavior input updates;
 - compiler-2 now keeps the compiler-facing TMS/behavior operators in
   `propagators.compiler-2.tms-behavior`;
+- `propagators.compiler-2.main/compile-source-with-behavior-tms` compiles with
+  the behavior+distributed-TMS env by default;
 - compiler-2 default envs use distributed TMS primitives: premise/content input,
   premise believe/retract, `tms-closure`, and distributed `premise-closure`;
 - `distributed-premise-closure` remains as the explicit long name for the same
@@ -713,6 +715,8 @@ introduced as a hidden behavior change.
 - `execute-sub-env` compiling behavior arithmetic in a child env
 - distributed compiler-2 TMS premise/source/epoch primitives used from compiled
   expressions
+- `main/compile-source-with-behavior-tms` as the behavior+distributed-TMS
+  default compiler entrance
 - multiple premise bring-in/retraction rounds through the same compiled network
 - TMS over an arithmetic propagator chain
 - legacy centralized `premise-closure` sugar for premise-marked declared-output
