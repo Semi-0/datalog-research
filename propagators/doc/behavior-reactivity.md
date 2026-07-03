@@ -336,10 +336,20 @@ Compiler-2 currently covers these pieces:
 - behavior arithmetic can be compiled through `behavior-env`;
 - `execute-sub-env` can compile a behavior expression in a child environment and
   react to later behavior input updates;
-- compiler-2 now keeps the compiler-facing TMS/behavior operators in
-  `propagators.compiler-2.tms-behavior`;
+- compiler-2 now keeps compiler-facing TMS operators in
+  `propagators.compiler-2.tms`, behavior operators in
+  `propagators.compiler-2.behavior`, and centralized compatibility operators in
+  `propagators.compiler-2.legacy`;
 - `propagators.compiler-2.main/compile-source-with-behavior-tms` compiles with
   the behavior+distributed-TMS env by default;
+- that env binds `behavior-point`, so source can define behavior-producing
+  compiler-2 `network` / `def-net` closures directly;
+- reducer-shaped behavior can use `behavior` with a compiler-2 reducer closure;
+  tested closures retain full history, latest-only history, and fixed windows;
+- behavior reducer closures can be defined either with policy helpers such as
+  `behavior-add-event` / `behavior-retain-last`, or with lower-level
+  compiler-2 operators that extract state/update fields and rebuild the next
+  behavior state;
 - compiler-2 default envs use distributed TMS primitives: premise/content input,
   premise believe/retract, `tms-closure`, and distributed `premise-closure`;
 - `distributed-premise-closure` remains as the explicit long name for the same
