@@ -61,6 +61,12 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Live Runtime Surface](live-runtime-surface.md) describes the current
   compiler-2 TUI/runtime experiment as a live interface model where blocks,
   named cells, graph traces, and shared client views are all runtime data.
+- [Boundary Effect Runtime](boundary-effect-runtime.md) defines the commit /
+  propagate / effect split for external IO, so XR, TUI, trace, socket, and file
+  communication stay outside propagation.
+- [XR Runtime Surface](xr-runtime-surface.md) describes the browser/WebXR graph
+  projection experiment and its boundary rule: extend graph or send a cell
+  message.
 - [Recursive Compound Propagator](recursive-compound-propagator.md) describes
   activation-local recursive network expansion, compile DSL wiring, and the
   Fibonacci proof.

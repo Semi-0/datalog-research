@@ -47,6 +47,15 @@
   [equiv nodes]
   (into nodes (mapcat #(get equiv % #{})) nodes))
 
+(defn- select-node-aliases
+  [node-aliases seen]
+  (into {}
+        (keep (fn [[cell-id aliases]]
+                (let [aliases (alias-node-set aliases)]
+                  (when (seq (set/intersection aliases seen))
+                    [cell-id aliases]))))
+        node-aliases))
+
 (defn- step-edges
   [edges direction frontier]
   (case direction
@@ -82,6 +91,7 @@
      :nodes (apply merge (map :nodes graphs))
      :node-aliases (merge-node-aliases graphs)
      :values (apply merge (map :values graphs))
+     :expansions (apply merge (map :expansions graphs))
      :edges (vec (distinct (mapcat :edges graphs)))}))
 
 (defn trace-graph
@@ -100,7 +110,10 @@
       (if (empty? frontier)
         (let [kept (vec (distinct kept))]
           (graph-union {:nodes (select-keys (:nodes graph) seen)
+                        :node-aliases (select-node-aliases (:node-aliases graph)
+                                                           seen)
                         :values (select-keys (:values graph) seen)
+                        :expansions (select-keys (:expansions graph) seen)
                         :edges kept}))
         (let [next-edges (vec (step-edges edges direction frontier))
               next-nodes (expand-equivalents equiv (set (mapcat identity next-edges)))
