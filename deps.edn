@@ -53,4 +53,10 @@
            {:extra-paths ["test"]
             :main-opts ["-m" "propagators-gur-accumulating-bench"]}
            :propagators-profile
-           {:main-opts ["-m" "propagators-compound-profile"]}}}
+           {:main-opts ["-m" "propagators-compound-profile"]}
+           :wired/server
+           {:main-opts ["-m" "graph.compiler-2-runtime-server" "server"]}
+           :wired/client
+           {:main-opts ["-m" "graph.compiler-2-tui"]}
+           :wired/xr
+           {:main-opts ["-m" "graph.xr-server"]}}}
