@@ -56,6 +56,8 @@
            {:main-opts ["-m" "propagators-compound-profile"]}
            :wired/server
            {:main-opts ["-m" "graph.compiler-2-runtime-server" "server"]}
+           :wired/runtime
+           {:main-opts ["-m" "graph.compiler-2-runtime-server" "server" "--no-xr"]}
            :wired/client
            {:main-opts ["-m" "graph.compiler-2-tui"]}
            :wired/xr
