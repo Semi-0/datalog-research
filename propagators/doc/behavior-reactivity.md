@@ -2,11 +2,16 @@
 
 Source files:
 
-- `propagators/datastructures/behavior.clj`
+- `propagators/datastructures/behavior.clj` compatibility facade
+- `propagators/datastructures/behavior/core.clj`
+- `propagators/datastructures/behavior/arithmetic.clj`
 - `propagators/datastructures/behavior_algebra.clj`
 - `propagators/datastructures/reducer_cell.clj`
-- `propagators/datastructures/tms.clj`
-- `propagators/stdlib/arithmetic/behavior.clj`
+- `propagators/datastructures/tms.clj` compatibility facade
+- `propagators/datastructures/tms/core.clj`
+- `propagators/datastructures/tms/distributed.clj`
+- `propagators/datastructures/tms/legacy.clj`
+- `propagators/stdlib/arithmetic/behavior.clj` compatibility facade
 - `propagators/compiler_common/core.clj`
 - `propagators/compiler_behavior/core.clj`
 - `propagators/compiler_behavior/application.clj`
@@ -34,8 +39,8 @@ The important current boundary is:
 - behavior owns temporal retention and current-value projection;
 - TMS owns support/premise selection and retraction-like projection;
 - compound objects own slots and structural transport;
-- compiler-2 can compile behavior arithmetic and test-local TMS primitives, but
-  there is no public combined behavior/TMS syntax yet;
+- compiler-2 can compile behavior arithmetic, distributed TMS primitives, and
+  custom behavior cells through `behavior-cell`;
 - the kernel still only merges messages, computes strongest, and wakes
   neighbors.
 
@@ -213,9 +218,11 @@ currently uses reducer-cell directly.
 
 ## Reducer-Cell TMS Experiment
 
-`propagators.datastructures.tms` specializes reducer-cell into a small truth
-maintenance projection. It does not add a kernel TMS. Claims and premise states
-are compound-object values stored as ordinary reducer slots:
+`propagators.datastructures.tms.core` contains the shared TMS fact and
+projection model. `propagators.datastructures.tms.distributed` is the compiler-2
+default path. `propagators.datastructures.tms.legacy` keeps centralized
+reducer-cell storage compatibility. None of these add a kernel TMS. Claims and
+premise states are compound-object values stored as ordinary reducer slots:
 
 ```clojure
 (tms/claim :c1
@@ -344,8 +351,15 @@ Compiler-2 currently covers these pieces:
   the behavior+distributed-TMS env by default;
 - that env binds `behavior-point`, so source can define behavior-producing
   compiler-2 `network` / `def-net` closures directly;
-- reducer-shaped behavior can use `behavior` with a compiler-2 reducer closure;
-  tested closures retain full history, latest-only history, and fixed windows;
+- reducer-shaped behavior can use `behavior` with the historical argument order
+  or `behavior-cell` with `(source init reducer-closure out)`;
+- custom `behavior-cell` reducers are compiler-2 `def-net` closures shaped as
+  `[acc next] [out]`; compiler-2 adapts them to the existing reducer-subnet
+  `:acc`, `:update`, `:out` protocol;
+- compiler-2 binds generic `p:slot`, so reducer closures can inspect `next`
+  update slots such as `:slot` and `:value` without manually installing
+  propagators;
+- tested closures retain full history, latest-only history, and fixed windows;
 - behavior reducer closures can be defined either with policy helpers such as
   `behavior-add-event` / `behavior-retain-last`, or with lower-level
   compiler-2 operators that extract state/update fields and rebuild the next
@@ -727,6 +741,8 @@ introduced as a hidden behavior change.
   expressions
 - `main/compile-source-with-behavior-tms` as the behavior+distributed-TMS
   default compiler entrance
+- custom `behavior-cell` construction from compiler-2 source, including a
+  `p:slot`-based reducer closure and window retention
 - multiple premise bring-in/retraction rounds through the same compiled network
 - TMS over an arithmetic propagator chain
 - legacy centralized `premise-closure` sugar for premise-marked declared-output
