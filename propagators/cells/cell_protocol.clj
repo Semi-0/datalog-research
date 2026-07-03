@@ -5,6 +5,7 @@
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.intensity :as intensity]
             [propagators.datastructures.scope-source :as scope-source]
+            [propagators.datastructures.tms :as tms]
             [propagators.generic-procedure :as generic]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -218,6 +219,33 @@
              (generic/handler-closure
               (fn [content]
                 (protocol-result (dependency/strongest-value content)))))
+           n1)]
+      [(into (vec merge-props) strongest-props) n2])))
+
+(defn install-tms-distributed-protocol
+  "Install distributed TMS annotation methods into the network-local
+  merge/strongest generics."
+  []
+  (fn [n]
+    (let [[merge-props n1]
+          ((define-merge-handler
+             (generic/match-cells-pred
+              #(or (empty-content? %)
+                   (tms/distributed-value? %))
+              tms/distributed-value?)
+             (generic/handler-closure
+              (fn [content update]
+                (protocol-result
+                 (tms/merge-distributed-content
+                  (if (empty-content? content) value/nothing content)
+                  update)))))
+           n)
+          [strongest-props n2]
+          ((define-strongest-handler
+             (generic/match-cells-pred tms/distributed-value?)
+             (generic/handler-closure
+              (fn [content]
+                (protocol-result (tms/strongest-distributed-value content)))))
            n1)]
       [(into (vec merge-props) strongest-props) n2])))
 

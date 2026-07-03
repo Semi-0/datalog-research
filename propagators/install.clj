@@ -320,6 +320,29 @@
                                          active-id
                                          reducer-id*)))))
 
+(defn tms-premise-source
+  ([tms-id premise epoch active reducer]
+   (fn [ctx]
+     (tms-premise-source ctx tms-id premise epoch active reducer)))
+  ([ctx tms-id premise epoch active reducer]
+   (let [[ctx* premise-id] (resolve-arg ctx premise)
+         [ctx** active-id] (resolve-arg ctx* active)
+         [ctx*** reducer-id*] (resolve-arg ctx** reducer)]
+     (emit-installer ctx***
+                     [(:scope ctx***)
+                      :tms-premise-source
+                      tms-id
+                      premise-id
+                      epoch
+                      active-id
+                      reducer-id*]
+                     [premise-id active-id reducer-id*]
+                     #(tms/p:tms-premise-source tms-id
+                                                premise-id
+                                                epoch
+                                                active-id
+                                                reducer-id*)))))
+
 (defn tms-claim
   ([tms-id claim-id proposition supports value reducer]
    (fn [ctx]

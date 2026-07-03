@@ -45,8 +45,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
   describes propagator-native generic dispatch, network-local merge/strongest
   generics, layered intensity values, and intensity arithmetic.
 - [Behavior Reactivity](behavior-reactivity.md) describes sparse event-to-history
-  behavior reducers, the content/strongest split, and why behavior strongest
-  carries a summary without changing the scheduler kernel.
+  behavior reducers, reducer-cell TMS, behavior/TMS composition, the
+  content/strongest split, and why these paths do not change the scheduler
+  kernel.
 - [Accumulating GUR](accumulating-gur.md) explains the current main GUR
   implementation, from `propagators.gur` through the accumulating submodules and
   runner.

@@ -4,6 +4,8 @@ Source files:
 
 - `propagators/datastructures/behavior.clj`
 - `propagators/datastructures/behavior_algebra.clj`
+- `propagators/datastructures/reducer_cell.clj`
+- `propagators/datastructures/tms.clj`
 - `propagators/stdlib/arithmetic/behavior.clj`
 - `propagators/compiler_common/core.clj`
 - `propagators/compiler_behavior/core.clj`
@@ -11,16 +13,31 @@ Source files:
 - `propagators/compiler_2/helpers.clj`
 - `propagators/datastructures/compound_object.clj`
 - `propagators/cells/cell_protocol.clj`
-- `test/propagators_behavior_algebra_test.clj`
-- `test/propagators_behavior_arithmetic_test.clj`
-- `test/propagators_behavior_compiler_test.clj`
-- `test/propagators_behavior_test.clj`
+- `test/propagators/behavior_algebra_test.clj`
+- `test/propagators/behavior_arithmetic_test.clj`
+- `test/propagators/behavior_compiler_test.clj`
+- `test/propagators/behavior_test.clj`
+- `test/propagators/compile_2_test.clj`
+- `test/propagators/reducer_cell_test.clj`
+- `test/propagators/tms_test.clj`
 
 ## Status
 
-This is the first reactive behavior experiment. It does not add compiler syntax
-or change the scheduler kernel. Behavior support is installed as a normal
-network-local cell protocol, like intensity and dependency values.
+This is the current reactive behavior and TMS experiment. It does not change the
+scheduler kernel. Behavior support is installed as a normal network-local cell
+protocol, like intensity and dependency values. TMS support is a reducer-cell
+specialization: it stores monotone claim and premise facts in ordinary cells and
+projects the currently active truth view through strongest.
+
+The important current boundary is:
+
+- behavior owns temporal retention and current-value projection;
+- TMS owns support/premise selection and retraction-like projection;
+- compound objects own slots and structural transport;
+- compiler-2 can compile behavior arithmetic and test-local TMS primitives, but
+  there is no public combined behavior/TMS syntax yet;
+- the kernel still only merges messages, computes strongest, and wakes
+  neighbors.
 
 ## Model
 
@@ -185,13 +202,14 @@ shape we can specialize later:
   history and current value;
 - lexical traversal can emit candidate slots, with the reducer net choosing the
   nearest candidate and recording selected scope dependence;
-- future TMS support can put supports/premises in slot values, while strongest
-  projects the currently active result and dependence.
+- TMS support puts claims, supports, and premise states in slot values, while
+  strongest projects the currently active result and dependence.
 
 The current tests cover reducer-cell merge/idempotence/conflict behavior, raw
 projection through `p:reduced-result`, installer helpers, a lexical-candidate
 selection probe, and a flat-GUR traversal that emits reducer slots while walking
-a live `p:cons` list. Behavior and compiler-2 still use their existing paths.
+a live `p:cons` list. Behavior still has its established cell protocol, and TMS
+currently uses reducer-cell directly.
 
 ## Reducer-Cell TMS Experiment
 
@@ -260,6 +278,81 @@ can point at scoped sub-env addresses, and reducer strongest can project a
 truth view with dependence/epoch metadata. The missing piece is still a
 repo-wide TMS-aware cell protocol for retraction/justification; plain output
 cells remain monotone.
+
+## Behavior + TMS Composition
+
+The current composition point is not a new behavior runtime. It is the fact that
+TMS claim values are ordinary compound-object values, so a claim can carry a
+behavior value:
+
+```clojure
+(tms/claim :left-behavior
+           :behavior
+           (behavior/latest-value 0 :left #{[:definition :left]})
+           [(tms/support :left [:premise :left] :test/support)])
+```
+
+The behavior value keeps its retained history and strongest/current-value rules.
+The TMS view decides whether that behavior is currently active by looking at the
+latest premise state:
+
+```clojure
+(tms/premise-state :left 0 true)
+(tms/premise-state :left 1 false)
+(tms/premise-state :right 1 true)
+```
+
+This means one TMS reducer cell can hold several behavior-valued definitions
+with different premises. Bringing one premise in and kicking another out does
+not delete any behavior or premise facts. It only changes the reducer strongest
+projection:
+
+```text
+left active, right inactive  -> proposition :behavior is left behavior
+left inactive, right active  -> proposition :behavior is right behavior
+left active, right active    -> proposition :behavior is contradiction
+```
+
+That is the tested shape in `tms-selects-between-behavior-valued-claims`. It
+proves that a TMS cell can select between behavior histories, and that
+retraction-like behavior comes from latest premise epochs rather than mutation.
+
+The inverse composition is also the intended direction but is not yet promoted
+to a public helper: behavior events can carry TMS support metadata, or a
+behavior stream can emit premise-state facts into a TMS reducer cell. Those are
+domain-level propagators on top of reducer-cell; they do not require scheduler
+changes.
+
+Plain output cells are still the wrong boundary for retraction. If a TMS
+projection writes a behavior value to a normal cell and a later premise retracts
+it, the old normal-cell value remains monotone content. Consumers that need the
+current active behavior must inspect the TMS reducer-cell strongest view or use
+a future TMS-aware behavior cell protocol.
+
+## Compiler-2 + TMS + Behavior Status
+
+Compiler-2 currently covers these pieces:
+
+- behavior arithmetic can be compiled through `behavior-env`;
+- `execute-sub-env` can compile a behavior expression in a child environment and
+  react to later behavior input updates;
+- compiler-2 exposes `premise-closure` as a small sugar that wraps a
+  declared-output `network`, delegates to existing closure application, and
+  emits TMS reducer-cell facts for the explicit output cell;
+- compiler-2 also exposes `distributed-premise-closure` for the distributed TMS
+  path: it runs the wrapped network through a hidden output and emits only the
+  premise-marked distributed update to the explicit output cell;
+- test-local TMS primitives can still be called from compiler-2 expressions to
+  emit premise states, claims, and TMS insert facts;
+- compiler-2 tests cover multi-round premise bring-in/retraction, arithmetic
+  propagator chains, closure application plus premise-marked outputs, and
+  `p:cons` / `p:car` / `p:cdr`-based insertion.
+
+What is not yet present is a full compiler-2 syntax that says "compile this
+behavior-producing expression as a TMS-supported behavior definition" with
+implicit storage and epoch policy. For now, the stable substrate is explicit:
+behavior values, `premise-closure`, `distributed-premise-closure`, TMS
+claims/premises, distributed premise annotations, and reducer-cell slots.
 
 ## History Algebra
 
@@ -447,17 +540,18 @@ Behavior compiler v1 semantics:
   latest closure payload;
 - `compile-expr` and `compile-source` accept `{:timestamp t}` so compiler-emitted
   literal and closure behavior facts can be versioned explicitly;
-- closure application evaluates the latest retained closure against behavior
-  argument histories and emits behavior output;
+- closure application evaluates temporally overlapping closure/input histories
+  when available, and falls back to latest retained closure application for
+  timestamp-as-version updates with no overlap;
 - application output uses the operator/closure version as a dominant source, so
   updating a closure definition can replace the old result even when the new
   closure body depends on different lexical behavior cells.
 
 The closure choice is still conservative: closure definitions retain version
-points, not full interval semantics for closure validity. Updating the closure
-cell with a newer closure payload changes later/refired applications, and the
-closure cell content keeps the prior closure versions for history-aware
-inspection.
+points. When those points overlap argument history, each closure version applies
+to its matching input segment. Updating the closure cell with a newer closure
+payload still changes later/refired applications through the latest-closure
+fallback when version points do not overlap the input history.
 
 The timestamp option is compile metadata, not scheduler time. It says "the facts
 emitted by this compilation are version `t`." This lets a program compile an
@@ -528,13 +622,13 @@ Implementation result:
   projection.
 
 Verification:
-- `clojure -M:test propagators-behavior-test`
+- `clojure -M:test propagators.behavior-test`
   - `56` pass, `0` fail, `0` error
-- `clojure -M:test propagators-compound-object-network-slot-test`
+- `clojure -M:test propagators.compound-object-network-slot-test`
   - `20` pass, `0` fail, `0` error
-- `clojure -M:test propagators-compound-object-test`
+- `clojure -M:test propagators.compound-object-test`
   - `103` pass, `0` fail, `0` error
-- `clojure -M:test propagators`
+- `clojure -M:test`
   - `815` pass, `0` fail, `0` error
 
 Remaining limits:
@@ -574,7 +668,7 @@ introduced as a hidden behavior change.
 
 ## Tests
 
-`test/propagators_behavior_test.clj` covers:
+`test/propagators/behavior_test.clj` covers:
 
 - reducer state is slot-addressable via compound-object layers
 - event before reducer installation
@@ -588,7 +682,7 @@ introduced as a hidden behavior change.
 - window retention is reducer behavior
 - behavior merge/strongest protocol rules
 
-`test/propagators_behavior_algebra_test.clj` covers:
+`test/propagators/behavior_algebra_test.clj` covers:
 
 - idempotent consolidation and union
 - value negation without changing temporal shape
@@ -596,7 +690,7 @@ introduced as a hidden behavior change.
 - keyed joins
 - n-ary joins over points and intervals
 
-`test/propagators_behavior_arithmetic_test.clj` covers:
+`test/propagators/behavior_arithmetic_test.clj` covers:
 
 - same-timestamp point arithmetic
 - no implicit continuation across different point timestamps
@@ -605,14 +699,26 @@ introduced as a hidden behavior change.
 - unary negation and subtraction
 - variadic behavior arithmetic over all input arguments
 
-`test/propagators_compile_2_test.clj` covers compiler-2 behavior integration:
+`test/propagators/compile_2_test.clj` covers compiler-2 behavior integration:
 
 - compiled behavior arithmetic over same-timestamp point histories
 - compiled behavior arithmetic refusing different point timestamps
 - compiled interval-overlap arithmetic
 - late behavior input updates re-firing compiled applications
+- `execute-sub-env` compiling behavior arithmetic in a child env
+- compiler-2 TMS premise/source/epoch primitives used from compiled
+  expressions
+- multiple premise bring-in/retraction rounds through the same compiled network
+- TMS over an arithmetic propagator chain
+- `premise-closure` sugar for premise-marked declared-output closures, without
+  patching `p:apply-application`
+- `distributed-premise-closure` sugar for premise-marked distributed TMS
+  outputs, including definition retraction/bring-in and upstream premise
+  retraction
+- lower-level closure application with premise-marked outputs, without patching
+  `p:apply-application`
 
-`test/propagators_behavior_compiler_test.clj` covers behavior compiler v1:
+`test/propagators/behavior_compiler_test.clj` covers behavior compiler v1:
 
 - behavior arithmetic through the parallel compiler
 - literals as constant behavior values
@@ -625,13 +731,24 @@ introduced as a hidden behavior change.
   application
 - closure locals staying isolated from outer cells except through output
 
+`test/propagators/tms_test.clj` covers reducer-cell TMS:
+
+- active claims selected by latest premise states
+- claim/support/premise-state facts as compound objects
+- support source values reusing scoped-address routing data
+- premise source cells feeding premise identity from the network
+- later premise epochs projecting `nothing` without deleting old facts
+- recursive linked-list claim ingestion without materializing the list
+- behavior-valued claims selected by TMS premise bring-in/retraction
+
 Regression command:
 
 ```sh
-clojure -M:test propagators-behavior-algebra-test
-clojure -M:test propagators-behavior-arithmetic-test
-clojure -M:test propagators-behavior-compiler-test
-clojure -M:test propagators-behavior-test
-clojure -M:test propagators-compile-2-test
-clojure -M:test propagators
+clojure -M:test propagators.behavior-algebra-test
+clojure -M:test propagators.behavior-arithmetic-test
+clojure -M:test propagators.behavior-compiler-test
+clojure -M:test propagators.behavior-test
+clojure -M:test propagators.compile-2-test
+clojure -M:test propagators.tms-test propagators.reducer-cell-test
+clojure -M:test
 ```

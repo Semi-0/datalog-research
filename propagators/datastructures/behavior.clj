@@ -302,6 +302,13 @@
        (= (source-keys a) (source-keys b))
        (= (public-snapshot a) (public-snapshot b))))
 
+(defn same-view?
+  "Semantic equality for behavior values whose compound-object ids may differ."
+  [a b]
+  (and (behavior-value? a)
+       (behavior-value? b)
+       (same-behavior-view? a b)))
+
 (defn- source-superset?
   [a b]
   (set/superset? (source-keys a) (source-keys b)))

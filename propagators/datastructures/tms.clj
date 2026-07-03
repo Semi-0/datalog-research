@@ -3,7 +3,8 @@
 
   This is not a kernel TMS. Claims and premise states are monotone reducer slots;
   the strongest reducer projection computes the currently active view."
-  (:require [propagators.cells.value :as value]
+  (:require [clojure.set :as set]
+            [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.reducer-cell :as reducer]
             [propagators.ids :as ids]
@@ -18,6 +19,9 @@
 (def claim-kind :claim)
 (def premise-state-kind :premise-state)
 (def support-kind :support)
+(def distributed-kind :distributed)
+(def distributed-projection-kind :distributed-projection)
+(def distributed-proposition :tms/value)
 
 (defn- stable-node-id
   [& seed]
@@ -101,6 +105,11 @@
   [premise]
   [:tms/latest-premise premise])
 
+(defn- latest-premise-slot-key?
+  [k]
+  (and (vector? k)
+       (= :tms/latest-premise (first k))))
+
 (defn- epoch-rank
   [e]
   (if (number? e)
@@ -124,6 +133,13 @@
                           (premise-state? v))
                  [(second k) v])))
        (into {})))
+
+(defn- without-latest-premise-slots
+  [slots]
+  (into {}
+        (remove (fn [[k _v]]
+                  (latest-premise-slot-key? k)))
+        (or slots {})))
 
 (defn- current-premise-states
   [slots]
@@ -211,6 +227,43 @@
    :tms/epoch (epoch x)
    :tms/active? (active? x)})
 
+(defn distributed-content
+  [slots]
+  {:tms/kind distributed-kind
+   :tms/slots (or slots {})})
+
+(defn distributed-content?
+  [x]
+  (and (map? x) (= distributed-kind (:tms/kind x))))
+
+(defn distributed-projection
+  [v slots]
+  {:tms/kind distributed-projection-kind
+   :tms/value v
+   :tms/slots (or slots {})})
+
+(defn distributed-projection?
+  [x]
+  (and (map? x) (= distributed-projection-kind (:tms/kind x))))
+
+(defn distributed-value?
+  [x]
+  (or (distributed-content? x)
+      (distributed-projection? x)))
+
+(defn distributed-slots
+  [x]
+  (cond
+    (distributed-content? x) (:tms/slots x)
+    (distributed-projection? x) (:tms/slots x)
+    :else {}))
+
+(defn distributed-base-value
+  [x]
+  (if (distributed-projection? x)
+    (:tms/value x)
+    x))
+
 (defn- fact-data
   [x]
   (cond
@@ -236,7 +289,8 @@
 
 (defn merge-slots
   [content update]
-  (let [merged (merge-slot-maps content update)]
+  (let [merged (merge-slot-maps (without-latest-premise-slots content)
+                                (without-latest-premise-slots update))]
     (if (value/contradiction? merged)
       value/contradiction
       (let [latest (latest-premise-states
@@ -246,6 +300,112 @@
            (assoc slots (latest-premise-slot-key p) state))
          merged
          latest)))))
+
+(defn- fact-slot
+  [fact]
+  (cond
+    (claim? fact) [(claim-slot-key (claim-id fact)) fact]
+    (premise-state? fact) [(premise-slot-key (premise fact) (epoch fact)) fact]
+    :else nil))
+
+(defn- slots-for
+  [facts]
+  (into {} (keep fact-slot facts)))
+
+(defn distributed-input-update
+  [claim-id v premise epoch source]
+  (distributed-content
+   (merge-slots {}
+                (slots-for
+                 [(premise-state premise epoch true)
+                  (claim claim-id
+                         distributed-proposition
+                         v
+                         [(support premise source :distributed-input)])]))))
+
+(defn distributed-premise-update
+  [premise epoch active?]
+  (distributed-content
+   (merge-slots {}
+                (slots-for [(premise-state premise epoch active?)]))))
+
+(defn distributed-forward-update
+  [x]
+  (when (seq (distributed-slots x))
+    (distributed-content (distributed-slots x))))
+
+(defn merge-distributed-content
+  [content update]
+  (let [content-slots (if (value/nothing? content)
+                        {}
+                        (distributed-slots content))
+        merged (merge-slots content-slots (distributed-slots update))]
+    (if (value/contradiction? merged)
+      value/contradiction
+      (distributed-content merged))))
+
+(defn active-claims-for
+  [view proposition-id]
+  (filterv #(= proposition-id (proposition %))
+           (vals (active-claims view))))
+
+(defn distributed-supports
+  [x]
+  (let [claims (active-claims-for (tms-view (distributed-slots x))
+                                  distributed-proposition)]
+    (set (mapcat support-objects claims))))
+
+(defn distributed-premise-slots
+  [x]
+  (into {}
+        (filter (fn [[_ v]] (premise-state? v))
+                (distributed-slots x))))
+
+(defn- merge-slot-updates
+  [slot-maps]
+  (reduce
+   (fn [slots update]
+     (let [merged (merge-slots slots update)]
+       (if (value/contradiction? merged)
+         (reduced value/contradiction)
+         merged)))
+   {}
+   slot-maps))
+
+(defn distributed-state-update
+  [xs]
+  (let [slots (merge-slot-updates (map distributed-premise-slots xs))]
+    (cond
+      (value/contradiction? slots) value/contradiction
+      (seq slots)
+      (distributed-content slots))))
+
+(defn distributed-result-update
+  [claim-id result xs]
+  (let [inputs (filter distributed-value? xs)
+        states (merge-slot-updates (map distributed-premise-slots inputs))
+        supports (apply set/union #{} (map distributed-supports inputs))]
+    (cond
+      (value/contradiction? states) value/contradiction
+      (or (seq states) (seq supports))
+      (distributed-content
+       (merge-slots {}
+                    (cond-> states
+                      (and (not (value/unusable? result))
+                           (seq supports))
+                      (assoc (claim-slot-key claim-id)
+                             (claim claim-id
+                                    distributed-proposition
+                                    result
+                                    supports))))))))
+
+(defn strongest-distributed-value
+  [content]
+  (let [slots (distributed-slots content)
+        v (proposition-value (tms-view slots) distributed-proposition)]
+    (if (value/unusable? v)
+      v
+      (distributed-projection v slots))))
 
 (def merge-net
   (let [content-id (stable-node-id ::merge :content)
@@ -358,6 +518,28 @@
          [(message tms-cell-id
                    (premise-update tms-id premise epoch v))])))
    [active-id]
+   [tms-cell-id]))
+
+(defn p:tms-premise-source
+  "Emit a premise-state where the premise identity is supplied by a cell."
+  [tms-id premise-id epoch active-id tms-cell-id]
+  (prop/construct-propagator
+   (fn [_inputs _outputs network]
+     (let [premise (net/network-cell-strongest network premise-id)
+           active (net/network-cell-strongest network active-id)]
+       (cond
+         (or (value/contradiction? premise)
+             (value/contradiction? active))
+         [(message tms-cell-id value/contradiction)]
+
+         (or (value/nothing? premise)
+             (value/nothing? active))
+         []
+
+         :else
+         [(message tms-cell-id
+                   (premise-update tms-id premise epoch active))])))
+   [premise-id active-id]
    [tms-cell-id]))
 
 (defn p:tms-proposition

@@ -3,6 +3,7 @@
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.core :as core]
+            [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.reducer-cell :as reducer]
             [propagators.datastructures.tms :as tms]
@@ -52,6 +53,13 @@
    (support premise [:premise premise]))
   ([premise source]
    (tms/support premise source :test/support)))
+
+(defn- behavior-current-value
+  [behavior-value]
+  (let [summary (behavior/strongest-value behavior-value)]
+    (if (value/unusable? summary)
+      summary
+      (obj/slot-value summary behavior/base-layer))))
 
 (defn- source-list-effects
   [run-key values]
@@ -190,6 +198,96 @@
                                 :answer)))
     (is (not= (reducer/reduced-epoch before)
               (reducer/reduced-epoch after)))))
+
+(deftest tms-selects-between-behavior-valued-claims
+  (let [left (behavior/latest-value 0 :left #{[:definition :left]})
+        right (behavior/latest-value 0 :right #{[:definition :right]})
+        content (merge-updates
+                 (tms/premise-update :truth :left 0 true)
+                 (tms/premise-update :truth :right 0 false)
+                 (tms/claim-update :truth
+                                   (tms/claim :left-behavior
+                                              :behavior
+                                              left
+                                              [(support :left)]))
+                 (tms/claim-update :truth
+                                   (tms/claim :right-behavior
+                                              :behavior
+                                              right
+                                              [(support :right)])))
+        left-view (reduced-view content)
+        content* (merge-updates content
+                                (tms/premise-update :truth :left 1 false)
+                                (tms/premise-update :truth :right 1 true))
+        right-view (reduced-view content*)
+        content** (merge-updates content*
+                                 (tms/premise-update :truth :left 2 true))
+        conflict-view (reduced-view content**)]
+    (is (= :left
+           (behavior-current-value
+            (tms/proposition-value left-view :behavior))))
+    (is (= :right
+           (behavior-current-value
+            (tms/proposition-value right-view :behavior))))
+    (is (= value/contradiction
+           (tms/proposition-value conflict-view :behavior)))
+    (is (= #{(tms/claim-slot-key :left-behavior)
+             (tms/claim-slot-key :right-behavior)
+             (tms/premise-slot-key :left 0)
+             (tms/premise-slot-key :left 1)
+             (tms/premise-slot-key :left 2)
+             (tms/premise-slot-key :right 0)
+             (tms/premise-slot-key :right 1)
+             (tms/latest-premise-slot-key :left)
+             (tms/latest-premise-slot-key :right)}
+           (set (keys (reducer/reducer-slots content**)))))))
+
+(deftest premise-source-cell-feeds-tms-and-later-epoch-retracts-projection
+  (let [premise-id (node-id :premise-source :premise)
+        active-id (node-id :premise-source :active)
+        inactive-id (node-id :premise-source :inactive)
+        tms-id (node-id :premise-source :tms)
+        tms-cell (tms/tms-cell :truth)
+        claim (tms/claim :c1 :answer 42 [(support :dynamic)])
+        n0 (-> net/empty-net
+               (nb/install-cell premise-id :dynamic :dynamic)
+               (nb/install-cell active-id true true)
+               (nb/install-cell inactive-id)
+               (nb/install-cell tms-id tms-cell (reducer/strongest tms-cell)))
+        [claim-tasks n1] (core/eval-cell tms-id
+                                          (message tms-id
+                                                   (tms/claim-update :truth
+                                                                     claim))
+                                          n0)
+        n2 (core/run-tasks claim-tasks n1)
+        [active-prop n3] ((tms/p:tms-premise-source :truth
+                                                     premise-id
+                                                     0
+                                                     active-id
+                                                     tms-id)
+                          n2)
+        [inactive-prop n4] ((tms/p:tms-premise-source :truth
+                                                       premise-id
+                                                       1
+                                                       inactive-id
+                                                       tms-id)
+                            n3)
+        n5 (nb/run-propagators n4 [active-prop inactive-prop])
+        active-view (-> (strongest n5 tms-id) reducer/reduced-result)
+        [inactive-tasks n6] (core/eval-cell inactive-id
+                                            (message inactive-id false)
+                                            n5)
+        n7 (core/run-tasks inactive-tasks n6)
+        inactive-view (-> (strongest n7 tms-id) reducer/reduced-result)]
+    (is (= #{:dynamic} (tms/active-premises active-view)))
+    (is (= 42 (tms/proposition-value active-view :answer)))
+    (is (value/nothing? (tms/proposition-value inactive-view :answer)))
+    (is (= #{(tms/claim-slot-key :c1)
+             (tms/premise-slot-key :dynamic 0)
+             (tms/premise-slot-key :dynamic 1)
+             (tms/latest-premise-slot-key :dynamic)}
+           (set (keys (reducer/reducer-slots
+                       (net/network-cell-content n7 tms-id))))))))
 
 (deftest installer-helpers-project-current-active-value
   (let [n (-> (i/context net/empty-net [:tms-installer])
