@@ -61,6 +61,19 @@
       value/nothing
       (apply f values))))
 
+(defn- behavior-or-tms-content?
+  [content]
+  (or (behavior/behavior-content? content)
+      (tms/distributed-value? content)))
+
+(defn- plain-arithmetic-messages
+  [f input-ids out-id network]
+  (let [contents (mapv #(net/network-cell-content network %) input-ids)
+        values (mapv #(net/network-cell-strongest network %) input-ids)]
+    (when (and (not-any? behavior-or-tms-content? contents)
+               (every? (complement value/unusable?) values))
+      [(message out-id (apply f values))])))
+
 (defn behavior-messages
   "Return output messages for one behavior operator activation."
   [op f input-ids out-id network]
@@ -85,35 +98,36 @@
 (defn distributed-behavior-messages
   "TMS-composed behavior arithmetic. Plain behavior-messages stays unchanged."
   [op f input-ids out-id network]
-  (let [contents (mapv #(net/network-cell-content network %) input-ids)
-        views (mapv #(behavior/strongest-history-view
-                       (distributed-behavior-content %))
-                    contents)]
-    (cond
-      (some value/nothing? views)
-      (if-let [update (tms/distributed-state-update contents)]
-        [(message out-id update)]
-        [])
+  (or (plain-arithmetic-messages f input-ids out-id network)
+      (let [contents (mapv #(net/network-cell-content network %) input-ids)
+            views (mapv #(behavior/strongest-history-view
+                           (distributed-behavior-content %))
+                        contents)]
+        (cond
+          (some value/nothing? views)
+          (if-let [update (tms/distributed-state-update contents)]
+            [(message out-id update)]
+            [])
 
-      (some value/contradiction? views) [(message out-id value/contradiction)]
-      (not (every? valid-input-view? views)) [(message out-id value/contradiction)]
-      :else
-      (let [result-history
-            (hist/history-join-all
-             (safe-apply f)
-             (mapv behavior/history views))]
-        (if (value/contradiction? result-history)
-          [(message out-id value/contradiction)]
-          [(message out-id
-                    (let [result (arithmetic-behavior-value
-                                  op
-                                  result-history
-                                  (source-keys views))]
-                      (or (tms/distributed-result-update
-                           [:behavior op out-id]
-                           result
-                          contents)
-                         result)))])))))
+          (some value/contradiction? views) [(message out-id value/contradiction)]
+          (not (every? valid-input-view? views)) [(message out-id value/contradiction)]
+          :else
+          (let [result-history
+                (hist/history-join-all
+                 (safe-apply f)
+                 (mapv behavior/history views))]
+            (if (value/contradiction? result-history)
+              [(message out-id value/contradiction)]
+              [(message out-id
+                        (let [result (arithmetic-behavior-value
+                                      op
+                                      result-history
+                                      (source-keys views))]
+                          (or (tms/distributed-result-update
+                               [:behavior op out-id]
+                               result
+                               contents)
+                              result)))]))))))
 
 (defn- existing-claim-value
   [content claim-id]
@@ -136,37 +150,38 @@
 (defn distributed-behavior-stable-messages
   "TMS behavior arithmetic that avoids re-emitting semantically identical claims."
   [op f input-ids out-id network]
-  (let [contents (mapv #(net/network-cell-content network %) input-ids)
-        views (mapv #(behavior/strongest-history-view
-                       (distributed-behavior-content %))
-                    contents)]
-    (cond
-      (some value/nothing? views)
-      (if-let [update (tms/distributed-state-update contents)]
-        [(message out-id update)]
-        [])
+  (or (plain-arithmetic-messages f input-ids out-id network)
+      (let [contents (mapv #(net/network-cell-content network %) input-ids)
+            views (mapv #(behavior/strongest-history-view
+                           (distributed-behavior-content %))
+                        contents)]
+        (cond
+          (some value/nothing? views)
+          (if-let [update (tms/distributed-state-update contents)]
+            [(message out-id update)]
+            [])
 
-      (some value/contradiction? views) [(message out-id value/contradiction)]
-      (not (every? valid-input-view? views)) [(message out-id value/contradiction)]
-      :else
-      (let [result-history
-            (hist/history-join-all
-             (safe-apply f)
-             (mapv behavior/history views))]
-        (if (value/contradiction? result-history)
-          [(message out-id value/contradiction)]
-          [(message out-id
-                    (let [result (arithmetic-behavior-value
-                                  op
-                                  result-history
-                                  (source-keys views))
-                          claim-id [:behavior op out-id]]
-                      (or (stable-distributed-result-update
-                           claim-id
-                           result
-                           contents
-                           (net/network-cell-content network out-id))
-                          result)))])))))
+          (some value/contradiction? views) [(message out-id value/contradiction)]
+          (not (every? valid-input-view? views)) [(message out-id value/contradiction)]
+          :else
+          (let [result-history
+                (hist/history-join-all
+                 (safe-apply f)
+                 (mapv behavior/history views))]
+            (if (value/contradiction? result-history)
+              [(message out-id value/contradiction)]
+              [(message out-id
+                        (let [result (arithmetic-behavior-value
+                                      op
+                                      result-history
+                                      (source-keys views))
+                              claim-id [:behavior op out-id]]
+                          (or (stable-distributed-result-update
+                               claim-id
+                               result
+                               contents
+                               (net/network-cell-content network out-id))
+                              result)))]))))))
 
 (defn behavior-propagator
   "Build a behavior-history propagator installer.

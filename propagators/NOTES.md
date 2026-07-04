@@ -29,3 +29,8 @@ Current warning: `compound_data.clj` is a linked-list-centered spike. It works
 for the present tests, but the dispatch logic is centralized in
 `c:linked-list` and should be generalized before treating compound data as a
 stable framework.
+
+
+clojure -M:wired/server
+clojure -M:wired/client -name A
+clojure -M:wired/xr

@@ -91,6 +91,7 @@
      :nodes (apply merge (map :nodes graphs))
      :node-aliases (merge-node-aliases graphs)
      :values (apply merge (map :values graphs))
+     :node-ui (apply merge (map :node-ui graphs))
      :expansions (apply merge (map :expansions graphs))
      :edges (vec (distinct (mapcat :edges graphs)))}))
 
@@ -113,6 +114,7 @@
                         :node-aliases (select-node-aliases (:node-aliases graph)
                                                            seen)
                         :values (select-keys (:values graph) seen)
+                        :node-ui (select-keys (:node-ui graph) seen)
                         :expansions (select-keys (:expansions graph) seen)
                         :edges kept}))
         (let [next-edges (vec (step-edges edges direction frontier))
