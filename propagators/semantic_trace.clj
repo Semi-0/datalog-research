@@ -26,12 +26,15 @@
 
 (defn- target-nodes
   [{:keys [nodes node-aliases]} {:keys [node label]}]
-  (cond
-    node (into #{node} (alias-node-set (get node-aliases node)))
-    label (set (keep (fn [[id node-label]]
-                       (when (= label node-label) id))
-                     nodes))
-    :else #{}))
+  (let [node-targets (if node
+                       (into #{node} (alias-node-set (get node-aliases node)))
+                       #{})
+        label-targets (if label
+                        (set (keep (fn [[id node-label]]
+                                     (when (= label node-label) id))
+                                   nodes))
+                        #{})]
+    (set/union node-targets label-targets)))
 
 (defn- alias-equivalents
   [node-aliases]
@@ -59,12 +62,12 @@
 (defn- step-edges
   [edges direction frontier]
   (case direction
-    :downstream (filter (fn [[from _to]] (contains? frontier from)) edges)
-    :upstream (filter (fn [[_from to]] (contains? frontier to)) edges)
+    :downstream (filter (fn [[from _to]] (contains? frontier from)) (filter vector? edges))
+    :upstream (filter (fn [[_from to]] (contains? frontier to)) (filter vector? edges))
     (filter (fn [[from to]]
               (or (contains? frontier from)
                   (contains? frontier to)))
-            edges)))
+            (filter vector? edges))))
 
 (defn semantic-trace-graph?
   [x]
@@ -93,7 +96,8 @@
      :values (apply merge (map :values graphs))
      :node-ui (apply merge (map :node-ui graphs))
      :expansions (apply merge (map :expansions graphs))
-     :edges (vec (distinct (mapcat :edges graphs)))}))
+     :edges (vec (distinct (filter #(and (vector? %) (= 2 (count %)))
+                                   (mapcat :edges graphs))))}))
 
 (defn trace-graph
   "Return the semantic subgraph reachable from `:node` or `:label`.

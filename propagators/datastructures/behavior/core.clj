@@ -232,13 +232,29 @@
   [v]
   (obj/compound-object v))
 
+(defn- time-rank
+  [t]
+  (cond
+    (= :infinity t) Long/MAX_VALUE
+    (number? t) t
+    :else Long/MIN_VALUE))
+
+(defn- record-time
+  [record]
+  (let [at (obj/slot-value record :at)]
+    (if (some? at)
+      at
+      (obj/slot-value record :from))))
+
 (defn history-records
   [v]
   (let [history-object (history v)]
     (if (value/contradiction? history-object)
       []
-      (mapv #(obj/slot-value history-object %)
-            (sort (obj/public-slot-keys history-object))))))
+      (->> (obj/public-slot-keys history-object)
+           (map #(obj/slot-value history-object %))
+           (sort-by (comp time-rank record-time))
+           vec))))
 
 (defn source-keys
   [v]
@@ -416,29 +432,13 @@
       (some #(source-superset? % update) existing) content
       :else value/contradiction)))
 
-(defn- latest-record
-  [behavior]
-  (let [history-object (history behavior)
-        slot-keys (sort (obj/public-slot-keys history-object))]
-    (when (seq slot-keys)
-      (obj/slot-value history-object (last slot-keys)))))
-
 (defn- record-value
   [record]
   (obj/slot-value record :value))
 
-(defn- record-time
-  [record]
-  (let [at (obj/slot-value record :at)]
-    (if (some? at)
-      at
-      (obj/slot-value record :from))))
-
-(defn- time-rank
-  [t]
-  (if (= :infinity t)
-    Long/MAX_VALUE
-    t))
+(defn- latest-record
+  [behavior]
+  (last (history-records behavior)))
 
 (defn- retained-times
   [behavior]
