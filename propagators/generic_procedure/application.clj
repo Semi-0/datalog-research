@@ -6,11 +6,15 @@
             [propagators.generic-procedure.constants :as constants]
             [propagators.generic-procedure.materialize :as materialize]
             [propagators.generic-procedure.methods :as methods]
+            [propagators.gur.accumulating.runner.tasks :as runner-tasks]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
+            [propagators.network-cache :as cache]
             [propagators.propagator :as prop]))
+
+(def ^:dynamic *retained-apply-cache* nil)
 
 (defn- install-method-closures
   [n method]
@@ -136,6 +140,87 @@
    (into [generic-id] arg-ids)
    [generic-id out-id]))
 
+(defn retained-apply-cache []
+  (atom {:frames {}
+         :stats {:retained/frame-builds 0
+                 :retained/frame-runs 0}}))
+
+(defmacro with-retained-apply-generic-values
+  [& body]
+  `(binding [*retained-apply-cache* (or *retained-apply-cache*
+                                        (retained-apply-cache))]
+     ~@body))
+
+(defn retained-apply-stats []
+  (when *retained-apply-cache*
+    (:stats @*retained-apply-cache*)))
+
+(defn- bump-retained-stat!
+  [k]
+  (when *retained-apply-cache*
+    (swap! *retained-apply-cache* update-in [:stats k] (fnil inc 0))))
+
+(defn- retained-frame-key
+  [generic-value arity]
+  [arity
+   (obj/slot-value generic-value constants/policy-slot)
+   (obj/slot-value generic-value constants/default-slot)
+   (mapv (fn [method]
+           [(methods/spec-method-key method)
+            (methods/spec-predicates method)
+            (methods/spec-matcher method)
+            (methods/spec-handler method)])
+         (methods/generic-methods generic-value))])
+
+(defn- make-retained-generic-frame
+  [generic-value arity]
+  (let [generic-id (ids/new-node-id)
+        arg-ids (vec (repeatedly arity ids/new-node-id))
+        default-id (ids/new-node-id)
+        n0 (reduce nb/install-cell net/empty-net
+                   (into [generic-id default-id] arg-ids))
+        n1 (nb/seed-cell n0 generic-id generic-value)
+        n2 (nb/seed-cell n1 default-id
+                         (obj/slot-value generic-value constants/default-slot))
+        context (make-application-context n2 generic-value arg-ids)
+        app (build-generic-application context)
+        [reducer-prop-ids template]
+        ((:reducer-install app) (:net app))]
+    {:template template
+     :generic-id generic-id
+     :arg-ids arg-ids
+     :reduced-out-id (:reduced-out-id app)
+     :prop-ids (into (vec (:branch-prop-ids app)) reducer-prop-ids)
+     :prop-state-cache (atom {})
+     :prop-io-cache (atom {})}))
+
+(defn- retained-frame
+  [generic-value arity]
+  (let [k (retained-frame-key generic-value arity)]
+    (if-let [frame (get-in @*retained-apply-cache* [:frames k])]
+      frame
+      (let [frame (make-retained-generic-frame generic-value arity)]
+        (bump-retained-stat! :retained/frame-builds)
+        (swap! *retained-apply-cache* assoc-in [:frames k] frame)
+        frame))))
+
+(defn- apply-generic-value-retained
+  [generic-value arg-values]
+  (let [{:keys [template generic-id arg-ids reduced-out-id prop-ids
+                prop-state-cache prop-io-cache]}
+        (retained-frame generic-value (count arg-values))
+        n0 (nb/seed-cell template generic-id generic-value)
+        n1 (reduce (fn [acc [id v]]
+                     (nb/seed-cell acc id v))
+                   n0
+                   (map vector arg-ids arg-values))
+        n2 (runner-tasks/run-props-with-state-cache n1
+                                                    prop-ids
+                                                    prop-state-cache
+                                                    prop-io-cache)]
+    (bump-retained-stat! :retained/frame-runs)
+    (net/network-cell-strongest n2 reduced-out-id)))
+
 (defn apply-generic-value
   "Apply an already-realized generic procedure value to plain argument values.
 
@@ -144,17 +229,28 @@
   merge/strongest protocol hooks do not recursively dispatch while this helper
   is evaluating a protocol generic."
   [generic-value arg-values]
-  (let [generic-id (ids/new-node-id)
-        arg-ids (vec (repeatedly (count arg-values) ids/new-node-id))
-        out-id (ids/new-node-id)
-        n0 (reduce nb/install-cell net/empty-net (into [generic-id out-id] arg-ids))
-        n1 (nb/seed-cell n0 generic-id generic-value)
-        n2 (reduce (fn [acc [id v]] (nb/seed-cell acc id v))
-                   n1
-                   (map vector arg-ids arg-values))
-        [apply-prop n3] ((p:apply-generic generic-id arg-ids out-id) n2)
-        n4 (nb/run-propagators n3 [apply-prop])]
-    (net/network-cell-strongest n4 out-id)))
+  (if *retained-apply-cache*
+    (cache/cached
+     [:generic-procedure/apply-generic-value-retained
+      (retained-frame-key generic-value (count arg-values))
+      arg-values]
+     #(apply-generic-value-retained generic-value arg-values))
+    (cache/cached
+     [:generic-procedure/apply-generic-value generic-value arg-values]
+     #(do
+        (cache/stat! :generic-procedure/apply-generic-value)
+        (let [generic-id (ids/new-node-id)
+              arg-ids (vec (repeatedly (count arg-values) ids/new-node-id))
+              out-id (ids/new-node-id)
+              n0 (reduce nb/install-cell net/empty-net
+                         (into [generic-id out-id] arg-ids))
+              n1 (nb/seed-cell n0 generic-id generic-value)
+              n2 (reduce (fn [acc [id v]] (nb/seed-cell acc id v))
+                         n1
+                         (map vector arg-ids arg-values))
+              [apply-prop n3] ((p:apply-generic generic-id arg-ids out-id) n2)
+              n4 (nb/run-propagators n3 [apply-prop])]
+          (net/network-cell-strongest n4 out-id))))))
 
 (defn p:generic-operator
   [generic-id]

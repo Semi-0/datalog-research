@@ -24,4 +24,10 @@
 
 (def p:apply-generic application/p:apply-generic)
 (def apply-generic-value application/apply-generic-value)
+(def retained-apply-cache application/retained-apply-cache)
+(def retained-apply-stats application/retained-apply-stats)
+
+(defmacro with-retained-apply-generic-values
+  [& body]
+  `(application/with-retained-apply-generic-values ~@body))
 (def p:generic-operator application/p:generic-operator)

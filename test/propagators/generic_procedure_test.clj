@@ -190,6 +190,26 @@
                                 (key method-entry))))
       (is (= 11 (net/network-cell-strongest n3 out-id))))))
 
+(deftest retained-apply-generic-value-reuses-dispatch-frame
+  (testing "experimental retained generic apply matches ordinary generic apply"
+    (let [{:keys [net generic-id]} (one-arg-generic-net 10)
+          n1 (install-only
+              net
+              (generic/define-generic-propagator-handler
+               generic-id
+               (generic/match-cells-pred number?)
+               (generic/handler-closure inc)))
+          generic-value (:value (generic/materialize-generic-procedure
+                                 n1
+                                 generic-id))]
+      (is (= 11 (generic/apply-generic-value generic-value [10])))
+      (generic/with-retained-apply-generic-values
+        (is (= [11 12 13]
+               (mapv #(generic/apply-generic-value generic-value [%])
+                     [10 11 12])))
+        (is (= 1 (get (generic/retained-apply-stats)
+                      :retained/frame-builds)))))))
+
 (deftest generic-default-slot-preserves-nothing
   (testing "slot-based default attachment keeps the-nothing as a real no-match default"
     (let [generic-id (ids/new-node-id)

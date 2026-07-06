@@ -10,10 +10,12 @@
             [propagators.generic-procedure :as generic]
             [propagators.ids :as ids]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.network-cache :as cache]))
 
 (def merge-generic-key :cell/merge-generic)
 (def strongest-generic-key :cell/strongest-generic)
+(def direct-standard-protocols-key :cell/direct-standard-protocols?)
 
 (def no-match ::no-match)
 (def empty-content ::empty-content)
@@ -62,7 +64,14 @@
   [network dict-key]
   (let [generic-id (net/network-dict-entry network dict-key)]
     (if (and generic-id (contains? (net/net-env network) generic-id))
-      (:value (generic/materialize-generic-procedure network generic-id))
+      (:value
+       (cache/cached
+        [:cell-protocol/generic-value dict-key generic-id
+         (net/network-cell-strongest network generic-id)
+         (net/net-dict-or-empty network)]
+        #(do
+           (cache/stat! :cell-protocol/materialize-generic)
+           (generic/materialize-generic-procedure network generic-id))))
       value/nothing)))
 
 (defn- apply-protocol-generic
@@ -87,17 +96,192 @@
     empty-content
     content))
 
+(defn- event-bearing?
+  [v]
+  (or (event/event-content? v)
+      (event/event-fact? v)
+      (event/event-projection? v)))
+
+(defn- direct-event-merge
+  [content update]
+  (when (and (or (empty-content? content)
+                 (value/nothing? content)
+                 (event-bearing? content))
+             (event-bearing? update))
+    (cache/stat! :cell-protocol/direct-event-merge)
+    (handled
+     (event/merge-content
+      (if (or (empty-content? content)
+              (value/nothing? content))
+        value/nothing
+        content)
+      update))))
+
+(defn- direct-event-strongest
+  [content]
+  (when (event/event-content? content)
+    (cache/stat! :cell-protocol/direct-event-strongest)
+    (handled (event/strongest-value content))))
+
+(defn- direct-behavior-merge
+  [content update]
+  (when (and (or (empty-content? content)
+                 (value/nothing? content)
+                 (behavior/behavior-content? content))
+             (behavior/behavior-value? update))
+    (cache/stat! :cell-protocol/direct-behavior-merge)
+    (handled
+     (behavior/merge-content
+      (if (or (empty-content? content)
+              (value/nothing? content))
+        value/nothing
+        content)
+      update))))
+
+(defn- direct-behavior-strongest
+  [content]
+  (when (behavior/behavior-content? content)
+    (cache/stat! :cell-protocol/direct-behavior-strongest)
+    (handled (behavior/strongest-value content))))
+
+(defn- direct-tms-merge
+  [content update]
+  (when (and (or (empty-content? content)
+                 (value/nothing? content)
+                 (tms/distributed-value? content))
+             (tms/distributed-value? update))
+    (cache/stat! :cell-protocol/direct-tms-merge)
+    (handled
+     (tms/merge-distributed-content
+      (if (or (empty-content? content)
+              (value/nothing? content))
+        value/nothing
+        content)
+      update))))
+
+(defn- direct-tms-strongest
+  [content]
+  (when (tms/distributed-value? content)
+    (cache/stat! :cell-protocol/direct-tms-strongest)
+    (handled (tms/strongest-distributed-value content))))
+
+(defn- direct-dependency-merge
+  [content update]
+  (when (and (or (empty-content? content)
+                 (value/nothing? content)
+                 (dependency/dependency-content? content))
+             (dependency/dependency-value? update))
+    (cache/stat! :cell-protocol/direct-dependency-merge)
+    (handled
+     (dependency/merge-content
+      (if (or (empty-content? content)
+              (value/nothing? content))
+        value/nothing
+        content)
+      update))))
+
+(defn- direct-dependency-strongest
+  [content]
+  (when (dependency/dependency-content? content)
+    (cache/stat! :cell-protocol/direct-dependency-strongest)
+    (handled (dependency/strongest-value content))))
+
+(defn- direct-scope-source-merge
+  [content update]
+  (when (and (or (empty-content? content)
+                 (value/nothing? content)
+                 (scope-source/scope-content? content))
+             (scope-source/scope-value? update))
+    (cache/stat! :cell-protocol/direct-scope-source-merge)
+    (handled
+     (scope-source/merge-content
+      (if (or (empty-content? content)
+              (value/nothing? content))
+        value/nothing
+        content)
+      update))))
+
+(defn- direct-scope-source-strongest
+  [content]
+  (when (scope-source/scope-content? content)
+    (cache/stat! :cell-protocol/direct-scope-source-strongest)
+    (handled (scope-source/strongest-value content))))
+
+(defn- direct-intensity-merge
+  [content update]
+  (when (and (or (empty-content? content)
+                 (value/nothing? content)
+                 (intensity/intensity-content? content))
+             (intensity/intensity-value? update))
+    (cache/stat! :cell-protocol/direct-intensity-merge)
+    (handled
+     (intensity/merge-content
+      (if (or (empty-content? content)
+              (value/nothing? content))
+        value/nothing
+        content)
+      update))))
+
+(defn- direct-intensity-strongest
+  [content]
+  (when (intensity/intensity-content? content)
+    (cache/stat! :cell-protocol/direct-intensity-strongest)
+    (handled (intensity/strongest-value content))))
+
+(defn- direct-standard-merge
+  [content update]
+  (or (direct-event-merge content update)
+      (direct-behavior-merge content update)
+      (direct-tms-merge content update)
+      (direct-dependency-merge content update)
+      (direct-scope-source-merge content update)
+      (direct-intensity-merge content update)))
+
+(defn- direct-standard-strongest
+  [content]
+  (or (direct-event-strongest content)
+      (direct-behavior-strongest content)
+      (direct-tms-strongest content)
+      (direct-dependency-strongest content)
+      (direct-scope-source-strongest content)
+      (direct-intensity-strongest content)))
+
+(defn- direct-standard-protocols?
+  [network]
+  (true? (net/network-dict-entry network direct-standard-protocols-key)))
+
 (defn try-cell-merge
   "Try the network-local merge generic. Returns handled result map or nothing."
   [network content update]
-  (apply-protocol-generic network
-                          merge-generic-key
-                          [(encode-merge-content content) update]))
+  (or (direct-standard-merge content update)
+      (when-not (direct-standard-protocols? network)
+        (apply-protocol-generic network
+                                merge-generic-key
+                                [(encode-merge-content content) update]))))
 
 (defn try-cell-strongest
   "Try the network-local strongest generic. Returns handled result map or nothing."
   [network content]
-  (apply-protocol-generic network strongest-generic-key [content]))
+  (or (direct-standard-strongest content)
+      (when-not (direct-standard-protocols? network)
+        (apply-protocol-generic network strongest-generic-key [content]))))
+
+(defn prefer-direct-standard-protocols
+  "Mark a network as using only the built-in direct cell protocol handlers.
+
+  Custom network-local generic handlers still work in networks that do not set
+  this marker."
+  [n]
+  (net/assoc-net-dict-entry n direct-standard-protocols-key true))
+
+(defn prefer-generic-standard-protocols
+  "Remove the direct standard protocol marker.
+
+  This is mainly useful for benchmarks and experiments that compare the generic
+  dispatcher path against the direct standard protocol path."
+  [n]
+  (net/net-with-dict n (dissoc (net/net-dict-or-empty n)
+                               direct-standard-protocols-key)))
 
 (defn install-cell-protocol
   "Install network-local merge and strongest generic procedure cells."

@@ -15,6 +15,8 @@
 (def source-state-key (obj/internal-metadata-key :event :source-state))
 (def evidence-key (obj/internal-metadata-key :event :evidence))
 (def projection-facts-key (obj/internal-metadata-key :event :projection-facts))
+(def fact-slots-key (obj/internal-metadata-key :event :fact-slots))
+(def latest-state-key (obj/internal-metadata-key :event :latest-state))
 
 (def active-state :active)
 (def retracted-state :retracted)
@@ -66,17 +68,6 @@
 (defn active? [fact] (= active-state (source-state fact)))
 (defn retracted? [fact] (= retracted-state (source-state fact)))
 
-(defn content-value
-  [facts]
-  (obj/compound-object
-   (assoc (into {} (map (fn [fact]
-                          [(fact-key (input-id fact)
-                                     (source fact)
-                                     (timestamp fact))
-                           fact]))
-                facts)
-          kind-key content-kind)))
-
 (defn event-content?
   [v]
   (= content-kind (obj/slot-value v kind-key)))
@@ -89,14 +80,88 @@
   [v]
   (obj/slot-value v projection-facts-key))
 
+(declare time-rank)
+
+(defn- source-identity-key
+  [fact]
+  [(input-id fact) (source fact)])
+
+(defn- newer-fact
+  [a b]
+  (if (pos? (compare (time-rank (timestamp b))
+                     (time-rank (timestamp a))))
+    b
+    a))
+
+(defn- index-latest-state
+  [facts]
+  (reduce (fn [latest fact]
+            (update latest (source-identity-key fact)
+                    (fn [current]
+                      (if current
+                        (newer-fact current fact)
+                        fact))))
+          {}
+          facts))
+
+(defn- fact-slots
+  [content]
+  (cond
+    (event-content? content)
+    (or (obj/slot-value content fact-slots-key)
+        (into {} (map (fn [fact]
+                        [(fact-key (input-id fact)
+                                   (source fact)
+                                   (timestamp fact))
+                         fact]))
+              (mapv #(obj/slot-value content %)
+                    (obj/public-slot-keys content))))
+
+    (event-fact? content)
+    {(fact-key (input-id content)
+               (source content)
+               (timestamp content))
+     content}
+
+    :else nil))
+
+(defn- latest-state
+  [content]
+  (cond
+    (event-content? content)
+    (or (obj/slot-value content latest-state-key)
+        (index-latest-state (vals (fact-slots content))))
+
+    (event-fact? content)
+    {(source-identity-key content) content}
+
+    :else nil))
+
+(defn- content-object
+  [slots latest]
+  (obj/compound-object
+   (assoc slots
+          kind-key content-kind
+          fact-slots-key slots
+          latest-state-key latest)))
+
+(defn content-value
+  [facts]
+  (let [slots (into {} (map (fn [fact]
+                              [(fact-key (input-id fact)
+                                         (source fact)
+                                         (timestamp fact))
+                               fact]))
+                    facts)]
+    (content-object slots (index-latest-state (vals slots)))))
+
 (defn- content-facts
   [content]
   (cond
     (value/nothing? content) []
     (event-fact? content) [content]
-	    (event-content? content)
-	    (mapv #(obj/slot-value content %)
-	          (obj/public-slot-keys content))
+    (event-content? content)
+    (vals (fact-slots content))
     (event-projection? content)
     (or (projection-facts content) [])
 	    :else value/contradiction))
@@ -126,30 +191,45 @@
 
 (defn merge-content
   [content update]
-  (let [existing (content-facts content)
+  (let [existing (if (value/nothing? content)
+                   []
+                   (content-facts content))
         incoming (content-facts update)]
     (cond
       (or (value/contradiction? existing)
           (value/contradiction? incoming)) value/contradiction
       (empty? incoming) content
       :else
-      (let [merged (reduce
+      (let [existing-slots (or (fact-slots content)
+                               (into {} (map (fn [fact]
+                                               [(fact-key (input-id fact)
+                                                          (source fact)
+                                                          (timestamp fact))
+                                                fact]))
+                                     existing))
+            existing-latest (or (latest-state content)
+                                (index-latest-state existing))
+            merged (reduce
                     (fn [slots fact]
                       (if (value/contradiction? slots)
                         slots
                         (merge-fact slots fact)))
-                    (into {} (map (fn [fact]
-                                    [(fact-key (input-id fact)
-                                               (source fact)
-                                               (timestamp fact))
-                                     fact]))
-                          existing)
-                    incoming)]
+                    existing-slots
+                    incoming)
+            latest (when-not (value/contradiction? merged)
+                     (reduce (fn [acc fact]
+                               (clojure.core/update
+                                acc
+                                (source-identity-key fact)
+                                (fn [current]
+                                  (if current
+                                    (newer-fact current fact)
+                                    fact))))
+                             existing-latest
+                             incoming))]
         (if (value/contradiction? merged)
           value/contradiction
-          (obj/compound-object (assoc merged kind-key content-kind)))))))
-
-(declare time-rank)
+          (content-object merged latest))))))
 
 (defn- evidence-timestamp?
   [x]
@@ -200,12 +280,13 @@
 
 (defn latest-facts-by-source-state
   [content]
-  (let [grouped (group-by (juxt input-id source) (facts content))]
-    (into {}
-          (map (fn [[k source-facts]]
-                 [k (last (sort-by (comp time-rank timestamp)
-                                   source-facts))]))
-          grouped)))
+  (or (latest-state content)
+      (let [grouped (group-by (juxt input-id source) (facts content))]
+        (into {}
+              (map (fn [[k source-facts]]
+                     [k (last (sort-by (comp time-rank timestamp)
+                                       source-facts))]))
+              grouped))))
 
 (defn latest-facts-by-source
   [content]
