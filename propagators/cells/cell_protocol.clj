@@ -102,6 +102,51 @@
       (event/event-fact? v)
       (event/event-projection? v)))
 
+(defn- normalize-empty-content
+  [content]
+  (if (or (empty-content? content)
+          (value/nothing? content))
+    value/nothing
+    content))
+
+(defn- direct-event-protocol-merge
+  [content update]
+  (handled
+   (event/merge-content (normalize-empty-content content) update)))
+
+(defn- direct-event-protocol-strongest
+  [content]
+  (handled (event/strongest-value content)))
+
+(def ^:private direct-protocol-registry
+  {event/protocol-id
+   {:merge direct-event-protocol-merge
+    :strongest direct-event-protocol-strongest}})
+
+(defn- value-protocol-id
+  [v]
+  (event/protocol-id-of v))
+
+(defn- direct-protocol-merge
+  [content update]
+  (when-let [protocol-id (value-protocol-id update)]
+    (let [content-protocol-id (value-protocol-id content)]
+      (when (or (empty-content? content)
+                (value/nothing? content)
+                (= protocol-id content-protocol-id))
+        (when-let [merge-fn (get-in direct-protocol-registry
+                                    [protocol-id :merge])]
+          (cache/stat! [:cell-protocol/direct-protocol-merge protocol-id])
+          (merge-fn content update))))))
+
+(defn- direct-protocol-strongest
+  [content]
+  (when-let [protocol-id (value-protocol-id content)]
+    (when-let [strongest-fn (get-in direct-protocol-registry
+                                    [protocol-id :strongest])]
+      (cache/stat! [:cell-protocol/direct-protocol-strongest protocol-id])
+      (strongest-fn content))))
+
 (defn- direct-event-merge
   [content update]
   (when (and (or (empty-content? content)
@@ -230,7 +275,8 @@
 
 (defn- direct-standard-merge
   [content update]
-  (or (direct-event-merge content update)
+  (or (direct-protocol-merge content update)
+      (direct-event-merge content update)
       (direct-behavior-merge content update)
       (direct-tms-merge content update)
       (direct-dependency-merge content update)
@@ -239,7 +285,8 @@
 
 (defn- direct-standard-strongest
   [content]
-  (or (direct-event-strongest content)
+  (or (direct-protocol-strongest content)
+      (direct-event-strongest content)
       (direct-behavior-strongest content)
       (direct-tms-strongest content)
       (direct-dependency-strongest content)

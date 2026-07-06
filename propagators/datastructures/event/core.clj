@@ -1,12 +1,16 @@
 (ns propagators.datastructures.event.core
   "Discrete source-aware event partial information."
   (:require [propagators.cells.value :as value]
-            [propagators.datastructures.compound-object :as obj]))
+            [propagators.datastructures.compound-object :as obj]
+            [propagators.network :as net]))
 
 (def fact-kind :event/fact)
 (def content-kind :event/content)
 (def projection-kind :event/projection)
+(def protocol-id :pi/event)
 
+(def protocol-dict-key (obj/internal-metadata-key :pi :direct-protocol-id))
+(def protocol-id-key (obj/internal-metadata-key :pi :protocol-id))
 (def kind-key (obj/internal-metadata-key :event :kind))
 (def input-id-key (obj/internal-metadata-key :event :input-id))
 (def source-key (obj/internal-metadata-key :event :source))
@@ -28,16 +32,20 @@
 (defn event-fact
   [{:keys [input-id source timestamp value source-state evidence]
     :or {source-state active-state}}]
-  (obj/compound-object
-   (cond-> {:slot timestamp
-            :value value
-            kind-key fact-kind
-            input-id-key input-id
-            source-key source
-            timestamp-key timestamp
-            value-key value
-            source-state-key source-state}
-     evidence (assoc evidence-key evidence))))
+  (net/assoc-net-dict-entry
+   (obj/compound-object
+    (cond-> {:slot timestamp
+             :value value
+             protocol-id-key protocol-id
+             kind-key fact-kind
+             input-id-key input-id
+             source-key source
+             timestamp-key timestamp
+             value-key value
+             source-state-key source-state}
+      evidence (assoc evidence-key evidence)))
+   protocol-dict-key
+   protocol-id))
 
 (defn active-event
   [input-id source timestamp value]
@@ -57,6 +65,19 @@
 (defn event-fact?
   [v]
   (= fact-kind (obj/slot-value v kind-key)))
+
+(defn event-protocol-value?
+  [v]
+  (= protocol-id
+     (if (net/network? v)
+       (or (net/network-dict-entry v protocol-dict-key)
+           (obj/slot-value v protocol-id-key))
+       (obj/slot-value v protocol-id-key))))
+
+(defn protocol-id-of
+  [v]
+  (when (event-protocol-value? v)
+    protocol-id))
 
 (defn input-id [fact] (obj/slot-value fact input-id-key))
 (defn source [fact] (obj/slot-value fact source-key))
@@ -139,11 +160,15 @@
 
 (defn- content-object
   [slots latest]
-  (obj/compound-object
-   (assoc slots
-          kind-key content-kind
-          fact-slots-key slots
-          latest-state-key latest)))
+  (net/assoc-net-dict-entry
+   (obj/compound-object
+    (assoc slots
+           protocol-id-key protocol-id
+           kind-key content-kind
+           fact-slots-key slots
+           latest-state-key latest))
+   protocol-dict-key
+   protocol-id))
 
 (defn content-value
   [facts]
@@ -317,8 +342,9 @@
     (if (empty? active)
       value/nothing
       (let [timestamp-counts (frequencies (map timestamp active))]
-        (obj/compound-object
-         (assoc (into {}
+        (net/assoc-net-dict-entry
+         (obj/compound-object
+          (assoc (into {}
                       (map (fn [fact]
 	                             [(if (= 1 (get timestamp-counts
 	                                             (timestamp fact)))
@@ -328,8 +354,11 @@
 	                                          (timestamp fact)))
 	                              (event-value fact)]))
 	                      active)
+                  protocol-id-key protocol-id
 	                kind-key projection-kind
-                  projection-facts-key active))))))
+                  projection-facts-key active))
+         protocol-dict-key
+         protocol-id)))))
 
 (defn fact-evidence
   [fact]

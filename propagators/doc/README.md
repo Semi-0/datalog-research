@@ -169,3 +169,28 @@ network value when the update is already subsumed.
 The runtime compound model is still experimental, but the main fragility today
 is in compound data: `compound_data.clj` centralizes dispatch in the
 linked-list-specific `c:linked-list` constraint.
+
+## Optional Runtime Dashboard Plotting
+
+The compiler-2 server dashboard can use `gnuplot` for terminal-native runtime
+rate plots. `gnuplot` is optional: if the binary is not on `PATH`, the dashboard
+still shows the Charm table and prints a short note where the plot would be.
+
+Install examples:
+
+```sh
+brew install gnuplot
+apt install gnuplot
+```
+
+The dashboard plots four rate series over fixed time windows:
+
+- `commit/ms`
+- `propagation/ms`
+- `effects/ms`
+- `xr runtime/ms`
+
+These rates are derived from runtime temperature samples. The current runtime
+records commit, propagation, and boundary-effect phases; `xr runtime/ms` is
+reserved for phases whose keyword namespace is `xr` and remains zero until XR
+runtime phases are instrumented.
