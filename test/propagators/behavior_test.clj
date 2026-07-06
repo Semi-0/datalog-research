@@ -129,6 +129,32 @@
               :reducer behavior/event-history-reducer-id}
              (update (behavior-slots out-content) :history #(mapv record-map %)))))))
 
+(deftest behavior-values-carry-reactive-identities
+  (testing "manual behavior values default identities from source evidence"
+    (let [v (behavior/latest-value 4 :x #{[:source :x 4]})]
+      (is (= #{[:source :x 4]} (behavior/identity-set v)))
+      (is (= #{[:source :x 4]}
+             (behavior/identity-set (behavior/strongest-value v))))))
+
+  (testing "folded behavior sources use the source cell as identity"
+    (let [history-id (new-node-id)
+          merge-id (new-node-id)
+          init-id (new-node-id)
+          out-id (new-node-id)
+          event (install-event (behavior-net) history-id 6 :x)
+          after-event (run (:net event) [(:prop event)])
+          reducer (install-behavior-reducer after-event
+                                            history-id
+                                            merge-id
+                                            init-id
+                                            out-id
+                                            (behavior/event-history-reducer-net))
+          result (run (:net reducer) (:props reducer))
+          out-content (content result out-id)]
+      (is (= #{history-id} (behavior/identity-set out-content)))
+      (is (= #{history-id}
+             (behavior/identity-set (strongest result out-id)))))))
+
 (deftest behavior-reducer-before-later-event-updates-through-slot-topology
   (testing "later p:event activation wakes the reducer through the source cell"
     (let [history-id (new-node-id)

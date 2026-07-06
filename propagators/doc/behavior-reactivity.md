@@ -12,12 +12,18 @@ Source files:
 - `propagators/datastructures/tms/distributed.clj`
 - `propagators/datastructures/tms/legacy.clj`
 - `propagators/stdlib/arithmetic/behavior.clj` compatibility facade
+- `graph/compiler_2_runtime/tui_annotations.clj`
+- `graph/compiler_2_runtime/tui_session.clj`
+- `graph/compiler_2_runtime/effects.clj`
 - `propagators/compiler_common/core.clj`
 - `propagators/compiler_behavior/core.clj`
 - `propagators/compiler_behavior/application.clj`
 - `propagators/compiler_2/helpers.clj`
+- `propagators/compiler_2/behavior.clj`
+- `propagators/compiler_2/behavior/history.clj`
 - `propagators/datastructures/compound_object.clj`
 - `propagators/cells/cell_protocol.clj`
+- `test/graph/vijual/compiler_2_runtime_server_test.clj`
 - `test/propagators/behavior_algebra_test.clj`
 - `test/propagators/behavior_arithmetic_test.clj`
 - `test/propagators/behavior_compiler_test.clj`
@@ -101,10 +107,55 @@ value, the summary still changes through the retained count or retained interval
 That lets the kernel remain unchanged while behavior content grows monotonically.
 
 The summary is deliberately small. It does not duplicate source keys, reducer
-identity, or retained history keys. Those details remain in cell content and in
-hidden behavior metadata used by `cell-merge`. Operators that care about history
-should pull the retained compound-object history from cell content. Ordinary
-operators can use `:base` and ignore the summary.
+identity, or retained history keys as public slots. Source keys and reactive
+identities are also carried as hidden behavior metadata on the summary so
+display/projector code can annotate current values without reading the full
+retained history. Retained history and reducer identity remain in cell content
+and hidden behavior metadata used by `cell-merge`. Operators that care about
+history should pull the retained compound-object history from cell content.
+Ordinary operators can use `:base` and ignore the summary.
+
+## Reactive Identity
+
+Behavior history timestamps remain the temporal coordinate. The current
+identity model is intentionally simpler than a per-input vector clock: every
+behavior value also carries a hidden reactive identity set.
+
+```clojure
+{:history retained-history
+ :source-keys support-evidence
+ :identities reactive-identities
+ :reducer reducer-id}
+```
+
+The identity set is not a public compound-object slot. It describes which
+reactive inputs a behavior value came from and lets display/projection code
+surface that provenance. The current defaults are source-compatible:
+
+- `behavior-value` defaults identities from `:source-keys` when no explicit
+  `:identities` or `:identity` is supplied.
+- `latest-value`, `constant-value`, and `retained-value` preserve their old
+  arities and accept an optional identity set on the longest arity.
+- `p:behavior` uses the source event cell id as the source behavior identity.
+- compiler-2 `behavior-point` uses the output cell id as its behavior identity.
+- compiler-2 behavior projections such as `be:latest`, `be:last`, and
+  `be:history` preserve the input behavior identity set.
+
+Behavior joins union identity sets. For example, if `a` has identity `:a` and
+`b` has identity `:b`, then `(+ a b)` carries `#{:a :b}` when their histories
+join at a compatible timestamp. The timestamp compatibility rule is unchanged:
+point events still join only at the same tick, and intervals still join only on
+overlap. Identity is therefore not a second freshness clock yet; it is a
+reactive grouping/provenance coordinate carried alongside existing timestamped
+history.
+
+This captures the first useful part of the propagator-paper reactivity idea
+without changing the runtime scheduler: give reactive inputs identities, but
+keep freshness policy in the behavior history/reducer machinery. Coarser
+identity policy can be added above this substrate later, for example by giving
+several widget channels the same logical identity. The current implementation
+does not yet add public syntax for choosing a coarse identity; it only carries
+and joins the identity metadata.
 
 ## Why This Shape
 
@@ -163,6 +214,11 @@ Different reducer ids in one behavior output cell contradict in v1. Equal source
 evidence with unequal retained history also contradicts. A behavior update whose
 source evidence is a superset replaces the older retained view, except for
 explicit retained-version reducers that accumulate version history.
+
+Reactive identities do not replace source evidence in merge. `source-keys` still
+drive behavior view replacement and contradiction checks. Identity is part of
+semantic view equality and is unioned through retained-view merges, but it is
+not currently used to decide timestamp freshness or to retract older facts.
 
 ## General Reducer Cell
 
@@ -476,6 +532,10 @@ operator to the joined payload values, and emits a new behavior value to the
 output cell. Unary operators use the same path with one input. The core
 primitive arithmetic namespace remains unchanged.
 
+The emitted behavior value also carries the union of all input behavior
+identities. This is separate from the existing tagged `source-keys`, which are
+still retained as support evidence for behavior merge.
+
 For point-event histories, arithmetic only combines values at the same timestamp:
 
 ```clojure
@@ -523,7 +583,7 @@ the application object records the operator, arguments, output, and context.
 During evaluation, the operator's `application-activate` metadata calls the same
 `behavior-arithmetic/behavior-messages` path used by direct stdlib behavior
 propagators. That means compiled and hand-wired behavior arithmetic share the
-same temporal semantics.
+same temporal semantics and the same behavior identity propagation.
 
 For example, if `a` and `b` are behavior cells:
 
@@ -578,6 +638,11 @@ Behavior compiler v1 semantics:
   updating a closure definition can replace the old result even when the new
   closure body depends on different lexical behavior cells.
 
+Behavior compiler application also preserves and unions behavior identities:
+argument slices keep their input identity, closure/body outputs union the
+identities they depend on, and final application output carries the union of the
+selected operator/body identities.
+
 The closure choice is still conservative: closure definitions retain version
 points. When those points overlap argument history, each closure version applies
 to its matching input segment. Updating the closure cell with a newer closure
@@ -614,6 +679,43 @@ not write to outer cells except through that output. The selected closure-info
 payload still carries its lexical env and scope metadata, so an updated closure
 version is applied with its own retained lexical environment rather than the
 caller's accidental bindings.
+
+## TUI Display Annotations
+
+TUI block synchronization separates value projection from diagnostic
+annotations.
+
+`be:block`, `be:block-at`, and display effects still write values through a
+latest-retaining behavior wrapper. The wrapper inherits the payload behavior's
+identity set when the payload is behavior-backed; otherwise it uses a display
+cell identity such as `[:tui/display display-id]`. This means a watched behavior
+block can show the source behavior identity instead of only the implementation
+identity of the display cell.
+
+`graph.compiler-2-runtime.tui-annotations` projects the displayed value exactly
+as before, but also extracts optional annotations from the raw display content:
+
+```clojure
+{:index 5
+ :value 8
+ :annotations [{:kind :behavior
+                :identities [events-id]
+                :latest-time 2}]
+ :annotation "[be:... @2]"}
+```
+
+TMS-backed values similarly expose a compact annotation:
+
+```clojure
+{:kind :tms
+ :status :justified
+ :claims [...]
+ :active-premises [:p]}
+```
+
+If a value is TMS-selected behavior, the block can carry both TMS and behavior
+annotations. This is display metadata only. It does not change cell content,
+behavior strongest projection, TMS selection, or runtime merge semantics.
 
 ## Compound Accessor Reactivity Experiment
 

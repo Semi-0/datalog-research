@@ -6,6 +6,7 @@
   primitive arithmetic and do not own retention policy."
   (:refer-clojure :exclude [+ - * /])
   (:require [clojure.core :as core]
+            [clojure.set :as set]
             [propagators.cells.value :as value]
             [propagators.datastructures.behavior.core :as behavior]
             [propagators.datastructures.behavior-algebra :as hist]
@@ -47,11 +48,16 @@
                   (tagged-source-keys idx view)))
         (map-indexed vector views)))
 
+(defn- identity-set
+  [views]
+  (apply set/union #{} (map behavior/identity-set views)))
+
 (defn- arithmetic-behavior-value
-  [op history source-keys*]
+  [op history source-keys* identities]
   (behavior/behavior-value
    {:history history
     :source-keys source-keys*
+    :identities identities
     :reducer (arithmetic-reducer-id op)}))
 
 (defn- safe-apply
@@ -93,7 +99,8 @@
                     (arithmetic-behavior-value
                      op
                      result-history
-                     (source-keys views)))])))))
+                     (source-keys views)
+                     (identity-set views)))])))))
 
 (defn distributed-behavior-messages
   "TMS-composed behavior arithmetic. Plain behavior-messages stays unchanged."
@@ -122,7 +129,8 @@
                         (let [result (arithmetic-behavior-value
                                       op
                                       result-history
-                                      (source-keys views))]
+                                      (source-keys views)
+                                      (identity-set views))]
                           (or (tms/distributed-result-update
                                [:behavior op out-id]
                                result
@@ -174,7 +182,8 @@
                         (let [result (arithmetic-behavior-value
                                       op
                                       result-history
-                                      (source-keys views))
+                                      (source-keys views)
+                                      (identity-set views))
                               claim-id [:behavior op out-id]]
                           (or (stable-distributed-result-update
                                claim-id

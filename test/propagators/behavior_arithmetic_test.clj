@@ -24,11 +24,14 @@
   (install-protocols net/empty-net))
 
 (defn- behavior-view
-  [records source-keys]
-  (behavior/behavior-value
-   {:history (hist/records->history records)
-    :source-keys source-keys
-    :reducer behavior/event-history-reducer-id}))
+  ([records source-keys]
+   (behavior-view records source-keys source-keys))
+  ([records source-keys identities]
+   (behavior/behavior-value
+    {:history (hist/records->history records)
+     :source-keys source-keys
+     :identities identities
+     :reducer behavior/event-history-reducer-id})))
 
 (defn- install-behavior-cell
   [n id view]
@@ -82,6 +85,25 @@
       (is (= #{[0 [:a 6]]
                [1 [:b 6]]}
              (behavior/source-keys out-content))))))
+
+(deftest behavior-plus-unions-reactive-identities
+  (testing "behavior joins keep timestamp semantics and union input identities"
+    (let [a (new-node-id)
+          b (new-node-id)
+          out (new-node-id)
+          left (behavior-view [(hist/point-record 6 2)] #{[:a 6]} #{:a})
+          right (behavior-view [(hist/point-record 6 7)] #{[:b 6]} #{:b})
+          n0 (-> (behavior-net)
+                 (install-behavior-cell a left)
+                 (install-behavior-cell b right)
+                 (nb/install-cell out))
+          [prop-id n1] ((behavior-arithmetic/+ a b out) n0)
+          result (nb/run-propagators n1 [prop-id])
+          out-content (net/network-cell-content result out)]
+      (is (= 9 (current-value result out)))
+      (is (= #{:a :b} (behavior/identity-set out-content)))
+      (is (= #{:a :b}
+             (behavior/identity-set (net/network-cell-strongest result out)))))))
 
 (deftest behavior-plus-joins-all-input-arguments
   (testing "variadic behavior + synchronizes every retained input history"

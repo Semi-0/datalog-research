@@ -25,6 +25,7 @@
 
 (def kind-key (obj/internal-metadata-key :behavior :kind))
 (def source-keys-key (obj/internal-metadata-key :behavior :source-keys))
+(def identities-key (obj/internal-metadata-key :behavior :identities))
 (def reducer-key (obj/internal-metadata-key :behavior :reducer))
 
 (def reducer-id-key :behavior/reducer)
@@ -84,6 +85,13 @@
   [from v]
   (obj/compound-object {:from from :to :infinity :value v}))
 
+(defn- identity-set-value
+  [identities source-keys]
+  (cond
+    (nil? identities) (set source-keys)
+    (set? identities) identities
+    :else #{identities}))
+
 (defn event-slot-key
   [tick]
   [event-slot-prefix tick])
@@ -135,17 +143,22 @@
   "Build a sparse-history compound object.
 
   Public slots are temporal records keyed by tick or segment start. Reducer
-  identity and folded source evidence are hidden metadata used by the cell
-  protocol to decide when a newer retained view supersedes an older one."
-  [{:keys [history source-keys reducer]}]
+  identity, reactive identities, and folded source evidence are hidden metadata
+  used by the cell protocol to decide when a newer retained view supersedes an
+  older one."
+  [{:keys [history source-keys reducer identities identity]}]
   (let [history* (history-map history)]
     (if (value/contradiction? history*)
       value/contradiction
-      (obj/compound-object
-       (assoc history*
-              kind-key behavior-kind
-              source-keys-key (set source-keys)
-              reducer-key reducer)))))
+      (let [source-keys* (set source-keys)
+            identities* (identity-set-value (or identities identity)
+                                            source-keys*)]
+        (obj/compound-object
+         (assoc history*
+                kind-key behavior-kind
+                source-keys-key source-keys*
+                identities-key identities*
+                reducer-key reducer))))))
 
 (defn constant-value
   "Build a behavior value that treats `v` as an explicit constant interval."
@@ -154,9 +167,12 @@
   ([from v source-keys]
    (constant-value from v source-keys constant-value-reducer-id))
   ([from v source-keys reducer]
+   (constant-value from v source-keys reducer nil))
+  ([from v source-keys reducer identities]
    (behavior-value
     {:history {from (constant-interval from v)}
      :source-keys source-keys
+     :identities identities
      :reducer reducer})))
 
 (defn latest-value
@@ -168,9 +184,12 @@
   ([tick v source-keys]
    (latest-value tick v source-keys latest-value-reducer-id))
   ([tick v source-keys reducer]
+   (latest-value tick v source-keys reducer nil))
+  ([tick v source-keys reducer identities]
    (behavior-value
     {:history {tick (point-event tick v)}
      :source-keys source-keys
+     :identities identities
      :reducer reducer})))
 
 (defn retained-value
@@ -178,10 +197,13 @@
   ([domain v]
    (retained-value domain 0 v #{0}))
   ([domain tick v source-keys]
+   (retained-value domain tick v source-keys nil))
+  ([domain tick v source-keys identities]
    (latest-value tick
                  v
                  source-keys
-                 (retained-value-reducer-id domain))))
+                 (retained-value-reducer-id domain)
+                 identities)))
 
 (defn history-state
   "Reducer accumulator value with slot-addressable event evidence and history."
@@ -261,6 +283,12 @@
   (let [ks (obj/slot-value v source-keys-key)]
     (if (set? ks) ks #{})))
 
+(defn identity-set
+  "Return the reactive identity set carried by a behavior value or projection."
+  [v]
+  (let [identities (obj/slot-value v identities-key)]
+    (if (set? identities) identities #{})))
+
 (defn reducer-id
   [v]
   (obj/slot-value v reducer-key))
@@ -290,8 +318,20 @@
   [v]
   (and (= behavior-kind (obj/slot-value v kind-key))
        (set? (obj/slot-value v source-keys-key))
+       (set? (obj/slot-value v identities-key))
        (some? (obj/slot-value v reducer-key))
        (not (value/contradiction? (history v)))))
+
+(defn with-identities
+  "Return behavior value `v` with a replaced reactive identity set."
+  [v identities]
+  (if (behavior-value? v)
+    (behavior-value
+     {:history (history v)
+      :source-keys (source-keys v)
+      :identities identities
+      :reducer (reducer-id v)})
+    v))
 
 (defn- behavior-candidates?
   [v]
@@ -316,6 +356,7 @@
   [a b]
   (and (= (reducer-id a) (reducer-id b))
        (= (source-keys a) (source-keys b))
+       (= (identity-set a) (identity-set b))
        (= (public-snapshot a) (public-snapshot b))))
 
 (defn same-view?
@@ -381,6 +422,7 @@
           (behavior-value
            {:history history*
             :source-keys (apply set/union (map source-keys views))
+            :identities (apply set/union (map identity-set views))
             :reducer reducer}))))))
 
 (defn- existing-content
@@ -461,7 +503,9 @@
         summary-retained-count-key (count times)
         summary-retained-interval-key
         (obj/compound-object {:from first-retained-time
-                              :to latest-time})})})))
+                              :to latest-time})})
+      identities-key (identity-set behavior)
+      source-keys-key (source-keys behavior)})))
 
 (defn- strongest-behavior-view
   [content]
@@ -670,6 +714,7 @@
                     (behavior-value
                      {:history (state-history raw)
                       :source-keys folded-keys
+                      :identities #{source-id}
                       :reducer reducer-id}))])))))
 
 (defn- p:wrap-behavior
