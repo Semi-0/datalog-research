@@ -5,6 +5,8 @@ Source files:
 - `propagators/datastructures/behavior.clj` compatibility facade
 - `propagators/datastructures/behavior/core.clj`
 - `propagators/datastructures/behavior/arithmetic.clj`
+- `propagators/datastructures/event.clj` compatibility facade
+- `propagators/datastructures/event/core.clj`
 - `propagators/datastructures/behavior_algebra.clj`
 - `propagators/datastructures/reducer_cell.clj`
 - `propagators/datastructures/tms.clj` compatibility facade
@@ -29,32 +31,90 @@ Source files:
 - `test/propagators/behavior_compiler_test.clj`
 - `test/propagators/behavior_test.clj`
 - `test/propagators/compile_2_test.clj`
+- `test/propagators/event_test.clj`
 - `test/propagators/reducer_cell_test.clj`
 - `test/propagators/tms_test.clj`
 
 ## Status
 
 This is the current reactive behavior and TMS experiment. It does not change the
-scheduler kernel. Behavior support is installed as a normal network-local cell
-protocol, like intensity and dependency values. TMS support is a reducer-cell
-specialization: it stores monotone claim and premise facts in ordinary cells and
-projects the currently active truth view through strongest.
+scheduler kernel. Event support, behavior support, and TMS support are installed
+as normal network-local cell protocols. Event is the discrete source/freshness
+primitive. Behavior is explicit promotion/reduction from events into retained
+continuous history. TMS is a reducer-cell specialization: it stores monotone
+claim and premise facts in ordinary cells and projects the currently active
+truth view through strongest.
 
 The important current boundary is:
 
-- behavior owns temporal retention and current-value projection;
+- event owns input identity, source identity, source-local timestamps, latest
+  active projection, and source retraction facts;
+- behavior owns temporal retention, history reducers, and current-value
+  projection after explicit event promotion;
 - TMS owns support/premise selection and retraction-like projection;
 - compound objects own slots and structural transport;
-- compiler-2 can compile behavior arithmetic, distributed TMS primitives, and
-  custom behavior cells through `behavior-cell`;
+- compiler-2 keeps default arithmetic as current-value arithmetic. Plain
+  scalars stay plain, event cells lift over their latest active timestamped
+  values, and history-aware behavior arithmetic is explicit through `be:+`,
+  `be:-`, `be:*`, and the source spelling `be:/`;
+- compiler-2 can compile event promotion, behavior arithmetic, distributed TMS
+  primitives, and custom behavior cells through `behavior-cell`;
 - the kernel still only merges messages, computes strongest, and wakes
   neighbors.
 
-## Model
+## Event Model
 
-A behavior source is a sparse compound object of timestamped events. Events are
-attached with `p:event`, which is just `obj/p:slot` under an internal event slot
-key. The source cell therefore stays an ordinary compound-object collection.
+An event fact is monotone partial information:
+
+```clojure
+{:input-id input-id
+ :source source
+ :timestamp timestamp
+ :value value
+ :source-state :active}
+```
+
+Source retraction is another fact with a later timestamp and
+`:source-state :retracted`; no old fact is deleted. Event merge retains facts.
+Event strongest projects the latest active value for each `(input-id, source)`.
+
+Freshness is source-aware:
+
+- for the same `(input-id, source)`, a newer timestamp dominates an older one in
+  strongest projection;
+- the same `(input-id, source, timestamp)` with conflicting value/state is a
+  contradiction;
+- different sources remain independently fresh even when timestamps differ;
+- event-aware joins require equal/concurrent timestamps only for facts that
+  share a source.
+
+Widget inputs now emit event facts keyed by the channel event cell as
+`input-id` and the widget id as `source`. A slider panel emits all currently
+known channel values at the same widget epoch, so behavior arithmetic can join
+channels from the same panel without a global clock.
+
+Default arithmetic is event-current-aware. When any primitive input is event
+content, compiler-2 lifts the scalar operator over compatible active event facts:
+
+```clojure
+(def-cells a b c d)
+(-> (- (+ a c) b) d)
+(io:slider-panel a b c)
+```
+
+This does not promote `a`, `b`, `c`, or `d` to behavior. The result `d` is still
+event content: newer facts dominate older facts for the same source, retraction
+is represented by later retraction facts, and derived facts carry joined source
+evidence so a downstream arithmetic node will not combine stale same-source
+inputs. Behavior history arithmetic remains explicit with `be:+`, `be:-`,
+`be:*`, and `be:/`.
+
+## Behavior Model
+
+Behavior is the retained/continuous layer above event. `be:latest` promotes an
+event cell into a latest-held behavior. `behavior` and `behavior-cell` remain
+available for explicit reducer-shaped histories and now consume event content
+when the source cell is an event cell.
 
 `p:behavior` reduces that sparse event collection into a retained history view:
 
@@ -64,8 +124,8 @@ key. The source cell therefore stays an ordinary compound-object collection.
 
 The reducer is responsible for retention. It may keep every point event, emit
 constant/open intervals, or keep a bounded window. Nothing in the kernel deletes
-history; a newer retained view supersedes an older one through behavior merge
-evidence.
+history; newer event evidence supersedes older promoted behavior views through
+monotone behavior merge evidence.
 
 ## Content vs Strongest
 
@@ -117,9 +177,9 @@ Ordinary operators can use `:base` and ignore the summary.
 
 ## Reactive Identity
 
-Behavior history timestamps remain the temporal coordinate. The current
-identity model is intentionally simpler than a per-input vector clock: every
-behavior value also carries a hidden reactive identity set.
+Event facts carry the source freshness identity. Behavior values carry the
+promoted identity set derived from event `(input-id, source)` pairs or from
+explicit behavior constructors.
 
 ```clojure
 {:history retained-history
@@ -136,26 +196,26 @@ surface that provenance. The current defaults are source-compatible:
   `:identities` or `:identity` is supplied.
 - `latest-value`, `constant-value`, and `retained-value` preserve their old
   arities and accept an optional identity set on the longest arity.
-- `p:behavior` uses the source event cell id as the source behavior identity.
+- event-to-`be:latest` promotion uses event `(input-id, source)` pairs as the
+  behavior identity.
+- `p:behavior` uses the source event cell id as the source behavior identity
+  for reducer-shaped compatibility paths.
 - compiler-2 `behavior-point` uses the output cell id as its behavior identity.
 - compiler-2 behavior projections such as `be:latest`, `be:last`, and
   `be:history` preserve the input behavior identity set.
 
 Behavior joins union identity sets. For example, if `a` has identity `:a` and
-`b` has identity `:b`, then `(+ a b)` carries `#{:a :b}` when their histories
+`b` has identity `:b`, then `(be:+ a b)` carries `#{:a :b}` when their histories
 join at a compatible timestamp. The timestamp compatibility rule is unchanged:
 point events still join only at the same tick, and intervals still join only on
 overlap. Identity is therefore not a second freshness clock yet; it is a
 reactive grouping/provenance coordinate carried alongside existing timestamped
 history.
 
-This captures the first useful part of the propagator-paper reactivity idea
-without changing the runtime scheduler: give reactive inputs identities, but
-keep freshness policy in the behavior history/reducer machinery. Coarser
-identity policy can be added above this substrate later, for example by giving
-several widget channels the same logical identity. The current implementation
-does not yet add public syntax for choosing a coarse identity; it only carries
-and joins the identity metadata.
+This captures the useful part of the propagator-paper reactivity idea without
+changing the runtime scheduler: event gives reactive inputs source identities
+and source-local freshness; behavior reducers decide how those event facts
+become retained continuous values.
 
 ## Why This Shape
 
@@ -569,13 +629,17 @@ differential-dataflow, while preserving behavior's idempotent set-like history.
 
 ## Compiler-2 Integration
 
-Compiler-2 can use behavior arithmetic by compiling with
-`propagators.compiler-2.helpers/behavior-env`. This environment binds arithmetic
-symbols such as `+`, `-`, `*`, and `/` to behavior-aware operators while keeping
-the surface source unchanged:
+Compiler-2 default arithmetic remains current-value arithmetic. Plain scalar
+inputs produce plain scalar outputs. Event inputs lift over compatible active
+timestamped facts and produce derived event facts with joined source evidence.
+If a behavior cell is used with `+`, the primitive operator unwraps the behavior
+summary's `:base` value and produces an ordinary current result. It does not
+inspect or retain behavior history.
+
+History-aware behavior arithmetic is explicit:
 
 ```clojure
-(compile-source "(+ a b)" (behavior-env) {:net behavior-net})
+(compile-source "(be:+ a b)" (behavior-env) {:net behavior-net})
 ```
 
 The compiled application still follows compiler-2's retained application model:
@@ -591,7 +655,7 @@ For example, if `a` and `b` are behavior cells:
 a: {:at 6 :value 2}
 b: {:at 6 :value 7}
 
-(+ a b)
+(be:+ a b)
 ;; => {:at 6 :value 9}
 ```
 
@@ -602,9 +666,32 @@ updates the compiled output history:
 a: {:at 6 :value 2}, {:at 8 :value 3}
 b: {:at 6 :value 7}, {:at 8 :value 10}
 
-(+ a b)
+(be:+ a b)
 ;; => {:at 6 :value 9}, {:at 8 :value 13}
 ```
+
+The division spelling `be:/` is accepted by compiler-2 source preprocessing and
+is bound internally as `be:divide`, because raw EDN cannot read `be:/` as a
+symbol.
+
+## Benchmark Evidence
+
+The behavior graph benchmark is:
+
+```sh
+clojure -M:wired/tui-bench behavior-graph 5 0
+```
+
+The pre-refactor correct path was legacy default `+`; after the split the
+correct path is explicit `be:+`. On the captured 5-update run:
+
+- setup improved from `4778.531ms` to `2258.680ms`;
+- update average improved from `1241.147ms` to `1153.988ms`;
+- update p95 improved from `1721.240ms` to `1598.157ms`;
+- full-rebuild fallback count stayed `0`.
+
+The raw measurements are recorded in
+`propagators/doc/behavior-event-split-benchmark.md`.
 
 ## Behavior Compiler V1
 

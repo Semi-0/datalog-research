@@ -3,6 +3,7 @@
   (:require [propagators.cells.value :as value]
             [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.dependency :as dependency]
+            [propagators.datastructures.event :as event]
             [propagators.datastructures.intensity :as intensity]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms :as tms]
@@ -273,5 +274,35 @@
              (generic/handler-closure
               (fn [content]
                 (protocol-result (behavior/strongest-value content)))))
+           n1)]
+      [(into (vec merge-props) strongest-props) n2])))
+
+(defn install-event-protocol
+  "Install source-aware event partial-information handlers."
+  []
+  (fn [n]
+    (let [[merge-props n1]
+          ((define-merge-handler
+             (generic/match-cells-pred
+              #(or (empty-content? %)
+	                   (event/event-content? %)
+	                   (event/event-fact? %)
+                     (event/event-projection? %))
+	              #(or (event/event-content? %)
+	                   (event/event-fact? %)
+                     (event/event-projection? %)))
+             (generic/handler-closure
+              (fn [content update]
+                (protocol-result
+                 (event/merge-content
+                  (if (empty-content? content) value/nothing content)
+                  update)))))
+           n)
+          [strongest-props n2]
+          ((define-strongest-handler
+             (generic/match-cells-pred event/event-content?)
+             (generic/handler-closure
+              (fn [content]
+                (protocol-result (event/strongest-value content)))))
            n1)]
       [(into (vec merge-props) strongest-props) n2])))
