@@ -1,9 +1,12 @@
 (ns propagators.layered
   "Layered data/procedure support built from compound-object slots."
-  (:require [propagators.application :as application]
+  (:require [clojure.set :as set]
+            [propagators.application :as application]
+            [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.named-network :as named]
+            [propagators.datastructures.scope-source :as scope-source]
             [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -58,12 +61,41 @@
    (net/net-with-dict net/empty-net {:slot-index {}})
    layer->value))
 
+(defn- object-layer-values
+  [v]
+  (->> (obj/public-slot-keys v)
+       (keep (fn [layer-name]
+               (let [layer-value (obj/slot-value v layer-name)]
+                 (when (and (some? layer-value)
+                            (not (value/unusable? layer-value)))
+                   [layer-name layer-value]))))
+       (into {})))
+
+(defn- add-provenance
+  [layered-value provenance]
+  (if (empty? provenance)
+    layered-value
+    (let [layers (object-layer-values layered-value)]
+      (layer-object-net
+       (assoc layers
+              :provenance
+              (set/union (if (set? (:provenance layers))
+                           (:provenance layers)
+                           #{})
+                         provenance))))))
+
 (defn- normalize-layered-value
   [v]
-  (cond
-    (named/named-network? v) v
-    (value/nothing? v) (net/net-with-dict net/empty-net {:slot-index {}})
-    :else (layer-object-net {:base v})))
+  (let [scoped? (scope-source/scope-value? v)
+        base (if scoped? (scope-source/base-value v) v)
+        layered-value (cond
+                        (named/named-network? base) base
+                        (value/nothing? base) (net/net-with-dict net/empty-net
+                                                               {:slot-index {}})
+                        :else (layer-object-net {:base base}))]
+    (if scoped?
+      (add-provenance layered-value (scope-source/dependencies v))
+      layered-value)))
 
 (defn- usable-layer-value?
   [v]
@@ -74,12 +106,7 @@
   [v]
   (cond
     (named/named-network? v)
-    (->> (obj/public-slot-keys v)
-         (keep (fn [layer-name]
-                 (let [layer-value (obj/slot-value v layer-name)]
-                   (when (usable-layer-value? layer-value)
-                     [layer-name layer-value]))))
-         (into {}))
+    (object-layer-values v)
 
     (value/unusable? v)
     {}
@@ -270,23 +297,55 @@
 
 (defn- materialize-procedure
   [outer-net proc-id]
-  (let [proc-value (materialize-layered-cell-value outer-net proc-id)]
+  (let [raw-value (strongest-or-nothing outer-net proc-id)
+        scoped? (scope-source/scope-value? raw-value)
+        proc-value (if scoped?
+                     (scope-source/base-value raw-value)
+                     (materialize-layered-cell-value outer-net proc-id))]
     {:value proc-value
-     :layer-values (layer-values-from-object proc-value)}))
+     :layer-values (layer-values-from-object proc-value)
+     :operator-provenance (if scoped?
+                            (scope-source/dependencies raw-value)
+                            #{})}))
+
+(defn- add-result-provenance
+  [n result-id provenance]
+  (if (empty? provenance)
+    n
+    (let [result (strongest-or-nothing n result-id)
+          result' (add-provenance (normalize-layered-value result) provenance)]
+      (net/assoc-net-cell n result-id (cell/cell result' result')))))
 
 (defn- build-layered-application
   [outer-net proc-id arg-ids out-id layers arg-values layer-values proc-value]
   (application/build-branch-application
    {:cell-specs (layered-cell-specs outer-net proc-id arg-ids out-id proc-value)
-    :install-branches (fn [n frame]
-                        (install-layer-branches n
-                                                frame
-                                                proc-id
-                                                arg-ids
-                                                out-id
-                                                layers
-                                                arg-values
-                                                layer-values))
+    :install-branches
+    (fn [n frame]
+      (let [[n' materialization-props]
+            (reduce
+             (fn [[network prop-ids] [arg-id arg-value]]
+               (reduce-kv
+                (fn [[network prop-ids] layer-name layer-value]
+                  (let [layer-id (ids/new-node-id)
+                        network' (nb/install-cell network layer-id layer-value layer-value)
+                        [prop-id network''] ((p:layer layer-name layer-id arg-id)
+                                             network')]
+                    [network'' (conj prop-ids prop-id)]))
+                [network prop-ids]
+                (layer-values-from-object arg-value)))
+             [n []]
+             (map vector arg-ids arg-values))
+            materialized (nb/run-propagators n' materialization-props)
+            branches (install-layer-branches materialized
+                                               frame
+                                               proc-id
+                                               arg-ids
+                                               out-id
+                                               layers
+                                               arg-values
+                                               layer-values)]
+        branches))
     :reducer-install (fn [{:keys [active-layers result-bank-id reduced-out-id]}]
                        (dispatch/reduce-results
                         (dispatch/layered-object-policy active-layers)
@@ -306,8 +365,19 @@
         []
         (let [arg-values (mapv #(materialize-layered-cell-value outer-net %)
                                arg-ids)
-              {proc-value :value layer-values :layer-values}
+              {proc-value :value
+               layer-values :layer-values
+               operator-provenance :operator-provenance}
               (materialize-procedure outer-net proc-id)
+              lexical-provenance
+              (apply set/union
+                     operator-provenance
+                     (map (fn [id]
+                            (let [v (strongest-or-nothing outer-net id)]
+                              (if (scope-source/scope-value? v)
+                                (scope-source/dependencies v)
+                                #{})))
+                          arg-ids))
               layers (sort-by pr-str (keys layer-values))]
           (if (empty? layers)
             []
@@ -320,7 +390,9 @@
                                              arg-values
                                              layer-values
                                              proc-value)
-                  after (application/run-reduced-application app)]
+                  after (-> (application/run-reduced-application app)
+                            (add-result-provenance reduced-out-id
+                                                   lexical-provenance))]
               (application/diff-reduced-output outer-net after reduced-out-id out-id))))))))
 
 (defn p:apply-layered

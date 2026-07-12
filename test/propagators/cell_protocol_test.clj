@@ -215,12 +215,40 @@
       (is (= [:root :child] (scope-source/context-chain selected)))
       (is (= :payload (scope-source/base-value selected)))))
 
-  (testing "scope-source does not store dependency or closure layers"
+  (testing "scope-source stores dependencies without legacy closure layers"
     (let [candidate (scope-source/scope-value :root :ignored [:root] :same #{:dep})]
-      (is (nil? (obj/slot-value candidate :scope/dependencies)))
+      (is (= #{:dep} (obj/slot-value candidate :scope/dependencies)))
       (is (nil? (obj/slot-value candidate :scope/closure)))
       (is (nil? (obj/slot-value candidate :scope/chain)))
-      (is (= #{} (scope-source/dependencies candidate))))))
+      (is (= #{:dep} (scope-source/dependencies candidate)))))
+
+  (testing "equivalent candidates union provenance"
+    (let [n (scope-source-net)
+          left (scope-source/scope-value :child nil [:root :child] :same #{:left})
+          right (scope-source/scope-value :child nil [:root :child] :same #{:right})
+          content (-> value/nothing
+                      (#(merge/cell-merge % left n))
+                      (#(merge/cell-merge % right n)))
+          selected (merge/strongest-value content n)]
+      (is (= :same (scope-source/base-value selected)))
+      (is (= #{:left :right} (scope-source/dependencies selected)))))
+
+  (testing "candidate collection updates are accepted"
+    (let [n (scope-source-net)
+          root (scope-source/scope-value :root nil [:root :child] :root #{:root})
+          child (scope-source/scope-value :child nil [:root :child] :child #{:child})
+          content (merge/cell-merge value/nothing [root child] n)
+          selected (merge/strongest-value content n)]
+      (is (= :child (scope-source/base-value selected)))
+      (is (= #{:child} (scope-source/dependencies selected)))))
+
+  (testing "retarget and map-base preserve provenance"
+    (let [candidate (scope-source/scope-value :root nil [:root] 2 #{:origin})
+          retargeted (scope-source/retarget candidate nil [:root :child])
+          mapped (scope-source/map-base retargeted inc)]
+      (is (= [:root :child] (scope-source/context-chain mapped)))
+      (is (= 3 (scope-source/base-value mapped)))
+      (is (= #{:origin} (scope-source/dependencies mapped))))))
 
 (deftest dependency-protocol-merges-by-base-and-unions-sources
   (testing "dependency values expose base and source layers"
@@ -299,6 +327,23 @@
       (is (= 5 (obj/slot-value out-object :intensity))))))
 
 (deftest scheduler-wakes-only-when-protocol-strongest-changes
+  (testing "dependency-only scope refinement wakes downstream"
+    (let [source-id (new-node-id)
+          out-id (new-node-id)
+          left (scope-source/scope-value :root nil [:root] :same #{:left})
+          right (scope-source/scope-value :root nil [:root] :same #{:right})
+          n0 (-> (scope-source-net)
+                 (nb/install-cell source-id)
+                 (nb/install-cell out-id))
+          [sync-prop n1] ((stdlib-prop/id source-id out-id) n0)
+          [tasks1 n2] (core/eval-cell source-id (message source-id left) n1)
+          n3 (core/run-tasks tasks1 n2)
+          [tasks2 n4] (core/eval-cell source-id (message source-id right) n3)]
+      (is (queued? tasks2 sync-prop))
+      (is (= #{:left :right}
+             (scope-source/dependencies
+              (net/network-cell-strongest n4 source-id))))))
+
   (testing "higher intensity update wakes downstream"
     (let [source-id (new-node-id)
           out-id (new-node-id)

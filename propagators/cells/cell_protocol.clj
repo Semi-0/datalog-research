@@ -236,7 +236,7 @@
   (when (and (or (empty-content? content)
                  (value/nothing? content)
                  (scope-source/scope-content? content))
-             (scope-source/scope-value? update))
+             (scope-source/scope-content? update))
     (cache/stat! :cell-protocol/direct-scope-source-merge)
     (handled
      (scope-source/merge-content
@@ -410,7 +410,7 @@
              (generic/match-cells-pred
               #(or (empty-content? %)
                    (scope-source/scope-content? %))
-              scope-source/scope-value?)
+              scope-source/scope-content?)
              (generic/handler-closure
               (fn [content update]
                 (protocol-result

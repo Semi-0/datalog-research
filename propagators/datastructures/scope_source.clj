@@ -1,6 +1,7 @@
 (ns propagators.datastructures.scope-source
   "Scope-source tagged partial information for compiler-2 lexical bindings."
-  (:require [propagators.cells.value :as value]
+  (:require [clojure.set :as set]
+            [propagators.cells.value :as value]
             [propagators.cells.cell :as cell]
             [propagators.datastructures.compound-object :as obj]
             [propagators.graph :as graph]
@@ -38,11 +39,13 @@
     (:scope/chain source)))
 
 (defn- stable-scope-object
-  [source chain payload]
+  [source chain payload dependencies]
   (let [source (source-descriptor source chain)
-        candidate-key [::scope-value source payload]
+        dependencies (set dependencies)
+        candidate-key [::scope-value source payload dependencies]
         slots {base-layer payload
-               source-layer source}
+               source-layer source
+               dependencies-layer dependencies}
         slot-index (zipmap (keys slots) (repeat #{}))]
     (reduce-kv
      (fn [n slot-key slot-value]
@@ -56,11 +59,11 @@
 
 (defn scope-value
   ([source chain payload]
-   (stable-scope-object source chain payload))
+   (stable-scope-object source chain payload #{}))
   ([source closure chain payload]
    (scope-value source chain payload))
   ([source closure chain payload dependencies]
-   (scope-value source chain payload)))
+   (stable-scope-object source chain payload dependencies)))
 
 (defn base-value [v] (obj/slot-value v base-layer))
 (defn source [v] (obj/slot-value v source-layer))
@@ -70,7 +73,22 @@
   (or (source-chain (source v))
       (obj/slot-value v chain-layer)))
 (defn closure-scope [v] (last (context-chain v)))
-(defn dependencies [_v] #{})
+(defn dependencies [v]
+  (let [dependencies (obj/slot-value v dependencies-layer)]
+    (if (set? dependencies) dependencies #{})))
+
+(defn with-dependencies
+  [candidate dependencies]
+  (scope-value (source-scope candidate)
+               nil
+               (context-chain candidate)
+               (base-value candidate)
+               dependencies))
+
+(defn add-dependencies
+  [candidate more]
+  (with-dependencies candidate
+    (set/union (dependencies candidate) (set more))))
 
 (defn scope-value?
   [v]
@@ -105,6 +123,11 @@
        (= (source-scope a) (source-scope b))
        (= (context-chain a) (context-chain b))))
 
+(defn- merge-equivalent-candidates
+  [left right]
+  (with-dependencies left
+    (set/union (dependencies left) (dependencies right))))
+
 (defn- merge-candidate
   [content update]
   (let [existing (candidates content)]
@@ -112,7 +135,16 @@
       (value/contradiction? existing) value/contradiction
       (not (scope-value? update)) value/contradiction
       (empty? existing) update
-      (some #(same-scope-value? % update) existing) content
+      (some #(same-scope-value? % update) existing)
+      (let [merged (mapv (fn [candidate]
+                           (if (same-scope-value? candidate update)
+                             (merge-equivalent-candidates candidate update)
+                             candidate))
+                         existing)]
+        (cond
+          (= merged existing) content
+          (= 1 (count merged)) (first merged)
+          :else merged))
       :else (conj (vec existing) update))))
 
 (defn merge-content
@@ -157,20 +189,26 @@
                 strongest (map second (filter #(= max-rank (first %)) ranked))
                 bases (set (map base-value strongest))]
             (if (= 1 (count bases))
-              (first strongest)
+              (with-dependencies
+                (first strongest)
+                (apply set/union (map dependencies strongest)))
               value/contradiction)))))))
 
 (defn retarget
   [candidate closure chain]
   (scope-value (source-scope candidate)
+               closure
                chain
-               (base-value candidate)))
+               (base-value candidate)
+               (dependencies candidate)))
 
 (defn map-base
   [candidate f]
   (scope-value (source-scope candidate)
+               nil
                (context-chain candidate)
-               (f (base-value candidate))))
+               (f (base-value candidate))
+               (dependencies candidate)))
 
 (defn unwrap
   [v]
@@ -187,3 +225,31 @@
              (value/unusable? payload))
        value/nothing
        (scope-value source chain payload)))))
+
+(defn lexical-token
+  [lookup-key source chain]
+  {:provenance/type :lexical-access
+   :lookup/key lookup-key
+   :scope/source source
+   :scope/chain chain})
+
+(defn adapt-candidates
+  "Retarget reducer declarations to one active chain without selecting them."
+  [lookup-key candidates chain]
+  (mapv (fn [{:keys [scope/source binding]}]
+          (scope-value source
+                       nil
+                       chain
+                       binding
+                       #{(lexical-token lookup-key source chain)}))
+        candidates))
+
+(defn p:adapt-candidates
+  [lookup-key candidates-id chain-id out-id]
+  ((prop/primitive-propagator
+    (fn [candidates chain]
+      (if (or (value/unusable? candidates)
+              (value/unusable? chain))
+        value/nothing
+        (adapt-candidates lookup-key (or candidates []) chain))))
+   candidates-id chain-id out-id))

@@ -60,6 +60,38 @@
     (is (= {[:sum derived-source] 14}
            (event/active-values events)))))
 
+(deftest event-composite-timestamps-ignore-stale-duplicate-evidence
+  (let [source :widget
+        derived-source [:event/derived :sum #{[:a source] [:b source] [:c source]}]
+        active-3 #{{:input-id :a :source source :timestamp 3}
+                   {:input-id :b :source source :timestamp 3}
+                   {:input-id :c :source source :timestamp 3}}
+        stale-retraction #{{:input-id :b :source source :timestamp 2}
+                           {:input-id :a :source source :timestamp 4}
+                           {:input-id :b :source source :timestamp 3}
+                           {:input-id :c :source source :timestamp 3}}
+        active-4 #{{:input-id :a :source source :timestamp 4}
+                   {:input-id :b :source source :timestamp 4}
+                   {:input-id :c :source source :timestamp 4}}
+        events (content
+                (event/event-fact {:input-id :sum
+                                   :source derived-source
+                                   :timestamp active-3
+                                   :value 75
+                                   :evidence active-3})
+                (event/event-fact {:input-id :sum
+                                   :source derived-source
+                                   :timestamp stale-retraction
+                                   :source-state event/retracted-state
+                                   :evidence stale-retraction})
+                (event/event-fact {:input-id :sum
+                                   :source derived-source
+                                   :timestamp active-4
+                                   :value 76
+                                   :evidence active-4}))]
+    (is (= {[:sum derived-source] 76}
+           (event/active-values events)))))
+
 (deftest event-compatibility-is-source-aware
   (testing "same-source mismatched timestamps do not combine"
     (is (false?

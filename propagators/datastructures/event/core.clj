@@ -273,11 +273,33 @@
   (conj (evidence-identity-rank e)
         (time-rank (:timestamp e))))
 
+(defn- newer-evidence-entry
+  [a b]
+  (if (pos? (compare (time-rank (:timestamp b))
+                     (time-rank (:timestamp a))))
+    b
+    a))
+
+(defn- canonical-evidence-set
+  [xs]
+  (set
+   (vals
+    (reduce (fn [latest e]
+              (update latest
+                      [(:input-id e) (:source e)]
+                      (fn [current]
+                        (if current
+                          (newer-evidence-entry current e)
+                          e))))
+            {}
+            xs))))
+
 (defn- evidence-set-rank
   [xs]
   ["evidence-set"
    (mapv evidence-entry-rank
-         (sort-by evidence-identity-rank xs))])
+         (sort-by evidence-identity-rank
+                  (canonical-evidence-set xs)))])
 
 (defn- map-time-rank
   [m]
@@ -404,17 +426,20 @@
 (defn- lift-arg
   [content base-value]
   (if (event-bearing? content)
-    {:event? true
-     :choices (mapv (fn [fact]
-                      {:value (event-value fact)
-                       :fact fact})
-                    (active-facts content))
-     :latest (latest-facts content)}
+    (let [active (active-facts content)]
+      {:event? true
+       :choices (mapv (fn [fact]
+                        {:value (event-value fact)
+                         :fact fact})
+                      active)
+       :retraction-facts (if (seq active)
+                           active
+                           (latest-facts content))})
     {:event? false
      :choices (if (value/unusable? base-value)
                 []
                 [{:value base-value}])
-     :latest []}))
+     :retraction-facts []}))
 
 (defn- tuple-compatible?
   [tuple]
@@ -422,7 +447,7 @@
 
 (defn- tuple-evidence
   [tuple]
-  (set (mapcat fact-evidence (keep :fact tuple))))
+  (canonical-evidence-set (mapcat fact-evidence (keep :fact tuple))))
 
 (defn- derived-source
   [claim-id evidence]
@@ -432,23 +457,25 @@
 
 (defn- derived-timestamp
   [evidence]
-  (set evidence))
+  (canonical-evidence-set evidence))
 
 (defn- derived-active-event
   [claim-id evidence result]
-  (event-fact {:input-id claim-id
-               :source (derived-source claim-id evidence)
-               :timestamp (derived-timestamp evidence)
-               :value result
-               :evidence evidence}))
+  (let [evidence (canonical-evidence-set evidence)]
+    (event-fact {:input-id claim-id
+                 :source (derived-source claim-id evidence)
+                 :timestamp (derived-timestamp evidence)
+                 :value result
+                 :evidence evidence})))
 
 (defn- derived-retraction-event
   [claim-id evidence]
-  (event-fact {:input-id claim-id
-               :source (derived-source claim-id evidence)
-               :timestamp (derived-timestamp evidence)
-               :source-state retracted-state
-               :evidence evidence}))
+  (let [evidence (canonical-evidence-set evidence)]
+    (event-fact {:input-id claim-id
+                 :source (derived-source claim-id evidence)
+                 :timestamp (derived-timestamp evidence)
+                 :source-state retracted-state
+                 :evidence evidence})))
 
 (defn lift
   "Lift a scalar function over active event facts.
@@ -471,9 +498,10 @@
           (seq active)
           (content-value active)
 
-          (some (comp seq :latest) args)
-          (let [evidence (set (mapcat fact-evidence
-                                      (mapcat :latest args)))]
+          (some (comp seq :retraction-facts) args)
+          (let [evidence (canonical-evidence-set
+                          (mapcat fact-evidence
+                                  (mapcat :retraction-facts args)))]
             (derived-retraction-event claim-id evidence))
 
           :else value/nothing)))))

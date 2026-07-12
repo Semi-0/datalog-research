@@ -6,6 +6,7 @@
             [propagators.debugger :as debugger]
             [propagators.ids :refer [new-node-id]]
             [propagators.layered :as layered]
+            [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.named-network :as named]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -244,6 +245,44 @@
                   20 #{:b})]
       (assert-layer (:out-object result) :base 30)
       (assert-layer (:out-object result) :provenance #{:a :b}))))
+
+(deftest apply-layered-carries-scope-provenance
+  (testing "scope provenance joins the existing provenance layer"
+    (let [{base-net :net proc :proc} (prov-arith/+ net/empty-net)
+          {call-net :net a :a b :b out :out} (new-layered-call base-net)
+          apply (install-layered-apply call-net proc a b out)
+          token {:provenance/type :lexical-access
+                 :lookup/key :test/a
+                 :scope/source :child
+                 :scope/chain [:root :child]}
+          a-value (scope-source/scope-value :child nil [:root :child] 10 #{token})
+          n (-> (:net apply)
+                (nb/seed-cell a a-value)
+                (nb/seed-cell b 20)
+                (nb/run-propagators [(:prop apply)]))
+          out-value (net/network-cell-value n out)]
+      (assert-layer out-value :base 30)
+      (assert-layer out-value :provenance #{token}))))
+
+(deftest apply-layered-carries-scoped-operator-provenance
+  (testing "scope metadata on the procedure contributes provenance, not branches"
+    (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
+          proc-value (#'layered/materialize-layered-cell-value net proc)
+          scoped-proc-id (new-node-id)
+          token {:provenance/type :lexical-access
+                 :lookup/key :test/operator
+                 :scope/source :child
+                 :scope/chain [:root :child]}
+          scoped-proc (scope-source/scope-value :child
+                                                nil
+                                                [:root :child]
+                                                proc-value
+                                                #{token})
+          n0 (nb/install-cell net scoped-proc-id scoped-proc scoped-proc)
+          result (run-base-only-application n0 scoped-proc-id 4 5)]
+      (assert-layer (:out-object result) :base 9)
+      (assert-layer (:out-object result) :provenance #{token})
+      (assert-missing-layer (:out-object result) :scope/source))))
 
 (deftest debugger-reports-layered-dispatch
   (testing "layered debugger reports layer branch results and selected value"
