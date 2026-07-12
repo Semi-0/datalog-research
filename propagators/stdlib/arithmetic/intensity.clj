@@ -8,6 +8,7 @@
 
 (def p:sum-intensity
   (prop/primitive-propagator
+   :stdlib/intensity-sum
    (fn [_current left right]
      (if (and (number? left) (number? right))
        (core/+ left right)

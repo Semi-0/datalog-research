@@ -15,6 +15,35 @@
 
 (declare cell-merge strongest-value)
 
+(def ^:private semantic-kind-fn
+  (delay
+    (requiring-resolve
+     'propagators.datastructures.compound-information/semantic-kind)))
+
+(defn- semantic-kind [value]
+  (@semantic-kind-fn value))
+
+(defn- semantic-merge-kind
+  [content update]
+  (or (semantic-kind update)
+      (semantic-kind content)))
+
+(defn- resolved [symbol]
+  (delay (requiring-resolve symbol)))
+
+(def ^:private event-merge-fn
+  (resolved 'propagators.datastructures.event/merge-content))
+(def ^:private event-strongest-fn
+  (resolved 'propagators.datastructures.event/strongest-value))
+(def ^:private behavior-merge-fn
+  (resolved 'propagators.datastructures.behavior/merge-content))
+(def ^:private behavior-strongest-fn
+  (resolved 'propagators.datastructures.behavior/strongest-value))
+(def ^:private tms-merge-fn
+  (resolved 'propagators.datastructures.tms/merge-distributed-content))
+(def ^:private tms-strongest-fn
+  (resolved 'propagators.datastructures.tms/strongest-distributed-value))
+
 (defn- closure-value?
   [x]
   (and (map? x)
@@ -124,33 +153,71 @@
       (not (named-strongest-equal? new* old*)))))
 
 (defmulti built-in-cell-merge
-  (fn [_content update _network]
-    (cond
+  (fn [content update _network]
+    (or
+     (semantic-merge-kind content update)
+     (cond
       (update/compound-sync? update) :compound-sync
       (update/compound-data? update) :compound-data
       (reducer/reducer-subnet? update) :reducer-subnet
-      (or (reducer-cell/reducer-cell? _content)
+      (or (reducer-cell/reducer-cell? content)
           (reducer-cell/reducer-cell? update)) :reducer-cell
       (network-vm-nested-delta? update) :network-vm-nested-delta
-      (or ((requiring-resolve 'propagators.semantic-trace/semantic-trace-graph?) _content)
+      (or ((requiring-resolve 'propagators.semantic-trace/semantic-trace-graph?) content)
           ((requiring-resolve 'propagators.semantic-trace/semantic-trace-graph?) update))
       :semantic-trace-graph
-      (or ((requiring-resolve 'propagators.semantic-trace/epoch?) _content)
+      (or ((requiring-resolve 'propagators.semantic-trace/epoch?) content)
           ((requiring-resolve 'propagators.semantic-trace/epoch?) update))
       :semantic-trace-epoch
-      (or (closure-value? _content)
+      (or (closure-value? content)
           (closure-value? update)) :closure
       (evidence/evidence-set? update) :named-network
       (named/named-network? update) :named-network
-      :else :default)))
+      :else :default))))
+
+(defn- preserve-contradiction
+  [content update merge-fn]
+  (cond
+    (and (value/contradiction? content)
+         (value/contradiction? update))
+    (value/add-contradiction-provenance
+     content
+     (value/contradiction-provenance update))
+
+    (value/contradiction? content) content
+    (value/contradiction? update) update
+    :else (merge-fn content update)))
+
+(defmethod built-in-cell-merge :event-content
+  [content update _network]
+  (preserve-contradiction
+   content update
+   #(@event-merge-fn %1 %2)))
+
+(defmethod built-in-cell-merge :behavior-content
+  [content update _network]
+  (preserve-contradiction
+   content update
+   #(@behavior-merge-fn %1 %2)))
+
+(defmethod built-in-cell-merge :distributed-tms
+  [content update _network]
+  (preserve-contradiction
+   content update
+   #(@tms-merge-fn %1 %2)))
 
 (defmethod built-in-cell-merge :default
   [content update _network]
   (cond
     (value/nothing? content) update
     (value/nothing? update) content
-    (value/contradiction? content) value/contradiction
-    (value/contradiction? update) value/contradiction
+    (and (value/contradiction? content)
+         (value/contradiction? update))
+    (value/add-contradiction-provenance
+     content
+     (value/contradiction-provenance update))
+    (value/contradiction? content) content
+    (value/contradiction? update) update
     (= content update) content
     :else value/contradiction))
 
@@ -319,10 +386,12 @@
   [content update network]
   (if (= content update)
     content
-    (let [protocol-result (protocol-cell-merge content update network)]
-      (if (protocol-handled? protocol-result)
-        (protocol-handled-value protocol-result)
-        (built-in-cell-merge content update network)))))
+    (if (semantic-merge-kind content update)
+      (built-in-cell-merge content update network)
+      (let [protocol-result (protocol-cell-merge content update network)]
+        (if (protocol-handled? protocol-result)
+          (protocol-handled-value protocol-result)
+          (built-in-cell-merge content update network))))))
 
 (def generic-merge cell-merge)
 
@@ -331,18 +400,32 @@
   [entry update network]
   (let [content' (cell-merge (cell/cell-content entry) update network)
         strongest' (strongest-value content' network)]
-    (cell/cell content' strongest')))
+    (cell/cell (cell/cell-name entry) content' strongest')))
 
 (defmulti built-in-strongest-value
   (fn [x _network]
-    (cond
+    (or
+     (semantic-kind x)
+     (cond
       (evidence/evidence-set? x) :named-network-evidence
       (cell/cell? x) :cell
       (reducer/reducer-subnet? x) :reducer-subnet
       (reducer-cell/reducer-cell? x) :reducer-cell
       (state/compound-subnet-state? x) :compound-subnet
       (named/named-network? x) :named-network
-      :else :content)))
+      :else :content))))
+
+(defmethod built-in-strongest-value :event-content
+  [content _network]
+  (@event-strongest-fn content))
+
+(defmethod built-in-strongest-value :behavior-content
+  [content _network]
+  (@behavior-strongest-fn content))
+
+(defmethod built-in-strongest-value :distributed-tms
+  [content _network]
+  (@tms-strongest-fn content))
 
 (defmethod built-in-strongest-value :cell
   [c _network]
@@ -382,7 +465,8 @@
 
 (defn strongest-value
   [content network]
-  (if (cell/cell? content)
+  (if (or (cell/cell? content)
+          (semantic-kind content))
     (built-in-strongest-value content network)
     (let [protocol-result (protocol-cell-strongest content network)]
       (if (protocol-handled? protocol-result)

@@ -25,7 +25,9 @@
             content' (merge/cell-merge (cell/cell-content old) update n)
             strongest' (merge/strongest-value content' n)
             n' (-> n
-                   (net/assoc-net-cell id (cell/cell content' strongest'))
+                   (net/assoc-net-cell id (cell/cell (cell/cell-name old)
+                                                     content'
+                                                     strongest'))
                    (maybe-register-subenv id strongest'))
             node (graph/get-node (net/net-graph n') id)
             next-tasks (tq/enqueue-all tq/empty-queue (graph/node-output-ids node))]

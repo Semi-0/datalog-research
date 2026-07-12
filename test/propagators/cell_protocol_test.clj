@@ -7,9 +7,13 @@
             [propagators.compile :as compile]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.compound-information :as information]
+            [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.dependency :as dependency]
+            [propagators.datastructures.event :as event]
             [propagators.datastructures.intensity :as intensity]
             [propagators.datastructures.scope-source :as scope-source]
+            [propagators.datastructures.tms :as tms]
             [propagators.generic-procedure :as generic]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
@@ -96,6 +100,23 @@
     (let [n (protocol-net)]
       (is (= :x (merge/cell-merge value/nothing :x n)))
       (is (= :x (merge/strongest-value :x n))))))
+
+(deftest semantic-compound-values-use-native-built-ins-without-protocol-installers
+  (let [event-update (event/active-event :slider :widget 1 4)
+        event-content (merge/cell-merge value/nothing event-update net/empty-net)
+        event-selected (merge/strongest-value event-content net/empty-net)
+        behavior-update (behavior/latest-value 1 7 #{[:source 1]})
+        behavior-content (merge/cell-merge value/nothing behavior-update net/empty-net)
+        behavior-selected (merge/strongest-value behavior-content net/empty-net)
+        tms-update (tms/distributed-input-update :claim 9 :premise 0 :source)
+        tms-content (merge/cell-merge value/nothing tms-update net/empty-net)
+        tms-selected (merge/strongest-value tms-content net/empty-net)]
+    (is (= :event-content (information/semantic-kind event-content)))
+    (is (= :behavior-content (information/semantic-kind behavior-content)))
+    (is (= :distributed-tms (information/semantic-kind tms-content)))
+    (is (= [4] (vec (vals (event/active-values event-selected)))))
+    (is (= 7 (behavior/base-value behavior-selected)))
+    (is (= 9 (tms/distributed-base-value tms-selected)))))
 
 (deftest protocol-generics-are-extendable-through-generic-handlers
   (testing "merge and strongest can be extended by network-local generic cells"
@@ -327,6 +348,25 @@
       (is (= 5 (obj/slot-value out-object :intensity))))))
 
 (deftest scheduler-wakes-only-when-protocol-strongest-changes
+  (testing "contradiction provenance refinement wakes downstream"
+    (let [source-id (new-node-id)
+          out-id (new-node-id)
+          first-conflict (value/contradiction-with-provenance #{:left})
+          refined-conflict (value/contradiction-with-provenance #{:right})
+          n0 (-> (nb/install-cells [source-id out-id]))
+          [sync-prop n1] ((stdlib-prop/id source-id out-id) n0)
+          [tasks1 n2] (core/eval-cell source-id
+                                       (message source-id first-conflict)
+                                       n1)
+          n3 (core/run-tasks tasks1 n2)
+          [tasks2 n4] (core/eval-cell source-id
+                                       (message source-id refined-conflict)
+                                       n3)]
+      (is (queued? tasks2 sync-prop))
+      (is (= #{:left :right}
+             (value/contradiction-provenance
+              (net/network-cell-strongest n4 source-id))))))
+
   (testing "dependency-only scope refinement wakes downstream"
     (let [source-id (new-node-id)
           out-id (new-node-id)

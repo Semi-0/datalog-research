@@ -5,6 +5,23 @@
 (def nothing bool4/nothing)
 (def contradiction bool4/contradiction)
 
+(defn contradiction-with-provenance
+  [provenance]
+  [:contradiction {:provenance (set provenance)}])
+
+(defn contradiction-provenance
+  [x]
+  (if (and (vector? x)
+           (= :contradiction (first x))
+           (map? (second x)))
+    (set (get (second x) :provenance #{}))
+    #{}))
+
+(defn add-contradiction-provenance
+  [x provenance]
+  (contradiction-with-provenance
+   (into (contradiction-provenance x) provenance)))
+
 (def nothing? bool4/nothing?)
 (def contradiction? bool4/contradiction?)
 (defn unusable? [x] (bool4/unusable? x))

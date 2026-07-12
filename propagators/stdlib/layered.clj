@@ -6,19 +6,19 @@
 (defn +
   "Layered operator installer backed by `procedure-id`."
   [procedure-id]
-  (layered/p:layered-operator procedure-id))
+  (layered/p:layered-operator :stdlib/layered+ procedure-id))
 
 (defn -
   "Layered operator installer backed by `procedure-id`."
   [procedure-id]
-  (layered/p:layered-operator procedure-id))
+  (layered/p:layered-operator :stdlib/layered- procedure-id))
 
 (defn *
   "Layered operator installer backed by `procedure-id`."
   [procedure-id]
-  (layered/p:layered-operator procedure-id))
+  (layered/p:layered-operator :stdlib/layered* procedure-id))
 
 (defn /
   "Layered operator installer backed by `procedure-id`."
   [procedure-id]
-  (layered/p:layered-operator procedure-id))
+  (layered/p:layered-operator :stdlib/layered-divide procedure-id))

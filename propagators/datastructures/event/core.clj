@@ -1,6 +1,7 @@
 (ns propagators.datastructures.event.core
   "Discrete source-aware event partial information."
-  (:require [propagators.cells.value :as value]
+  (:require [clojure.set :as set]
+            [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.network :as net]))
 
@@ -214,6 +215,22 @@
                             value/contradiction)
       :else (assoc slots k fact))))
 
+(declare fact-evidence)
+
+(defn- facts-provenance
+  [facts]
+  (if (or (nil? facts) (value/contradiction? facts))
+    #{}
+    (set (mapcat fact-evidence (filter event-fact? facts)))))
+
+(defn- event-contradiction
+  [content & fact-groups]
+  (value/add-contradiction-provenance
+   (if (value/contradiction? content)
+     content
+     value/contradiction)
+   (apply set/union #{} (map facts-provenance fact-groups))))
+
 (defn merge-content
   [content update]
   (let [existing (if (value/nothing? content)
@@ -222,7 +239,8 @@
         incoming (content-facts update)]
     (cond
       (or (value/contradiction? existing)
-          (value/contradiction? incoming)) value/contradiction
+          (value/contradiction? incoming))
+      (event-contradiction content existing incoming)
       (empty? incoming) content
       :else
       (let [existing-slots (or (fact-slots content)
@@ -253,7 +271,7 @@
                              existing-latest
                              incoming))]
         (if (value/contradiction? merged)
-          value/contradiction
+          (event-contradiction content existing incoming)
           (content-object merged latest))))))
 
 (defn- evidence-timestamp?
@@ -363,7 +381,9 @@
   (let [active (active-facts content)]
     (if (empty? active)
       value/nothing
-      (let [timestamp-counts (frequencies (map timestamp active))]
+      (if (< 1 (count (set (map event-value active))))
+        (event-contradiction content active)
+        (let [timestamp-counts (frequencies (map timestamp active))]
         (net/assoc-net-dict-entry
          (obj/compound-object
           (assoc (into {}
@@ -380,7 +400,7 @@
 	                kind-key projection-kind
                   projection-facts-key active))
          protocol-dict-key
-         protocol-id)))))
+         protocol-id))))))
 
 (defn fact-evidence
   [fact]

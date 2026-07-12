@@ -54,6 +54,8 @@
             :main-opts ["-m" "propagators-gur-accumulating-bench"]}
            :compiler-2-application-bench
            {:main-opts ["-m" "propagators-compiler-2-application-bench"]}
+           :compiler-2-tms-chain-bench
+           {:main-opts ["-m" "propagators-compiler-2-tms-chain-bench"]}
            :propagators-profile
            {:main-opts ["-m" "propagators-compound-profile"]}
            :wired/server

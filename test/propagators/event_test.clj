@@ -33,6 +33,28 @@
       (is (= {} (event/active-values events)))
       (is (value/nothing? (event/strongest-value events))))))
 
+(deftest event-contradictions-carry-canonical-evidence
+  (let [left (event/active-event :value :left 1 10)
+        right (event/active-event :value :right 2 20)
+        retracted-right (event/retraction-event :value :right 3)
+        conflict-content (content left right)
+        contradiction (event/strongest-value conflict-content)
+        resolved (event/strongest-value
+                  (event/merge-content conflict-content retracted-right))]
+    (is (value/contradiction? contradiction))
+    (is (= #{{:input-id :value :source :left :timestamp 1}
+             {:input-id :value :source :right :timestamp 2}}
+           (value/contradiction-provenance contradiction)))
+    (is (= [10] (vec (vals (event/active-values resolved)))))))
+
+(deftest structural-event-contradictions-retain-provenance
+  (let [left (event/active-event :slider :widget 1 10)
+        right (event/active-event :slider :widget 1 11)
+        contradiction (event/merge-content left right)]
+    (is (value/contradiction? contradiction))
+    (is (= #{{:input-id :slider :source :widget :timestamp 1}}
+           (value/contradiction-provenance contradiction)))))
+
 (deftest event-composite-timestamps-keep-derived-freshness
   (let [a-id (ids/->NodeId
               (java.util.UUID/fromString

@@ -9,6 +9,7 @@
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
@@ -46,12 +47,14 @@
 
 (defn p:layered-operator
   "Create a propagator installer backed by a layered-procedure cell."
-  [layered-procedure-id]
-  (fn [& node-ids]
-    (let [nodes (vec node-ids)
-          args (vec (butlast nodes))
-          out (last nodes)]
-      (p:apply-layered layered-procedure-id args out))))
+  ([layered-procedure-id]
+   (p:layered-operator :layered/apply layered-procedure-id))
+  ([name layered-procedure-id]
+   (fn [& node-ids]
+     (let [nodes (vec node-ids)
+           args (vec (butlast nodes))
+           out (last nodes)]
+       (p:apply-layered name layered-procedure-id args out)))))
 
 (defn- layer-object-net
   [layer->value]
@@ -73,7 +76,9 @@
 
 (defn- add-provenance
   [layered-value provenance]
-  (if (empty? provenance)
+  (if (value/contradiction? layered-value)
+    (value/add-contradiction-provenance layered-value provenance)
+    (if (empty? provenance)
     layered-value
     (let [layers (object-layer-values layered-value)]
       (layer-object-net
@@ -82,7 +87,40 @@
               (set/union (if (set? (:provenance layers))
                            (:provenance layers)
                            #{})
-                         provenance))))))
+                         provenance)))))))
+
+(defn- layered-base-value
+  [v]
+  (cond
+    (scope-source/scope-value? v)
+    (layered-base-value (scope-source/base-value v))
+
+    (named/named-network? v)
+    (obj/slot-value v :base)
+
+    :else v))
+
+(defn- layered-contradiction?
+  [v]
+  (value/contradiction? (layered-base-value v)))
+
+(defn- value-provenance
+  [v]
+  (cond
+    (scope-source/scope-value? v)
+    (set/union (scope-source/dependencies v)
+               (value-provenance (scope-source/base-value v)))
+
+    (value/contradiction? v)
+    (value/contradiction-provenance v)
+
+    (named/named-network? v)
+    (let [provenance (obj/slot-value v :provenance)
+          base (obj/slot-value v :base)]
+      (set/union (if (set? provenance) provenance #{})
+                 (value/contradiction-provenance base)))
+
+    :else #{}))
 
 (defn- normalize-layered-value
   [v]
@@ -310,11 +348,16 @@
 
 (defn- add-result-provenance
   [n result-id provenance]
-  (if (empty? provenance)
-    n
-    (let [result (strongest-or-nothing n result-id)
-          result' (add-provenance (normalize-layered-value result) provenance)]
-      (net/assoc-net-cell n result-id (cell/cell result' result')))))
+  (let [result (strongest-or-nothing n result-id)]
+    (if (and (empty? provenance)
+             (not (layered-contradiction? result)))
+      n
+      (let [result' (if (layered-contradiction? result)
+                      (value/contradiction-with-provenance
+                       (set/union provenance (value-provenance result)))
+                      (add-provenance (normalize-layered-value result)
+                                      provenance))]
+        (net/assoc-net-cell n result-id (cell/cell result' result'))))))
 
 (defn- build-layered-application
   [outer-net proc-id arg-ids out-id layers arg-values layer-values proc-value]
@@ -360,8 +403,10 @@
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
   (fn [_input-ids _output-ids outer-net]
-    (let [raw-arg-values (application/cell-values outer-net arg-ids)]
-      (if (apply value/any-unusable-values? raw-arg-values)
+    (let [raw-arg-values (application/cell-values outer-net arg-ids)
+          raw-proc-value (strongest-or-nothing outer-net proc-id)]
+      (if (or (value/nothing? raw-proc-value)
+              (some value/nothing? raw-arg-values))
         []
         (let [arg-values (mapv #(materialize-layered-cell-value outer-net %)
                                arg-ids)
@@ -378,8 +423,18 @@
                                 (scope-source/dependencies v)
                                 #{})))
                           arg-ids))
+              contradiction-provenance
+              (apply set/union
+                     lexical-provenance
+                     (map value-provenance
+                          (into [proc-value] arg-values)))
               layers (sort-by pr-str (keys layer-values))]
-          (if (empty? layers)
+          (if (some layered-contradiction?
+                    (into [proc-value] arg-values))
+            [(message out-id
+                      (value/contradiction-with-provenance
+                       contradiction-provenance))]
+            (if (empty? layers)
             []
             (let [{:keys [reduced-out-id] :as app}
                   (build-layered-application outer-net
@@ -393,11 +448,14 @@
                   after (-> (application/run-reduced-application app)
                             (add-result-provenance reduced-out-id
                                                    lexical-provenance))]
-              (application/diff-reduced-output outer-net after reduced-out-id out-id))))))))
+              (application/diff-reduced-output outer-net after reduced-out-id out-id)))))))))
 
 (defn p:apply-layered
-  [proc-id arg-ids out-id]
-  (prop/construct-propagator
-   (layered-apply-activate proc-id (vec arg-ids) out-id)
-   (into [proc-id] arg-ids)
-   [out-id]))
+  ([proc-id arg-ids out-id]
+   (p:apply-layered :layered/apply proc-id arg-ids out-id))
+  ([name proc-id arg-ids out-id]
+   (prop/construct-propagator
+    name
+    (layered-apply-activate proc-id (vec arg-ids) out-id)
+    (into [proc-id] arg-ids)
+    [out-id])))

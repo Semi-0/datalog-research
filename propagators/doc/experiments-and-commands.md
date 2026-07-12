@@ -53,6 +53,39 @@ The default dispatch benchmark checks that a single 50-handler generic dispatch
 does not drift into multi-second territory. The 51-round form is a pressure run,
 not part of `clj -M:test`.
 
+## Native Semantic Dispatch Experiment
+
+Compiler-2 event, behavior, and distributed-TMS values now use the kernel's
+Clojure-native merge/strongest multimethods before the network-local generic
+fallback. The representation and retained merge algorithms are unchanged.
+
+```bash
+clojure -M:compiler-2-tms-chain-bench event-updates 100 1 3
+clojure -M:compiler-2-tms-chain-bench updates 100 1 3
+clojure -M:compiler-2-tms-chain-bench behavior-updates 100 1 3
+clojure -M:compiler-2-tms-chain-bench conflicts 1000 3 10
+clojure -M:wired/tui-bench slider-cache-profile
+```
+
+Recorded local results on 2026-07-12:
+
+| Workload | Before | Native kernel dispatch | Result |
+| --- | ---: | ---: | --- |
+| TMS, 100 retract/bring updates | 7624.527 ms total median | 7739.544 ms | no improvement |
+| Behavior, 100 retained updates | 2670.245 ms total median | 3054.322 ms | slower in this run |
+| Event, exact `(-> (+ (- a b) c) d)`, 100 updates | not recorded | 123.228 ms | correct; 1.008 ms median update |
+| TUI direct slider arithmetic, 60 updates | 3.315 ms average/update | 3.109 ms | approximately unchanged |
+
+All update benchmarks retained fixed topology. Dispatch is not the dominant
+TMS/behavior cost; retained slot scans and behavior history reconstruction are
+the next optimization boundary. The native TUI variant recorded no generic
+dispatch activity; the forced generic comparison recorded six generic applies,
+while its retained variant ran 363 retained generic frames.
+
+For 1000 provenance-bearing strongest projections, event conflicts took 5.844
+ms and carried two evidence tokens. TMS conflicts took 17.912 ms and carried
+two claim plus two premise tokens.
+
 ## Compound Chain Benchmark Context
 
 The historical benchmark compares compound `bi-sync` chain propagation across

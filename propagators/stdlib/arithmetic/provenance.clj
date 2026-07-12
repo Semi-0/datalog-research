@@ -8,6 +8,7 @@
 
 (def p:union
   (prop/primitive-propagator
+   :stdlib/provenance-union
    (fn [current left right]
      (if (and (set? left) (set? right))
        (set/union

@@ -10,13 +10,16 @@
                                          net-with-graph
                                          network-env-lookup]]))
 
-(defrecord Propagator [activate])
+(defrecord Propagator [name activate])
 
 (defn prop?
   [x]
   (and (map? x) (contains? x :activate) (ifn? (:activate x))))
 
-(defn prop [f] (map->Propagator {:activate f}))
+(defn prop
+  ([f] (prop :propagator/anonymous f))
+  ([name f] (map->Propagator {:name name :activate f})))
+(defn prop-name [p] (or (:name p) :propagator/anonymous))
 (defn prop-f [p] (:activate p))
 (def make-propagator prop)
 (defn propagator? [x] (prop? x))
@@ -67,8 +70,16 @@
 
 (defn construct-propagator
   ([activate inputs outputs]
-   (construct-propagator (new-node-id) activate inputs outputs))
-  ([id activate inputs outputs]
+   (construct-propagator (new-node-id)
+                         :propagator/anonymous
+                         activate
+                         inputs
+                         outputs))
+  ([id-or-name activate inputs outputs]
+   (if (propagators.ids/node-id? id-or-name)
+     (construct-propagator id-or-name :propagator/anonymous activate inputs outputs)
+     (construct-propagator (new-node-id) id-or-name activate inputs outputs)))
+  ([id name activate inputs outputs]
    (fn [arg]
      (let [net (as-net arg)
            ins (set inputs)
@@ -79,8 +90,8 @@
                   (wire-propagator-edges id ins outs))
            n (-> net
                  (net-with-graph g')
-                 (assoc-net-prop id (prop (fn [_inputs _outputs network]
-                                            (activate inputs outputs network)))))]
+                 (assoc-net-prop id (prop name (fn [_inputs _outputs network]
+                                                 (activate inputs outputs network)))))]
        [id n]))))
 
 (defn primitive-propagator
@@ -93,32 +104,36 @@
   inputs themselves. Use `concrete-primitive-propagator` when the primitive
   should not run until every input is usable.
   "
-  [f]
-  (fn [& node-ids]
-    (let [nodes (vec node-ids)
-          inputs (vec (butlast nodes))
-          output (last nodes)
-          activate (fn [input-nodes output-nodes network]
-                     (let [input-cells (mapv (partial network-env-lookup network) input-nodes)
-                           in-vals (mapv cell/cell-strongest input-cells)]
-                       (as-messages output-nodes [(apply f in-vals)])))]
-      (construct-propagator activate inputs [output]))))
+  ([f]
+   (primitive-propagator :propagator/primitive f))
+  ([name f]
+   (fn [& node-ids]
+     (let [nodes (vec node-ids)
+           inputs (vec (butlast nodes))
+           output (last nodes)
+           activate (fn [input-nodes output-nodes network]
+                      (let [input-cells (mapv (partial network-env-lookup network) input-nodes)
+                            in-vals (mapv cell/cell-strongest input-cells)]
+                        (as-messages output-nodes [(apply f in-vals)])))]
+       (construct-propagator name activate inputs [output])))))
 
 (def raw-primitive-propagator primitive-propagator)
 
 (defn concrete-primitive-propagator
   "Primitive installer variant that runs only when all inputs are concrete."
-  [f]
-  (fn [& node-ids]
-    (let [nodes (vec node-ids)
-          inputs (vec (butlast nodes))
-          output (last nodes)
-          activate (concrete-propagator
-                    (fn [input-nodes output-nodes network]
-                      (let [input-cells (mapv (partial network-env-lookup network) input-nodes)
-                            in-vals (mapv cell/cell-strongest input-cells)]
-                        (as-messages output-nodes [(apply f in-vals)]))))]
-      (construct-propagator activate inputs [output]))))
+  ([f]
+   (concrete-primitive-propagator :propagator/concrete-primitive f))
+  ([name f]
+   (fn [& node-ids]
+     (let [nodes (vec node-ids)
+           inputs (vec (butlast nodes))
+           output (last nodes)
+           activate (concrete-propagator
+                     (fn [input-nodes output-nodes network]
+                       (let [input-cells (mapv (partial network-env-lookup network) input-nodes)
+                             in-vals (mapv cell/cell-strongest input-cells)]
+                         (as-messages output-nodes [(apply f in-vals)]))))]
+       (construct-propagator name activate inputs [output])))))
 
 (defn compound-propagator
   "Install a compound propagator wired like any other propagator.
@@ -127,6 +142,6 @@
   Activation logic lives in `propagators.closure/compound-activate`."
   [closure-in inputs outputs]
   (let [activate (requiring-resolve 'propagators.closure/compound-activate)]
-    (construct-propagator (activate closure-in)
+    (construct-propagator :propagator/compound (activate closure-in)
                           (into [closure-in] inputs)
                           outputs)))

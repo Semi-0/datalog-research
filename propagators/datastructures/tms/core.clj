@@ -287,12 +287,16 @@
    (or content {})
    (or update {})))
 
+(declare slots-provenance)
+
 (defn merge-slots
   [content update]
   (let [merged (merge-slot-maps (without-latest-premise-slots content)
                                 (without-latest-premise-slots update))]
     (if (value/contradiction? merged)
-      value/contradiction
+      (value/contradiction-with-provenance
+       (set/union (slots-provenance content)
+                  (slots-provenance update)))
       (let [latest (latest-premise-states
                     (filter premise-state? (vals merged)))]
         (reduce-kv
@@ -341,13 +345,30 @@
                         (distributed-slots content))
         merged (merge-slots content-slots (distributed-slots update))]
     (if (value/contradiction? merged)
-      value/contradiction
+      merged
       (distributed-content merged))))
 
 (defn active-claims-for
   [view proposition-id]
   (filterv #(= proposition-id (proposition %))
            (vals (active-claims view))))
+
+(defn- claims-provenance
+  [claims]
+  (set
+   (concat
+    (map (fn [c] [:tms/claim (claim-id c)]) claims)
+    (mapcat (fn [c]
+              (map (fn [p] [:tms/premise p]) (supports c)))
+            claims))))
+
+(defn- slots-provenance
+  [slots]
+  (let [facts (vals (or slots {}))]
+    (set/union
+     (claims-provenance (filter claim? facts))
+     (set (map (fn [state] [:tms/premise (premise state)])
+               (filter premise-state? facts))))))
 
 (defn distributed-supports
   [x]
@@ -367,7 +388,7 @@
    (fn [slots update]
      (let [merged (merge-slots slots update)]
        (if (value/contradiction? merged)
-         (reduced value/contradiction)
+         (reduced merged)
          merged)))
    {}
    slot-maps))
@@ -386,7 +407,7 @@
         states (merge-slot-updates (map distributed-premise-slots inputs))
         supports (apply set/union #{} (map distributed-supports inputs))]
     (cond
-      (value/contradiction? states) value/contradiction
+      (value/contradiction? states) states
       (or (seq states) (seq supports))
       (distributed-content
        (merge-slots {}
@@ -402,10 +423,16 @@
 (defn strongest-distributed-value
   [content]
   (let [slots (distributed-slots content)
-        v (proposition-value (tms-view slots) distributed-proposition)]
-    (if (value/unusable? v)
-      v
-      (distributed-projection v slots))))
+        view (tms-view slots)
+        v (proposition-value view distributed-proposition)]
+    (cond
+      (value/contradiction? v)
+      (value/contradiction-with-provenance
+       (claims-provenance
+        (active-claims-for view distributed-proposition)))
+
+      (value/unusable? v) v
+      :else (distributed-projection v slots))))
 
 (def merge-net
   (let [content-id (stable-node-id ::merge :content)

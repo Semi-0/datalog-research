@@ -199,6 +199,28 @@
     (is (not= (reducer/reduced-epoch before)
               (reducer/reduced-epoch after)))))
 
+(deftest distributed-tms-conflicts-carry-claim-and-premise-provenance
+  (let [left (tms/distributed-input-update :left 10 :premise/left 0 :left)
+        right (tms/distributed-input-update :right 20 :premise/right 0 :right)
+        content (tms/merge-distributed-content left right)
+        conflict (tms/strongest-distributed-value content)
+        retracted (tms/merge-distributed-content
+                   content
+                   (tms/distributed-premise-update :premise/right 1 false))
+        selected (tms/strongest-distributed-value retracted)
+        brought (tms/merge-distributed-content
+                 retracted
+                 (tms/distributed-premise-update :premise/right 2 true))
+        conflict-again (tms/strongest-distributed-value brought)]
+    (is (= #{[:tms/claim :left]
+             [:tms/claim :right]
+             [:tms/premise :premise/left]
+             [:tms/premise :premise/right]}
+           (value/contradiction-provenance conflict)))
+    (is (= 10 (tms/distributed-base-value selected)))
+    (is (= (value/contradiction-provenance conflict)
+           (value/contradiction-provenance conflict-again)))))
+
 (deftest tms-selects-between-behavior-valued-claims
   (let [left (behavior/latest-value 0 :left #{[:definition :left]})
         right (behavior/latest-value 0 :right #{[:definition :right]})

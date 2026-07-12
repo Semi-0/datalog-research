@@ -2,7 +2,7 @@
   (:require [propagators.cells.value :as value]
             [propagators.ids :as ids]))
 
-(defrecord Cell [content strongest])
+(defrecord Cell [name content strongest])
 
 (defn cell?
   [x]
@@ -10,10 +10,16 @@
        (contains? x :content)
        (contains? x :strongest)))
 
-(defn cell [content strongest]
-  (map->Cell {:content content :strongest strongest}))
+(defn cell
+  ([content strongest]
+   (cell :cell/anonymous content strongest))
+  ([name content strongest]
+   (map->Cell {:name name :content content :strongest strongest})))
 
 (def make-cell cell)
+
+(defn cell-name [c]
+  (or (:name c) :cell/anonymous))
 
 (defn cell-content [c]
   (:content c))
@@ -35,9 +41,11 @@
            net (as-net arg)
            n (-> net
                  (assoc-net-node id (blank-node))
-                 (assoc-net-cell id (cell value/nothing value/nothing)))]
+                 (assoc-net-cell id (cell id value/nothing value/nothing)))]
        [id n])))
   ([id content strongest]
+   (construct-cell id id content strongest))
+  ([id name content strongest]
    (fn [arg]
      (let [as-net (requiring-resolve 'propagators.network/as-net)
            assoc-net-node (requiring-resolve 'propagators.network/assoc-net-node)
@@ -46,5 +54,5 @@
            net (as-net arg)
            n (-> net
                  (assoc-net-node id (blank-node))
-                 (assoc-net-cell id (cell content strongest)))]
+                 (assoc-net-cell id (cell name content strongest)))]
        [id n]))))

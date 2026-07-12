@@ -47,12 +47,29 @@
           n (net/net {node-id (graph/node #{} #{})} {node-id c})]
       (is (= :x (cell/cell-content c)))
       (is (= :y (cell/cell-strongest c)))
+      (is (= :cell/anonymous (cell/cell-name c)))
       (is (= node-id (snap/snap-id s)))
       (is (= c (snap/snap-cell s)))
       (is (= node-id (message/message-id m)))
       (is (= 9 (message/message-value m)))
       (is (fn? (prop/prop-f p)))
+      (is (= :propagator/anonymous (prop/prop-name p)))
       (is (= {node-id c} (net/net-env n)))
       (is (= {node-id (graph/node #{} #{})} (net/net-graph n)))
       (is (= net/empty-dict (net/net-dict n))))))
 
+(deftest named-runtime-entries-preserve-execution-identity
+  (let [cell-id (ids/new-node-id)
+        prop-id (ids/new-node-id)
+        [_ with-cell] ((cell/construct-cell cell-id :test/input 1 1)
+                       net/empty-net)
+        [_ network] ((prop/construct-propagator prop-id
+                                                :test/copy
+                                                (fn [_ _ _] [])
+                                                [cell-id]
+                                                [])
+                     with-cell)]
+    (is (= :test/input
+           (cell/cell-name (net/network-env-lookup network cell-id))))
+    (is (= :test/copy
+           (prop/prop-name (net/network-env-lookup network prop-id))))))

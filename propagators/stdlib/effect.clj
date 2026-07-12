@@ -7,6 +7,7 @@
   [do-something]
   (fn [in]
     (prop/construct-propagator
+     :stdlib/effect-tap
      (fn [_inputs _outputs _network]
        (do-something _inputs)
        [])
