@@ -52,6 +52,8 @@
            :gur-accumulating-bench
            {:extra-paths ["test"]
             :main-opts ["-m" "propagators-gur-accumulating-bench"]}
+           :compiler-2-application-bench
+           {:main-opts ["-m" "propagators-compiler-2-application-bench"]}
            :propagators-profile
            {:main-opts ["-m" "propagators-compound-profile"]}
            :wired/server
