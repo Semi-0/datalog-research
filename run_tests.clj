@@ -19,6 +19,7 @@
     propagators.compile-2-test
     propagators.compiler-2-composition-test
     propagators.compiler-2-cps-test
+    propagators.compiler-2-organization-test
     propagators.compound-data-test
     propagators.compound-object-network-slot-test
     propagators.compound-object-test
