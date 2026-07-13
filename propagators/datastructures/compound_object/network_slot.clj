@@ -50,6 +50,28 @@
   (and (contains? (net/net-env n) id)
        (contains? (net/net-graph n) id)))
 
+(defn existing-slot-cell-id
+  "Return an already-declared outer cell for `slot-key`, when unambiguous.
+
+  `preferred-id` wins when it is already a declared parent. Otherwise this
+  returns the sole locally addressable parent. Internal nested-network cell ids
+  are deliberately not exposed as outer-network cells."
+  ([network slot-key collection-id]
+   (existing-slot-cell-id network slot-key collection-id nil))
+  ([network slot-key collection-id preferred-id]
+   (let [collection (-> network
+                        (net/network-cell-strongest collection-id)
+                        compound-merge/as-accessor-network)
+         parent-ids (when-not (value/contradiction? collection)
+                      (->> (compound-merge/accessor-parent-ids collection slot-key)
+                           (filter #(network-cell-present? network %))
+                           distinct
+                           vec))]
+     (cond
+       (some #{preferred-id} parent-ids) preferred-id
+       (= 1 (count parent-ids)) (first parent-ids)
+       :else nil))))
+
 (defn- dispatch-address-present?
   [n id]
   (and (scoped/address? id)
@@ -225,10 +247,27 @@
     (fn [network]
       ((prop/construct-propagator
         prop-id
+        [:compound-object/network-slot slot-key]
         activate
         [parent-id collection-id]
         [parent-id collection-id])
        network))))
+
+(defn install-slot-access
+  "Return `[cell-id prop-ids network]` for one slot access.
+
+  Existing outer slot cells are returned directly. Missing or ambiguous slots
+  retain the general live accessor behavior by declaring `fallback-id`."
+  [network slot-key collection-id fallback-id]
+  (if-let [cell-id (existing-slot-cell-id network
+                                          slot-key
+                                          collection-id
+                                          fallback-id)]
+    [cell-id [] network]
+    (let [network* (nb/ensure-cell network fallback-id)
+          [prop-id network'] ((p:network-slot slot-key fallback-id collection-id)
+                              network*)]
+      [fallback-id [prop-id] network'])))
 
 (defn p:network-car [elem-id collection-id]
   (p:network-slot :car elem-id collection-id))

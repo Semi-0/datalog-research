@@ -203,12 +203,13 @@
          (contains? (:outputs prop-node) to-id))))
 
 (defn- install-content-copy
-  [n prop-id from-id to-id]
+  [n prop-id name from-id to-id]
   (if (content-copy-installed? n prop-id from-id to-id)
     n
     (second
      ((prop/construct-propagator
        prop-id
+       name
        (fn [_inputs _outputs network]
          (let [entry (net/network-env-lookup network from-id)
                content (cell/cell-content entry)]
@@ -231,8 +232,12 @@
              (net/network-dict-entry n to-key))
       n
       (-> n
-          (install-content-copy from-prop-id parent-avatar-id canonical-avatar-id)
-          (install-content-copy to-prop-id canonical-avatar-id parent-avatar-id)
+          (install-content-copy from-prop-id
+                                [:compound-object/slot-sync slot-key :to-canonical]
+                                parent-avatar-id canonical-avatar-id)
+          (install-content-copy to-prop-id
+                                [:compound-object/slot-sync slot-key :from-canonical]
+                                canonical-avatar-id parent-avatar-id)
           (net/assoc-net-dict-entry from-key #{:installed})
           (net/assoc-net-dict-entry to-key #{:installed})))))
 

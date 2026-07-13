@@ -75,6 +75,7 @@
   (let [node (graph/get-node (net/net-graph n) prop-id)
         prop (net/network-env-lookup n prop-id)]
     (fvm/declare-prop prop-id
+                      (p/prop-name prop)
                       (vec (graph/node-input-ids node))
                       (vec (graph/node-output-ids node))
                       (p/prop-f prop))))
@@ -202,7 +203,7 @@
          [ctx** output-ids] (resolve-args ctx* outputs)
          prop-id (fvm/stable-node-id [(:scope ctx**) tag input-ids output-ids])]
      (emit ctx**
-           (fvm/declare-prop prop-id input-ids output-ids activate)))))
+           (fvm/declare-prop prop-id tag input-ids output-ids activate)))))
 
 (defn tell
   ([target value]

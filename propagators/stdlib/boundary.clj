@@ -1,6 +1,7 @@
 (ns propagators.stdlib.boundary
   "Boundary topology and bidirectional sync helpers."
   (:require [propagators.network :as net]
+            [propagators.propagator :as p]
             [propagators.stdlib.prop :as prop]))
 
 (defn nothing-out-link
@@ -13,14 +14,19 @@
   [net real avatar]
   (second ((prop/nothing real avatar) net)))
 
+(defn- sync-link
+  [name from to]
+  ((p/primitive-propagator name identity) from to))
+
 (defn bi-sync
   [_closure-struct input-nodes output-nodes network]
   (let [[n-a n-b] (vec input-nodes)
         [out-a out-b] (vec output-nodes)]
-    (reduce (fn [n [from to]]
-              (second ((prop/id from to) n)))
+    (reduce (fn [n [name from to]]
+              (second ((sync-link name from to) n)))
             network
-            [[n-a out-b] [n-b out-a]])))
+            [[:boundary/bi-sync-a->b n-a out-b]
+             [:boundary/bi-sync-b->a n-b out-a]])))
 
 (def bi-sync-closure
   {:f bi-sync :net net/empty-net})
@@ -30,6 +36,6 @@
 
   Returns `[[a->b b->a] network]`."
   [network a b]
-  (let [[a->b n] ((prop/id a b) network)
-        [b->a n] ((prop/id b a) n)]
+  (let [[a->b n] ((sync-link :boundary/fast-bi-sync-a->b a b) network)
+        [b->a n] ((sync-link :boundary/fast-bi-sync-b->a b a) n)]
     [[a->b b->a] n]))

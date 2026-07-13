@@ -48,6 +48,8 @@
 (def accessor-declarations-for compound-merge/accessor-declarations-for)
 (def attach-network-slot-sync compound-merge/attach-network-slot-sync)
 (def register-accessor-parent compound-merge/register-accessor-parent)
+(def existing-slot-cell-id network-slot/existing-slot-cell-id)
+(def install-slot-access network-slot/install-slot-access)
 (def p:network-slot network-slot/p:network-slot)
 (def p:network-car network-slot/p:network-car)
 (def p:network-cdr network-slot/p:network-cdr)

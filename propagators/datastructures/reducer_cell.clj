@@ -9,6 +9,7 @@
             [propagators.cells.value :as value]
             [propagators.message :refer [message]]
             [propagators.network :as net]
+            [propagators.network-cache :as cache]
             [propagators.propagator :as prop]))
 
 (def required-strongest-keys #{:slots :out})
@@ -161,7 +162,7 @@
                   (sort-by pr-str (keys (net/net-env strongest-net)))
                   (sort-by (comp pr-str key) slots)]))])
 
-(defn strongest
+(defn- strongest*
   [reducer-value]
   (let [template (strongest-net reducer-value)]
     (if-not (reducer-net-valid? template required-strongest-keys)
@@ -203,9 +204,16 @@
         (catch Exception _
           value/contradiction)))))
 
+(defn strongest
+  "Project a reducer value, reusing equal pure projections within one transaction."
+  [reducer-value]
+  (cache/cached [::strongest reducer-value]
+                #(strongest* reducer-value)))
+
 (defn p:reducer-slot
   [reducer-id merge-net strongest-net slot-key value-id reducer-cell-id]
   (prop/construct-propagator
+   [:reducer-cell/slot slot-key]
    (fn [_inputs _outputs network]
      (let [v (net/network-cell-strongest network value-id)]
        (cond
@@ -228,6 +236,7 @@
 (defn p:reduced-result
   [reduced-id out-id]
   (prop/construct-propagator
+   :reducer-cell/reduced-result
    (fn [_inputs _outputs network]
      (let [v (net/network-cell-strongest network reduced-id)]
        (cond

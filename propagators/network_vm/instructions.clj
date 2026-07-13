@@ -10,12 +10,14 @@
    :id id})
 
 (defn declare-prop
-  [id inputs outputs activate]
-  {:network-vm/op :declare-prop
-   :id id
-   :inputs (vec inputs)
-   :outputs (vec outputs)
-   :activate activate})
+  ([id inputs outputs activate]
+   {:network-vm/op :declare-prop
+    :id id
+    :inputs (vec inputs)
+    :outputs (vec outputs)
+    :activate activate})
+  ([id name inputs outputs activate]
+   (assoc (declare-prop id inputs outputs activate) :name name)))
 
 (defn bind-name
   [scope name id]

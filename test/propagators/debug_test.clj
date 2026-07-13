@@ -33,3 +33,38 @@
     (is (some #(re-find #"\bn\d+\b" %) @lines))
     (is (not-any? #(str/includes? % "#uuid") @lines))
     (is (not-any? #(str/includes? % "NodeId") @lines))))
+
+(deftest activation-profile-ranks-propagators-without-changing-evaluation
+  (let [in-id (ids/new-node-id)
+        middle-id (ids/new-node-id)
+        out-id (ids/new-node-id)
+        profile (debug/activation-profile)
+        n0 (-> net/empty-net
+               (nb/install-cell in-id 1 1)
+               (nb/install-cell middle-id)
+               (nb/install-cell out-id))
+        [first-prop n1]
+        ((prop/construct-propagator
+          :debug/first
+          (fn [_inputs _outputs _network]
+            [(message middle-id 2)])
+          [in-id]
+          [middle-id])
+         n0)
+        [_second-prop n2]
+        ((prop/construct-propagator
+          :debug/second
+          (fn [_inputs _outputs _network]
+            [(message out-id 3)])
+          [middle-id]
+          [out-id])
+         n1)
+        result (debug/with-activation-profile profile
+                 (core/run-tasks (tq/enqueue tq/empty-queue first-prop) n2))
+        report (debug/activation-profile-report profile)
+        by-name (into {} (map (juxt :prop-name identity)) (:by-name report))]
+    (is (= 3 (net/network-cell-strongest result out-id)))
+    (is (= 2 (get-in report [:totals :calls])))
+    (is (= 1 (get-in by-name [:debug/first :calls])))
+    (is (= 1 (get-in by-name [:debug/second :calls])))
+    (is (every? #(<= 0.0 (:exclusive-ms %)) (:by-propagator report)))))

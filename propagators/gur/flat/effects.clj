@@ -107,18 +107,23 @@
   (effect-result tasks (ensure-indexed-cell n id)))
 
 (defn- install-prop-once
-  [n id inputs outputs activate]
+  [n id name inputs outputs activate]
   (let [already? (contains? (net/net-env n) id)
         n0 (ensure-indexed-cells n (concat inputs outputs))
         [_ n1] (if already?
                  [id n0]
-                 ((prop/construct-propagator id activate inputs outputs) n0))]
+                 ((prop/construct-propagator id
+                                             (or name :propagator/anonymous)
+                                             activate
+                                             inputs
+                                             outputs)
+                  n0))]
     {:already? already?
      :net (commit-prop n1 id)}))
 
 (defn- apply-declare-prop
-  [tasks n {:keys [id inputs outputs activate]}]
-  (let [{:keys [already? net]} (install-prop-once n id inputs outputs activate)]
+  [tasks n {:keys [id name inputs outputs activate]}]
+  (let [{:keys [already? net]} (install-prop-once n id name inputs outputs activate)]
     (effect-result (if already? tasks (tq/enqueue tasks id)) net)))
 
 (defn- apply-bind-name

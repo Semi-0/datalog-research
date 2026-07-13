@@ -83,6 +83,7 @@
   while still moving data through ordinary messages."
   [from-id to-id]
   (prop/construct-propagator
+   :effectful-sync/content-copy
    (fn [_inputs _outputs network]
      [(message to-id
                (cell/cell-content (net/network-env-lookup network from-id)))])

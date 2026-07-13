@@ -112,6 +112,50 @@
     (is (some? (get dict (obj/internal-metadata-key :accessor :x :avatar p2))))
     (is (= 4 (count (filter sync-key? (keys dict)))))))
 
+(deftest slot-access-reuses-one-existing-outer-cell
+  (let [parent (new-node-id)
+        fallback (new-node-id)
+        coll (new-node-id)
+        n0 (nb/install-cells [parent fallback coll])
+        [slot-prop n1] ((obj/p:slot :x parent coll) n0)
+        n2 (nb/run-propagators n1 [slot-prop])
+        prop-count-before (prop-count n2)
+        [cell-id prop-ids n3] (obj/install-slot-access n2 :x coll fallback)]
+    (is (= parent cell-id))
+    (is (empty? prop-ids))
+    (is (= prop-count-before (prop-count n3)))
+    (is (= n2 n3))))
+
+(deftest slot-access-declares-one-live-fallback-for-a-missing-slot
+  (let [fallback (new-node-id)
+        coll (new-node-id)
+        n0 (nb/install-cells [fallback coll])
+        [cell-id prop-ids n1] (obj/install-slot-access n0 :x coll fallback)]
+    (is (= fallback cell-id))
+    (is (= 1 (count prop-ids)))
+    (is (= (inc (prop-count n0)) (prop-count n1)))))
+
+(deftest slot-access-does-not-pick-an-arbitrary-parent
+  (let [p1 (new-node-id)
+        p2 (new-node-id)
+        fallback (new-node-id)
+        coll (new-node-id)
+        n0 (nb/install-cells [p1 p2 fallback coll])
+        [p1-prop n1] ((obj/p:slot :x p1 coll) n0)
+        n2 (nb/run-propagators n1 [p1-prop])
+        [p2-prop n3] ((obj/p:slot :x p2 coll) n2)
+        n4 (nb/run-propagators n3 [p2-prop])
+        [preferred-id preferred-props preferred-net]
+        (obj/install-slot-access n4 :x coll p2)
+        [fallback-id fallback-props fallback-net]
+        (obj/install-slot-access n4 :x coll fallback)]
+    (is (= p2 preferred-id))
+    (is (empty? preferred-props))
+    (is (= n4 preferred-net))
+    (is (= fallback fallback-id))
+    (is (= 1 (count fallback-props)))
+    (is (= (inc (prop-count n4)) (prop-count fallback-net)))))
+
 (deftest network-slot-reads-map-vector-and-record-source-values
   (testing "map slots are projected to outer accessors without durable slot cells"
     (let [{:keys [parent-value collection-value]} (run-network-slot :left

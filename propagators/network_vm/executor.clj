@@ -83,10 +83,15 @@
     (update vm-state :net nb/ensure-cell (:id instruction))
 
     :declare-prop
-    (let [{:keys [id inputs outputs activate]} instruction
+    (let [{:keys [id name inputs outputs activate]} instruction
           n0 (reduce nb/ensure-cell (:net vm-state)
                      (distinct (concat inputs outputs)))
-          [_ n1] ((prop/construct-propagator id activate inputs outputs) n0)]
+          [_ n1] ((prop/construct-propagator id
+                                             (or name :propagator/anonymous)
+                                             activate
+                                             inputs
+                                             outputs)
+                  n0)]
       (assoc vm-state :net n1))
 
     :bind-name

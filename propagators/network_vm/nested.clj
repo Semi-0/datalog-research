@@ -99,8 +99,10 @@
   (effect target (instr/declare-cell id)))
 
 (defn declare-prop
-  [target id inputs outputs activate]
-  (effect target (instr/declare-prop id inputs outputs activate)))
+  ([target id inputs outputs activate]
+   (effect target (instr/declare-prop id inputs outputs activate)))
+  ([target id name inputs outputs activate]
+   (effect target (instr/declare-prop id name inputs outputs activate))))
 
 (defn bind-name
   [target scope name id]
@@ -323,7 +325,7 @@
                                  (commit-cell (:id instruction))))
 
       :declare-prop
-      (let [{:keys [id inputs outputs activate]} instruction
+      (let [{:keys [id name inputs outputs activate]} instruction
             already? (contains? (net/net-env (:net vm-state)) id)
             n0 (reduce (fn [n cell-id]
                          (-> n
@@ -333,7 +335,12 @@
                        (distinct (concat inputs outputs)))
             [_ n1] (if already?
                      [id n0]
-                     ((prop/construct-propagator id activate inputs outputs) n0))
+                     ((prop/construct-propagator id
+                                                 (or name :propagator/anonymous)
+                                                 activate
+                                                 inputs
+                                                 outputs)
+                      n0))
             vm-state* (assoc vm-state :net (commit-prop n1 id))]
         (if already?
           vm-state*

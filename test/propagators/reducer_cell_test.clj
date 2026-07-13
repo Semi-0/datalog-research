@@ -8,6 +8,7 @@
             [propagators.install :as i]
             [propagators.message :refer [message]]
             [propagators.network :as net]
+            [propagators.network-cache :as cache]
             [propagators.network-builder :as nb]
             [propagators.gur.flat :as fvm]
             [propagators.gur.flat :as fgur]
@@ -242,6 +243,18 @@
                                 net/empty-net)]
     (is (not= (reducer/reduced-epoch a)
               (reducer/reduced-epoch b)))))
+
+(deftest strongest-reuses-equal-projections-within-one-transaction
+  (cache/with-cache
+    (let [content (reducer/reducer-cell :r
+                                        default-merge-net
+                                        map-reducer-net
+                                        {:a 1})
+          first-result (reducer/strongest content)
+          second-result (reducer/strongest content)]
+      (is (= first-result second-result))
+      (is (= {:cache/miss 1 :cache/hit 1}
+             (cache/stats))))))
 
 (deftest reduced-result-primitive-projects-ordinary-result
   (let [value-id (node-id :primitive :value)

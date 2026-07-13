@@ -39,13 +39,17 @@
     (:scope/chain source)))
 
 (defn- stable-scope-object
-  [source chain payload dependencies]
+  [source closure chain payload dependencies]
   (let [source (source-descriptor source chain)
         dependencies (set dependencies)
-        candidate-key [::scope-value source payload dependencies]
-        slots {base-layer payload
-               source-layer source
-               dependencies-layer dependencies}
+        candidate-key [::scope-value source closure payload dependencies]
+        closure-token (cond
+                        (ids/node-id? closure) (ids/unwrap-node-id closure)
+                        :else closure)
+        slots (cond-> {base-layer payload
+                       source-layer source
+                       dependencies-layer dependencies}
+                closure-token (assoc closure-layer closure-token))
         slot-index (zipmap (keys slots) (repeat #{}))]
     (reduce-kv
      (fn [n slot-key slot-value]
@@ -59,15 +63,26 @@
 
 (defn scope-value
   ([source chain payload]
-   (stable-scope-object source chain payload #{}))
+   (stable-scope-object source nil chain payload #{}))
   ([source closure chain payload]
-   (scope-value source chain payload))
+   (stable-scope-object source closure chain payload #{}))
   ([source closure chain payload dependencies]
-   (stable-scope-object source chain payload dependencies)))
+   (stable-scope-object source closure chain payload dependencies)))
 
 (defn base-value [v] (obj/slot-value v base-layer))
 (defn source [v] (obj/slot-value v source-layer))
 (defn source-scope [v] (source-id (source v)))
+(defn binding-address
+  [v]
+  (let [token (obj/slot-value v closure-layer)]
+    (cond
+      (ids/node-id? token) token
+      (instance? java.util.UUID token) (ids/->NodeId token)
+      (and (vector? token)
+           (= :uuid (first token))
+           (instance? java.util.UUID (second token)))
+      (ids/->NodeId (second token))
+      :else nil)))
 (defn context-chain
   [v]
   (or (source-chain (source v))
@@ -80,7 +95,7 @@
 (defn with-dependencies
   [candidate dependencies]
   (scope-value (source-scope candidate)
-               nil
+               (binding-address candidate)
                (context-chain candidate)
                (base-value candidate)
                dependencies))
@@ -96,7 +111,7 @@
         chain (context-chain v)]
     (and (some? (source-scope v))
          (vector? chain)
-         (not (value/unusable? base)))))
+         (not (value/contradiction? base)))))
 
 (defn- scope-candidates?
   [v]
@@ -123,6 +138,13 @@
        (= (source-scope a) (source-scope b))
        (= (context-chain a) (context-chain b))))
 
+(defn- same-addressed-scope?
+  [a b]
+  (and (some? (binding-address a))
+       (= (binding-address a) (binding-address b))
+       (= (source-scope a) (source-scope b))
+       (= (context-chain a) (context-chain b))))
+
 (defn- merge-equivalent-candidates
   [left right]
   (with-dependencies left
@@ -135,6 +157,16 @@
       (value/contradiction? existing) value/contradiction
       (not (scope-value? update)) value/contradiction
       (empty? existing) update
+      (some #(same-addressed-scope? % update) existing)
+      (let [replaced (mapv (fn [candidate]
+                             (if (same-addressed-scope? candidate update)
+                               (with-dependencies
+                                 update
+                                 (set/union (dependencies candidate)
+                                            (dependencies update)))
+                               candidate))
+                           existing)]
+        (if (= 1 (count replaced)) (first replaced) replaced))
       (some #(same-scope-value? % update) existing)
       (let [merged (mapv (fn [candidate]
                            (if (same-scope-value? candidate update)
@@ -219,6 +251,7 @@
 (def p:scope-value
   "Primitive propagator: source + chain + payload -> scope-source candidate."
   (prop/primitive-propagator
+   :scope-source/scope-value
    (fn [source chain payload]
      (if (or (value/unusable? source)
              (value/unusable? chain)
@@ -245,11 +278,15 @@
         candidates))
 
 (defn p:adapt-candidates
-  [lookup-key candidates-id chain-id out-id]
-  ((prop/primitive-propagator
-    (fn [candidates chain]
-      (if (or (value/unusable? candidates)
-              (value/unusable? chain))
-        value/nothing
-        (adapt-candidates lookup-key (or candidates []) chain))))
-   candidates-id chain-id out-id))
+  ([lookup-key candidates-id chain-id out-id]
+   (p:adapt-candidates :scope-source/adapt-candidates
+                       lookup-key candidates-id chain-id out-id))
+  ([name lookup-key candidates-id chain-id out-id]
+   ((prop/primitive-propagator
+     name
+     (fn [candidates chain]
+       (if (or (value/unusable? candidates)
+               (value/unusable? chain))
+         value/nothing
+         (adapt-candidates lookup-key (or candidates []) chain))))
+    candidates-id chain-id out-id)))
