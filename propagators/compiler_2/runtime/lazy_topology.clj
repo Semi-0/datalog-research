@@ -1,11 +1,11 @@
-(ns propagators.compiler-2.lazy-topology
+(ns propagators.compiler-2.runtime.lazy-topology
   "Lazy topology installers for compiler-2 special forms."
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
-            [propagators.compiler-2.dispatch :as compiler-dispatch]
-            [propagators.compiler-2.env :as env]
-            [propagators.compiler-2.helpers :as h]
-            [propagators.compiler-2.topology-effects :as topology-effects]
+            [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
+            [propagators.compiler-2.model.env :as env]
+            [propagators.compiler-2.compiler.basis :as h]
+            [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.gur.flat :as fvm]
             [propagators.message :refer [message]]
             [propagators.network :as net]
@@ -137,3 +137,5 @@
   [state condition-id body]
   (install-when-topology-with compiler-dispatch/compile-expression
                               state condition-id body))
+
+

@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.retained-application
+(ns propagators.compiler-2.runtime.retained-application
   "Retained compiler-2 application installer.
 
   Closure values are lowered into retained closure frames. Primitive/operator
@@ -6,12 +6,12 @@
   migrated.
   "
   (:require [propagators.cells.value :as value]
-            [propagators.compiler-2.application :as application]
-            [propagators.compiler-2.application-value :as application-value]
-            [propagators.compiler-2.closure-value :as closure-value]
-            [propagators.compiler-2.dispatch :as dispatch]
-            [propagators.compiler-2.helpers :as h]
-            [propagators.compiler-2.topology-effects :as topology-effects]
+            [propagators.compiler-2.runtime.application :as application]
+            [propagators.compiler-2.model.application-value :as application-value]
+            [propagators.compiler-2.model.closure-value :as closure-value]
+            [propagators.compiler-2.compiler.dispatch :as dispatch]
+            [propagators.compiler-2.compiler.basis :as h]
+            [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.gur.flat :as fvm]
             [propagators.network :as net]
@@ -124,3 +124,5 @@
   (p:apply-application-with dispatch/compile-expression
                             application-id operator-id args-id arg-ids
                             context-id out-id))
+
+

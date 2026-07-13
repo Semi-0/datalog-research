@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.application
+(ns propagators.compiler-2.runtime.application
   "Application propagator for compiler-2 network closures.
 
   Closure cells are data. This namespace owns runtime application: bind
@@ -11,12 +11,12 @@
             [propagators.cells.merge :as cell-merge]
             [propagators.cells.snapshot :refer [pop-inputs]]
             [propagators.cells.value :as value]
-            [propagators.compiler-2.application-value :as application-value]
-            [propagators.compiler-2.closure-value :as closure-value]
-            [propagators.compiler-2.dispatch :as dispatch]
-            [propagators.compiler-2.env :as env]
-            [propagators.compiler-2.helpers :as h]
-            [propagators.compiler-2.operator-value :as operator-value]
+            [propagators.compiler-2.model.application-value :as application-value]
+            [propagators.compiler-2.model.closure-value :as closure-value]
+            [propagators.compiler-2.compiler.dispatch :as dispatch]
+            [propagators.compiler-2.model.env :as env]
+            [propagators.compiler-2.compiler.basis :as h]
+            [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.scope-source :as scope-source]
@@ -636,3 +636,5 @@
   ([parent-env-id expr-id watch-ids child-env-id out-id]
    (p:execute-sub-env-with dispatch/compile-expression
                            parent-env-id expr-id watch-ids child-env-id out-id)))
+
+

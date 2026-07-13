@@ -1,12 +1,12 @@
-(ns propagators.compiler-2.lexical-application
+(ns propagators.compiler-2.runtime.lexical-application
   "Retained closure application selected from a lexical scope cell."
   (:require [propagators.cells.value :as value]
-            [propagators.compiler-2.application :as application]
-            [propagators.compiler-2.closure-frame :as closure-frame]
-            [propagators.compiler-2.closure-value :as closure-value]
-            [propagators.compiler-2.dispatch :as dispatch]
-            [propagators.compiler-2.helpers :as h]
-            [propagators.compiler-2.topology-effects :as topology-effects]
+            [propagators.compiler-2.runtime.application :as application]
+            [propagators.compiler-2.runtime.closure-frame :as closure-frame]
+            [propagators.compiler-2.model.closure-value :as closure-value]
+            [propagators.compiler-2.compiler.dispatch :as dispatch]
+            [propagators.compiler-2.compiler.basis :as h]
+            [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.gur.flat :as fvm]
             [propagators.network :as net]
@@ -169,3 +169,5 @@
   [closure-id arg-ids out-id]
   (p:apply-lexical-closure-with dispatch/compile-expression
                                 closure-id arg-ids out-id))
+
+

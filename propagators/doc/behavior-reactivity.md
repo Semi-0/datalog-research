@@ -20,9 +20,9 @@ Source files:
 - `propagators/compiler_common/core.clj`
 - `propagators/compiler_behavior/core.clj`
 - `propagators/compiler_behavior/application.clj`
-- `propagators/compiler_2/helpers.clj`
-- `propagators/compiler_2/behavior.clj`
-- `propagators/compiler_2/behavior/history.clj`
+- `propagators/compiler_2/compiler/basis.clj`
+- `propagators/compiler_2/operators/behavior.clj`
+- `propagators/compiler_2/operators/behavior/history.clj`
 - `propagators/datastructures/compound_object.clj`
 - `propagators/cells/cell_protocol.clj`
 - `test/graph/vijual/compiler_2_runtime_server_test.clj`
@@ -460,8 +460,8 @@ Compiler-2 currently covers these pieces:
 - `execute-sub-env` can compile a behavior expression in a child environment and
   react to later behavior input updates;
 - compiler-2 now keeps compiler-facing TMS operators in
-  `propagators.compiler-2.tms`, behavior operators in
-  `propagators.compiler-2.behavior`, and centralized compatibility operators in
+  `propagators.compiler-2.operators.tms`, behavior operators in
+  `propagators.compiler-2.operators.behavior`, and centralized compatibility operators in
   `propagators.compiler-2.legacy`;
 - `propagators.compiler-2.main/compile-source-with-behavior-tms` compiles with
   the behavior+distributed-TMS env by default;

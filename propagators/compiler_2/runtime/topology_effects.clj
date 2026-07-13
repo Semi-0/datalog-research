@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.topology-effects
+(ns propagators.compiler-2.runtime.topology-effects
   "Translate an additively compiled network fragment into bounded effects."
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
@@ -56,3 +56,5 @@
   {:effects (into (new-cell-effects base compiled)
                   (prop-effects base compiled prop-ids))
    :messages (changed-cell-messages base compiled)})
+
+

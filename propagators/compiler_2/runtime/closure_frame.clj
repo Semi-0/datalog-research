@@ -1,11 +1,11 @@
-(ns propagators.compiler-2.closure-frame
+(ns propagators.compiler-2.runtime.closure-frame
   "Retained closure application from only a closure cell and an environment cell."
   (:require [propagators.cells.value :as value]
-            [propagators.compiler-2.application :as application]
-            [propagators.compiler-2.closure-value :as closure-value]
-            [propagators.compiler-2.dispatch :as dispatch]
-            [propagators.compiler-2.helpers :as h]
-            [propagators.compiler-2.topology-effects :as topology-effects]
+            [propagators.compiler-2.runtime.application :as application]
+            [propagators.compiler-2.model.closure-value :as closure-value]
+            [propagators.compiler-2.compiler.dispatch :as dispatch]
+            [propagators.compiler-2.compiler.basis :as h]
+            [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.gur.flat :as fvm]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
@@ -59,3 +59,5 @@
 (defn p:apply-closure
   [closure-id env-id]
   (p:apply-closure-with dispatch/compile-expression closure-id env-id))
+
+
