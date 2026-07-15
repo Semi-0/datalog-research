@@ -237,7 +237,7 @@
       (is (= :payload (scope-source/base-value selected)))))
 
   (testing "scope-source stores dependencies without legacy closure layers"
-    (let [candidate (scope-source/scope-value :root :ignored [:root] :same #{:dep})]
+    (let [candidate (scope-source/scope-value :root nil [:root] :same #{:dep})]
       (is (= #{:dep} (obj/slot-value candidate :scope/dependencies)))
       (is (nil? (obj/slot-value candidate :scope/closure)))
       (is (nil? (obj/slot-value candidate :scope/chain)))

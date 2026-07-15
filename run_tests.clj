@@ -46,6 +46,7 @@
   '[graph.vijual.math-test
     graph.vijual.scan-test
     graph.vijual.layout-test
+    graph.compiler-2-runtime-boundary-test
     graph.vijual.compiler-2-demo-test
     graph.vijual.render-test])
 
