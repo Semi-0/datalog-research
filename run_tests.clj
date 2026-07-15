@@ -18,6 +18,7 @@
     propagators.cell-protocol-test
     propagators.compile-2-test
     propagators.compiler-2-call-graph-test
+    propagators.compiler-2-block-premise-test
     propagators.compiler-2-composition-test
     propagators.compiler-2-cps-test
     propagators.compiler-2-organization-test
@@ -45,6 +46,10 @@
 
 (def graph-test-namespaces
   '[graph.vijual.math-test
+    graph.compiler-2-runtime.version-history-test
+    graph.compiler-2-runtime.block-compiler-test
+    graph.compiler-2-runtime.versioned-commit-test
+    graph.compiler-2-versioned-tui.editor-test
     graph.vijual.scan-test
     graph.vijual.layout-test
     graph.compiler-2-runtime-boundary-test

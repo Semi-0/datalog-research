@@ -61,6 +61,10 @@
       summary
       (obj/slot-value summary behavior/base-layer))))
 
+(defn- indexed
+  [distributed]
+  (tms/indexed-distributed-content (tms/distributed-slots distributed)))
+
 (defn- source-list-effects
   [run-key values]
   (let [values (vec values)
@@ -220,6 +224,52 @@
     (is (= 10 (tms/distributed-base-value selected)))
     (is (= (value/contradiction-provenance conflict)
            (value/contradiction-provenance conflict-again)))))
+
+(deftest indexed-distributed-tms-canonicalizes-premises-and-reuses-projection
+  (let [active (indexed
+                (tms/distributed-input-update
+                 :claim 10 :premise 0 :source))
+        retracted (tms/merge-distributed-content
+                   active
+                   (tms/distributed-premise-update :premise 1 false))
+        duplicate (tms/merge-distributed-content
+                   retracted
+                   (tms/distributed-premise-update :premise 1 false))
+        stale (tms/merge-distributed-content
+               retracted
+               (tms/distributed-premise-update :premise 0 true))
+        brought (tms/merge-distributed-content
+                 retracted
+                 (tms/distributed-premise-update :premise 2 true))
+        premise-slots (filter #(= :tms/premise (first %))
+                              (keys (tms/distributed-slots brought)))]
+    (is (tms/indexed-distributed-content? brought))
+    (is (identical? retracted duplicate))
+    (is (identical? retracted stale))
+    (is (value/nothing? (tms/strongest-distributed-value retracted)))
+    (is (= 10 (tms/distributed-base-value
+               (tms/strongest-distributed-value brought))))
+    (is (= [(tms/premise-slot-key :premise 2)] premise-slots))
+    (is (not (contains? (tms/strongest-distributed-value brought)
+                        tms/index-key)))))
+
+(deftest indexed-distributed-tms-matches-legacy-in-any-merge-order
+  (let [left (tms/distributed-input-update :left 10 :left 0 :left)
+        right (tms/distributed-input-update :right 20 :right 0 :right)
+        retract (tms/distributed-premise-update :right 1 false)
+        legacy (reduce tms/merge-distributed-content left [right retract])
+        indexed-left (reduce tms/merge-distributed-content
+                             (indexed left) [right retract])
+        indexed-right (reduce tms/merge-distributed-content
+                              (indexed retract) [right left])]
+    (is (= (tms/distributed-base-value
+            (tms/strongest-distributed-value legacy))
+           (tms/distributed-base-value
+            (tms/strongest-distributed-value indexed-left))
+           (tms/distributed-base-value
+            (tms/strongest-distributed-value indexed-right))))
+    (is (= (get indexed-left tms/index-key)
+           (get indexed-right tms/index-key)))))
 
 (deftest tms-selects-between-behavior-valued-claims
   (let [left (behavior/latest-value 0 :left #{[:definition :left]})

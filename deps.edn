@@ -64,6 +64,10 @@
            {:main-opts ["-m" "graph.compiler-2-runtime-server" "server" "--no-xr"]}
            :wired/client
            {:main-opts ["-m" "graph.compiler-2-tui"]}
+           :wired/versioned-client
+           {:main-opts ["-m" "graph.compiler-2-versioned-tui"]}
+           :wired/versioned-bench
+           {:main-opts ["-m" "graph.compiler-2-versioned-tui-bench"]}
            :wired/tui-bench
            {:main-opts ["-m" "graph.compiler-2-tui-bench"]}
            :wired/xr

@@ -22,6 +22,8 @@
 (def distributed-kind :distributed)
 (def distributed-projection-kind :distributed-projection)
 (def distributed-proposition :tms/value)
+(def indexed-content-key :tms/indexed?)
+(def index-key :tms/index)
 
 (defn- stable-node-id
   [& seed]
@@ -236,6 +238,11 @@
   [x]
   (and (map? x) (= distributed-kind (:tms/kind x))))
 
+(defn indexed-distributed-content?
+  [x]
+  (and (distributed-content? x)
+       (true? (get x indexed-content-key))))
+
 (defn distributed-projection
   [v slots]
   {:tms/kind distributed-projection-kind
@@ -305,6 +312,199 @@
          merged
          latest)))))
 
+(defn- empty-index []
+  {:premises {}
+   :active-premises #{}
+   :claims {}
+   :claim-meta {}
+   :claims-by-premise {}
+   :active-claims {}
+   :inactive-claims {}
+   :active-values {}
+   :propositions {}})
+
+(defn- clean-disj-in
+  [m proposition value claim-id]
+  (let [claim-ids (disj (get-in m [proposition value] #{}) claim-id)
+        m (if (seq claim-ids)
+            (assoc-in m [proposition value] claim-ids)
+            (update m proposition dissoc value))]
+    (if (seq (get m proposition)) m (dissoc m proposition))))
+
+(defn- refresh-index-proposition
+  [index proposition]
+  (let [value->claims (get-in index [:active-values proposition])
+        values (keys value->claims)
+        entry (when (seq values)
+                (if (= 1 (count values))
+                  {:tms/status :justified
+                   :tms/value (first values)
+                   :tms/claims (set (mapcat val value->claims))}
+                  {:tms/status :conflict
+                   :tms/value value/contradiction
+                   :tms/values (set values)
+                   :tms/claims (set (mapcat val value->claims))}))]
+    (if entry
+      (assoc-in index [:propositions proposition] entry)
+      (update index :propositions dissoc proposition))))
+
+(defn- indexed-claim-active?
+  [index claim-id]
+  (every? (:active-premises index)
+          (get-in index [:claim-meta claim-id :supports])))
+
+(defn- set-indexed-claim-active
+  [index claim-id active?]
+  (let [claim (get-in index [:claims claim-id])
+        proposition (get-in index [:claim-meta claim-id :proposition])
+        claim-value (get-in index [:claim-meta claim-id :value])
+        currently-active? (contains? (:active-claims index) claim-id)]
+    (cond
+      (= active? currently-active?) index
+
+      active?
+      (-> index
+          (update :inactive-claims dissoc claim-id)
+          (assoc-in [:active-claims claim-id] claim)
+          (update-in [:active-values proposition claim-value]
+                     (fnil conj #{}) claim-id)
+          (refresh-index-proposition proposition))
+
+      :else
+      (-> index
+          (update :active-claims dissoc claim-id)
+          (assoc-in [:inactive-claims claim-id] claim)
+          (update :active-values clean-disj-in
+                  proposition claim-value claim-id)
+          (refresh-index-proposition proposition)))))
+
+(defn- index-claim
+  [index claim]
+  (let [id (claim-id claim)]
+    (if (contains? (:claims index) id)
+      index
+      (let [claim-supports (supports claim)
+            index (-> index
+                      (assoc-in [:claims id] claim)
+                      (assoc-in [:claim-meta id]
+                                {:proposition (proposition claim)
+                                 :value (claim-value claim)
+                                 :supports claim-supports})
+                      (assoc-in [:inactive-claims id] claim)
+                      (#(reduce (fn [idx premise]
+                                  (update-in idx [:claims-by-premise premise]
+                                             (fnil conj #{}) id))
+                                %
+                                claim-supports)))]
+        (set-indexed-claim-active index id
+                                  (indexed-claim-active? index id))))))
+
+(defn- index-premise-state
+  [index state]
+  (let [p (premise state)
+        current (get-in index [:premises p])]
+    (if (and current
+             (not (pos? (compare (epoch-rank (epoch state))
+                                 (epoch-rank (epoch current))))))
+      index
+      (let [index (-> index
+                      (assoc-in [:premises p] state)
+                      (update :active-premises
+                              (if (active? state) conj disj) p))]
+        (reduce (fn [idx claim-id]
+                  (set-indexed-claim-active
+                   idx claim-id (indexed-claim-active? idx claim-id)))
+                index
+                (get-in index [:claims-by-premise p] #{}))))))
+
+(defn- indexed-view
+  [index]
+  {:tms/active-premises (:active-premises index)
+   :tms/premises (:premises index)
+   :tms/active-claims (:active-claims index)
+   :tms/inactive-claims (:inactive-claims index)
+   :tms/propositions (:propositions index)})
+
+(defn- empty-indexed-content []
+  {:tms/kind distributed-kind
+   indexed-content-key true
+   :tms/slots {}
+   index-key (empty-index)})
+
+(defn- index-fact
+  [content fact]
+  (cond
+    (claim? fact)
+    (let [slot-key (claim-slot-key (claim-id fact))
+          existing (get-in content [:tms/slots slot-key])]
+      (cond
+        (nil? existing)
+        (-> content
+            (assoc-in [:tms/slots slot-key] fact)
+            (update index-key index-claim fact))
+
+        (fact-equal? existing fact) content
+        :else
+        (value/contradiction-with-provenance
+         (set/union (slots-provenance (:tms/slots content))
+                    (slots-provenance {slot-key fact})))))
+
+    (premise-state? fact)
+    (let [p (premise fact)
+          current (get-in content [index-key :premises p])
+          comparison (if current
+                       (compare (epoch-rank (epoch fact))
+                                (epoch-rank (epoch current)))
+                       1)]
+      (cond
+        (neg? comparison) content
+        (zero? comparison)
+        (if (fact-equal? current fact)
+          content
+          (value/contradiction-with-provenance
+           (set/union (slots-provenance (:tms/slots content))
+                      (slots-provenance
+                       {(premise-slot-key p (epoch fact)) fact}))))
+        :else
+        (let [slots (:tms/slots content)
+              slots (cond-> slots
+                      current (dissoc (premise-slot-key p (epoch current))))
+              slots (assoc slots
+                           (premise-slot-key p (epoch fact)) fact
+                           (latest-premise-slot-key p) fact)]
+          (-> content
+              (assoc :tms/slots slots)
+              (update index-key index-premise-state fact)))))
+
+    :else content))
+
+(defn- index-slots
+  [content slots]
+  (reduce (fn [indexed fact]
+            (let [next (index-fact indexed fact)]
+              (if (value/contradiction? next)
+                (reduced next)
+                next)))
+          content
+          (vals (without-latest-premise-slots slots))))
+
+(defn indexed-distributed-content
+  "Distributed TMS content with an internal incremental truth index.
+
+  Superseded premise states are canonicalized to the latest epoch; claims remain
+  retained so a later premise update can reactivate them."
+  [slots]
+  (index-slots (empty-indexed-content) (or slots {})))
+
+(defn- merge-indexed-content
+  [content update]
+  (let [content (if (indexed-distributed-content? content)
+                  content
+                  (indexed-distributed-content (distributed-slots content)))]
+    (if (value/contradiction? content)
+      content
+      (index-slots content (distributed-slots update)))))
+
 (defn- fact-slot
   [fact]
   (cond
@@ -340,13 +540,16 @@
 
 (defn merge-distributed-content
   [content update]
-  (let [content-slots (if (value/nothing? content)
-                        {}
-                        (distributed-slots content))
-        merged (merge-slots content-slots (distributed-slots update))]
-    (if (value/contradiction? merged)
-      merged
-      (distributed-content merged))))
+  (if (or (indexed-distributed-content? content)
+          (indexed-distributed-content? update))
+    (merge-indexed-content content update)
+    (let [content-slots (if (value/nothing? content)
+                          {}
+                          (distributed-slots content))
+          merged (merge-slots content-slots (distributed-slots update))]
+      (if (value/contradiction? merged)
+        merged
+        (distributed-content merged)))))
 
 (defn active-claims-for
   [view proposition-id]
@@ -423,7 +626,9 @@
 (defn strongest-distributed-value
   [content]
   (let [slots (distributed-slots content)
-        view (tms-view slots)
+        view (if (indexed-distributed-content? content)
+               (indexed-view (get content index-key))
+               (tms-view slots))
         v (proposition-value view distributed-proposition)]
     (cond
       (value/contradiction? v)
