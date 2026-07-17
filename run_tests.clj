@@ -49,6 +49,7 @@
     graph.compiler-2-runtime.version-history-test
     graph.compiler-2-runtime.block-compiler-test
     graph.compiler-2-runtime.versioned-commit-test
+    graph.compiler-2-runtime.instance-replay-test
     graph.compiler-2-versioned-tui.editor-test
     graph.vijual.scan-test
     graph.vijual.layout-test
