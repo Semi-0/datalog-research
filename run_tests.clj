@@ -46,14 +46,15 @@
 
 (def graph-test-namespaces
   '[graph.vijual.math-test
-    graph.compiler-2-runtime.version-history-test
-    graph.compiler-2-runtime.block-compiler-test
-    graph.compiler-2-runtime.versioned-commit-test
-    graph.compiler-2-runtime.instance-replay-test
+    propagators.compiler-2.runtime.tui.version-history-test
+    propagators.compiler-2.runtime.tui.block-compiler-test
+    propagators.compiler-2.runtime.tui.versioned-commit-test
+    propagators.compiler-2.runtime.environment-io-test
+    propagators.compiler-2.runtime.session.instance-replay-test
     graph.compiler-2-versioned-tui.editor-test
     graph.vijual.scan-test
     graph.vijual.layout-test
-    graph.compiler-2-runtime-boundary-test
+    propagators.compiler-2.runtime.boundary-test
     graph.vijual.compiler-2-demo-test
     graph.vijual.render-test])
 

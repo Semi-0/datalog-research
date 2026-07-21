@@ -13,8 +13,8 @@ original `propagators/NOTES.md` design (restored in [Four Core Features](four-co
 |---|---------|------------------|
 | 1 | **Networked semantics** | Done — immutable `graph` + `env`, installers, compile |
 | 2 | **Fixpoint evaluation** | Done — `run-tasks` and inner subnet quiescence |
-| 3 | **Partial information** | In progress — named-network merge, layered/compound objects; contradiction stub |
-| 4 | **Dependence tracking** | Not started — merge-time subsystem (`cell-merge`); not `eval-cell` |
+| 3 | **Partial information** | Done — named-network merge, layered/compound objects; contradiction stub |
+| 4 | **Dependence tracking** | Done — merge-time subsystem (`cell-merge`); not `eval-cell` |
 
 See [Four Core Features](four-core-features.md) for definitions, MIT comparison, and a milestone log since the doc refactor.
 
@@ -58,6 +58,18 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
   slot-backed closure data, activation-local application evaluation, contextual
   dependency arithmetic, and common algebra shared with compound/layered/generic
   systems.
+- [Compiler-2 Agent Adoption Context](compiler-2-agent-context.md) is the
+  precise future-agent handoff: supported syntax, primitive and compound
+  extension paths, premise-driven alternatives, call/runtime inspection,
+  `.lain` and replay workflows, current receipts, and unresolved design gaps.
+- [Compiler-2 Live Environment And `.lain` IO](compiler-2-live-environment-io.md)
+  documents bootstrap file operators, trusted primitive modules, staged loads,
+  semantic saves, block inspection, terminal focus, and the remaining
+  preserve-premises router gap.
+- [Agent Runbook: Extend Compiler-2 Through `.lain`](compiler-2-lain-agent-runbook.md)
+  is the copy-paste operational workflow for publishing primitive bindings,
+  loading visible or hidden forms, inspecting and focusing blocks, making
+  idempotent premise-versioned commits, and saving reloadable checkpoints.
 - [Live Runtime Surface](live-runtime-surface.md) describes the current
   compiler-2 TUI/runtime experiment as a live interface model where blocks,
   named cells, graph traces, and shared client views are all runtime data.

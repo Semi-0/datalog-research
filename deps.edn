@@ -70,5 +70,7 @@
            {:main-opts ["-m" "graph.compiler-2-versioned-tui-bench"]}
            :wired/tui-bench
            {:main-opts ["-m" "graph.compiler-2-tui-bench"]}
+           :wired/environment-io-bench
+           {:main-opts ["-m" "graph.compiler-2-environment-io-bench"]}
            :wired/xr
            {:main-opts ["-m" "graph.xr-server"]}}}

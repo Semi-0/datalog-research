@@ -35,11 +35,11 @@ The current path is:
 
 Important implementation points:
 
-- `graph.compiler-2-runtime.operators.trace` emits a trace-subscription
+- `propagators.compiler-2.runtime.operators.trace` emits a trace-subscription
   boundary effect rather than a trace graph.
-- `graph.compiler-2-runtime.trace-subscriptions` computes traces from immutable
+- `propagators.compiler-2.runtime.inspection.trace.subscriptions` computes traces from immutable
   snapshots and writes latest behavior values back to target cells.
-- `graph.compiler-2-runtime.operators.xr` accepts either a raw semantic trace
+- `propagators.compiler-2.runtime.operators.xr` accepts either a raw semantic trace
   graph or a behavior-wrapped trace graph.
 - TUI auto-output treats trace-containing forms specially so the display block
   watches the behavior result instead of copying it once.

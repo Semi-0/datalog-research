@@ -14,9 +14,9 @@ Source files:
 - `propagators/datastructures/tms/distributed.clj`
 - `propagators/datastructures/tms/legacy.clj`
 - `propagators/stdlib/arithmetic/behavior.clj` compatibility facade
-- `graph/compiler_2_runtime/tui_annotations.clj`
-- `graph/compiler_2_runtime/tui_session.clj`
-- `graph/compiler_2_runtime/effects.clj`
+- `propagators/compiler_2/runtime/tui/annotations.clj`
+- `propagators/compiler_2/runtime/tui/session.clj`
+- `propagators/compiler_2/runtime/boundary/effects.clj`
 - `propagators/compiler_common/core.clj`
 - `propagators/compiler_behavior/core.clj`
 - `propagators/compiler_behavior/application.clj`
@@ -779,7 +779,7 @@ cell identity such as `[:tui/display display-id]`. This means a watched behavior
 block can show the source behavior identity instead of only the implementation
 identity of the display cell.
 
-`graph.compiler-2-runtime.tui-annotations` projects the displayed value exactly
+`propagators.compiler-2.runtime.tui.annotations` projects the displayed value exactly
 as before, but also extracts optional annotations from the raw display content:
 
 ```clojure
