@@ -50,8 +50,11 @@
     propagators.compiler-2.runtime.tui.block-compiler-test
     propagators.compiler-2.runtime.tui.versioned-commit-test
     propagators.compiler-2.runtime.environment-io-test
+    propagators.compiler-2.runtime.clock-test
+    propagators.compiler-2.runtime.retraction-inspection-test
     propagators.compiler-2.runtime.session.instance-replay-test
     graph.compiler-2-versioned-tui.editor-test
+    graph.compiler-2-versioned-tui.layout-test
     graph.vijual.scan-test
     graph.vijual.layout-test
     propagators.compiler-2.runtime.boundary-test

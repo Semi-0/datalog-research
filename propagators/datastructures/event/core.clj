@@ -9,6 +9,15 @@
 (def content-kind :event/content)
 (def projection-kind :event/projection)
 (def protocol-id :pi/event)
+(def protocol-cell-key :pi/event-cells)
+
+(defn protocol-cell?
+  [network cell-id]
+  (contains? (net/network-dict-entry network protocol-cell-key) cell-id))
+
+(defn mark-protocol-cell
+  [network cell-id]
+  (net/update-net-dict-entry network protocol-cell-key (fnil conj #{}) cell-id))
 
 (def protocol-dict-key (obj/internal-metadata-key :pi :direct-protocol-id))
 (def protocol-id-key (obj/internal-metadata-key :pi :protocol-id))

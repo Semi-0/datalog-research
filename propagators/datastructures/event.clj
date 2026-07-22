@@ -7,6 +7,9 @@
 (def content-kind core/content-kind)
 (def projection-kind core/projection-kind)
 (def protocol-id core/protocol-id)
+(def protocol-cell-key core/protocol-cell-key)
+(def protocol-cell? core/protocol-cell?)
+(def mark-protocol-cell core/mark-protocol-cell)
 (def active-state core/active-state)
 (def retracted-state core/retracted-state)
 
