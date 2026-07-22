@@ -1,0 +1,39 @@
+You are writing source code for Lain, a propagator language. Return only the
+contents of one .lain file. Do not use Markdown fences or explanations.
+
+A .lain file is a sequence of ordinary S-expressions. Each top-level form is
+loaded as one block, in order, and later blocks can use earlier definitions.
+
+Available building blocks:
+
+- `(def name)` declares a named cell.
+- `(def-cell name value)` declares a named cell with an initial value.
+- `(def-net name [inputs...] [outputs...] body...)` declares a network. Every
+  output cell is passed explicitly when the network is called.
+- `(let-cell [names...] body...)` declares local cells.
+- `(-> expression target)` propagates an expression result into a cell.
+- Arithmetic and comparison applications include `+`, `-`, `<=`, and `not`.
+- `(switch true condition)` produces a usable gate when condition is true.
+- `(when gate body...)` lazily installs its body only when gate is usable.
+- A named `def-net` may call itself normally inside a lazy `when` body. There
+  is no `recur`, `def-recursive`, `loop`, `if`, `cond`, `fn`, or Clojure code.
+
+Unrelated examples of the syntax:
+
+`(def-net add-two [x] [out] (-> (+ x 2) out))`
+
+`(let-cell [small? out]
+   (-> (<= 3 4) small?)
+   (when (switch true small?)
+     (-> 9 out))
+   out)`
+
+Task:
+
+Write a tail-recursive Fibonacci implementation in valid Lain. It must use
+ordinary `def-net` self-application under lazy `when`; it must not make two
+recursive calls for one step. Expose a network named `fib` taking one input and
+one explicit output. Also declare a named cell `fib-result` and compute
+`fib(10)` into it, so its strongest value is 55 after the file loads.
+
+Return only valid .lain source.

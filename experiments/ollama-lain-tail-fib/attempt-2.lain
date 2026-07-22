@@ -1,0 +1,92 @@
+(def-net fib-helper [n acc prev] [out]
+   (if (= n 0)
+     (-> acc out)
+     (fib-helper (- n 1 (+ acc prev)) prev)))
+
+(def net-fib [x y z]
+   [(let-cell [acc? x-val?]
+      (when (switch true acc?)
+        (def-net fib-main [[n a b]] [res]
+          ;; Tail recursion: pass current sum as new 'a', old 'b' becomes next 'prev'
+          (if (= n 0)
+            (-> a res)
+            (fib-helper (- n 1 (+ a b)) b)))])
+    (let-cell [[n-val a-val b-val] [acc?]]
+      (when (switch true acc?)
+        ;; Initialize: we want fib(10). Start with n=10, a=0, b=1.
+        ;; But our helper expects the second arg to be 'prev' which becomes new sum's other part.
+        ;; Let's restructure for clarity and correctness in one step.
+        (-> 0 acc?)])) ; placeholder logic corrected below
+
+(def-net fib [n] [res]
+   [(let-cell [[acc? a b]]
+      (when (switch true acc?)
+        ;; Start state: to get Fib(n), start with n, prev=1, curr=0? No.
+        ;; Standard tail: F(0)=0, F(1)=1. Iterate n times adding pairs.
+        ;; Init: a=F(0)=0, b=F(1)=1. We need to compute 'n' steps if we consider 2nd term base.
+        ;; Let's use the standard pair iteration (a,b) -> (b, a+b).
+        (-> n acc?)]) ; Need proper init
+
+(def-net fib [n] [res]
+   [(let-cell [[acc? a b]]
+      (when (switch true acc?)
+        ;; Start: if n=0 return 0. If n>=1 iterate.
+        ;; We'll assume n >= 0.
+        ;; Initial call logic must be inside the when block properly defined by Lain rules.
+        ;; Since we cannot use fn, we define a separate network for recursion? No, self-application is allowed under lazy when.
+
+        (if (= n 0)
+          (-> 0 res)
+
+          ;; We need to handle the recursive step carefully.
+          ;; The problem asks for tail-recursive using def-net self application under lazy when.
+          ;; So we define fib as:
+          ;; base case handled by check inside body? Or separate network?
+          ;; Usually in such languages, you might have a helper or inline logic.
+          ;; Given constraints: 'def-net' can call itself normally inside a lazy when.
+
+          (let-cell [[next-a next-b]]
+            (-> n acc?)))) ; This is getting messy without valid syntax flow
+
+(def net-fib [n] [out]
+   [(if (= n 0)
+      (-> 0 out)
+      ;; For n > 0, we need a loop.
+      ;; In Lain, loops are implemented via recursion with accumulator cells.
+
+      (let-cell [[curr-prev curr-next]]
+        ;; Initial values: F(0)=0, F(1)=1.
+        ;; But we don't have 'if' or 'fn'. How to set initial?
+        ;; Actually, we can use the inputs/outputs of def-net directly for recursion if structured right.
+        ;; Wait, standard pattern in this DSL:
+        ;; Use a helper network that calls itself only when condition is met via (when ...).
+
+        ;; Let's try a different approach allowed by syntax:
+        ;; Define fib to call itself inside a 'when' block? No, because we need explicit args.
+        ;; The example shows `(def-net add-two [x] [out])`.
+        ;; To do recursion with def-net self-application under lazy when:
+
+        (-> n out)) ; Placeholder
+
+(def net-fib-helper [n a b] [res]
+   [(if (= n 0)
+      (-> a res)
+      (let-cell [[new-a new-b]]
+         ;; Tail recursive step logic would go here but we need to call fib-helper again.
+         ;; But 'def-net' calls itself normally inside lazy when?
+         ;; The prompt says: "A named def-net may call itself normally inside a lazy when body."
+
+         (when (> n 0) ; condition true if n>0, though > is not listed, <= and not are. Let's use logic with available ops.
+            ;; We need to decrement n.
+            ;; Available: +, -, <=, not.
+            ;; Condition for recursion: when gate is usable (true).
+
+            ;; How to create a 'gate'? `(switch true condition)` produces a usable gate.
+            ;; Then `(when gate body...)`.
+
+            ;; We need `n > 0`. With only `<=` and `not`, we can check `if n >= something?`
+            ;; Actually, standard logic: if n == 0 stop. Else recurse.
+            ;; Can't use '=='. Maybe assume n is handled by decrementing until <= some value?
+            ;; Or maybe the language implies equality checks via not/switch in specific ways?
+
+            ;; Let's reconsider the prompt constraints strictly.

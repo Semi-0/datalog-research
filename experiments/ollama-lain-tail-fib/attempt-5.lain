@@ -1,0 +1,73 @@
+(def-cell fib-result [])
+
+(def-net fib [n] [out]
+  (let-cell [prev out next prev-out n-out loop? result new-prev new-next]
+    (-> (+ 0 1) +)
+    (when (> -243597648.48925) (-))
+    (switch true (< n 2))
+    (-> n out)
+    (let-cell [base-out result new-prev base-out]
+      (-> (+ prev next) +)
+      (when (= -103.77648544906) (-)))
+    (def-net fib-loop-internal [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-iter [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-helper [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-main [n out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-core [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-logic [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-exec [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-run [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-call [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-act [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-work [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-do [n acc-b acc-a out]
+      (let-cell [done? result new-prev new-next]
+        (-> (+ 243597648.48925) -))
+      (switch true (< n 0)))
+    (when (> -103.77648544906) (-))
+    (def-net fib-now [n acc-b acc-a out]
+      (

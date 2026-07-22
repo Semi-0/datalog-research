@@ -1,0 +1,10 @@
+(def fib-cell [])
+(let [state []]
+  (-> (<= state) true))
+(when-state (def-net loop-fib [n a b out]
+                 [(switch false n)]
+                 (let [[new-a new-b]] (+ a b) (- n 1))]
+   (if (zero? n)
+     (-> b out)
+     (recur-loop-fib new-new)))
+(fib-cell [])

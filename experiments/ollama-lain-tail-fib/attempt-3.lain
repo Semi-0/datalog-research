@@ -1,0 +1,55 @@
+(def-net fib-helper [n acc next] [out]
+   (when (< n 2)
+     (-> (+ acc next) out))
+   (let-cell [new-acc new-next]
+      (-> (+ acc next) new-acc)
+      (-> (+ acc (* 1000000 next)) new-next) ;; placeholder to avoid unused var error if logic differs, but keeping simple swap below for correctness in thought process: actually standard fib is a,b -> b,a+b. Let's fix the math inside the final block carefully.)
+   out))
+
+(def-net fib [n] [out]
+   (when (> n 0)
+      (fib-helper (- n 1) 0 1 out))) ;; This logic above was flawed in thought trace, let me rewrite strictly.
+
+;; Strict Tail Recursive Fibonacci Definition:
+;; Base case implicitly handled by when guard or explicit check?
+;; The prompt says "no if". So we must use 'when' with a condition that acts as the loop continuation test.
+;; However, standard tail recursion needs to stop. In Lain without `if`, how do we exit?
+;; We can rely on (switch true cond) -> when gate. If cond is false, no body installed?
+;; Wait: '(-> expr target)' propagates immediately if result exists? No.
+;; Let's look at the examples again.
+;; Example 2 uses `(let-cell [small?] ...)` then `out` as final value.
+;; The prompt says "tail-recursive". Usually means loop until base case.
+;; How to express base case without 'if'?
+;; Maybe (when (< n 0) ...) ? No, we need the result.
+;; Actually, if I define:
+;; (def-net fib [n] [out]
+;;    (let-cell [res out]
+;;       (-> (+ ... ) res))) ;; This always runs once?
+;;
+;; Re-reading constraints: "no `if`, `cond`".
+;; But `(switch true condition)` produces a gate. `(when gate body...)`.
+;; If the condition is false, no gate -> body not installed. What does it return then?
+;; The last form in block usually returns value for def-net call?
+;; In Clojure-like LISP, result of net is val of last top-level form or specific output cell binding.
+;; Let's assume standard S-expressions where the last expression determines result if not bound to a named out yet, but here we have `[out]`.
+;; If no body runs (gate false), what happens?
+;; Maybe `(when (< n 2) out)` works for base.
+;; Perhaps:
+;;   (when (< n 0) ;; base case return current sum? But we need to pass 'out' a value.
+;;      (-> res out))
+;;
+;; Actually, let's look at `let-cell` syntax in examples: `(let-cell [small?] ...)` then later uses it.
+;; It seems cells are like mutable state or channels until read.
+;; But `def-net` returns the result of its last block? No, "Every output cell is passed explicitly". So `[out]` means we must write to `out`.
+;; If no body writes to `out`, what happens?
+;; Maybe `(when (< n 2) (-> (+ ... ) out))` works for base.
+;; For recursion: `(fib-helper (- n 1) ...)`. But helper needs to be defined or inlined?
+;; The prompt says "no recur". So we use the named def-net `fib` inside a `when`.
+;; Wait, if I call `fib`, it creates a new instance. Inside `fib`'s body, can I call `(-> (self-call) out)`?
+;; Yes: "(def net ... ) [out] (let-cell [next-out out?] ...)".
+;; But we need to stop recursion for n<=1.
+;; If condition is false, gate not created -> body skipped. Who writes `out` then?
+?? This implies my assumption about base case handling without explicit assignment might be wrong OR there's a trick.
+Ah! Maybe `(switch true (< 2))` creates a gate only if <2. Then `when`. If >1, no gate. We need to ensure `out` gets written in ALL cases?
+Maybe the net returns the value of an output cell named `out` which is initialized somewhere? No init for def-net outputs usually unless let-cell or -> targets them first.
+Wait, if I do: `(let-cell
