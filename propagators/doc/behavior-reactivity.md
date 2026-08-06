@@ -54,9 +54,9 @@ The important current boundary is:
 - TMS owns support/premise selection and retraction-like projection;
 - compound objects own slots and structural transport;
 - compiler-2 keeps default arithmetic as current-value arithmetic. Plain
-  scalars stay plain, event cells lift over their latest active timestamped
-  values, and history-aware behavior arithmetic is explicit through `be:+`,
-  `be:-`, `be:*`, and the source spelling `be:/`;
+  scalars stay plain and event cells lift over their latest active timestamped
+  values. The primitive behavior environment does not bind history-aware
+  behavior arithmetic;
 - compiler-2 can compile event promotion, behavior arithmetic, distributed TMS
   primitives, and custom behavior cells through `behavior-cell`;
 - the kernel still only merges messages, computes strongest, and wakes
@@ -106,8 +106,8 @@ This does not promote `a`, `b`, `c`, or `d` to behavior. The result `d` is still
 event content: newer facts dominate older facts for the same source, retraction
 is represented by later retraction facts, and derived facts carry joined source
 evidence so a downstream arithmetic node will not combine stale same-source
-inputs. Behavior history arithmetic remains explicit with `be:+`, `be:-`,
-`be:*`, and `be:/`.
+inputs. Lower-level behavior arithmetic remains available to explicitly composed
+environments, but is not part of the primitive behavior environment.
 
 ## Behavior Model
 
@@ -456,7 +456,8 @@ a future TMS-aware behavior cell protocol.
 
 Compiler-2 currently covers these pieces:
 
-- behavior arithmetic can be compiled through `behavior-env`;
+- behavior arithmetic operators remain available for explicit environment
+  composition, but `behavior-env` no longer installs them;
 - `execute-sub-env` can compile a behavior expression in a child environment and
   react to later behavior input updates;
 - compiler-2 now keeps compiler-facing TMS operators in
@@ -636,10 +637,10 @@ If a behavior cell is used with `+`, the primitive operator unwraps the behavior
 summary's `:base` value and produces an ordinary current result. It does not
 inspect or retain behavior history.
 
-History-aware behavior arithmetic is explicit:
+History-aware behavior arithmetic can still be installed explicitly by a caller:
 
 ```clojure
-(compile-source "(be:+ a b)" (behavior-env) {:net behavior-net})
+(compile-source "(be:+ a b)" explicitly-composed-env {:net behavior-net})
 ```
 
 The compiled application still follows compiler-2's retained application model:
@@ -670,9 +671,8 @@ b: {:at 6 :value 7}, {:at 8 :value 10}
 ;; => {:at 6 :value 9}, {:at 8 :value 13}
 ```
 
-The division spelling `be:/` is accepted by compiler-2 source preprocessing and
-is bound internally as `be:divide`, because raw EDN cannot read `be:/` as a
-symbol.
+Raw EDN cannot read `be:/`; explicit environments that install division use the
+symbol `be:divide`.
 
 ## Benchmark Evidence
 
