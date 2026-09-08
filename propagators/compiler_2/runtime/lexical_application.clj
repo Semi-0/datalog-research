@@ -2,6 +2,7 @@
   "Retained closure application selected from a lexical scope cell."
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.runtime.application :as application]
+            [propagators.compiler-2.runtime.application-layers :as layers]
             [propagators.compiler-2.runtime.closure-frame :as closure-frame]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.compiler.dispatch :as dispatch]
@@ -145,7 +146,7 @@
               (let [input-count (count (closure-value/closure-inputs closure))
                     input-values (mapv #(h/strongest-or-nothing network %)
                                        (take input-count arg-ids))
-                    scope (application/application-scope
+                    scope (layers/application-scope
                            (into [answer] input-values))
                     key (some->> scope (candidate-key call-key))]
                 (cond

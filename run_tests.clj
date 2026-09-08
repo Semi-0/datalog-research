@@ -17,6 +17,7 @@
     propagators.behavior-test
     propagators.cell-protocol-test
     propagators.compile-2-test
+    propagators.compiler-2-application-runtime-test
     propagators.compiler-2-call-graph-test
     propagators.compiler-2-block-premise-test
     propagators.compiler-2-composition-test
