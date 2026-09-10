@@ -191,32 +191,6 @@
     (is (= body (:body multiple)))
     (is (= :sequence (ast/type (:body implicit))))))
 
-(deftest cell-declaration-strategy-is-injectable
-  (let [operator-id (ids/new-node-id)
-        network (nb/install-cell net/empty-net operator-id)
-        compiler-env (env/bind-local (h/default-env)
-                                     'later
-                                     (env/cell-binding operator-id))
-        calls (atom 0)
-        declarer (fn [_compile* _operator _operands state out-id]
-                   (swap! calls inc)
-                   [state (env/cell-binding out-id)])]
-    (compiler/compile-expr (ast/app (ast/sym 'later))
-                           compiler-env
-                           {:net network
-                            :application/cell-declarer declarer})
-    (is (= 1 @calls))
-    (is (= compiler-core/declare-runtime-cell-application
-           (compiler-core/resolve-cell-declarer {})))
-    (is (= compiler-core/declare-retained-cell-application
-           (compiler-core/resolve-cell-declarer
-            {:application/cell-declarer :retained-frame})))
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"unknown application cell declarer"
-         (compiler-core/resolve-cell-declarer
-          {:application/cell-declarer :unknown})))))
-
 (deftest behavior-compiler-reuses-composed-traversal-with-own-values
   (let [behavior-result (behavior-compiler/compile-expr
                          (ast/sequence* (ast/lit 1))

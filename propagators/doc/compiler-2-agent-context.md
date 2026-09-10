@@ -36,8 +36,8 @@ Maintain these boundaries:
 - the CPS compiler and trampoline are the production compiler;
 - delayed closure, lazy, list, and sub-environment paths must retain the
   selected compiler;
-- compiler-2 closures apply through the retained application and
-  p:apply-closure path;
+- compiler-2 callables apply through retained declaration IR and canonical
+  accumulating-GUR `p:apply-closure`;
 - cells merge partial information and expose a strongest projection; do not
   move TMS, event, behavior, or provenance policy into the scheduler;
 - external IO occurs only at a runtime boundary after propagation reaches
@@ -138,10 +138,8 @@ The canonical ownership is:
 - `propagators.compiler-2.model`: environments, closure values, application
   values, context, and operator values.
 - `propagators.compiler-2.runtime`: public reusable session facade.
-- `propagators.compiler-2.runtime.application`: retained application
-  evaluation and sub-environment execution.
-- `propagators.compiler-2.runtime.closure-frame`: compiler-2 closure frame
-  declaration and `p:apply-closure` integration.
+- `propagators.compiler-2.runtime.application`: closure call planning and body
+  topology declaration for canonical accumulating-GUR application.
 - `propagators.compiler-2.runtime.tui`: block models, rewrites, version history,
   and versioned commits.
 - `propagators.compiler-2.runtime.boundary`: runtime effect evaluation.
@@ -655,7 +653,8 @@ does not advance an outbox epoch to choose a winner. External effects still use
 the boundary outbox.
 
 Editable callable definitions keep a stable public router and registry. New
-candidates are installed through retained application and `p:apply-closure`;
+candidates are installed through retained declaration IR and canonical
+`p:apply-closure`;
 old candidates and topology remain. Signature mismatches allocate stable
 placeholders and attach warnings instead of destructively rewiring history.
 
@@ -725,12 +724,13 @@ write graph updates back to cells. Replacement/removal/edit lifecycle coverage
 is incomplete. A first-class worker/effect protocol should be designed at the
 runtime boundary before changing the scheduler.
 
-### 5. Application topology is not fully declarative before operator arrival
+### 5. Projected application boundaries can grow after operator arrival
 
-A retained application may learn its real output/write set only after the
-operator cell resolves. That weakens semantic graph reachability and blocks a
-sound future GC analysis. The application IR should eventually expose its
-potential and realized write set without moving evaluation into the compiler.
+Application IR declares its operator, arguments, context, and output before
+propagation. A late operator may add captured and projected boundary cells when
+its canonical closure arrives. Those relationships are recorded in application
+requests and deterministic frame facts without moving evaluation into the
+compiler.
 
 ### 6. Ordinary same-name redefinition is not dynamic rebinding
 
@@ -782,7 +782,7 @@ Run the smallest relevant gate first, then broaden:
 ```bash
 # Production compiler, closures, CPS, composition, organization, lists/GUR
 clojure -M:test \
-  propagators.compiler-2-closure-frame-test \
+  propagators.compiler-2-application-runtime-test \
   propagators.compiler-2-composition-test \
   propagators.compiler-2-cps-test \
   propagators.compiler-2-organization-test \

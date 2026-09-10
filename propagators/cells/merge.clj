@@ -13,7 +13,7 @@
 
 (def cell-equal? value/cell-value-equal?)
 
-(declare cell-merge strongest-value)
+(declare cell-merge merge-cell-entry strongest-value)
 
 (def ^:private semantic-kind-fn
   (delay
@@ -267,8 +267,35 @@
    content
    update))
 
+(defn- lexical-index-reducer?
+  [content]
+  (cond
+    (reducer-cell/reducer-cell? content)
+    (some? (net/network-dict-entry
+            (reducer-cell/strongest-net content)
+            :lexical/tag))
+
+    :else
+    false))
+
+(defn- evidence-bearing-content?
+  [content]
+  (cond
+    (semantic-kind content)
+    true
+
+    (and (reducer-cell/reducer-cell? content)
+         (not (lexical-index-reducer? content)))
+    true
+
+    (reducer/reducer-subnet? content)
+    true
+
+    :else
+    false))
+
 (defn- merge-accumulating-gur-fragment
-  [content update]
+  [content update network]
   (let [current (if (evidence/evidence-set? content)
                   (evidence/strongest content)
                   content)]
@@ -280,7 +307,20 @@
       (not (and (named/named-network? current)
                 (named/named-network? update))) value/contradiction
       (= true (named/named-network->= current update)) current
-      :else (named/join current update))))
+      :else
+      (named/join-with-cell-merge
+       current
+       update
+       (fn [current-cell update-cell default-merge]
+         (let [current-content (cell/cell-content current-cell)
+               update-content (cell/cell-content update-cell)]
+           (cond
+             (or (evidence-bearing-content? current-content)
+                 (evidence-bearing-content? update-content))
+             (merge-cell-entry current-cell update-content network)
+
+             :else
+             (default-merge current-cell update-cell))))))))
 
 (defmethod built-in-cell-merge :network-vm-nested-delta
   [content update _network]
@@ -302,13 +342,13 @@
    update))
 
 (defmethod built-in-cell-merge :named-network
-  [content update _network]
+  [content update network]
   (if (accessor-network-update? update)
     (merge-accessor-network-content content update)
     (let [content* (normalize-named-network-content content)]
       (if (or (accumulating-gur-fragment? content*)
               (accumulating-gur-fragment? update))
-        (merge-accumulating-gur-fragment content* update)
+        (merge-accumulating-gur-fragment content* update network)
         (cond
           (value/contradiction? content*) value/contradiction
           (value/contradiction? update) value/contradiction
@@ -348,7 +388,21 @@
 
 (defmethod built-in-cell-merge :reducer-cell
   [content update network]
-  (reducer-cell/merge-content content update cell-merge network))
+  (cond
+    (value/nothing? content)
+    update
+
+    (value/nothing? update)
+    content
+
+    (value/contradiction? content)
+    value/contradiction
+
+    (value/contradiction? update)
+    value/contradiction
+
+    :else
+    (reducer-cell/merge-content content update cell-merge network)))
 
 (defmethod built-in-cell-merge :closure
   [content update _network]

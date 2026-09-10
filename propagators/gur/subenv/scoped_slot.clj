@@ -3,6 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.reducer-cell :as reducer]
             [propagators.gur.subenv.env :as env]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -33,24 +34,39 @@
   ([v] (accessor-parent-cell-ids nil v))
   ([source-net v]
    ;; ponytail: identity cycle guard; equal list nodes are still distinct tails.
-   (let [seen (Collections/newSetFromMap (IdentityHashMap.))]
+   (let [seen-values (Collections/newSetFromMap (IdentityHashMap.))
+         seen-ids (atom #{})]
      (letfn [(walk [value]
-               (if (or (not (accessor-value? value)) (.contains seen value))
+               (cond
+                 (ids/node-id? value)
+                 (cond
+                   (contains? @seen-ids value)
+                   #{}
+
+                   :else
+                   (do
+                     (swap! seen-ids conj value)
+                     (conj (walk (source-cell-value source-net value))
+                           value)))
+
+                 (not (accessor-value? value))
                  #{}
+
+                 (.contains seen-values value)
+                 #{}
+
+                 :else
                  (do
-                   (.add seen value)
+                   (.add seen-values value)
                    (let [direct (->> (obj/accessor-slot-keys value)
                                      (mapcat #(obj/accessor-parent-ids value %))
                                      (filter ids/node-id?)
                                      set)
-                         indirect (->> direct
-                                       (map #(source-cell-value source-net %))
-                                       (mapcat walk)
-                                       set)
+                         direct-references (mapcat walk direct)
                          nested (->> (vals (obj/accessor-source-slots value))
                                      (mapcat walk)
                                      set)]
-                     (into direct (concat indirect nested))))))]
+                     (into direct (concat direct-references nested))))))]
        (walk v)))))
 
 (defn- copy-or-merge-cell
@@ -253,38 +269,61 @@
   [parent-net collection-id]
   (cell-strongest-value (get (net/net-env parent-net) collection-id)))
 
-(defn- child-ref-value
+(defn- child-ref-entry
   [child-net child-ref]
   (cond
     (ids/node-id? child-ref)
-    (cell-strongest-value (get (net/net-env child-net) child-ref))
+    (get (net/net-env child-net) child-ref)
 
     (scoped/address? child-ref)
     (let [route (net/network-dict-entry child-net child-ref)]
       (or
        (case (first route)
          :dispatch/local
-         (cell-strongest-value (get (net/net-env child-net) (second route)))
+         (get (net/net-env child-net) (second route))
 
          :dispatch/subenv
          (let [[_ owner-id local-id] route
                owner-net (cell-strongest-value (get (net/net-env child-net)
                                                     owner-id))]
            (when (net/net? owner-net)
-             (cell-strongest-value (get (net/net-env owner-net) local-id))))
+             (get (net/net-env owner-net) local-id)))
 
          nil)
        (when (and (vector? child-ref)
                   (= :env/cell-ref (first child-ref)))
-         (cell-strongest-value (get (net/net-env child-net)
-                                    (nth child-ref 2))))))
+         (get (net/net-env child-net) (nth child-ref 2)))))
+
+    :else
+    nil))
+
+(defn- export-cell-value
+  [parent-entry child-entry]
+  (cond
+    (and (cell/cell? child-entry)
+         (or (reducer/reducer-cell? (cell/cell-content child-entry))
+             (and (cell/cell? parent-entry)
+                  (reducer/reducer-cell? (cell/cell-content parent-entry)))))
+    (cell/cell-content child-entry)
+
+    (cell/cell? child-entry)
+    (cell/cell-strongest child-entry)
 
     :else
     nil))
 
 (defn- parent-already-has?
-  [parent-net parent-id v]
-  (= v (cell-strongest-value (get (net/net-env parent-net) parent-id))))
+  [parent-entry v]
+  (cond
+    (and (cell/cell? parent-entry)
+         (reducer/reducer-cell? (cell/cell-content parent-entry)))
+    (= v (cell/cell-content parent-entry))
+
+    (cell/cell? parent-entry)
+    (= v (cell/cell-strongest parent-entry))
+
+    :else
+    false))
 
 (defn- parent-messageable?
   [parent-net parent-id]
@@ -347,10 +386,12 @@
   (->> exports
        (keep (fn [{:keys [parent-id child-ref]}]
                (when (parent-messageable? parent-net parent-id)
-                 (let [v (child-ref-value child-net child-ref)]
+                 (let [parent-entry (get (net/net-env parent-net) parent-id)
+                       child-entry (child-ref-entry child-net child-ref)
+                       v (export-cell-value parent-entry child-entry)]
                    (when-not (or (nil? v)
                                  (and (parent-owned-id? parent-net parent-id)
-                                      (parent-already-has? parent-net parent-id v)))
+                                      (parent-already-has? parent-entry v)))
                      (message parent-id v))))))
        distinct
        vec))

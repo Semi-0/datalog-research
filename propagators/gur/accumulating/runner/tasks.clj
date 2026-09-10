@@ -1,12 +1,26 @@
 (ns propagators.gur.accumulating.runner.tasks
   "Task selection and per-run prop state cache for the accumulating GUR runner."
   (:require [propagators.cells.cell :as cell]
+            [clojure.set :as set]
             [propagators.core :as core]
             [propagators.graph :as graph]
             [propagators.gur.accumulating.facts :as facts]
             [propagators.gur.accumulating.runner.instrumentation :as instr]
             [propagators.helpers.task-queue :as tq]
-            [propagators.network :as net]))
+            [propagators.network :as net]
+            [propagators.propagator :as prop]))
+
+(defn- network-prop-ids
+  [n]
+  (->> (net/net-env n)
+       (keep (fn [[id entry]]
+               (cond
+                 (prop/prop? entry)
+                 id
+
+                 :else
+                 nil)))
+       set))
 
 (defn- pending-sort-key
   [task-key index]
@@ -55,23 +69,50 @@
 (defn- cell-state
   [n id]
   (let [entry (net/network-env-lookup n id)]
-    (if (cell/cell? entry)
-      [:cell (cell/cell-strongest entry)]
+    (cond
+      (cell/cell? entry)
+      [:cell
+       (cell/cell-content entry)
+       (cell/cell-strongest entry)]
+
+      :else
       [:entry entry])))
 
 (defn- prop-observed-ids
   [n prop-id prop-io-cache]
-  (if-let [ids (get @prop-io-cache prop-id)]
-    ids
-    (when-let [node (graph/get-node (net/net-graph n) prop-id)]
-      (let [entry (net/env-get (net/net-env n) prop-id)
-            observed-ids (if (= :inputs (:observe entry))
+  (let [cached-ids (get @prop-io-cache prop-id)
+        node (get (net/net-graph n) prop-id)
+        entry (get (net/net-env n) prop-id)]
+    (cond
+      cached-ids
+      cached-ids
+
+      (and node (prop/prop? entry))
+      (let [observed-ids (cond
+                           (= :inputs (:observe entry))
                            (graph/node-input-ids node)
-                           (distinct (concat (graph/node-input-ids node)
-                                             (graph/node-output-ids node))))
+
+                           :else
+                           (distinct
+                            (concat (graph/node-input-ids node)
+                                    (graph/node-output-ids node))))
             ids (vec (sort-by pr-str observed-ids))]
         (swap! prop-io-cache assoc prop-id ids)
-        ids))))
+        ids)
+
+      (and (nil? node) (nil? entry))
+      nil
+
+      (and (nil? node) (prop/prop? entry))
+      (throw (ex-info "indexed GUR propagator is missing its graph node"
+                      {:prop-id prop-id
+                       :prop-name (prop/prop-name entry)}))
+
+      :else
+      (throw (ex-info "indexed GUR task does not name a propagator"
+                      {:prop-id prop-id
+                       :entry entry
+                       :node node})))))
 
 (defn- prop-observed-state
   [n prop-id prop-io-cache]
@@ -89,18 +130,28 @@
         (instr/observe-prop-run! {:event :considered
                                   :prop-id prop-id
                                   :net current})
-        (if (and observed (= observed (get @prop-state-cache prop-id)))
+        (cond
+          (nil? observed)
+          (recur remaining current)
+
+          (= observed (get @prop-state-cache prop-id))
           (do
             (instr/observe-prop-run! {:event :skipped
                                       :prop-id prop-id
                                       :net current})
             (recur remaining current))
+
+          :else
           (let [before-env-count (count (net/net-env current))
                 before-dict-count (count (net/net-dict-or-empty current))
+                before-prop-ids (network-prop-ids current)
                 started (System/nanoTime)
-                [next-tasks next-net] (core/eval-propagator prop-id
-                                                            remaining
-                                                            current)
+                [next-tasks evaluated] (core/eval-propagator prop-id
+                                                             remaining
+                                                             current)
+                emitted-prop-ids (set/difference (network-prop-ids evaluated)
+                                                 before-prop-ids)
+                next-net (facts/index-frame-props evaluated emitted-prop-ids)
                 elapsed-ns (- (System/nanoTime) started)
                 after-env-count (count (net/net-env next-net))
                 after-dict-count (count (net/net-dict-or-empty next-net))

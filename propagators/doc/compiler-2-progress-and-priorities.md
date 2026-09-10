@@ -20,8 +20,8 @@ investigations while keeping behavior-history integration deferred.
   separate declarations for ambiguous topology.
 - Local reservations distinguish same-compilation filling from later
   shadowing. Named closures reserve their name before compiling their body.
-- Delayed closure, retained application, and lazy topology paths consume raw or
-  canonical cells rather than scope envelopes.
+- Delayed closure, direct GUR application, and lazy topology paths consume raw
+  or canonical cells rather than scope envelopes.
 - CPS `let-cell` compilation restores the outer environment after compiling
   its body.
 - A same-ID `p:sub-env` request is idempotent. This prevents a runtime rebuild
@@ -214,11 +214,10 @@ effect, and the runtime commits the event only after the propagation round.
 6. **Dynamic topology repair.** A previously unresolved operator is connected
    to the first later definition that resolves it. Already-resolved
    applications are not retargeted by subsequent same-name definitions.
-7. **Application topology truth.** Retained application may choose an output
-   only after the operator arrives. Its eventual input/output write set must be
-   represented explicitly before graph reachability can support garbage
-   collection.
-8. **Performance acceptance.** The distributed-TMS chain, retained application,
+7. **Application topology truth.** Application IR declares operator, arguments,
+   context, and output before the operator arrives. Recursively added frame
+   topology must retain deterministic identities for graph reachability.
+8. **Performance acceptance.** The distributed-TMS chain, direct GUR application,
    and accumulating-GUR HOP benchmarks are measured below. The compiler-2
    cdr-gated recursive list-map is a separate workload and remains the next
    profiling target.
@@ -320,19 +319,16 @@ lexical representation.
 ### Closure and application declaration
 
 - Closure values contain the live lexical environment ID.
-- Retained applications no longer capture lexical value-address maps or unwrap
-  operators.
+- Application declarations no longer capture lexical value-address maps or
+  unwrap operators.
 - Lazy guards listen to their compiled raw/canonical condition cell.
-- Closure frames receive raw closure cells.
-- Once runtime knows a retained closure, it declares the addressed frame and
-  installs `runtime.closure-frame/p:apply-closure-with`.
-- The named closure-frame propagator exclusively prepares and emits closure-body
-  topology, including when the closure was already known by retained application.
-- A portable closure value whose captured environment cell is absent from the
-  receiving network falls back to the application context's live environment.
-- Known propagator operators use their static declaration strategy and retain
-  `:primitive` application lowering. Unknown operator cells retain
-  `:closure-cell` lowering until runtime resolution.
+- Every ordinary application installs canonical `gur/p:apply-closure`.
+- Canonical GUR closures reference retained declaration cells and captured cell
+  IDs, including their lexical environment.
+- The accumulated frame projects captured cells through declared boundaries,
+  declares lexical scope relations, and adds body topology deterministically.
+- Primitive callables use the same closure protocol and install their concrete
+  propagators inside the accumulated frame.
 
 ## Deferred compiler-2 behavior-history tests
 
@@ -353,7 +349,7 @@ are established independently.
 
 Green focused receipts:
 
-- closure-frame, composition, CPS, organization, and GUR linked-list gate:
+- direct application, composition, CPS, organization, and GUR linked-list gate:
   137 assertions, zero failures/errors;
 - separate behavior compiler and TMS data-structure suites: 82 assertions,
   zero failures/errors;
@@ -435,7 +431,7 @@ Run in order:
 
 ```bash
 clojure -M:test \
-  propagators.compiler-2-closure-frame-test \
+  propagators.compiler-2-application-runtime-test \
   propagators.compiler-2-composition-test \
   propagators.compiler-2-cps-test \
   propagators.compiler-2-organization-test \

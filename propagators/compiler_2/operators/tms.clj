@@ -8,7 +8,9 @@
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms.distributed :as tms]
-            [propagators.message :refer [message message-id message-value]]
+            [propagators.gur :as gur]
+            [propagators.gur.accumulating.core :as gur-core]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
@@ -19,9 +21,40 @@
       tms/distributed-base-value
       dependency/unwrap))
 
-(defn activation-messages
-  [ret]
-  (vec (if (map? ret) (:messages ret) ret)))
+(defn- retained-closure
+  [callable]
+  (let [callable* (unwrap-compiler-value callable)]
+    (cond
+      (gur-core/recursive-closure? callable*)
+      callable*
+
+      :else
+      nil)))
+
+(defn- retained-closure-info
+  [closure]
+  (cond
+    (gur-core/recursive-closure? closure)
+    (let [declaration (get closure gur-core/declaration-key)]
+      (cond
+        (closure-value/closure-info? declaration)
+        declaration
+
+        :else
+        nil))
+
+    :else
+    nil))
+
+(defn- retained-closure-boundary
+  [closure-id closure]
+  (cond
+    (gur-core/recursive-closure? closure)
+    (vec (distinct (cons closure-id
+                         (gur-core/captured-cell-ids closure))))
+
+      :else
+    [closure-id]))
 
 (defn closure-output-symbols
   [output]
@@ -39,38 +72,52 @@
       (peek (vec arg-ids))
       out-id)))
 
-(defn- tms-closure-call-messages
-  [closure-id closure-info network arg-ids out-id]
-  (let [apply-messages (activation-messages
-                        ((requiring-resolve
-                          'propagators.compiler-2.runtime.application/closure-application-messages)
-                         closure-id
-                         nil
-                         arg-ids
-                         out-id
-                         network))
-        input-count (count (closure-value/closure-inputs closure-info))
+(defn- tms-state-messages
+  [closure-info network arg-ids out-id]
+  (let [input-count (count (closure-value/closure-inputs closure-info))
         input-contents (mapv #(net/network-cell-content network %)
                              (take input-count arg-ids))
         state-update (tms/distributed-state-update input-contents)
         output-id (single-output-id closure-info arg-ids out-id)]
-    (cond-> apply-messages
+    (cond-> []
       (value/contradiction? state-update)
       (conj (message output-id value/contradiction))
 
       (and state-update (not (value/contradiction? state-update)))
       (conj (message output-id state-update)))))
 
+(defn- install-tms-closure-call
+  [closure-id closure-info network arg-ids out-id]
+  (let [output-id (single-output-id closure-info arg-ids out-id)
+        input-count (count (closure-value/closure-inputs closure-info))
+        input-ids (vec (take input-count arg-ids))
+        [apply-props applied]
+        ((gur/p:apply-closure closure-id arg-ids out-id) network)
+        [state-prop declared]
+        ((prop/construct-propagator
+          (h/stable-node-id :compiler-2/tms-closure-state
+                            closure-id arg-ids output-id)
+          (fn [_inputs _outputs current]
+            (tms-state-messages closure-info current arg-ids out-id))
+          input-ids
+          [output-id])
+         applied)]
+    [declared (conj (vec apply-props) state-prop) output-id]))
+
 (defn- tms-closure-value
-  [closure-id closure-value]
+  [closure-id closure closure-value]
   (operator-value/operator-closure
    {:name "tms-closure-value"
-    :activate (fn [network _context-id arg-ids out-id]
-                (tms-closure-call-messages closure-id
-                                           closure-value
-                                           network
-                                           arg-ids
-                                           out-id))}))
+    :boundary-cell-ids (fn [_network _arg-ids]
+                         (retained-closure-boundary closure-id closure))
+    :output-selector (fn [arg-ids out-id]
+                       [(single-output-id closure-value arg-ids out-id)])
+    :install (fn [network arg-ids out-id]
+               (install-tms-closure-call closure-id
+                                         closure-value
+                                         network
+                                         arg-ids
+                                         out-id))}))
 
 (defn tms-closure-operator []
   (operator-value/operator-closure
@@ -79,15 +126,24 @@
                [network [] out-id])
     :activate (fn [network _context-id arg-ids out-id]
                 (let [[closure-id] (vec arg-ids)]
-                  (when-not (and closure-id (= 1 (count arg-ids)))
+                  (cond
+                    (not (and closure-id (= 1 (count arg-ids))))
                     (throw (ex-info "tms-closure expects one network closure"
-                                    {:arg-ids arg-ids})))
-                  (let [closure-value (h/strongest-or-nothing network closure-id)]
-                    (if (or (value/unusable? closure-value)
-                            (not (closure-value/closure-info? closure-value)))
-                      []
-                      [(message out-id
-                                (tms-closure-value closure-id closure-value))]))))}))
+                                    {:arg-ids arg-ids}))
+
+                    :else
+                    (let [callable (h/strongest-or-nothing network closure-id)
+                          closure (retained-closure callable)
+                          closure-info (retained-closure-info closure)]
+                      (cond
+                        (nil? closure-info)
+                        []
+
+                        :else
+                        [(message out-id
+                                  (tms-closure-value closure-id
+                                                     closure
+                                                     closure-info))])))))}))
 
 (defn- single-output-call-plan
   [closure-id closure-info arg-ids out-id tag]
@@ -114,6 +170,8 @@
            :inner-arg-ids arg-ids}))
 
       :else nil)))
+
+(declare p:distributed-premise-output)
 
 (defn- distributed-premise-output-update
   [claim-id source output-update input-contents premise epoch]
@@ -198,7 +256,7 @@
      inputs
      [real-output-id])))
 
-(defn- distributed-premise-closure-call-messages
+(defn- install-distributed-premise-closure-call
   [closure-id closure-info premise epoch network arg-ids out-id]
   (let [{:keys [input-ids real-output-id hidden-output-id inner-arg-ids]}
         (single-output-call-plan closure-id
@@ -206,39 +264,40 @@
                                  arg-ids
                                  out-id
                                  :compiler-2/distributed-premise-closure)]
-    (if-not real-output-id
-      []
-      (let [apply-messages (activation-messages
-                            ((requiring-resolve
-                              'propagators.compiler-2.runtime.application/closure-application-messages)
-                             closure-id
-                             nil
-                             inner-arg-ids
-                             hidden-output-id
-                             network))
-            output-update (some (fn [m]
-                                  (when (= hidden-output-id (message-id m))
-                                    (message-value m)))
-                                apply-messages)
-            claim-id [:compiler-2/distributed-premise-closure
+    (cond
+      (nil? real-output-id)
+      [network [] out-id]
+
+      :else
+      (let [claim-id [:compiler-2/distributed-premise-closure
                       real-output-id
                       premise]
-            update (distributed-premise-output-update
-                    claim-id
-                    claim-id
-                    output-update
-                    (mapv #(net/network-cell-content network %) input-ids)
-                    premise
-                    epoch)]
-        (cond-> []
-          update (conj (message real-output-id update)))))))
+            [apply-props applied]
+            ((gur/p:apply-closure closure-id inner-arg-ids hidden-output-id)
+             network)
+            [projection-prop declared]
+            ((p:distributed-premise-output claim-id
+                                           claim-id
+                                           input-ids
+                                           premise
+                                           epoch
+                                           hidden-output-id
+                                           real-output-id)
+             applied)]
+        [declared
+         (conj (vec apply-props) projection-prop)
+         real-output-id]))))
 
 (defn- distributed-premise-closure-value
-  [closure-id closure-value premise epoch]
+  [closure-id closure closure-value premise epoch]
   (operator-value/operator-closure
    {:name "distributed-premise-closure-value"
-    :activate (fn [network _context-id arg-ids out-id]
-                (distributed-premise-closure-call-messages closure-id
+    :boundary-cell-ids (fn [_network _arg-ids]
+                         (retained-closure-boundary closure-id closure))
+    :output-selector (fn [arg-ids out-id]
+                       [(single-output-id closure-value arg-ids out-id)])
+    :install (fn [network arg-ids out-id]
+               (install-distributed-premise-closure-call closure-id
                                                           closure-value
                                                           premise
                                                           epoch
@@ -253,22 +312,29 @@
                [network [] out-id])
     :activate (fn [network _context-id arg-ids out-id]
                 (let [[closure-id premise-id epoch-id] (vec arg-ids)]
-                  (when-not (and closure-id premise-id epoch-id (= 3 (count arg-ids)))
-                    (throw (ex-info "distributed-premise-closure expects closure, premise, and epoch"
-                                    {:arg-ids arg-ids})))
-                  (let [closure-value (h/strongest-or-nothing network closure-id)
-                        premise (h/strongest-or-nothing network premise-id)
-                        epoch (h/strongest-or-nothing network epoch-id)]
-                    (if (or (value/unusable? closure-value)
-                            (not (closure-value/closure-info? closure-value))
+                  (cond
+                    (not (and closure-id premise-id epoch-id
+                              (= 3 (count arg-ids))))
+                    (throw (ex-info
+                            "distributed-premise-closure expects closure, premise, and epoch"
+                            {:arg-ids arg-ids}))
+
+                    :else
+                    (let [callable (h/strongest-or-nothing network closure-id)
+                          closure (retained-closure callable)
+                          closure-info (retained-closure-info closure)
+                          premise (h/strongest-or-nothing network premise-id)
+                          epoch (h/strongest-or-nothing network epoch-id)]
+                      (cond
+                        (or (nil? closure-info)
                             (value/unusable? premise)
                             (value/unusable? epoch))
-                      []
-                      [(message out-id
-                                (distributed-premise-closure-value closure-id
-                                                                  closure-value
-                                                                  premise
-                                                                  epoch))]))))}))
+                        []
+
+                        :else
+                        [(message out-id
+                                  (distributed-premise-closure-value
+                                   closure-id closure closure-info premise epoch))])))))}))
 
 (defn- premise-input-messages
   [network value-id premise-id epoch-id out-id]
@@ -387,5 +453,3 @@
       (env/bind-at 'premise-content-input (premise-content-input-operator) 0)
       (env/bind-at 'premise-believe (premise-state-operator true "premise-believe") 0)
       (env/bind-at 'premise-retract (premise-state-operator false "premise-retract") 0)))
-
-

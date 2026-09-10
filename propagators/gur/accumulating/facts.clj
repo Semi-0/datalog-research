@@ -1,12 +1,15 @@
 (ns propagators.gur.accumulating.facts
   "Monotone declaration facts stored in accumulated GUR network values."
   (:require [propagators.gur.subenv.queue :as queue]
+            [propagators.ids :as ids]
             [propagators.network :as net]))
 
 (def frame-index-key [:gur/accumulating :frames])
 (def frame-prop-index-key [:gur/accumulating :props])
 (def task-index-key [:gur/accumulating :tasks])
 (def application-request-index-key [:gur/accumulating :application-requests])
+(def application-declaration-index-key
+  [:gur/accumulating :application-declarations])
 
 (def ^:private frame-scope-prefix [:gur/accumulating :scope])
 (def ^:private frame-declared-prefix [:gur/accumulating :frame-declared])
@@ -36,14 +39,99 @@
   [:gur/application closure-id (vec arg-ids) out-id])
 
 (defn application-request-fragment
-  [closure-id arg-ids out-id]
+  ([closure-id arg-ids out-id]
+   (application-request-fragment closure-id arg-ids out-id nil))
+  ([closure-id arg-ids out-id declaration]
+   (let [app-key (application-key closure-id arg-ids out-id)
+         request {:closure-id closure-id
+                  :arg-ids (vec arg-ids)
+                  :out-id out-id}
+         request (cond
+                   (map? declaration)
+                   (assoc request :declaration declaration)
+
+                   (nil? declaration)
+                   request
+
+                   :else
+                   (throw (ex-info "GUR application declaration must be a map"
+                                   {:application-key app-key
+                                    :declaration declaration})))]
+     (net/assoc-net-dict-entry
+      net/empty-net
+      application-request-index-key
+      {app-key request}))))
+
+(defn declare-application
+  [n closure-id arg-ids out-id declaration]
   (let [app-key (application-key closure-id arg-ids out-id)]
-    (net/assoc-net-dict-entry
-     net/empty-net
-     application-request-index-key
-     {app-key {:closure-id closure-id
-               :arg-ids (vec arg-ids)
-               :out-id out-id}})))
+    (cond
+      (map? declaration)
+      (net/update-net-dict-entry
+       n
+       application-declaration-index-key
+       (fn [declarations]
+         (assoc (or declarations {}) app-key declaration)))
+
+      :else
+      (throw (ex-info "GUR application declaration must be a map"
+                      {:application-key app-key
+                       :declaration declaration})))))
+
+(defn application-declarations
+  [n]
+  (or (net/network-dict-entry n application-declaration-index-key) {}))
+
+(defn application-declaration
+  [n app-key]
+  (get (application-declarations n) app-key))
+
+(defn declaration-cell-ids
+  [declaration]
+  (cond
+    (map? declaration)
+    (let [cell-ids (:cell-ids declaration)]
+      (cond
+        (sequential? cell-ids)
+        (vec (filter ids/node-id? cell-ids))
+
+        (nil? cell-ids)
+        []
+
+        :else
+        (throw (ex-info "GUR application declaration cell IDs must be sequential"
+                        {:declaration declaration}))))
+
+    (nil? declaration)
+    []
+
+    :else
+    (throw (ex-info "invalid GUR application declaration"
+                    {:declaration declaration}))))
+
+(defn declaration-output-cell-ids
+  [declaration]
+  (cond
+    (map? declaration)
+    (let [cell-ids (:output-cell-ids declaration)]
+      (cond
+        (sequential? cell-ids)
+        (vec (filter ids/node-id? cell-ids))
+
+        (nil? cell-ids)
+        []
+
+        :else
+        (throw (ex-info
+                "GUR application declaration output cell IDs must be sequential"
+                {:declaration declaration}))))
+
+    (nil? declaration)
+    []
+
+    :else
+    (throw (ex-info "invalid GUR application declaration"
+                    {:declaration declaration}))))
 
 (defn application-requests
   [n]
@@ -77,6 +165,13 @@
                                  #(into (or % #{}) (queue/task-ids prop-ids)))
       (add-task-facts [:frame app-key] prop-ids)
       (net/assoc-net-dict-entry (frame-scope-key app-key) scope)))
+
+(defn index-frame-props
+  [n prop-ids]
+  (net/update-net-dict-entry
+   n
+   frame-prop-index-key
+   #(into (or % #{}) (queue/task-ids prop-ids))))
 
 (defn when-applied-key
   [when-key]

@@ -139,9 +139,7 @@
      :arg-cells (when (application/application-info? info)
                   (obj/slot-value info application/application-arg-cells-slot))
      :output-cell (when (application/application-info? info)
-                    (obj/slot-value info application/application-output-slot))
-     :lowering (when (application/application-info? info)
-                 (obj/slot-value info application/application-lowering-slot))}))
+                    (obj/slot-value info application/application-output-slot))}))
 
 (defn- block-application-rows
   [network records]

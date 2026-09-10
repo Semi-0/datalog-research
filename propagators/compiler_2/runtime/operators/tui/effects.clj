@@ -65,7 +65,15 @@
 
 (defn block-at-operator [outbox-id]
   (operator-value/operator-closure
-   {:name 'block-at
+    {:name 'block-at
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
+    :boundary-cell-ids
+    (fn [network arg-ids]
+      (let [[instance-id index-id] (vec arg-ids)]
+        (conj (common/block-at-boundary-cell-ids network instance-id index-id)
+              (common/block-at-text-id network instance-id index-id))))
     :output-selector (fn [arg-ids fallback-id]
                        (or (nth (vec arg-ids) 2 nil) fallback-id))
     :activate (fn [network _context-id arg-ids out-id]
@@ -80,7 +88,18 @@
 
 (defn be-block-at-operator [outbox-id]
   (operator-value/operator-closure
-   {:name 'be:block-at
+    {:name 'be:block-at
+    :boundary-output-cell-ids
+    (fn [network arg-ids]
+      (let [[instance-id index-id] (vec arg-ids)
+            display-id (block-at-display-id network instance-id index-id)]
+        (vec (filter some? [outbox-id display-id]))))
+    :boundary-dict-keys common/display-boundary-dict-keys
+    :boundary-cell-ids
+    (fn [network arg-ids]
+      (let [[instance-id index-id source-id] (vec arg-ids)]
+        (concat (common/block-at-boundary-cell-ids network instance-id index-id)
+                (common/premise-state-boundary-cell-ids network source-id))))
     :output-selector (fn [arg-ids fallback-id]
                        (or (nth (vec arg-ids) 2 nil) fallback-id))
     :activate (fn [network _context-id arg-ids out-id]
@@ -98,6 +117,15 @@
 (defn be-event-block-at-operator []
   (operator-value/operator-closure
    {:name 'be:event-block-at
+    :boundary-output-cell-ids
+    (fn [network arg-ids]
+      (let [[instance-id index-id] (vec arg-ids)
+            display-id (block-at-display-id network instance-id index-id)]
+        (vec (filter some? [display-id]))))
+    :boundary-cell-ids
+    (fn [network arg-ids]
+      (let [[instance-id index-id] (vec arg-ids)]
+        (common/block-at-boundary-cell-ids network instance-id index-id)))
     :output-selector (fn [arg-ids fallback-id]
                        (or (nth (vec arg-ids) 2 nil) fallback-id))
     :activate (fn [network _context-id arg-ids out-id]
@@ -118,6 +146,17 @@
 (defn be-block-target-operator [outbox-id instance-id]
   (operator-value/operator-closure
    {:name 'be:block
+    :boundary-output-cell-ids
+    (fn [network arg-ids]
+      (let [[index-id] (vec arg-ids)
+            display-id (block-at-display-id network instance-id index-id)]
+        (vec (filter some? [outbox-id display-id]))))
+    :boundary-dict-keys common/display-boundary-dict-keys
+    :boundary-cell-ids
+    (fn [network arg-ids]
+      (let [[index-id source-id] (vec arg-ids)]
+        (concat (common/block-at-boundary-cell-ids network instance-id index-id)
+                (common/premise-state-boundary-cell-ids network source-id))))
     :output-selector (fn [arg-ids fallback-id]
                        (or (nth (vec arg-ids) 1 nil) fallback-id))
     :activate (fn [network _context-id arg-ids out-id]

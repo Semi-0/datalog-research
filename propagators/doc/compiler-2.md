@@ -64,7 +64,7 @@ list. The parser still produces AST data; `core.clj` compiles that AST directly.
 
 `call-graph` (also bound as `p:call-graph`) is an ordinary primitive
 propagator. It combines potential call sites stored in a closure body with
-realized calls published by retained application IR:
+realized calls published by retained application declaration IR:
 
 ```clojure
 (let-cell [f out graph]
@@ -76,7 +76,7 @@ realized calls published by retained application IR:
 ```
 
 The result is a semantic graph value. Potential calls are available as soon as
-the closure value arrives. Each retained application carries an optional
+the closure value arrives. Each application declaration carries an optional
 `:application/caller` cell ID and installs a named call-fact publisher. If a
 late operator cell later receives a closure, that publisher reactively refines
 the same graph. Recursive calls point back to the caller closure ID and appear
@@ -208,10 +208,10 @@ premise-marked distributed TMS update to the explicit output cell:
   out)
 ```
 
-The sugar does not patch `p:apply-application`; it uses the ordinary primitive
-operator metadata path and the existing closure application helper. For
-declared-output networks, it marks the explicit output applicant, not the hidden
-application result cell.
+The sugar produces a canonical accumulating-GUR closure. Its body composes the
+ordinary application propagator with premise-marking propagators. For
+declared-output networks, it marks the explicit output applicant rather than the
+hidden application result cell.
 
 Later `(premise-retract definition-premise epoch1 out)` or
 `(premise-retract input-premise epoch2 x)` adds new premise-state facts. Old
@@ -291,7 +291,7 @@ distributed TMS primitives by default, use:
 
 The matching AST entry is `main/compile-expr-with-behavior-tms`.
 
-The retained application object has slots:
+The retained application declaration has slots:
 
 ```clojure
 {:application/operator-ast  operator-ast
@@ -299,22 +299,15 @@ The retained application object has slots:
  :application/args          argument-object-cell-id
  :application/arg-cells     [arg-cell-ids...]
  :application/output        result-cell-id
- :application/context       context-cell-id
- :application/lowering      :primitive-or-closure-cell}
+ :application/context       context-cell-id}
 ```
 
 This is a declaration fact. It exists before scheduler evaluation and can be
-inspected without running the application. Executable lowering is owned by
-`compiler_2.application/p:apply-application`:
-
-- primitive applications evaluate through operator metadata on activation
-- closure-cell applications delegate to the closure application path
-- both retain the same application IR shape and scheduler wakeup behavior
-
-This removes the previous asymmetry where closure applications were inspectable
-but primitive calls disappeared into lowered edges. The direct primitive
-installer functions still exist as compatibility helpers, but compiler-2
-application compilation no longer calls them directly.
+inspected without running the application. Compiler 2 independently installs
+`gur/p:apply-closure` from the operator and argument cells to the result cell.
+The declaration is not an evaluator input. Primitive and network callables are
+both canonical accumulating-GUR closure values, so application does not classify
+or unwrap the operator.
 
 ## Composable Compiler Declaration
 
@@ -364,16 +357,10 @@ functional `:operator/direct-compiler` strategy:
 The built-in list and constraint operators use it. The existing
 three-argument direct installer remains an opaque compatibility fallback.
 
-Application declaration is independently selectable with
-`:application/cell-declarer`. The default `:runtime` strategy declares a normal
-retained application; `:retained-frame` declares closure applications into an
-outer retained frame; a function supplies an isolated custom strategy. Runtime
-message production remains in the application namespaces.
-
 Verified in `propagators.compiler-2-composition-test` and
 `propagators.compiler-2-cps-test`, including public MultiFn identity,
-independent compiler instances, delayed local compilation, application
-strategy selection, parity, and deeply nested stack-safe traversal.
+independent compiler instances, delayed local compilation, parity, and deeply
+nested stack-safe traversal.
 
 ## Closure Values Are Data
 
@@ -381,16 +368,19 @@ A compiler-2 closure cell stores a compound object, not a
 `propagators.closure/Closure` runtime function:
 
 ```clojure
-{:closure/env    lexical-env
- :closure/body   body-ast
- :closure/inputs [x y]
- :closure/output out-or-nil
- :closure/scope  lexical-scope}
+{:closure/env         lexical-env-id
+ :closure/body        body-ast
+ :closure/inputs      [x y]
+ :closure/output      out-or-nil
+ :closure/scope       lexical-scope
+ :closure/declaration declaration-cell-id
+ :gur/captured-cell-ids [lexical-env-id ...]}
 ```
 
-The lexical environment is also attached with `compound-object/p:slot` under
-`:closure/env`. This keeps closure data slot-backed while application dispatch
-uses the retained closure value and scheduled argument cell ids directly.
+The lexical environment and declaration are attached through compound-object
+slots. Captured cells cross the accumulated frame boundary by ID. This keeps
+closure data slot-backed while application uses the canonical GUR value and
+scheduled argument cell IDs directly.
 
 Declaration and evaluation stay separate:
 
@@ -400,59 +390,27 @@ Declaration and evaluation stay separate:
 
 ## Application Flow
 
-`core/g:apply` has two declaration branches:
+`core/g:apply` has one ordinary application path. It compiles operator and
+operands into cells, records application IR, and installs
+`gur/p:apply-closure`. Contextual primitive wrappers include their context cell
+in the canonical closure's declared boundary.
 
-- primitive operators from the environment
-- closure-valued operator cells
+For zero-output closures, the result cell is the implicit output. For declared
+`network` / `def-net` closures, the tail argument cells are explicit outputs.
+The same application propagator observes operator, arguments, and output, so
+late information and backward information wake it through normal adjacency.
 
-Both branches create the same application IR object and install
-`p:apply-application`. Primitive operators are placed in an operator cell, so
-the application propagator can read them like any other operator value.
-Contextual primitives receive one hidden context cell in addition to user
-operands at activation time. Primitive calls retain `:primitive` as the lowering
-tag.
+When sufficient information is available, the propagator emits an application
+request into the accumulating subnet. The runner declares one deterministic
+frame containing scope relations, captured-cell projections, body-local cells,
+body propagators, and explicit output adapters. Repeated activation reuses the
+same request and frame facts.
 
-Closure-valued operators use the original operator cell. Arguments are recorded
-in an argument object cell, and the application prop is wired to the application
-cell, operator cell, argument object cell, argument cells, context cell, and
-output cell. For zero-output closures, that output cell is the implicit result
-cell. For declared-output `network` / `def-net` closures, the formal output
-symbols are bound to the tail argument cells instead. Closure calls retain the
-same application IR object shape with a `:closure-cell` lowering tag. That
-wiring is important: later operator or argument updates wake the same
-application through normal scheduler adjacency.
-
-At activation time `p:apply-application`:
-
-1. reads the retained application object
-2. reads the operator cell
-3. dispatches by operator value
-4. for primitive operators, emits primitive result messages directly
-5. for closure values, delegates to the closure application path
-
-For zero-output closure values, the closure application path:
-
-1. reads the retained closure value and scheduled argument cell ids
-2. waits while the closure value or required input argument values are unusable
-3. creates one activation network containing:
-   - input boundary avatars
-   - an output boundary avatar
-   - body-local cells and body propagators
-   - a result-to-output adapter propagator
-4. runs that activation network to quiescence
-5. diffs only the inner output avatar back to the outer output cell
-
-This is the boundary that prevents inner local variables from writing to outer
-cells except through the declared output/result. The result-to-output adapter is
-a direct propagator link from the body result cell to the boundary output avatar;
-it no longer materializes host compound records.
-
-For declared-output network values, the runtime first splits application
-applicants into input cells and output cells. Only input cells must have values
-before activation. Output cells are boundary outputs, so late output flow is not
-blocked by their initial `nothing` value. The declared output symbols bind to
-those explicit output cells; no structural output slots are created under the
-application result.
+For declared-output network values, only input cells need usable values before
+forward activation. Output cells are boundary outputs, so output-first backward
+information can also declare and run the same frame. The declared output symbols
+bind to those explicit output cells; no structural output slots are created under
+the hidden application result.
 
 ## Runtime Blocks And Semantic Tracing
 
@@ -663,9 +621,8 @@ stdlib `prop/+`. The passing assertion is:
 
 This proves the short path: linked-list declaration traversal, compound
 propagator declaration as a GUR closure value, GUR application, and accessor
-lexical lookup. It does not yet prove general compiler-2 lowering, dynamic AST
-operator dispatch, recursive construction of arbitrary lexical accessors, or
-replacement of the current materializing closure application path.
+lexical lookup. It does not yet prove dynamic AST operator dispatch or recursive
+construction of every possible lexical accessor.
 
 ## Prototype Readiness
 
@@ -674,9 +631,8 @@ prototype on top of accumulating GUR, with a narrow target. GUR should be used
 for recursive compiler machinery: walking linked-list/AST declarations through
 `obj/p:cons` / `obj/p:car` / `obj/p:cdr`, constructing recursive lexical
 accessors, expanding macro-like declarations, and declaring higher-order
-compiler topology. Ordinary compiled programs should still prefer primitive
-propagators, iterative behavior operators, explicit behavior reducers, and
-retained application/closure data.
+compiler topology. Ordinary compiled programs use the same accumulating-GUR
+application boundary for primitive and network callables.
 
 The prototype boundary is still real. Compiler-2 should not yet assume a final
 general recursion substrate for all user code, automatic GC of accumulated GUR
@@ -692,7 +648,7 @@ look correct locally while losing semantic identity or provenance.
 
 | Status | Shortcut | Symptom | Propagator-native replacement | Proving test |
 | --- | --- | --- | --- | --- |
-| fixed | `compiler_2.application/materialize-slot-object` in closure application | Closure calls inspect host-materialized closure/argument records, which can collapse accessor identity and make traces miss the applied body. | Use retained closure/application slots and argument cell ids; install only the activation topology when closure shape is known. | `compile-2-application-output-adapter-is-not-materializing`, nested and late compiler-2 application tests. |
+| fixed | Compiler 2 closure/application materialization and strongest-value dispatch. | Closure calls could collapse accessor identity, wait in hidden readers, or bypass ordinary propagation readiness. | Retain closure/application IR, store canonical accumulating-GUR closures in callable cells, and install `gur/p:apply-closure` immediately from operator and argument cells to the result. | Direct-GUR late-operator, late-argument, contradiction, output-first, nested, and lexical application tests. |
 | fixed | Runtime `trace` closes over a per-block graph sidecar. | `(trace out g)` can trace block plumbing instead of the runtime env graph. | Bind one stable runtime semantic graph cell in the compiler env and have `trace` read it. | `block-language-traces-def-net-application-dependence-graph`. |
 | fixed | Runtime `block-at` uses host `head-id->blocks` lookup. | Cross-session block access depends on runtime maps rather than linked block cells. | Implement indexed linked-list access as a primitive propagator installed through compiler-2 env. | `cross-session-block-at-writes-only-target-block`. |
 | fixed | Default arithmetic unwraps `scope-source` / dependency values. | `(+ scoped-x 1)` can lose scope/provenance. | Make the default primitive env provenance-aware or explicitly use the contextual primitive wrapper. | `compile-2-default-arithmetic-preserves-operand-dependencies`. |
@@ -826,10 +782,10 @@ and generic procedures:
 declaration data
   -> slot-backed topology
   -> retained application/branch IR
-  -> activation-local materialization
-  -> branch/body network installation
-  -> reducer or output adapter
-  -> diff/copy selected output
+  -> accumulating subnet request
+  -> deterministic branch/body topology
+  -> explicit output projection
+  -> evidence-preserving diff
 ```
 
 ### Compound Object
@@ -874,29 +830,35 @@ Generic procedures are "slotful method branches plus select-one reduction."
 
 ### Compiler 2
 
-Compiler 2 uses the same pieces at the language level.
+Compiler 2 uses compound objects for inspectable declarations and accumulating
+GUR for execution.
 
-- A closure is a compound object with environment/body/port slots.
-- An application is a compound object with operator/argument/output/context
-  slots.
-- An application materializes closure data, creates an activation-local network,
-  compiles the body into that network, runs it, and diffs the declared output.
+- Closure IR retains AST, parameters, output declaration, and lexical
+  environment identity before evaluation.
+- A callable cell contains a canonical accumulating-GUR closure that references
+  its declaration and captured cell ids.
+- Application IR retains operator, arguments, output, and context separately
+  from execution.
+- Application immediately installs `gur/p:apply-closure`; propagation readiness
+  waits for usable information and declares deterministic body topology once.
+- Captured cells cross declared GUR boundaries and lexical access remains a
+  composition of scope, local selection, and binding-value propagators.
 - Contextual operators are ordinary propagator relations with one hidden context
   cell, not special evaluator state.
 
-Compiler 2 is "slotful closure/application data plus executable lowering and
-activation-local network expansion."
+Compiler 2 is "retained declaration data plus lazy accumulating-GUR topology."
 
 ## Possible Common Algebra
 
 The duplication across these systems suggests a common algebra can be extracted
 without changing the runtime model.
 
-### 1. Slot Materialization Frame
+### 1. Slot Materialization for Legacy Procedure Systems
 
-Both `generic_procedure`, `layered`, and `compiler_2.application` need to copy a
-collection cell plus declared parent cells into a local frame, reinstall declared
-`p:slot` topology, and run it to read a materialized compound value.
+Both `generic_procedure` and `layered` currently copy a collection cell plus
+declared parent cells into a local frame, reinstall declared `p:slot` topology,
+and run it to read a materialized compound value. Compiler 2 application does
+not use this path.
 
 Candidate extraction:
 
@@ -907,8 +869,8 @@ Candidate extraction:
 ;;     :slot-values {slot-key value}}
 ```
 
-This would remove ad hoc `copy-outer-cell`, `install-declared-slot`, and
-materialization code from procedure dispatch and compiler application.
+This could remove ad hoc materialization code from layered and generic procedure
+dispatch without reintroducing it into Compiler 2.
 
 ### 2. Branch Application Builder
 
@@ -937,8 +899,8 @@ and reducer policy.
 ### 3. Reducer Policies As First-Class Algebra
 
 `dispatch/layered-object-policy` and `dispatch/select-one-policy` are reducer
-policies over result-bank slots. Compiler 2's result-to-output adapter is a
-single-output policy rather than a bank reducer.
+policies over result-bank slots. Compiler 2 uses explicit GUR boundary output
+projection rather than a result-bank policy.
 
 Candidate common interface:
 
@@ -956,12 +918,10 @@ Policies could include:
 
 ### 4. Context-Passing Operators
 
-Compiler 2 now distinguishes raw operators from contextual operators with
-metadata. That distinction belongs to `p:apply-application`, not retained IR.
-The retained application object is uniform; application activation decides
-whether the executable operator receives the context cell. Layered arithmetic
-and dependency arithmetic point at the same need: operator behavior often
-depends on an implicit evaluation context.
+Compiler 2 represents contextual behavior in the canonical callable closure's
+declared boundary. The retained application object remains uniform and does not
+classify operators. Layered arithmetic and dependency arithmetic can therefore
+receive an implicit evaluation context without adding policy to application.
 
 Candidate extraction:
 
@@ -974,29 +934,25 @@ Candidate extraction:
 Layered arithmetic could eventually be expressed as contextual operators that
 produce layered dependency/provenance data rather than bespoke closure records.
 
-### 5. Procedure Values As Slotful Records
+### 5. Procedure Declarations As Inspectable Records
 
-Layered procedures, generic procedures, and compiler closures are all slotful
-records:
+Layered procedures, generic procedures, and Compiler 2 closure declarations are
+inspectable records, but their execution mechanisms now differ:
 
 ```text
-record cell
-  slots -> branch/config/env/body cells
-application
-  materialize record
-  install activation topology
-  reduce/copy output
+layered/generic record -> materialize declared method slots -> reduce branch bank
+Compiler 2 declaration -> canonical GUR closure -> declare boundary topology
 ```
 
-A shared "slotful procedure" abstraction could define:
+A shared abstraction for layered and generic procedures could define:
 
 - how to enumerate branch/config slots
 - how to validate a complete branch
 - how to install a branch
 - which output policy to use
 
-Layered, generic, and compiler closures would then be specializations rather
-than independent implementations.
+Compiler 2 should share only genuinely common declaration relations and output
+projections; its application readiness remains the canonical GUR protocol.
 
 ## Cautions
 
@@ -1008,5 +964,6 @@ The common algebra should not hide the core invariants:
 - reducers must observe slots through accessors, not direct named-network peeks
 - contextual metadata should be ordinary cell data, not hidden global state
 
-The extraction should therefore start with small helpers around materialization
-and output policy, not a broad inheritance hierarchy or a new macro language.
+Any extraction should start with small helpers local to the layered and generic
+systems. It must not put materialization or procedure classification back into
+Compiler 2 application.

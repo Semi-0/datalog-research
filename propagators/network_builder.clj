@@ -2,6 +2,7 @@
   "Small construction helpers for immutable propagator networks."
   (:require [propagators.cells.cell :as cell]
             [propagators.core :as core]
+            [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -15,11 +16,28 @@
    (net/install-net n (cell/construct-cell id content strongest))))
 
 (defn ensure-cell
-  "Install an empty cell only when `id` is not already present in `n`."
+  "Ensure `id` has both a cell entry and a graph node."
   [n id]
-  (if (contains? (net/net-env n) id)
-    n
-    (install-cell n id)))
+  (let [entry (get (net/net-env n) id)
+        node (get (net/net-graph n) id)]
+    (cond
+      (and (cell/cell? entry) node)
+      n
+
+      (and (cell/cell? entry) (nil? node))
+      (net/assoc-net-node n id (graph/blank-node))
+
+      (and (nil? entry) (nil? node))
+      (install-cell n id)
+
+      (and (nil? entry) node)
+      (throw (ex-info "cell graph node exists without an environment entry"
+                      {:cell-id id}))
+
+      :else
+      (throw (ex-info "node ID is already occupied by a non-cell entry"
+                      {:cell-id id
+                       :entry entry})))))
 
 (defn copy-cell
   "Install `id` in `n` with the strongest value from `source-net`."

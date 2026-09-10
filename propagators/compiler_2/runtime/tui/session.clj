@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.runtime.tui.session
   "TUI session and block operations for compiler-2 runtime."
   (:require [clojure.string :as str]
+            [propagators.cells.cell :as cell]
             [propagators.compiler-2.runtime.tui.block-model :as block-model]
             [propagators.compiler-2.runtime.session.input :as input]
             [propagators.compiler-2.runtime.session.program :as program]
@@ -344,6 +345,28 @@
           #{}
           blocks))
 
+(defn- observed-child-networks
+  [network]
+  (keep (fn [entry]
+          (cond
+            (cell/cell? entry)
+            (let [content (cell/cell-strongest entry)]
+              (cond
+                (net/net? content) content
+                :else nil))
+
+            :else
+            nil))
+        (vals (net/net-env network))))
+
+(defn- observed-scoped-values
+  [network scope]
+  (->> (tree-seq net/net? observed-child-networks network)
+       (mapcat (fn [nested]
+                 (vals (get (net/network-dict-entry
+                             nested fvm/name-bindings-key)
+                            scope {}))))))
+
 (defn project-tui-view
   [state {:keys [client-id]}]
   (let [tui (get-in (require-state state) [:tuis client-id])]
@@ -355,9 +378,9 @@
                                         [(:block-id block)
                                          (some-> block :version-history peek :version)]))
                                  (:blocks tui))
-          diagnostics (vals (get (net/network-dict-entry
-                                  (:program/net state) fvm/name-bindings-key)
-                                 definition/diagnostic-scope {}))]
+          diagnostics (observed-scoped-values
+                       (:program/net state)
+                       definition/diagnostic-scope)]
       {:client-id client-id
        :mode (:mode tui :legacy)
        :view-id (pr-str (:view-id tui))

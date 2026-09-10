@@ -4,10 +4,11 @@
             [propagators.compiler-2.compiler.basis :as helpers]
             [propagators.compiler-2.main :as compiler]
             [propagators.compiler-2.model.application-value :as application-value]
+            [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.operators.call-graph :as call-graph]
-            [propagators.datastructures.compound-object :as obj]
+            [propagators.gur.accumulating.facts :as facts]
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -21,17 +22,72 @@
   [network id]
   (net/network-cell-strongest network id))
 
-(defn- binding-id
-  [network sym]
-  (let [ids (keep (fn [[id name]] (when (= sym name) id))
-                  (env/binding-names network))]
-    (when (= 1 (count ids)) (first ids))))
+(defn- accumulated-networks
+  [network]
+  (keep (fn [[id _entry]]
+          (let [candidate (strongest network id)]
+            (cond
+              (net/net? candidate)
+              candidate
+
+              :else
+              nil)))
+        (net/net-env network)))
+
+(defn- accumulated-application-declarations
+  [network]
+  (for [child (accumulated-networks network)
+        declaration (vals (facts/application-declarations child))]
+    declaration))
+
+(defn- node-id-with-label
+  [graph label]
+  (some (fn [[id candidate]]
+          (cond
+            (= label candidate)
+            id
+
+            :else
+            nil))
+        (:nodes graph)))
+
+(defn- potential-callee-id
+  [graph operator-label]
+  (let [call-id (node-id-with-label graph (str "potential " operator-label))]
+    (some (fn [[from to]]
+            (cond
+              (= from call-id)
+              to
+
+              :else
+              nil))
+          (:edges graph))))
+
+(defn- potential-caller-id
+  [graph operator-label]
+  (let [call-id (node-id-with-label graph (str "potential " operator-label))]
+    (some (fn [[from to]]
+            (cond
+              (= to call-id)
+              from
+
+              :else
+              nil))
+          (:edges graph))))
+
+(defn- accumulated-prop-names
+  [network]
+  (set
+   (for [child (accumulated-networks network)
+         [_id entry] (net/net-env child)
+         :when (prop/prop? entry)]
+     (prop/prop-name entry))))
 
 (defn- graph-statuses
   [graph]
   (set (keep :call/status (vals (:values graph)))))
 
-(deftest call-graph-is-a-primitive-and-a-named-propagator
+(deftest call-graph-is-a-canonical-primitive
   (is (operator-value/operator-closure?
        (env/lookup (helpers/default-env) 'call-graph)))
   (is (operator-value/operator-closure?
@@ -39,14 +95,9 @@
   (let [compiled (compiler/compile-source
                   "(call-graph (:: [x] (+ x 1)))")
         network (run-compiled compiled)
-        graph (strongest network (:cell compiled))
-        prop-names (set (keep (fn [[_ entry]]
-                                (when (prop/prop? entry)
-                                  (prop/prop-name entry)))
-                              (net/net-env network)))]
+        graph (strongest network (:cell compiled))]
     (is (= #{:potential} (graph-statuses graph)))
-    (is (contains? (set (vals (:nodes graph))) "+"))
-    (is (contains? prop-names 'call-graph))))
+    (is (contains? (set (vals (:nodes graph))) "+"))))
 
 (deftest potential-call-graph-represents-recursion-as-a-cycle
   (let [compiled (compiler/compile-source
@@ -57,7 +108,7 @@
                      graph)")
         network (run-compiled compiled)
         graph (strongest network (:cell compiled))
-        self-id (binding-id network 'self)
+        self-id (potential-caller-id graph "self")
         recursive-call-id (some (fn [[id label]]
                                   (when (= "potential self" label) id))
                                 (:nodes graph))]
@@ -81,14 +132,13 @@
                       :arg-ids []
                       :output-id out-id
                       :context-id context-id
-                      :lowering :closure-cell
                       :caller-id closure-id})
         graph (call-graph/realized-call-graph closure-id application-id
                                               application closure-id closure)]
     (is (contains? (set (:edges graph)) [closure-id application-id]))
     (is (contains? (set (:edges graph)) [application-id closure-id]))))
 
-(deftest retained-closure-applications-publish-realized-call-facts
+(deftest direct-gur-closure-applications-publish-realized-call-facts
   (let [compiled (compiler/compile-source
                   "(let-cell [f out graph]
                      (def-net f [x] [out]
@@ -98,25 +148,14 @@
                      graph)")
         network (run-compiled compiled)
         graph (strongest network (:cell compiled))
-        f-id (binding-id network 'f)
-        retained-applications
-        (keep (fn [[id _entry]]
-                (let [candidate (strongest network id)]
-                  (when (and (application-value/application-info? candidate)
-                             (= f-id
-                                (obj/slot-value
-                                 candidate
-                                 application-value/application-caller-slot)))
-                    candidate)))
-              (net/net-env network))]
+        application-declarations
+        (accumulated-application-declarations network)]
     (is (contains? (graph-statuses graph) :potential))
     (is (contains? (graph-statuses graph) :realized))
-    (is (seq retained-applications))
+    (is (seq application-declarations))
     (is (some #{"call +"} (vals (:nodes graph))))
-    (is (some #{:compiler-2/call-graph-application}
-              (keep (fn [[_ entry]]
-                      (when (prop/prop? entry) (prop/prop-name entry)))
-                    (net/net-env network))))))
+    (is (contains? (accumulated-prop-names network)
+                   :compiler-2/call-graph-application))))
 
 (deftest late-operator-arrival-refines-the-call-graph
   (let [compiled (compiler/compile-source
@@ -129,7 +168,7 @@
         waiting (run-compiled compiled)
         graph-id (:cell compiled)
         waiting-graph (strongest waiting graph-id)
-        g-id (binding-id waiting 'g)
+        g-id (potential-callee-id waiting-graph "g")
         callee-compiled (compiler/compile-source
                          "(network [x] [out] (+ x 1))")
         callee (strongest (:net callee-compiled) (:cell callee-compiled))
@@ -150,5 +189,5 @@
         closure (strongest (:net compiled) (:cell compiled))
         labels (mapv :operator-label
                      (call-graph/call-sites
-                      (obj/slot-value closure :closure/body)))]
+                      (closure-value/closure-body closure)))]
     (is (= ["->" "+" "*"] labels))))

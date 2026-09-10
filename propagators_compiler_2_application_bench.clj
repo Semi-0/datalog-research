@@ -1,13 +1,11 @@
 (ns propagators-compiler-2-application-bench
-  (:require [propagators.compiler-2.runtime.application :as compatibility]
+  (:require [propagators.cells.cell :as cell]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.main :as main]
-            [propagators.compiler-2.runtime.retained-application :as retained]
-            [propagators.gur.flat :as fvm]
+            [propagators.gur.accumulating.facts :as facts]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]
-            [propagators.cells.cell :as cell]))
+            [propagators.propagator :as prop]))
 
 (def warmup-count 10)
 (def sample-count 30)
@@ -43,10 +41,8 @@
     :source (nested-source 5)}])
 
 (def strategies
-  [{:name :compat-transient
-    :opts {:application-installer compatibility/p:apply-application}}
-   {:name :retained
-    :opts {:application-installer retained/p:apply-application}}])
+  [{:name :direct-gur
+    :opts {}}])
 
 (defn- elapsed-nanos [f]
   (let [start (System/nanoTime)
@@ -64,19 +60,20 @@
 (defn- cell-count [network]
   (count (filter cell/cell? (vals (net/net-env network)))))
 
-(defn- retained-application-count [network]
-  (count (net/network-dict-entry
-          network
-          retained/retained-application-props-key)))
+(defn- accumulated-frame-count
+  [network]
+  (reduce
+   (fn [total id]
+     (let [candidate (net/network-cell-strongest network id)]
+       (cond
+         (net/net? candidate)
+         (+ total
+            (count (net/network-dict-entry candidate facts/frame-index-key)))
 
-(defn- compatibility-application-count [network]
-  (count (net/network-dict-entry
-          network
-          compatibility/apply-application-props-key)))
-
-(defn- declared-effect-count [network]
-  (+ (count (net/network-dict-entry network fvm/cell-index-key))
-     (count (net/network-dict-entry network fvm/prop-index-key))))
+         :else
+         total)))
+   0
+   (keys (net/net-env network))))
 
 (defn- run-case [{:keys [source]} {:keys [opts]}]
   (let [compiled (main/compile-source source (h/default-env) opts)
@@ -85,9 +82,8 @@
      :compiled-props (count (:props compiled))
      :cells (cell-count final-network)
      :props (prop-count final-network)
-     :retained-applications (retained-application-count final-network)
-     :compatibility-applications (compatibility-application-count final-network)
-     :declared-effects (declared-effect-count final-network)}))
+     :retained-applications (count (main/compiled-applications final-network))
+     :gur-frames (accumulated-frame-count final-network)}))
 
 (defn- sample-case [case strategy]
   (dotimes [_ warmup-count]

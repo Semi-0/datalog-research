@@ -50,6 +50,14 @@
   [outbox-id instance-id]
   (operator-value/operator-closure
    {:name 'block
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
+    :boundary-cell-ids
+    (fn [network arg-ids]
+      (let [[index-id] (vec arg-ids)]
+        (conj (common/block-at-boundary-cell-ids network instance-id index-id)
+              (common/block-at-text-id network instance-id index-id))))
     :output-selector (fn [arg-ids fallback-id]
                        (or (nth (vec arg-ids) 1 nil) fallback-id))
     :activate (fn [network _context-id arg-ids out-id]
@@ -88,6 +96,15 @@
   [instance-id]
   (operator-value/operator-closure
    {:name 'block
+    :boundary-output-cell-ids
+    (fn [network arg-ids]
+      (let [[index-id] (vec arg-ids)]
+        [(block-at-display-id network instance-id index-id)]))
+    :boundary-cell-ids
+    (fn [network arg-ids]
+      (let [[index-id] (vec arg-ids)]
+        (common/block-at-boundary-cell-ids network instance-id index-id)))
+    :boundary-dict-keys common/display-boundary-dict-keys
     :static-installer
     (fn [network arg-ids fallback-id]
       (when-not (= 1 (count arg-ids))

@@ -197,10 +197,10 @@ The currently suspicious sub-steps are:
    block. For a simple `be:block` watcher, most users want a display effect,
    not an immediately-expanded semantic graph.
 
-3. `program-rebuild/incremental-block-state` publishes the updated semantic
-   graph and calls `settle-state`. `settle-state` delegates to
-   `program/settle-application-props`, which includes retained application
-   propagators from the whole program net, not just the newly installed watcher.
+3. Historically, `program-rebuild/incremental-block-state` published the
+   updated semantic graph and then scanned a global retained-application
+   registry. Direct GUR application removed that registry; current settling uses
+   installed props and normal changed-cell adjacency.
 
 4. `effects/run-runtime-cycle` refreshes semantic graph state from the last
    compiled form and performs boundary effects. This can re-project graph data
@@ -297,19 +297,14 @@ not eagerly recompute the whole graph.
 Success: graph node/edge count can grow, but append latency should not scale
 with full graph projection unless the append itself is a graph-producing block.
 
-### Step 5: Narrow retained application settling
+### Step 5: Direct GUR adjacency settling
 
-`settle-application-props` currently protects correctness by running retained
-application props after compile. That is safe, but it is global.
+Completed: Compiler 2 no longer keeps or scans a retained-application prop
+registry. Each application is an ordinary canonical GUR propagator. Newly
+installed props run for the current block, and later operator, argument, output,
+trace, or boundary changes wake only neighboring propagators.
 
-The runtime needs a narrower queue:
-
-- newly installed props for the current block;
-- retained props whose inputs changed during this transaction;
-- trace/XR props only when graph cell changed;
-- boundary-effect props only for the target client/block affected.
-
-Success: late watcher append does not re-run unrelated retained applications
+Success: a late watcher append does not explicitly re-run unrelated applications
 from other clients.
 
 ## Success Criteria
@@ -356,4 +351,4 @@ new watcher block
 
 That matches the propagator model better: adding a watcher is a monotone
 topology extension, not a reason to rescan every client, every block, and every
-retained application in the shared runtime.
+application in the shared runtime.

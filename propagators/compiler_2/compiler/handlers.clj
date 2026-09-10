@@ -7,7 +7,9 @@
             [propagators.compiler-2.runtime.lazy-topology :as lazy-topology]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-common.cps :as cps]
-            [propagators.compiler-common.core :as common]))
+            [propagators.compiler-common.core :as common]
+            [propagators.gur.accumulating.core :as gur-core]
+            [propagators.ids :as ids]))
 
 (defn- finish
   [k [state binding]]
@@ -15,7 +17,21 @@
 
 (defn compile-literal
   [_compile-k state expr k]
-  (finish k (h/new-cell state :literal (ast/value expr))))
+  (let [literal (ast/value expr)
+        [declared binding] (h/new-cell state :literal literal)
+        binding-id (env/binding-id binding)
+        declared
+        (cond
+          (operator-value/operator-closure? literal)
+          (update declared
+                  :net
+                  env/retain-compiler-declaration
+                  binding-id
+                  literal)
+
+          :else
+          declared)]
+    (finish k [declared binding])))
 
 (defn- compile-accessed-symbol
   [state sym k]
@@ -80,6 +96,37 @@
               (fn [state' binding]
                 (cps/continue k (assoc state' :env outer-env) binding)))))
 
+(defn- install-accumulating-when
+  [state condition-id body]
+  (let [[state' result-binding] (h/new-cell state :when-result)
+        frame-context (:gur/frame-context state')
+        applied-net-id (:applied-net-id frame-context)
+        compile* (:compiler state')]
+    (cond
+      (not (ids/node-id? applied-net-id))
+      (throw (ex-info "Compiler 2 GUR frame is missing its accumulated subnet"
+                      {:frame-context frame-context}))
+
+      (not (fn? compile*))
+      (throw (ex-info "Compiler 2 GUR frame is missing its compiler"
+                      {:frame-context frame-context}))
+
+      :else
+      (let [declare-body (fn [runtime-net]
+                           (lazy-topology/declare-body compile*
+                                                       state'
+                                                       body
+                                                       runtime-net))
+            [prop-id network]
+            ((gur-core/p:when-declaration condition-id
+                                          applied-net-id
+                                          declare-body)
+             (:net state'))]
+        [(-> state'
+             (assoc :net network)
+             (h/add-props [prop-id]))
+         result-binding]))))
+
 (defn compile-when-topology
   [compile-k state expr k]
   (let [base-path (:path state)]
@@ -90,12 +137,26 @@
          (when-not condition-id
            (throw (ex-info "when condition must compile to a cell"
                            {:condition condition-binding})))
-         (finish k
+         (let [prepared (assoc state' :path base-path)
+               installed
+               (cond
+                 (map? (:gur/frame-context prepared))
+                 (install-accumulating-when prepared
+                                            condition-id
+                                            (ast/body expr))
+
+                 (nil? (:gur/frame-context prepared))
                  (lazy-topology/install-when-topology-with
-                  (:compiler state')
-                  (assoc state' :path base-path)
+                  (:compiler prepared)
+                  prepared
                   condition-id
-                  (ast/body expr))))))))
+                  (ast/body expr))
+
+                 :else
+                 (throw (ex-info "invalid Compiler 2 GUR frame context"
+                                 {:frame-context
+                                  (:gur/frame-context prepared)})))]
+           (finish k installed)))))))
 
 (defn compile-network
   [_compile-k state expr k]
@@ -127,24 +188,6 @@
        (fn [state' body-binding]
          (finish k (declarations/define-binding state' name body-binding)))))))
 
-(defn- built-in-cell-declaration
-  [compile* operator-binding arg-bindings state out-id]
-  (let [declarer (:application/cell-declarer state)]
-    (cond
-      (or (nil? declarer) (= :runtime declarer))
-      (declarations/declare-runtime-cell-application-bindings
-       compile* operator-binding arg-bindings state out-id)
-
-      (= :retained-frame declarer)
-      (declarations/declare-retained-cell-application-bindings
-       compile* operator-binding arg-bindings state out-id)
-
-      (fn? declarer)
-      nil
-
-      :else
-      (declarations/resolve-cell-declarer state))))
-
 (defn- declare-compiled-application
   [compile* operator-binding arg-bindings state out-id]
   (cond
@@ -154,32 +197,30 @@
      compile* operator-binding arg-bindings state out-id)
 
     (env/binding-id operator-binding)
-    (or (built-in-cell-declaration compile* operator-binding
-                                   arg-bindings state out-id)
-        (throw (ex-info "custom cell declarer requires operand forms"
-                        {:application/cell-declarer
-                         (:application/cell-declarer state)})))
+    (declarations/declare-runtime-cell-application-bindings
+     compile* operator-binding arg-bindings state out-id)
 
     :else
     (throw (ex-info "application operator is not callable"
                     {:operator operator-binding}))))
 
-(defn- custom-cell-declarer?
-  [operator-binding state]
-  (and (env/binding-id operator-binding)
-       (fn? (:application/cell-declarer state))))
-
-(defn- known-operator
-  "Use a presently known primitive declaration strategy without changing how
-  ordinary symbol compilation exposes its canonical cell."
+(defn- retained-operator-declaration
+  "Use inspectable compiler declaration data without reading the operator cell."
   [binding state]
-  (if-let [id (env/binding-id binding)]
-    (let [candidate (h/strongest-or-nothing (:net state) id)]
-      (if (or (operator-value/operator-closure? candidate)
-              (fn? candidate))
-        candidate
-        binding))
-    binding))
+  (let [binding-id (env/binding-id binding)
+        declaration
+        (cond
+          (ids/node-id? binding-id)
+          (env/compiler-declaration (:net state) binding-id)
+
+          :else
+          nil)]
+    (cond
+      (some? declaration)
+      declaration
+
+      :else
+      binding)))
 
 (defn compile-application
   [compile-k state expr k]
@@ -191,7 +232,7 @@
      (fn [state' op-binding]
        (let [state' (common/with-path state' base-path)
              [state'' operator-binding out-id]
-             (common/prepare-application known-operator
+             (common/prepare-application retained-operator-declaration
                                          state' op op-binding)
              compile* (:compiler state'')
              direct-compiler
@@ -204,10 +245,6 @@
            (and (operator-value/operator-closure? operator-binding)
                 (operator-value/operator-direct-installer operator-binding))
            (finish k (declarations/declare-direct-operator-application
-                      compile* operator-binding operand-forms state'' out-id))
-
-           (custom-cell-declarer? operator-binding state'')
-           (finish k ((:application/cell-declarer state'')
                       compile* operator-binding operand-forms state'' out-id))
 
            :else

@@ -26,7 +26,6 @@
 (def application-arg-cells-slot application-value/application-arg-cells-slot)
 (def application-output-slot application-value/application-output-slot)
 (def application-context-slot application-value/application-context-slot)
-(def application-lowering-slot application-value/application-lowering-slot)
 (def application-caller-slot application-value/application-caller-slot)
 
 (def g:compile core/g:compile)

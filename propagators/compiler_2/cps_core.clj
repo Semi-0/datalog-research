@@ -69,9 +69,6 @@
                     :props []
                     :applications []
                     :compiler compile*
-                    :application-installer (:application-installer opts)
-                    :application/cell-declarer
-                    (:application/cell-declarer opts)
                     :application/caller (:application/caller opts)
                     :block/premise-context (:block/premise-context opts)
                     :reuse-existing-bindings?

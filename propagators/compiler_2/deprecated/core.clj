@@ -61,15 +61,10 @@
   declarations/declare-operator-application-bindings)
 (def declare-operator-application declarations/declare-operator-application)
 (def normalize-closure-output declarations/normalize-closure-output)
-(def declare-retained-cell-application-bindings
-  declarations/declare-retained-cell-application-bindings)
-(def declare-retained-cell-application
-  declarations/declare-retained-cell-application)
 (def declare-runtime-cell-application-bindings
   declarations/declare-runtime-cell-application-bindings)
 (def declare-runtime-cell-application
   declarations/declare-runtime-cell-application)
-(def resolve-cell-declarer declarations/resolve-cell-declarer)
 (def apply-operator declarations/apply-operator)
 (def closure-locals declarations/closure-locals)
 (def seed-closure-declaration declarations/seed-closure-declaration)
@@ -139,9 +134,6 @@
                     :props []
                     :applications []
                     :compiler compile*
-                    :application-installer (:application-installer opts)
-                    :application/cell-declarer
-                    (:application/cell-declarer opts)
                     :reuse-existing-bindings?
                     (:reuse-existing-bindings? opts)}
                    expr)]

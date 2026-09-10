@@ -11,7 +11,9 @@
             [propagators.compiler-2.operators.block-premise :as premise]
             [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.datastructures.tms.distributed :as tms]
+            [propagators.gur.accumulating.core :as gur-core]
             [propagators.gur.flat :as fvm]
+            [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -352,14 +354,9 @@
            (env/cell-binding callable-id)
            (mapv env/cell-binding application-args)
            state
-           (first private-outputs))
+           out-id)
           gated (install-output-gates called candidate caller-contexts
                                       private-outputs caller-outputs)
-          gated (if (and (seq private-outputs)
-                         (not= out-id (peek caller-outputs)))
-                  (install-output-gates gated candidate caller-contexts
-                                        [(peek private-outputs)] [out-id])
-                  gated)
           caller-contexts (->> (into [out-id] arg-ids)
                                (mapcat #(premise/binding-contexts (:net gated) %))
                                set)
@@ -463,10 +460,47 @@
          network)]
     [installed [prop-id] out-id]))
 
+(defn- binding-premise-state-cell-ids
+  [network binding-ids]
+  (->> binding-ids
+       (mapcat #(premise/binding-contexts network %))
+       (map :premise/state-cell)
+       (filter ids/node-id?)
+       set))
+
+(defn- candidate-boundary-cell-ids
+  [network candidate]
+  (let [callable-id (:candidate/callable-cell candidate)
+        callable (h/strongest-or-nothing network callable-id)
+        captured (cond
+                   (gur-core/recursive-closure? callable)
+                   (gur-core/captured-cell-ids callable)
+
+                   :else [])]
+    (into #{callable-id}
+          (concat captured
+                  (map :premise/state-cell
+                       (:candidate/contexts candidate))))))
+
+(defn- versioned-call-boundary-cell-ids
+  [registry-id network arg-ids out-id]
+  (let [candidates (registry-candidates network registry-id)]
+    (-> (reduce into #{registry-id}
+                (map #(candidate-boundary-cell-ids network %) candidates))
+        (into (binding-premise-state-cell-ids
+               network
+               (conj (vec arg-ids) out-id)))
+        vec)))
+
 (defn definition-router-operator
   [compile* definition-id registry-id]
   (operator-value/operator-closure
    {:name [:compiler-2/versioned-definition definition-id]
+    :captured-cell-ids [registry-id]
+    :application-boundary-cell-ids
+    (partial versioned-call-boundary-cell-ids registry-id)
+    :boundary-dict-keys
+    [fvm/name-bindings-key calls-key premise/binding-contexts-key]
     :static-installer
     (partial install-versioned-call compile* definition-id registry-id)
     :compiler-activate

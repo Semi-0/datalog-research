@@ -58,6 +58,10 @@
 (defn trace-operator [graph-id outbox-id]
   (operator-value/operator-closure
    {:name 'trace
+    :boundary-cell-ids (operator-value/fixed-boundary-cell-ids graph-id)
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :output-selector (fn [arg-ids fallback-id]
                        (or (last (vec arg-ids)) fallback-id))
     :activate (fn [network _context-id arg-ids out-id]

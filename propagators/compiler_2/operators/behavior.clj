@@ -345,6 +345,7 @@
 
       :else
       (if-let [merge-net (compiler-reducer/closure-merge-net
+                          network
                           closure-id
                           closure-info
                           {:seed [:compiler-2/behavior-merge closure-id]
@@ -472,5 +473,4 @@
       bind-behavior-operators
       compiler-tms/bind-distributed-tms-operators
       (env/bind-at '<-> (h/bi-sync-operator) 0)))
-
 

@@ -715,7 +715,8 @@ public identities without changing this surface syntax. `def-net`, callable
 `def` values use stable TMS-backed bindings. Editing appends a candidate and
 retracts its predecessor's candidate-version premise. Existing callable
 applications watch the definition registry and install the new candidate via
-the normal retained-application and `p:apply-closure` path.
+retained application declaration IR and canonical accumulating-GUR
+`p:apply-closure`.
 
 An explicit `(premise-closure closure premise epoch)` is recognized
 structurally and kept unchanged. The versioned layer records its premise and

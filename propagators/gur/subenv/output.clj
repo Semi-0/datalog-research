@@ -9,7 +9,7 @@
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
 
-(declare externalize-output-value)
+(declare externalize-output-result)
 
 (defn- slot-value-rank
   [v]
@@ -30,35 +30,84 @@
        (sort-by (juxt slot-value-rank pr-str))
        last))
 
+(defn- preferred-slot-value
+  [parent-value source-value]
+  (cond
+    (or (nil? parent-value) (value/unusable? parent-value))
+    source-value
+
+    (or (nil? source-value) (value/unusable? source-value))
+    parent-value
+
+    (and (net/net? parent-value)
+         (obj/accessor-network? parent-value)
+         (net/net? source-value)
+         (obj/accessor-network? source-value))
+    (last (sort-by (juxt slot-value-rank pr-str)
+                   [parent-value source-value]))
+
+    :else
+    parent-value))
+
 (defn- externalize-accessor-value
-  [child-net accessor-value]
+  [child-net accessor-value seen]
   (let [slots (obj/accessor-slot-keys accessor-value)
-        source-slots
+        projection
         (reduce
          (fn [acc slot-key]
            (let [parent-v (accessor-slot-parent-value child-net
                                                        accessor-value
                                                        slot-key)
-                 v (if (or (nil? parent-v)
-                           (value/unusable? parent-v))
-                     (if (obj/accessor-source-slot-present? accessor-value slot-key)
-                       (obj/accessor-source-slot-value accessor-value slot-key)
-                       parent-v)
-                     parent-v)]
-             (if (or (nil? v) (value/unusable? v))
+                 source-v (cond
+                            (obj/accessor-source-slot-present? accessor-value
+                                                               slot-key)
+                            (obj/accessor-source-slot-value accessor-value
+                                                           slot-key)
+
+                            :else
+                            nil)
+                 v (preferred-slot-value parent-v source-v)]
+             (cond
+               (or (nil? v) (value/unusable? v))
                acc
-               (assoc acc slot-key (externalize-output-value child-net v)))))
-         {}
+
+               :else
+               (let [result (externalize-output-result child-net v seen)]
+                 (-> acc
+                     (assoc-in [:slots slot-key] (:value result))
+                     (update :cycle? #(or % (:cycle? result))))))))
+         {:slots {} :cycle? false}
          slots)]
-    (if (empty? source-slots)
-      accessor-value
-      (obj/as-accessor-network source-slots))))
+    (cond
+      (:cycle? projection)
+      {:value accessor-value :cycle? true}
+
+      (empty? (:slots projection))
+      {:value accessor-value :cycle? false}
+
+      :else
+      {:value (obj/as-accessor-network (:slots projection))
+       :cycle? false})))
+
+(defn externalize-output-result
+  [child-net v seen]
+  (cond
+    (and (net/net? v) (obj/accessor-network? v))
+    (let [identity-key (System/identityHashCode v)]
+      (cond
+        (contains? seen identity-key)
+        {:value v :cycle? true}
+
+        :else
+        (externalize-accessor-value child-net v
+                                    (conj seen identity-key))))
+
+    :else
+    {:value v :cycle? false}))
 
 (defn externalize-output-value
   [child-net v]
-  (if (and (net/net? v) (obj/accessor-network? v))
-    (externalize-accessor-value child-net v)
-    v))
+  (:value (externalize-output-result child-net v #{})))
 
 (defn externalize-output-cells
   [child-net external-output-ids]

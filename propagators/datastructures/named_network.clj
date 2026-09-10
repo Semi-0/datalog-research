@@ -7,6 +7,7 @@
             [propagators.cells.bool4 :as b]
             [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
+            [propagators.graph :as graph]
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
@@ -86,8 +87,27 @@
 
 (def named-network-subsume? named-network->=)
 
+(defn- merge-graph-node
+  [a b]
+  (cond
+    (nil? a)
+    b
+
+    (nil? b)
+    a
+
+    (and (graph/node? a) (graph/node? b))
+    (graph/node (into (graph/node-input-ids a)
+                      (graph/node-input-ids b))
+                (into (graph/node-output-ids a)
+                      (graph/node-output-ids b)))
+
+    :else
+    (throw (ex-info "named network graph contains an invalid node"
+                    {:left a :right b}))))
+
 (defn- merge-graph [a b]
-  (merge (net/net-graph a) (net/net-graph b)))
+  (merge-with merge-graph-node (net/net-graph a) (net/net-graph b)))
 
 (defn- merge-metadata [a b]
   (cond
@@ -150,12 +170,12 @@
     :else
     value/contradiction))
 
-(defn join
-  "Join two named networks by unioning named commitments.
+(defn join-with-cell-merge
+  "Join named networks, delegating shared cell entries to `merge-cells`.
 
-  Same named cell entries are joined by Bool4 strongest values. Same named
+  `merge-cells` receives both entries and the default entry merger. Same named
   propagators are only joinable by identical internal id."
-  [a b]
+  [a b merge-cells]
   (let [a-dict (net/net-dict-or-empty a)
         b-dict (net/net-dict-or-empty b)
         shared-keys (if (< (count a-dict) (count b-dict))
@@ -172,10 +192,28 @@
           (let [a-entry (get (net/net-env a) a-id)
                 b-entry (get (net/net-env b) b-id)
                 target-id (get dict k)
-                entry (if (and (not= a-id b-id)
-                               (or (prop/prop? a-entry) (prop/prop? b-entry)))
+                entry (cond
+                        (and (not= a-id b-id)
+                             (or (prop/prop? a-entry) (prop/prop? b-entry)))
                         value/contradiction
+
+                        (and (cell/cell? a-entry) (cell/cell? b-entry))
+                        (merge-cells a-entry b-entry merge-entry)
+
+                        :else
                         (merge-entry a-entry b-entry))]
             (if (value/contradiction? entry)
               value/contradiction
               (recur (next ks) (assoc env target-id entry) dict))))))))
+
+(defn join
+  "Join two named networks by unioning named commitments.
+
+  Same named cell entries are joined by Bool4 strongest values. Same named
+  propagators are only joinable by identical internal id."
+  [a b]
+  (join-with-cell-merge
+   a
+   b
+   (fn [current-cell update-cell default-merge]
+     (default-merge current-cell update-cell))))

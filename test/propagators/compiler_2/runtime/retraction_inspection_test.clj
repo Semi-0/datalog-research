@@ -28,7 +28,7 @@
              :activations
              {:activations 2
               :events [{:propagator/id :old
-                        :propagator/name :compiler-2/retained-application
+                        :propagator/name :gur/accumulating-runner
                         :owner {:active? false}
                         :premises []
                         :output-changed-ids []

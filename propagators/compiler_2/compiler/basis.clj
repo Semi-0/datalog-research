@@ -480,20 +480,32 @@
 (defn behavior-operator
   "Compiler-2 operator wrapper for behavior-history stdlib operators."
   [op f]
-  (with-meta
+  (operator-value/operator-closure
+   {:name [:behavior op]
+    :install
     (fn [network arg-ids out-id]
       (let [[prop-id network']
             ((apply (behavior-arithmetic/behavior-propagator op f)
                     (conj (vec arg-ids) out-id))
              network)]
         [network' [prop-id] out-id]))
-    {application-activate-key
-     (fn [current-net _context-id arg-ids out-id]
-       (behavior-arithmetic/behavior-messages op f arg-ids out-id current-net))}))
+    :activate
+    (fn [current-net _context-id arg-ids out-id]
+      (behavior-arithmetic/behavior-messages op f arg-ids out-id current-net))}))
 
 (defn execute-sub-env-operator []
   (operator-value/operator-closure
    {:name 'execute-sub-env
+    :boundary-cell-ids
+    (fn [network arg-ids]
+      (let [[_expr-id parent-env-id & _watch-ids] (vec arg-ids)
+            parent-env (strongest-or-nothing network parent-env-id)]
+        (cond
+          (value/unusable? parent-env)
+          []
+
+          :else
+          (env/referenced-cell-ids parent-env))))
     :compiler-activate
     (fn [compile* network _context-id arg-ids out-id]
       (let [[expr-id parent-env-id & watch-ids] (vec arg-ids)
@@ -508,14 +520,27 @@
          network)))
     :install (fn [network arg-ids out-id]
                (let [[expr-id parent-env-id & watch-ids] (vec arg-ids)
-                     child-env-id (stable-node-id :compiler-2 :execute-sub-env out-id)]
-                 (((requiring-resolve 'propagators.compiler-2.runtime.application/p:execute-sub-env)
-                   parent-env-id
-                   expr-id
-                   watch-ids
-                   child-env-id
-                   out-id)
-                  network)))
+                     parent-env (strongest-or-nothing network parent-env-id)
+                     environment-watch-ids
+                     (cond
+                       (value/unusable? parent-env)
+                       []
+
+                       :else
+                       (env/referenced-cell-ids parent-env))
+                     declared-watch-ids
+                     (vec (distinct (concat watch-ids environment-watch-ids)))
+                     child-env-id (stable-node-id :compiler-2 :execute-sub-env out-id)
+                     [installed declared]
+                     (((requiring-resolve
+                        'propagators.compiler-2.runtime.application/p:execute-sub-env)
+                       parent-env-id
+                       expr-id
+                       declared-watch-ids
+                       child-env-id
+                       out-id)
+                      network)]
+                 [declared (prop-ids installed) out-id]))
     :activate (fn [network _context-id arg-ids out-id]
                 (let [[expr-id parent-env-id & _watch-ids] (vec arg-ids)
                       child-env-id (stable-node-id :compiler-2 :execute-sub-env out-id)]
@@ -585,9 +610,54 @@
   [arg-ids fallback-id]
   [(or (peek (vec arg-ids)) fallback-id)])
 
+(defn- install-forward-chain
+  [network arg-ids _fallback-id]
+  (let [ids (sync-chain-ids '-> arg-ids)
+        prepared (reduce nb/ensure-cell network ids)
+        prepared (cond
+                   (some #(event/protocol-cell? prepared %) ids)
+                   (reduce event/mark-protocol-cell prepared (rest ids))
+
+                   :else
+                   prepared)
+        [declared prop-ids]
+        (reduce (fn [[current installed] [from-id to-id]]
+                  (let [[prop-id next]
+                        ((prop/construct-propagator
+                          '->
+                          (fn [_inputs _outputs active]
+                            (forward-sync-messages active from-id to-id))
+                          [from-id]
+                          [to-id])
+                         current)]
+                    [next (conj installed prop-id)]))
+                [prepared []]
+                (partition 2 1 ids))]
+    [declared prop-ids (peek ids)]))
+
+(defn- install-bidirectional-chain
+  [network arg-ids _fallback-id]
+  (let [ids (sync-chain-ids '<-> arg-ids)
+        prepared (reduce nb/ensure-cell network ids)
+        [declared prop-ids]
+        (reduce (fn [[current installed] [left-id right-id]]
+                  (let [[prop-id next]
+                        ((prop/construct-propagator
+                          '<->
+                          (fn [_inputs _outputs active]
+                            (chain-sync-messages active [left-id right-id]))
+                          [left-id right-id]
+                          [left-id right-id])
+                         current)]
+                    [next (conj installed prop-id)]))
+                [prepared []]
+                (partition 2 1 ids))]
+    [declared prop-ids (peek ids)]))
+
 (defn sync-operator []
   (operator-value/propagator-operator
    {:name '->
+    :topology-installer install-forward-chain
     :prepare-network
     (fn [network {:keys [inputs outputs]}]
       (if (some #(event/protocol-cell? network %) inputs)
@@ -751,6 +821,7 @@
 (defn bi-sync-operator []
   (operator-value/propagator-operator
    {:name '<->
+    :topology-installer install-bidirectional-chain
     :output-selector sync-output-id
     :input-selector (fn [arg-ids _fallback-id _context-id]
                       (sync-chain-ids '<-> arg-ids))

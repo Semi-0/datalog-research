@@ -224,17 +224,28 @@
             (update-in [:tui :effects] (fnil conj []) request)))
       state)))
 
+(defn- display-network-key
+  [state block]
+  (let [mode (get-in state [:tuis (:client-id block) :mode])]
+    (cond
+      (= :versioned-premise mode)
+      :program/net
+
+      :else
+      :network)))
+
 (defn write-block-display-value
   [state block tick payload]
-  (let [display-id (:display-id block)
+  (let [network-key (display-network-key state block)
+        display-id (:display-id block)
         update (display/update-value display-id display-id tick payload)
         [tasks n1] (core/eval-cells [(message (:display-id block) update)]
-                                    (:network state))
+                                    (get state network-key))
         [state' n2] (temperature/run-tasks state
                                            :effects/tui-write-display
                                            tasks
                                            n1)]
-    (assoc state' :network n2)))
+    (assoc state' network-key n2)))
 
 (defn record-tui-display
   [state request]
@@ -292,14 +303,12 @@
     [:tui :tui/write-display]
     [(:boundary/port request)
      (:boundary/kind request)
-     (:boundary/target request)
-     (:boundary/epoch request)]
+     (:boundary/target request)]
 
     [:tui :tui/write-block]
     [(:boundary/port request)
      (:boundary/kind request)
-     (:boundary/target request)
-     (:boundary/epoch request)]
+     (:boundary/target request)]
 
     [(:boundary/port request)
      (:boundary/kind request)
@@ -310,6 +319,18 @@
   [request]
   (= [(:boundary/port request) (:boundary/kind request)]
      [:xr :xr/launch-trace]))
+
+(defn tui-write-request?
+  [request]
+  (contains? #{[:tui :tui/write-display]
+               [:tui :tui/write-block]}
+             [(:boundary/port request) (:boundary/kind request)]))
+
+(defn request-tick
+  [request]
+  (long (or (:boundary/tick request)
+            (:boundary/epoch request)
+            0)))
 
 (defn richer-boundary-request
   [old request]
@@ -336,6 +357,16 @@
 
       usable
       usable
+
+      (and (tui-write-request? old)
+           (tui-write-request? request)
+           (not= (request-tick old) (request-tick request)))
+      (cond
+        (> (request-tick request) (request-tick old))
+        request
+
+        :else
+        old)
 
       (prefer-latest-boundary-request? request)
       (richer-boundary-request old request)

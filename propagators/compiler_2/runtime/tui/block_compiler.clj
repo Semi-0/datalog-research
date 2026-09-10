@@ -53,7 +53,9 @@
         application (net/network-cell-strongest network application-id)
         contexts (application-contexts network application context)
         dependence-id (premise/application-dependence-cell-id application-id)
-        network (nb/ensure-cell network dependence-id)
+        endpoint-ids (concat [application-id binding-id dependence-id]
+                             (map :premise/state-cell contexts))
+        network (reduce nb/ensure-cell network endpoint-ids)
         [prop-id installed]
         ((premise/p:application-dependence
           application-id binding-id contexts dependence-id)
@@ -147,8 +149,7 @@
        (let [operator (ast/operator expr)]
          (and (= :literal (ast/type operator))
               (= name
-                 (obj/slot-value (ast/value operator)
-                                 operator-value/name-slot))))))
+                 (operator-value/operator-name (ast/value operator)))))))
 
 (defn dependency-term? [expr]
   (named-literal-operator? expr dependency-term-name))

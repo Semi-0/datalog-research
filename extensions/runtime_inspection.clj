@@ -7,7 +7,6 @@
             [propagators.compiler-2.runtime.boundary :as boundary]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.inspection.retraction :as retraction]
-            [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -47,7 +46,9 @@
 (defn- install-profile-next-commit
   [network arg-ids fallback-id]
   (let [[instance-id index-id maybe-target] (vec arg-ids)
-        target-id (or maybe-target fallback-id)]
+        target-id (cond
+                    (some? maybe-target) maybe-target
+                    :else fallback-id)]
     (when-not (#{2 3} (count arg-ids))
       (throw (ex-info
               "inspect:profile-next-commit expects instance, block index, and optional output"
@@ -72,19 +73,16 @@
   []
   (operator-value/operator-closure
    {:name 'inspect:profile-next-commit
+    :install install-profile-next-commit
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids
+     (runtime-ids/boundary-outbox-id))
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :output-selector (fn [arg-ids fallback-id]
-                       (or (nth (vec arg-ids) 2 nil) fallback-id))
-    :compiler-activate
-    (fn [_compile network _context-id arg-ids fallback-id]
-      (let [target-id (or (nth (vec arg-ids) 2 nil) fallback-id)
-            declaration-key [:inspection/profile-next-commit
-                             (vec arg-ids) target-id]]
-        (topology-effects/declare-once
-         network declaration-key target-id
-         (fn [current]
-           (let [[installed prop-ids _target]
-                 (install-profile-next-commit current arg-ids fallback-id)]
-             {:net installed :props prop-ids})))))}))
+                       (let [target-id (nth (vec arg-ids) 2 nil)]
+                         (cond
+                           (some? target-id) target-id
+                           :else fallback-id)))}))
 
 (defn classify-retraction
   [report]

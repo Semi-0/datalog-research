@@ -31,6 +31,7 @@
 (def p:when-topology core/p:when-topology)
 
 (def p:run-accumulated-network runner/p:run-accumulated-network)
+(def runner-prop-ids runner/runner-prop-ids)
 
 (def contextual-installers source/contextual-installers)
 (def default-installers source/default-installers)
@@ -46,15 +47,38 @@
   (let [arg-ids (vec arg-ids)
         applied-net-id (ids/new-node-id)]
     (fn [network]
-      (let [n0 (reduce nb/ensure-cell network
-                       (conj (into [closure-id applied-net-id] arg-ids) out-id))
+      (let [closure (core/strongest-or-nothing network closure-id)
+            closure-boundary-ids
+            (cond
+              (core/recursive-closure? closure)
+              (concat (core/captured-cell-ids closure)
+                      (core/projected-boundary-cell-ids
+                       closure network arg-ids))
+
+              :else
+              [])
+            closure-boundary-output-ids
+            (cond
+              (core/recursive-closure? closure)
+              (core/projected-boundary-output-cell-ids
+               closure network arg-ids)
+
+              :else
+              [])
+            import-ids (vec (distinct (concat [closure-id]
+                                              arg-ids
+                                              closure-boundary-ids)))
+            n0 (reduce nb/ensure-cell network
+                       (concat [applied-net-id out-id]
+                               import-ids
+                               closure-boundary-output-ids))
             [apply-prop n1] ((core/p:accumulate-apply-closure closure-id
                                                                  arg-ids
                                                                  applied-net-id
                                                                  out-id)
                              n0)
             [runner-prop n2] ((runner/p:run-accumulated-network applied-net-id
-                                                                 (into [closure-id] arg-ids)
+                                                                 import-ids
                                                                  [out-id])
                               n1)]
         [[apply-prop runner-prop]

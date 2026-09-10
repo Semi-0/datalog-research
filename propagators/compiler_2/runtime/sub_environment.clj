@@ -5,7 +5,6 @@
             [propagators.compiler-2.compiler.dispatch :as dispatch]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.activation :as activation]
-            [propagators.compiler-2.runtime.application-layers :as layers]
             [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -60,9 +59,8 @@
                           env-props)
             result-id (env/binding-id result)
             after-body (activation/run-network (:net state) [] (:props state))
-            value-id (layers/result-value-id after-body result-id)
-            result-value (h/strongest-or-nothing after-body value-id)
-            result-content (cell-content-or-nothing after-body value-id)
+            result-value (h/strongest-or-nothing after-body result-id)
+            result-content (cell-content-or-nothing after-body result-id)
             output-content (if (value/unusable? result-content)
                              result-value
                              result-content)

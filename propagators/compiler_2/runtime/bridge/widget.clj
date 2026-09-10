@@ -128,6 +128,9 @@
   [outbox-id]
   (operator-value/operator-closure
    {:name 'io:slider
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :direct-installer
     (fn [state operand-forms out-id]
       (let [{:keys [widget-label cell-form]} (io-slider-plan operand-forms)
@@ -190,6 +193,9 @@
   [outbox-id named?]
   (operator-value/operator-closure
    {:name (if named? 'io:slider-panel-name 'io:slider-panel)
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :direct-installer
     (fn [state operand-forms out-id]
       (let [{:keys [panel-label cell-forms]} (io-slider-panel-plan operand-forms
@@ -239,6 +245,9 @@
   [outbox-id]
   (operator-value/operator-closure
    {:name 'slider-io
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :output-selector (fn [arg-ids fallback-id]
                        (or (nth (vec arg-ids) 3 nil) fallback-id))
     :activate (fn [network _context-id arg-ids fallback-id]
@@ -278,6 +287,9 @@
   [outbox-id]
   (operator-value/operator-closure
    {:name 'slider-panel-io
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :output-selector (fn [arg-ids fallback-id]
                        (let [arg-ids (vec arg-ids)]
                          (if (= 2 (mod (count arg-ids) 3))

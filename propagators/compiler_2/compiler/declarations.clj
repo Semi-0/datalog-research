@@ -3,17 +3,18 @@
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.runtime.application :as compiler-app]
             [propagators.compiler-2.language.ast :as ast]
-            [propagators.compiler-2.runtime.closure-frame :as closure-frame]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as h]
-            [propagators.compiler-2.runtime.lexical-application :as lexical-application]
+            [propagators.compiler-2.compiler.dispatch :as dispatch]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.operators.call-graph :as call-graph]
-            [propagators.compiler-2.runtime.retained-application :as retained-application]
             [propagators.compiler-common.cps :as cps]
             [propagators.compiler-common.core :as common]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.gur :as gur]
+            [propagators.gur.accumulating.core :as gur-core]
+            [propagators.gur.accumulating.facts :as facts]
             [propagators.ids :as ids]
             [propagators.stdlib.prop :as stdlib-prop]))
 
@@ -35,24 +36,61 @@
       (install-call-publisher app-id operator-id)))
 
 (defn- install-application-propagator
-  [state compile* app-id operator-ast operator-id result-id context-id]
-  (-> (common/install-application-propagator
-       state
-       (or (:application-installer state)
-           (partial retained-application/p:apply-application-with compile*))
-       app-id operator-ast operator-id result-id context-id)
-      (install-call-publisher app-id operator-id)))
+  [state app-id operator-ast operator-id result-id context-id operator]
+  (let [recorded (common/record-application-ir state app-id operator-ast
+                                                operator-id result-id context-id)
+        caller-id (:application/caller state)
+        graph-id (cond
+                   (ids/node-id? caller-id)
+                   (call-graph/graph-cell-id caller-id)
 
-(defn- install-known-operator
-  [state install app-id operator-ast operator-id arg-ids result-id context-id]
-  (let [[network prop-ids installed-out-id]
-        (install (:net state) arg-ids result-id)
-        state' (-> state
-                   (assoc :net network)
-                   (h/add-props prop-ids))]
-    [(record-application state' app-id operator-ast operator-id
-                         installed-out-id context-id)
-     (env/cell-binding installed-out-id)]))
+                   :else
+                   nil)
+        declaration-cell-ids
+        (vec (filter ids/node-id? [context-id graph-id]))
+        operator-boundary-output-ids
+        (cond
+          (gur-core/recursive-closure? operator)
+          (gur-core/projected-boundary-output-cell-ids
+           operator
+           (:net recorded)
+           (:application/arg-ids recorded))
+
+          :else
+          [])
+        declaration-output-cell-ids
+        (vec (distinct
+              (concat
+               (cond
+                 (ids/node-id? graph-id)
+                 [graph-id]
+
+                 :else
+                 [])
+               operator-boundary-output-ids)))
+        prepared-network
+        (reduce h/ensure-cell
+                (:net recorded)
+                declaration-output-cell-ids)
+        declared-network
+        (facts/declare-application prepared-network
+                                   operator-id
+                                   (:application/arg-ids recorded)
+                                   result-id
+                                   {:application-id app-id
+                                    :context-id context-id
+                                    :cell-ids declaration-cell-ids
+                                    :output-cell-ids
+                                    declaration-output-cell-ids})
+        [prop-ids network]
+        ((gur/p:apply-closure operator-id
+                              (:application/arg-ids recorded)
+                              result-id)
+         declared-network)]
+    (-> recorded
+        (assoc :net network)
+        (h/add-props prop-ids)
+        (install-call-publisher app-id operator-id))))
 
 (defn declare-direct-operator-application
   [compile* operator-binding operand-forms state out-id]
@@ -81,17 +119,11 @@
           result-id (h/output-id operator-binding arg-ids out-id)
           prepared (assoc state'''
                           :application/args-id args-id
-                          :application/arg-ids arg-ids
-                          :application/lowering :primitive)
-          install (and (operator-value/operator-closure? operator-binding)
-                       (not (operator-value/operator-contextual? operator-binding))
-                       (operator-value/operator-static-installer operator-binding))]
-      (if install
-        (install-known-operator prepared install app-id operator-ast operator-id
-                                arg-ids result-id context-id)
-        [(install-application-propagator prepared compile* app-id operator-ast
-                                         operator-id result-id context-id)
-         (env/cell-binding result-id)]))))
+                          :application/arg-ids arg-ids)]
+      [(install-application-propagator prepared app-id operator-ast
+                                       operator-id result-id context-id
+                                       operator-binding)
+       (env/cell-binding result-id)])))
 
 (defn declare-operator-application
   [compile* operator-binding operand-forms state out-id]
@@ -163,93 +195,6 @@
           (or (implicit-return-route-source body return-sym)
               body))))))
 
-(defn- known-closure-info
-  [network id]
-  (let [v (h/strongest-or-nothing network id)]
-    (when (closure-value/closure-info? v)
-      v)))
-
-(defn- closure-application-result-id
-  [state operator-id arg-ids out-id]
-  (if-let [closure-info (known-closure-info (:net state) operator-id)]
-    (let [inputs (closure-value/closure-inputs closure-info)
-          outputs (closure-output-symbols
-                   (closure-value/closure-output closure-info))
-          implicit-return? (closure-value/implicit-return-output?
-                            (closure-value/closure-output closure-info))]
-      (if (seq outputs)
-        (cond
-          (and implicit-return? (= (count arg-ids) (count inputs)))
-          out-id
-
-          (= (count arg-ids) (+ (count inputs) (count outputs)))
-          (peek arg-ids)
-
-          :else
-          (throw (ex-info "network application requires explicit output cells"
-                          {:inputs inputs
-                           :outputs outputs
-                           :arg-count (count arg-ids)})))
-        out-id))
-    out-id))
-
-(defn- install-retained-closure-frame
-  [compile* state operator-id closure-info arg-ids out-id]
-  (when-let [{:keys [input-ids targets]}
-             (compiler-app/closure-call-plan closure-info arg-ids out-id)]
-    (let [frame-id (h/node-id state :closure-frame-env)
-          [env-props prepared-network]
-          (compiler-app/declare-closure-environment
-           (:net state)
-           (closure-value/closure-env closure-info)
-           frame-id
-           (closure-value/closure-inputs closure-info)
-           targets
-           input-ids)
-          [prop-id network'] ((closure-frame/p:apply-closure-with
-                               compile* operator-id frame-id)
-                              prepared-network)
-          result-id (if (seq (closure-output-symbols
-                              (closure-value/closure-output closure-info)))
-                      (second (first targets))
-                      out-id)]
-      [(-> state
-           (assoc :net network')
-           (h/add-props (conj (vec env-props) prop-id)))
-       (env/cell-binding result-id)])))
-
-(defn- install-retained-lexical-closure
-  [compile* state operator-id arg-ids out-id]
-  (let [network (h/ensure-cell (:net state) out-id)
-        [prop-id network'] ((lexical-application/p:apply-lexical-closure-with
-                             compile* operator-id arg-ids out-id)
-                            network)]
-    [(-> state
-         (assoc :net network')
-         (h/add-props [prop-id]))
-     (env/cell-binding out-id)]))
-
-(declare declare-runtime-cell-application-bindings)
-
-(defn declare-retained-cell-application-bindings
-  [compile* operator-binding arg-bindings state out-id]
-  (let [arg-ids (argument-ids arg-bindings)
-        operator-id (env/binding-id operator-binding)
-        closure-info (known-closure-info (:net state) operator-id)]
-      (if closure-info
-        (or (install-retained-closure-frame compile* state operator-id closure-info
-                                             arg-ids out-id)
-            (throw (ex-info "retained closure arguments do not match closure"
-                            {:operator-id operator-id :arg-ids arg-ids})))
-        (declare-runtime-cell-application-bindings
-         compile* operator-binding arg-bindings state out-id))))
-
-(defn declare-retained-cell-application
-  [compile* operator-binding operand-forms state out-id]
-  (let [[state' arg-bindings] (common/compile-args compile* state operand-forms)]
-    (declare-retained-cell-application-bindings compile* operator-binding
-                                                arg-bindings state' out-id)))
-
 (defn declare-runtime-cell-application-bindings
   [compile* operator-binding arg-bindings state out-id]
   (let [app-id (:application/app-id state)
@@ -259,16 +204,12 @@
     (let [operator-id (env/binding-id operator-binding)
           [state'' args-binding] (common/install-argument-object state arg-ids)
           args-id (env/binding-id args-binding)
-          result-id (closure-application-result-id state''
-                                                   operator-id
-                                                   arg-ids
-                                                   out-id)]
+          result-id out-id]
       [(-> state''
            (assoc :application/args-id args-id
-                  :application/arg-ids arg-ids
-                  :application/lowering :closure-cell)
-           (install-application-propagator compile* app-id operator-ast
-                                           operator-id result-id context-id))
+                  :application/arg-ids arg-ids)
+           (install-application-propagator app-id operator-ast
+                                           operator-id result-id context-id nil))
        (env/cell-binding result-id)])))
 
 (defn declare-runtime-cell-application
@@ -276,23 +217,6 @@
   (let [[state' arg-bindings] (common/compile-args compile* state operand-forms)]
     (declare-runtime-cell-application-bindings compile* operator-binding
                                                arg-bindings state' out-id)))
-
-(defn resolve-cell-declarer
-  [state]
-  (let [declarer (:application/cell-declarer state)]
-    (cond
-      (or (nil? declarer) (= :runtime declarer))
-      declare-runtime-cell-application
-
-      (= :retained-frame declarer)
-      declare-retained-cell-application
-
-      (fn? declarer)
-      declarer
-
-      :else
-      (throw (ex-info "unknown application cell declarer"
-                      {:application/cell-declarer declarer})))))
 
 (defn apply-operator
   [compile* operator-binding operand-forms _calling-env state out-id]
@@ -308,8 +232,8 @@
                                   state out-id)
 
     (env/binding-id operator-binding)
-    ((resolve-cell-declarer state) compile* operator-binding operand-forms
-                                   state out-id)
+    (declare-runtime-cell-application compile* operator-binding operand-forms
+                                      state out-id)
 
     :else
     (throw (ex-info "application operator is not callable"
@@ -403,8 +327,28 @@
                                                       inputs
                                                       closure-output
                                                       (:env state'))
-         closure-binding (env/compound-binding closure-id)
-         declared (update state' :net h/seed-cell closure-id closure-object)]
+         declaration-id (h/stable-node-id :compiler-2 :closure-declaration
+                                          closure-id)
+         graph-id (call-graph/graph-cell-id closure-id)
+         compile* (cond
+                    (fn? (:compiler state'))
+                    (:compiler state')
+
+                    :else
+                    dispatch/default-compiler)
+         captured-topology (env/captured-lexical-topology (:net state')
+                                                          (:env state'))
+         captured-cell-ids (env/captured-lexical-cell-ids (:net state')
+                                                          (:env state'))
+         callable (compiler-app/gur-closure compile* declaration-id
+                                            closure-object body
+                                            captured-topology
+                                            captured-cell-ids)
+         closure-binding (env/cell-binding closure-id)
+         declared (-> state'
+                      (update :net h/seed-cell declaration-id closure-object)
+                      (update :net h/ensure-cell graph-id)
+                      (update :net h/seed-cell closure-id callable))]
      [declared
       closure-binding])))
 
@@ -462,7 +406,11 @@
         declared (if reserved-id
                    state
                    (reserve-fixed-local state name target-id))
-        seeded (update declared :net h/seed-cell target-id operator)
+        seeded (-> declared
+                   (update :net h/seed-cell target-id operator)
+                   (update :net env/retain-compiler-declaration
+                           target-id
+                           operator))
         consumed (update seeded :net env/consume-reserved-binding
                          (:env state) name target-id (:seed state))]
     [consumed (env/cell-binding target-id)]))

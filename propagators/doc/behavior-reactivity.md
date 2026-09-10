@@ -643,7 +643,8 @@ History-aware behavior arithmetic can still be installed explicitly by a caller:
 (compile-source "(be:+ a b)" explicitly-composed-env {:net behavior-net})
 ```
 
-The compiled application still follows compiler-2's retained application model:
+The compiled application follows Compiler 2's retained declaration plus direct
+GUR model:
 the application object records the operator, arguments, output, and context.
 During evaluation, the operator's `application-activate` metadata calls the same
 `behavior-arithmetic/behavior-messages` path used by direct stdlib behavior
@@ -935,12 +936,12 @@ introduced as a hidden behavior change.
 - multiple premise bring-in/retraction rounds through the same compiled network
 - TMS over an arithmetic propagator chain
 - legacy centralized `premise-closure` sugar for premise-marked declared-output
-  closures, without patching `p:apply-application`
+  closures through canonical `gur/p:apply-closure`
 - `distributed-premise-closure` sugar for premise-marked distributed TMS
   outputs, including definition retraction/bring-in and upstream premise
   retraction
 - lower-level closure application with premise-marked outputs, without patching
-  `p:apply-application`
+  canonical `gur/p:apply-closure`
 
 `test/propagators/behavior_compiler_test.clj` covers behavior compiler v1:
 

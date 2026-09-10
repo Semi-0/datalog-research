@@ -81,6 +81,9 @@
 (defn xr-io-operator [outbox-id]
   (operator-value/operator-closure
    {:name 'xr-io
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :output-selector (fn [arg-ids fallback-id]
                        (or (second (vec arg-ids)) fallback-id))
     :activate (fn [network _context-id arg-ids out-id]
@@ -94,6 +97,9 @@
 (defn io-xr-operator [outbox-id]
   (operator-value/operator-closure
    {:name 'io:xr
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :output-selector (fn [_arg-ids fallback-id]
                        fallback-id)
     :activate (fn [network _context-id arg-ids out-id]

@@ -88,6 +88,16 @@
         [state' _binding] (compile* body-state body)]
     state'))
 
+(defn declare-body
+  "Compile a delayed Compiler 2 body as declaration data."
+  [compile* captured-state body base-network]
+  (let [compiled-state (compile-body-state compile*
+                                           base-network
+                                           captured-state
+                                           body)]
+    {:net (:net compiled-state)
+     :prop-ids (:props compiled-state)}))
+
 (defn- body-activation-result
   [compile* base-network captured-state body marker-effect]
   (let [compiled-state (compile-body-state compile* base-network captured-state body)

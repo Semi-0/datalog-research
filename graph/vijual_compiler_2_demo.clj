@@ -159,10 +159,7 @@
            :context-id (obj/slot-value
                         info
                         compiler/application-context-slot)
-           :output-id output-id
-           :lowering (obj/slot-value
-                      info
-                      compiler/application-lowering-slot)})))
+           :output-id output-id})))
     (or (:applications compiled)
         (compiler/compiled-applications (:net compiled))))))
 

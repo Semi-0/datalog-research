@@ -18,7 +18,6 @@
             [propagators.compiler-2.main :as main]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.language.parser :as parser]
-            [propagators.compiler-2.runtime.retained-application :as retained-app]
             [propagators.compiler-2.operators.behavior
              :refer [behavior-tms-env]]
             [propagators.core :as core]
@@ -30,6 +29,9 @@
             [propagators.datastructures.reducer-cell :as reducer]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms :as tms]
+            [propagators.gur :as gur]
+            [propagators.gur.accumulating.core :as gur-core]
+            [propagators.gur.accumulating.facts :as gur-facts]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
             [propagators.message :refer [message]]
@@ -324,6 +326,14 @@
 (def ^:private execute-strongest-net (latest-strongest-net))
 (def ^:private execute-reducer-id :compile-2-test/behavior)
 
+(defn- canonical-test-operator
+  [name install metadata]
+  (operator-value/operator-closure
+   {:name name
+    :install install
+    :output-selector (get metadata h/output-selector-key)
+    :activate (get metadata h/application-activate-key)}))
+
 (defn- reducer-storage-cell
   [n]
   (let [id (ids/new-node-id)
@@ -334,38 +344,52 @@
 
 (defn- reducer-emit-operator
   []
-  (with-meta
+  (canonical-test-operator
+    :test/reducer-emit
     (fn [network [value-id storage-id] _out-id]
       (let [[prop-id network']
-            ((reducer/p:reducer-slot execute-reducer-id
-                                     execute-merge-net
-                                     execute-strongest-net
-                                     [:event value-id]
-                                     value-id
-                                     storage-id)
+            ((prop/construct-propagator
+              :test/reducer-emit
+              (fn [_inputs _outputs current-net]
+                (let [raw (strongest current-net value-id)
+                      v (cond
+                          (reducer/reduced-value? raw)
+                          (reducer/reduced-result raw)
+
+                          :else
+                          raw)]
+                  (cond
+                    (value/contradiction? v)
+                    [(message storage-id value/contradiction)]
+
+                    (value/nothing? v)
+                    []
+
+                    :else
+                    [(message storage-id
+                              (reducer/reducer-slot-update
+                               execute-reducer-id
+                               execute-merge-net
+                               execute-strongest-net
+                               [:event value-id]
+                               v))])))
+              [value-id]
+              [storage-id])
              network)]
         [network' [prop-id] storage-id]))
     {h/output-selector-key
      (fn [[_value-id storage-id] fallback-id]
-       (or storage-id fallback-id))
-     h/application-activate-key
-     (fn [network _context-id [value-id storage-id] _out-id]
-       (let [raw (strongest network value-id)
-             v (if (reducer/reduced-value? raw)
-                 (reducer/reduced-result raw)
-                 raw)]
-         (if (value/unusable? v)
-           []
-           [(message storage-id
-                     (reducer/reducer-slot-update execute-reducer-id
-                                                  execute-merge-net
-                                                  execute-strongest-net
-                                                  [:event value-id]
-                                                  v))])))}))
+       (cond
+         (some? storage-id)
+         storage-id
+
+         :else
+         fallback-id))}))
 
 (defn- tms-claim-operator
   [claim-id proposition supports]
-  (with-meta
+  (canonical-test-operator
+    :test/tms-claim
     (fn [network [value-id storage-id] _out-id]
       (let [[prop-id network']
             ((tms/p:tms-claim tms/reducer-id
@@ -390,7 +414,8 @@
 
 (defn- tms-premise-operator
   [premise epoch]
-  (with-meta
+  (canonical-test-operator
+    :test/tms-premise
     (fn [network [active-id storage-id] _out-id]
       (let [[prop-id network']
             ((tms/p:tms-premise tms/reducer-id
@@ -413,7 +438,8 @@
 
 (defn- tms-premise-source-operator
   [epoch]
-  (with-meta
+  (canonical-test-operator
+    :test/tms-premise-source
     (fn [network [premise-id active-id storage-id] _out-id]
       (let [[prop-id network']
             ((tms/p:tms-premise-source tms/reducer-id
@@ -441,7 +467,8 @@
 
 (defn- tms-premise-epoch-operator
   [active?]
-  (with-meta
+  (canonical-test-operator
+    :test/tms-premise-epoch
     (fn [network [_premise-id _epoch-id storage-id] _out-id]
       [network [] storage-id])
     {h/output-selector-key
@@ -487,7 +514,8 @@
 
 (defn- tms-insert-fact-operator
   []
-  (with-meta
+  (canonical-test-operator
+    :test/tms-insert-fact
     (fn [network [_storage-id _value-id _premise-id] _out-id]
       [network [] _storage-id])
     {h/output-selector-key
@@ -629,16 +657,10 @@
                      (def epoch 0)
                      (premise-retract premise epoch out)
                      out)")
-        retained-props (net/network-dict-entry
-                        (:net compiled)
-                        retained-app/retained-application-props-key)
         [application-id] (:applications compiled)
         application (strongest (:net compiled) application-id)
         n (run-compiled compiled)]
-    (is (empty? retained-props))
-    (is (= :primitive
-           (obj/slot-value application
-                           application-value/application-lowering-slot)))
+    (is (application-value/application-info? application))
     (is (= 'premise-retract
            (-> application
                (obj/slot-value application-value/application-operator-ast-slot)
@@ -1036,8 +1058,6 @@
                                        main/application-operator-ast-slot)]
       (is (= [app-id] (:applications compiled)))
       (is (application-value/application-info? app-info))
-      (is (= :primitive
-             (obj/slot-value app-info main/application-lowering-slot)))
       (is (= :symbol (ast/type operator-ast)))
       (is (= '+ (ast/name operator-ast)))
       (is (= 2 (count (obj/slot-value app-info
@@ -1513,13 +1533,21 @@
 (deftest compile-2-network-closure-is-data-only
   (testing "closure declaration emits closure info, not a runtime Closure function"
     (let [compiled (compile-source "(:: [x] (+ x 1))")
-          closure-info (strongest (:net compiled) (:cell compiled))]
+          closure-info (strongest (:net compiled) (:cell compiled))
+          declaration (closure-value/retained-declaration closure-info)
+          declaration-id (get closure-info gur-core/declaration-id-key)
+          captured-ids (set (gur-core/captured-cell-ids closure-info))]
+      (is (gur/recursive-closure? closure-info))
       (is (closure-value/closure-info? closure-info))
       (is (not (closure/closure? closure-info)))
-      (is (nil? (obj/slot-value closure-info main/closure-runtime-slot)))
-      (is (= '[x] (obj/slot-value closure-info main/closure-inputs-slot)))
-      (let [output (obj/slot-value closure-info main/closure-output-slot)
-            body (obj/slot-value closure-info main/closure-body-slot)]
+      (is (ids/node-id? declaration-id))
+      (is (= declaration (strongest (:net compiled) declaration-id)))
+      (is (contains? captured-ids
+                     (closure-value/closure-env closure-info)))
+      (is (nil? (obj/slot-value declaration main/closure-runtime-slot)))
+      (is (= '[x] (closure-value/closure-inputs closure-info)))
+      (let [output (closure-value/closure-output closure-info)
+            body (closure-value/closure-body closure-info)]
         (is (= 1 (count output)))
         (is (closure-value/implicit-return-symbol? (first output)))
         (is (= :apply (ast/type body)))
@@ -1530,8 +1558,8 @@
   (testing "implicit return is ordinary output syntax over only the last body form"
     (let [compiled (compile-source "(:: [x] (-> 1 x) (+ x 1))")
           closure-info (strongest (:net compiled) (:cell compiled))
-          [hidden] (obj/slot-value closure-info main/closure-output-slot)
-          body (obj/slot-value closure-info main/closure-body-slot)
+          [hidden] (closure-value/closure-output closure-info)
+          body (closure-value/closure-body closure-info)
           forms (ast/body body)
           first-form (first forms)
           return-form (second forms)]
@@ -1554,24 +1582,66 @@
     (let [compiled (compile-source "(:: [x] (+ x 1))")
           result-net (run-compiled compiled)]
       (is (empty? (:props compiled)))
-      (is (empty? (net/network-dict-entry result-net
-                                          compiler-app/apply-application-props-key))))))
+      (is (empty? (main/compiled-applications result-net))))))
 
 (deftest compile-2-application-installs-application-propagator
-  (testing "network closure calls are evaluated by retained compiler-2 p:apply-application"
+  (testing "network closure calls are evaluated by canonical GUR application"
     (let [compiled (compile-source "((:: [x] (+ x 1)) 4)")
-          apply-props (net/network-dict-entry
-                       (:net compiled)
-                       retained-app/retained-application-props-key)
           [app-id] (main/compiled-applications (:net compiled))
           app-info (strongest (:net compiled) app-id)
+          operator-id (obj/slot-value
+                       app-info
+                       application-value/application-operator-cell-slot)
+          arg-ids (obj/slot-value
+                   app-info
+                   application-value/application-arg-cells-slot)
+          application-key (gur-facts/application-key operator-id
+                                                     arg-ids
+                                                     (:cell compiled))
+          applied-net-id (net/network-dict-entry (:net compiled)
+                                                 application-key)
           result-net (run-compiled compiled)]
-      (is (= 1 (count apply-props)))
       (is (application-value/application-info? app-info))
-      (is (= :closure-cell
-             (obj/slot-value app-info main/application-lowering-slot)))
-      (is (contains? (set (:props compiled)) (first apply-props)))
+      (is (ids/node-id? applied-net-id))
+      (is (= 2 (count (:props compiled))))
       (is (= 5 (strongest result-net (:cell compiled)))))))
+
+(deftest compile-2-equivalent-application-redeclaration-is-deterministic
+  (let [options {:seed [:compiler-2-test :equivalent-application]}
+        first-declaration
+        (main/compile-source "((:: [x] (+ x 1)) 4)" nil options)
+        second-declaration
+        (main/compile-source "((:: [x] (+ x 1)) 4)" nil options)]
+    (is (= (:cell first-declaration) (:cell second-declaration)))
+    (is (= (main/compiled-applications (:net first-declaration))
+           (main/compiled-applications (:net second-declaration))))))
+
+(deftest compile-2-contradictory-operator-waits-without-application-policy
+  (let [compiled (compile-source "(let-cell [callable out]
+                                   (callable 1 out)
+                                   out)")
+        callable-id (compiled-binding-id compiled 'callable)
+        waiting (run-compiled compiled)
+        contradicted (nb/seed-cell waiting callable-id value/contradiction)
+        result-net
+        (nb/run-propagators
+         contradicted
+         (nb/neighbor-propagator-ids contradicted callable-id))]
+    (is (= value/nothing (strongest waiting (:cell compiled))))
+    (is (= value/nothing (strongest result-net (:cell compiled))))))
+
+(deftest compile-2-upstream-application-produces-downstream-operator
+  (let [compiled
+        (compile-source "(((:: [bias] (:: [x] (+ x bias))) 10) 5)")
+        result-net (run-compiled compiled)]
+    (is (= 15 (strongest result-net (:cell compiled))))))
+
+(deftest compile-2-invalid-closure-arity-is-explicit
+  (let [compiled (compile-source "((:: [x] (+ x 1)) 1 2 3)")
+        result-net (run-compiled compiled)]
+    (is (= 1 (count (main/compiled-applications (:net compiled)))))
+    (is (= value/contradiction
+           (strongest result-net (:cell compiled))))))
 
 (deftest compile-2-presence-when-delays-body-topology
   (testing "when compiles the condition immediately and installs body topology only after a usable value"
@@ -1864,14 +1934,16 @@
           some-net-id (compiled-binding-id compiled 'some-net)
           same-id (compiled-binding-id compiled 'same)
           next-id (compiled-binding-id compiled 'next)
+          n0 (run-compiled compiled)
           closure-compiled (compile-source
                             "(network [x] [same next]
                                (<-> x same)
-                               (<-> (+ x 1) next))")
+                               (<-> (+ x 1) next))"
+                            (:env compiled)
+                            {:net n0})
           closure-value (strongest (:net closure-compiled)
                                    (:cell closure-compiled))
-          n0 (run-compiled compiled)
-          n1 (nb/seed-cell n0 some-net-id closure-value)
+          n1 (nb/seed-cell (:net closure-compiled) some-net-id closure-value)
           n2 (nb/run-propagators n1
                                  (nb/neighbor-propagator-ids n1 some-net-id))]
       (is (= value/nothing (strongest n0 next-id)))
@@ -1887,12 +1959,14 @@
                                  out)")
           some-net-id (compiled-binding-id late 'some-net)
           out-id (compiled-binding-id late 'out)
+          n0 (run-compiled late)
           closure-compiled (compile-source "(network [x] [out]
-                                             (<-> x out))")
+                                             (<-> x out))"
+                                           (:env late)
+                                           {:net n0})
           closure-value (strongest (:net closure-compiled)
                                    (:cell closure-compiled))
-          n0 (run-compiled late)
-          n1 (nb/seed-cell n0 some-net-id closure-value)
+          n1 (nb/seed-cell (:net closure-compiled) some-net-id closure-value)
           n2 (nb/run-propagators n1
                                  (nb/neighbor-propagator-ids n1 some-net-id))]
       (is (not (str/includes? source "materialize-slot-object")))
@@ -2282,7 +2356,7 @@
                                                      (:cell compiled))
           result-net (run-compiled compiled)
           closure (strongest result-net (compiled-binding-id compiled 'add-bias))]
-      (is (ids/node-id? (obj/slot-value closure main/closure-env-slot)))
+      (is (ids/node-id? (closure-value/closure-env closure)))
       (is (not-any? #(contains? % bias-id) apply-inputs))
       (is (= 15 (strongest result-net (:cell compiled)))))))
 
@@ -2582,14 +2656,16 @@
                                       out)")
           some-net-id (compiled-binding-id compiled 'some-net)
           out-id (compiled-binding-id compiled 'out)
+          n0 (run-compiled compiled)
           closure-compiled
           (compile-source
            "(network [x] [out]
-              (<-> (+ x 1) out))")
+              (<-> (+ x 1) out))"
+           (:env compiled)
+           {:net n0})
           closure-value (strongest (:net closure-compiled)
                                    (:cell closure-compiled))
-          n0 (run-compiled compiled)
-          n1 (nb/seed-cell n0 some-net-id closure-value)
+          n1 (nb/seed-cell (:net closure-compiled) some-net-id closure-value)
           n2 (nb/run-propagators n1
                                  (nb/neighbor-propagator-ids n1 some-net-id))]
       (is (= value/nothing (strongest n0 out-id)))
@@ -2621,12 +2697,14 @@
           some-net-id (compiled-binding-id compiled 'some-net)
           a-id (compiled-binding-id compiled 'a)
           out-id (compiled-binding-id compiled 'out)
+          n0 (run-compiled compiled)
           closure-compiled (compile-source "(network [x] [out]
-                                             (<-> (+ x 1) out))")
+                                             (<-> (+ x 1) out))"
+                                           (:env compiled)
+                                           {:net n0})
           closure-info (strongest (:net closure-compiled)
                                   (:cell closure-compiled))
-          n0 (run-compiled compiled)
-          n1 (nb/seed-cell n0 some-net-id closure-info)
+          n1 (nb/seed-cell (:net closure-compiled) some-net-id closure-info)
           n2 (nb/run-propagators n1
                                  (nb/neighbor-propagator-ids n1 some-net-id))
           n3 (nb/seed-cell n2 a-id 8)

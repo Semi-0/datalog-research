@@ -35,6 +35,9 @@
   [{:keys [name kind arities arguments->payload identity-parts outbox-id]}]
   (operator-value/operator-closure
    {:name name
+    :boundary-output-cell-ids
+    (operator-value/fixed-boundary-cell-ids outbox-id)
+    :boundary-dict-keys operator-value/effect-boundary-dict-keys
     :output-selector (fn [_arg-ids fallback-id] fallback-id)
     :activate
     (fn [network _context-id arg-ids receipt-id]

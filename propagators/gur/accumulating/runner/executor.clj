@@ -30,28 +30,55 @@
 (defn- import-parent-cell
   [child-net parent-net id]
   (let [child-entry (get (net/net-env child-net) id)
-        parent-entry (get (net/net-env parent-net) id)]
-    (if (and (cell/cell? child-entry) (cell/cell? parent-entry))
-      (net/assoc-net-cell child-net
-                          id
-                          (merge/merge-cell-entry child-entry
-                                                  (cell/cell-content parent-entry)
-                                                  parent-net))
+        parent-entry (get (net/net-env parent-net) id)
+        parent-node (get (net/net-graph parent-net) id)]
+    (cond
+      (and (cell/cell? child-entry)
+           (cell/cell? parent-entry)
+           parent-node)
+      (-> child-net
+          (net/assoc-net-cell id parent-entry)
+          (net/assoc-net-node id parent-node))
+
+      (and (cell/cell? parent-entry)
+           (nil? parent-node))
+      (throw (ex-info "GUR boundary cell is missing its parent graph node"
+                      {:cell-id id}))
+
+      :else
       child-net)))
 
 (defn- prepare-run-net
-  [parent-net acc-net applied-net-id import-ids external-output-ids boundary-ids]
-  (let [n0 (reduce #(import-parent-cell %1 parent-net %2)
-                   (reduce nb/ensure-cell
-                           (reset-mailbox acc-net applied-net-id)
-                           boundary-ids)
+  [parent-net acc-net applied-net-id import-ids external-output-ids boundary-ids
+   projected-output-ids boundary-dict-keys]
+  (let [with-boundary-dict
+        (reduce (fn [n dict-key]
+                  (cond
+                    (contains? (net/net-dict-or-empty parent-net) dict-key)
+                    (net/assoc-net-dict-entry
+                     n dict-key (net/network-dict-entry parent-net dict-key))
+
+                    :else
+                    n))
+                (reset-mailbox acc-net applied-net-id)
+                boundary-dict-keys)
+        n0 (reduce (fn [n id]
+                     (import-parent-cell n parent-net id))
+                   (reduce nb/ensure-cell with-boundary-dict boundary-ids)
                    boundary-ids)]
-    (reduce (fn [n external-id]
-              (-> n
-                  (net/assoc-avatar-out external-id external-id)
-                  (import-parent-cell parent-net external-id)))
-            n0
-            (distinct (concat import-ids external-output-ids)))))
+    (let [with-imported-outputs
+          (reduce (fn [n external-id]
+                    (-> n
+                        (net/assoc-avatar-out external-id external-id)
+                        (import-parent-cell parent-net external-id)))
+                  n0
+                  (distinct (concat import-ids external-output-ids)))]
+      (reduce (fn [n external-id]
+                (-> n
+                    (nb/ensure-cell external-id)
+                    (net/assoc-avatar-out external-id external-id)))
+              with-imported-outputs
+              (distinct projected-output-ids)))))
 
 (defn- same-cell-value?
   [a b]
@@ -79,7 +106,7 @@
           boundary-ids))
 
 (defn- expandable-request
-  [n applied-net-id app-key {:keys [closure-id arg-ids out-id]}]
+  [n applied-net-id app-key {:keys [closure-id arg-ids out-id declaration]}]
   (let [closure (acc/strongest-or-nothing n closure-id)
         arg-values (mapv #(acc/strongest-or-nothing n %) arg-ids)
         out-value (acc/strongest-or-nothing n out-id)]
@@ -92,7 +119,8 @@
                                 out-id
                                 closure
                                 arg-values
-                                out-value))))
+                                out-value
+                                declaration))))
 
 (defn- fully-expanded-requests?
   [requests expanded?]
@@ -266,7 +294,8 @@
           child1)))))
 
 (defn run-accumulated-messages
-  [runner-state parent-net applied-net-id import-ids external-output-ids boundary-ids]
+  [runner-state parent-net applied-net-id import-ids external-output-ids boundary-ids
+   projected-output-ids boundary-dict-keys]
   (let [acc0 (acc/strongest-or-nothing parent-net applied-net-id)]
     (if (or (value/nothing? acc0)
             (not (net/net? acc0)))
@@ -275,21 +304,24 @@
             acc1 (timed :boundary-tasks
                         #(add-boundary-task-facts parent-net
                                                   acc0
-                                                  (concat import-ids external-output-ids)))
+                                                  boundary-ids))
             child0 (timed :prepare-run-net
                           #(prepare-run-net parent-net
                                             acc1
                                             applied-net-id
                                             import-ids
                                             external-output-ids
-                                            boundary-ids))
+                                            boundary-ids
+                                            projected-output-ids
+                                            boundary-dict-keys))
             child1 (timed :settle-child
                           #(settle-accumulated-child runner-state
                                                      parent-net
                                                      child0
                                                      applied-net-id))
             boundary-output-ids (vec (distinct (concat import-ids
-                                                       external-output-ids)))
+                                                       external-output-ids
+                                                       projected-output-ids)))
             diff-view (timed :externalize-output
                              #(output/externalize-output-cells child1
                                                                boundary-output-ids))
@@ -325,18 +357,184 @@
   (and (= (count a) (count b))
        (every? true? (map identical? a b))))
 
+(defn- request-cell-value
+  [parent-net accumulated-net cell-id]
+  (let [parent-value (acc/strongest-or-nothing parent-net cell-id)]
+    (cond
+      (not (value/unusable? parent-value))
+      parent-value
+
+      (net/net? accumulated-net)
+      (acc/strongest-or-nothing accumulated-net cell-id)
+
+      :else
+      value/nothing)))
+
+(defn- request-closure
+  [parent-net accumulated-net closure-id]
+  (let [candidate (request-cell-value parent-net accumulated-net closure-id)]
+    (cond
+      (acc/recursive-closure? candidate)
+      candidate
+
+      :else
+      nil)))
+
+(defn- argument-captured-cell-ids
+  [parent-net accumulated-net arg-ids]
+  (mapcat
+   (fn [arg-id]
+     (let [argument (request-cell-value parent-net accumulated-net arg-id)]
+       (cond
+         (acc/recursive-closure? argument)
+         (acc/captured-cell-ids argument)
+
+         :else
+         [])))
+   arg-ids))
+
+(defn- request-boundary-cell-ids
+  [parent-net accumulated-net]
+  (cond
+    (net/net? accumulated-net)
+    (->> (facts/application-requests accumulated-net)
+         vals
+         (mapcat
+          (fn [{:keys [declaration] :as request}]
+            (let [closure-id (:closure-id request)
+                  closure (request-closure parent-net
+                                           accumulated-net
+                                           closure-id)
+                  captured-ids (cond
+                                 (acc/recursive-closure? closure)
+                                 (acc/captured-cell-ids closure)
+
+                                 :else
+                                 [])
+                  argument-captured-ids
+                  (argument-captured-cell-ids parent-net
+                                              accumulated-net
+                                              (:arg-ids request))
+                  projected-input-ids
+                  (cond
+                    (acc/recursive-closure? closure)
+                    (acc/projected-boundary-cell-ids
+                     closure parent-net (:arg-ids request))
+
+                    :else
+                    [])
+                  application-boundary-ids
+                  (cond
+                    (acc/recursive-closure? closure)
+                    (acc/projected-application-boundary-cell-ids
+                     closure
+                     parent-net
+                     (:arg-ids request)
+                     (:out-id request))
+
+                    :else
+                    [])
+                  declared-ids (facts/declaration-cell-ids declaration)]
+              (concat captured-ids
+                      argument-captured-ids
+                      projected-input-ids
+                      application-boundary-ids
+                      declared-ids))))
+         (filter ids/node-id?)
+         distinct
+         vec)
+
+    :else
+    []))
+
+(defn- declaration-boundary-cell-ids
+  [accumulated-net]
+  (cond
+    (net/net? accumulated-net)
+    (->> (facts/application-declarations accumulated-net)
+         vals
+         (mapcat facts/declaration-cell-ids)
+         distinct
+         vec)
+
+    :else
+    []))
+
 (defn cached-boundary-cell-ids
-  [runner-state parent-net import-ids external-output-ids]
-  (let [ids (vec (distinct (concat import-ids external-output-ids)))
+  [runner-state parent-net applied-net-id import-ids external-output-ids]
+  (let [accumulated-net (acc/strongest-or-nothing parent-net applied-net-id)
+        captured-ids (request-boundary-cell-ids parent-net accumulated-net)
+        declared-ids (declaration-boundary-cell-ids accumulated-net)
+        ids (vec (distinct (concat import-ids
+                                   external-output-ids
+                                   captured-ids
+                                   declared-ids)))
         token (runner-input-token parent-net ids)
         boundary-cache (:boundary-cache runner-state)
         cached @boundary-cache]
     (if (same-input-token? token (:token cached))
       (:ids cached)
-      (let [boundary-ids (acc/boundary-cell-ids
-                          parent-net
-                          ids
-                          (map #(acc/strongest-or-nothing parent-net %)
-                               ids))]
+      (let [candidate-ids (acc/boundary-cell-ids
+                           parent-net
+                           ids
+                           (map #(acc/strongest-or-nothing parent-net %)
+                                ids))
+            boundary-ids (->> candidate-ids
+                              (filter #(and (contains? (net/net-env parent-net) %)
+                                            (contains? (net/net-graph parent-net) %)))
+                              vec)]
         (reset! boundary-cache {:token token :ids boundary-ids})
         boundary-ids))))
+
+(defn projected-boundary-output-ids
+  [parent-net applied-net-id]
+  (let [accumulated-net (acc/strongest-or-nothing parent-net applied-net-id)]
+    (cond
+      (net/net? accumulated-net)
+      (->> (concat
+            (mapcat facts/declaration-output-cell-ids
+                    (vals (facts/application-declarations accumulated-net)))
+            (mapcat
+             (fn [request]
+               (let [closure (request-closure parent-net
+                                              accumulated-net
+                                              (:closure-id request))]
+                 (cond
+                   (acc/recursive-closure? closure)
+                   (acc/projected-boundary-output-cell-ids
+                    closure parent-net (:arg-ids request))
+
+                   :else
+                   [])))
+             (vals (facts/application-requests accumulated-net))))
+           (filter #(and (ids/node-id? %)
+                         (contains? (net/net-env parent-net) %)
+                         (contains? (net/net-graph parent-net) %)))
+           distinct
+           vec)
+
+      :else
+      [])))
+
+(defn boundary-dict-keys
+  [parent-net applied-net-id]
+  (let [accumulated-net (acc/strongest-or-nothing parent-net applied-net-id)]
+    (cond
+      (net/net? accumulated-net)
+      (->> (facts/application-requests accumulated-net)
+           vals
+           (mapcat (fn [request]
+                     (let [closure (request-closure parent-net
+                                                    accumulated-net
+                                                    (:closure-id request))]
+                       (cond
+                         (acc/recursive-closure? closure)
+                         (acc/boundary-dict-keys closure)
+
+                         :else
+                         []))))
+           distinct
+           vec)
+
+      :else
+      [])))

@@ -10,6 +10,7 @@
             [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
+            [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.language.parser :as parser]
             [propagators.compiler-behavior.application :as behavior-app]
@@ -87,6 +88,7 @@
   (fn [operator-binding _operand-forms _calling-env _state _out-id]
     (cond
       (fn? operator-binding) :primitive
+      (operator-value/operator-closure? operator-binding) :primitive
       (env/binding-id operator-binding) :cell
       :else :unsupported)))
 
@@ -108,8 +110,7 @@
           result-id (h/output-id operator-binding arg-ids out-id)]
       [(-> state'''
            (assoc :application/args-id args-id
-                  :application/arg-ids arg-ids
-                  :application/lowering :primitive)
+                  :application/arg-ids arg-ids)
            (install-application-propagator
             app-id
             operator-ast
@@ -133,8 +134,7 @@
           operator-id (env/binding-id operator-binding)]
       [(-> state''
            (assoc :application/args-id args-id
-                  :application/arg-ids arg-ids
-                  :application/lowering :closure-cell)
+                  :application/arg-ids arg-ids)
            (install-application-propagator
             app-id
             operator-ast
@@ -147,6 +147,10 @@
   [compile* operator-binding operand-forms _calling-env state out-id]
   (cond
     (fn? operator-binding)
+    (declare-primitive-application compile* operator-binding operand-forms
+                                   state out-id)
+
+    (operator-value/operator-closure? operator-binding)
     (declare-primitive-application compile* operator-binding operand-forms
                                    state out-id)
 

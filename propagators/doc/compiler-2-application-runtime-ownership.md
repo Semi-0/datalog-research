@@ -1,69 +1,64 @@
-# Compiler 2 application runtime ownership
+# Compiler 2 direct GUR application ownership
+
+Compiler 2 treats every ordinary application as a declaration plus propagator
+composition. Compilation creates an inspectable application value and installs
+`gur.accumulating/p:apply-closure` from the operator and argument cells to the
+result cell. The declaration is not an evaluator input.
+
+## Boundaries
+
+| Responsibility | Owner |
+| --- | --- |
+| Application and closure IR | `compiler_2/model/application_value.clj`, `compiler_2/model/closure_value.clj` |
+| Application and closure declaration | `compiler_2/compiler/declarations.clj` |
+| Closure call planning and body topology declaration | `compiler_2/runtime/application.clj` |
+| Lexical frame and local selection | `compiler_2/model/env.clj` |
+| Application requests and stable frame facts | `gur/accumulating/facts.clj` |
+| Accumulated topology execution and boundary projection | `gur/accumulating/runner.clj` |
+| External effects | the effect runtime |
 
 Ordinary symbol compilation uses `p:lexical-access-local-first` followed by
-`p:binding-value`. Its result is the binding's value, not a scope-source lookup
-candidate. Explicit `p:lexical-access` and `p:access-binding` remain separate
-provenance APIs. Their tests are active contracts, not obsolete compiler tests.
+`p:binding-value`. Captured scope stays in an environment cell. Closure frames
+declare `scope-frame` and canonical local relations; application does not copy
+lexical values into a host frame or unwrap scoped candidates.
 
-## Reachability of the former application scope-source uses
+Canonical GUR closures carry a stable retained declaration cell and captured
+cell IDs, including the lexical environment ID. The runner projects those cells
+through the accumulated frame boundary. Frame IDs and body node IDs derive from
+the application key, so equivalent declarations with the same semantic seed are
+stable and repeated activation does not duplicate topology.
 
-| Behavior | Reachable caller | Owner after cleanup |
-| --- | --- | --- |
-| Preserve a scope wrapper while externalizing its base | Transient closure output export | `runtime/application_output.clj` |
-| Remap closure environment addresses and materialize accessor slots | Transient closure output export | `runtime/application_output.clj` |
-| Unwrap explicit scoped operators and closures | Direct application and closure activation APIs | `runtime/application_layers.clj` |
-| Select a compatible scope and combine dependencies | `runtime/lexical_application.clj` and direct application activation | `runtime/application_layers.clj` |
-| Refine dependencies on an already-scoped result | Direct application activation; ordinary results remain ordinary | `runtime/application_layers.clj` |
-| Declare base readers and select evaluation IDs | `p:apply-application-with`, including explicit layered inputs | `runtime/application_layers.clj` |
-| Resolve a result's binding address, base-layer parent, or original cell | Injected compiler boundary in `execute-sub-env-messages-with` | `runtime/application_layers.clj`, called by `runtime/sub_environment.clj` |
+## Readiness
 
-`runtime/application.clj` owns closure call planning and application orchestration.
-`runtime/sub_environment.clj` owns child-frame declaration, compilation, topology
-publication, and result publication. Both use `runtime/activation.clj` to run
-declared propagators and boundary-input readers. Existing public application
-entry points remain available.
+The application propagator is installed before operator information is
+available. `nothing`, contradiction, late arguments, and late outputs use the
+same cell readiness protocol. Once a canonical GUR closure and sufficient
+boundary information are available, the application emits an application
+request. The runner expands each request once and publishes output changes as
+messages.
 
-No scope-source behavior in this map was proven unreachable across these public
-APIs. Removing the injected-compiler result fallback would narrow that contract,
-even though current CPS symbol lookup does not need it. The cleanup therefore
-isolates it instead of silently retiring it. Unused closure-output and provenance
-candidate bindings, the forward declaration, and dynamic topology resolution
-were removed; topology effects are now a direct dependency of the layer adapter.
+Primitive operators are canonical GUR closures whose bodies install their
+existing concrete propagators. Higher-order results therefore flow directly
+into downstream operator cells without conversion or application-kind dispatch.
 
-The deprecated `closure-body-env` still has active closure-frame test callers.
-Those tests and the explicit provenance tests are retained. Reader-discarded
-behavior tests (`#_`) are not counted as coverage and were not revived or deleted
-by this change.
+## Removed runtime paths
 
-## Verification
+Static caller searches proved that application layers, lexical application,
+retained application, closure-frame application, pending base readers, scoped
+operator unwrapping, result rescoping, and the synchronous application evaluator
+had no remaining production callers. Their modules and adapter-only tests were
+removed.
 
-`compiler-2-application-runtime-test` checks raw child-frame results (including
-`false`), provenance compatibility and message refinement, result-address
-selection, base-reader routing, and scalar boundary export. Existing Compiler 2
-and layered-procedure suites cover closure frames, compiler composition,
-accessor results, and explicit provenance integration.
+`runtime/application_output.clj` remains for explicit external observation of a
+finite sub-environment result. It is outside ordinary Compiler 2 application.
 
-Verified on this cleanup: 172 tests, 763 assertions, no failures or errors.
-These are focused suites, not the full repository test set.
+## Verification contract
 
-| Namespace under `propagators` | Tests | Assertions |
-| --- | ---: | ---: |
-| `compiler-2-application-runtime-test` | 6 | 48 |
-| `compiler-2-cps-test` | 7 | 37 |
-| `compiler-2-composition-test` | 8 | 41 |
-| `compiler-2-closure-frame-test` | 9 | 47 |
-| `compile-2-test` | 104 | 416 |
-| `compiler-2-call-graph-test` | 6 | 20 |
-| `compiler-2-block-premise-test` | 3 | 11 |
-| `compiler-2-organization-test` | 3 | 28 |
-| `compiler-2-gur-linked-list-test` | 1 | 4 |
-| `layered-procedure-test` | 16 | 45 |
-| `cell-protocol-test` | 9 | 66 |
+Focused tests cover retained IR before evaluation, late operators and arguments,
+contradictory operators, output-first propagation, higher-order composition,
+captured bindings and shadowing, returned closures, recursive mapping/filtering,
+invalid arity, deterministic redeclaration, idempotent topology, TMS evidence,
+session inspection, call-graph publication, effects, and late linked-list tails.
 
-The broader run emitted a Meander dependency reflection warning at
-`meander/util/epsilon.cljc:758:24`.
-
-The historical distinction is visible in `cf0959a` (initial CPS application
-runtime) and `f7020b6` (canonical closure locals, with the older scope adapters
-otherwise retained). The cleanup preserves their surviving contracts while
-making their ownership explicit.
+The canonical test runner may combine namespaces. Verification reports list each
+requested suite separately and do not describe focused coverage as all tests.

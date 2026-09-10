@@ -1,15 +1,14 @@
 (ns propagators.compiler-2.runtime.tui.versioned-commit-test
   (:require [clojure.test :refer [deftest is testing]]
+            [propagators.cells.cell :as cell]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.tui.block-model :as block-model]
             [propagators.compiler-2.runtime.session.program :as program]
             [propagators.cells.value :as value]
             [propagators.compiler-2.operators.block-premise :as premise]
             [propagators.compiler-2.operators.versioned-definition :as definition]
-            [propagators.compiler-2.runtime.application :as compiler-app]
             [propagators.datastructures.event :as event]
             [propagators.gur.flat :as fvm]
-            [propagators.ids :as ids]
             [propagators.datastructures.tms.distributed :as tms]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -45,6 +44,26 @@
   (let [environment (vals (net/net-env (:program/net runtime-state)))]
     {:cells (count (remove prop/prop? environment))
      :propagators (count (filter prop/prop? environment))}))
+
+(defn- child-networks
+  [network]
+  (keep (fn [entry]
+          (cond
+            (cell/cell? entry)
+            (let [candidate (cell/cell-strongest entry)]
+              (cond
+                (net/net? candidate) candidate
+                :else nil))
+
+            :else
+            nil))
+        (vals (net/net-env network))))
+
+(defn- nested-propagators
+  [network]
+  (->> (tree-seq net/net? child-networks network)
+       (mapcat #(vals (net/net-env %)))
+       (filter prop/prop?)))
 
 (deftest commit-is-idempotent-and-history-is-monotone
   (let [session (runtime/new-session)]
@@ -134,27 +153,6 @@
       (is (not= (:premise-state-cell a-record)
                 (:premise-state-cell b-record))))))
 
-(deftest versioned-commit-does-not-settle-unrelated-retained-applications
-  (let [session (runtime/new-session)
-        activations (atom 0)
-        prop-id (ids/new-node-id)]
-    (runtime/register-tui! session {:client-id "A" :mode :versioned-premise})
-    (runtime/commit-version! session (request c0 nil "1"))
-    (let [[_ network]
-          ((prop/construct-propagator
-            prop-id :test/unrelated-retained-application
-            (fn [_inputs _outputs _network]
-              (swap! activations inc)
-              [])
-            [] [])
-           (:program/net @session))
-          network (net/update-net-dict-entry
-                   network compiler-app/apply-application-props-key
-                   (fnil conj #{}) prop-id)]
-      (swap! session assoc :program/net network))
-    (runtime/commit-version! session (request c1 0 "2"))
-    (is (zero? @activations))))
-
 (deftest explicit-trace-refreshes-deferred-versioned-semantic-graph
   (let [session (runtime/new-session)
         sources ["(def-cells a b c d)"
@@ -216,14 +214,14 @@
      (block-request "00000000-0000-0000-0000-000000000004"
                     0 0 "(def x 6)"))
     (is (= 7 (semantic-result @session "A" 1))
-        "a stable scalar binding reactivates the retained caller")
+        "a stable scalar binding reactivates the direct GUR caller")
     (runtime/commit-version!
      session
      (block-request "00000000-0000-0000-0000-000000000005"
                     1 0 "(+ x 1)"))
     (is (= 7 (semantic-result @session "A" 1)))))
 
-(deftest closures-use-retained-application-and-compound-results-stay-raw
+(deftest closures-use-direct-gur-application-and-compound-results-stay-raw
   (testing "a closure definition remains raw while its scalar call is premised"
     (let [session (runtime/new-session)]
       (runtime/register-tui! session {:client-id "A" :mode :versioned-premise})
@@ -271,7 +269,7 @@
       (is (every? #(contains? (net/net-env (:program/net @session)) %)
                   ids-before)))))
 
-(deftest edited-retained-application-retracts-its-old-next-block-display
+(deftest edited-direct-gur-application-retracts-its-old-next-block-display
   (let [session (runtime/new-session)]
     (runtime/register-tui! session {:client-id "A" :mode :versioned-premise})
     (runtime/commit-version!
@@ -313,9 +311,8 @@
      (block-request c0 0 nil "(-> (+ 20 30) (block 1))"))
     (is (= 50 (get-in (runtime/read-tui-view @session {:client-id "A"})
                       [:blocks 1 :value])))
-    (is (some #(and (prop/prop? %)
-                    (= :runtime/tui-block (prop/prop-name %)))
-              (vals (net/net-env (:program/net @session)))))
+    (is (some #(= :runtime/tui-block (prop/prop-name %))
+              (nested-propagators (:program/net @session))))
     (runtime/commit-version!
      session
      (block-request c1 0 0 "(-> (+ 20 40) (block 1))"))
@@ -381,19 +378,29 @@
                     (str "(def-net f [a missing] [b extra] "
                          "(-> (+ a 2) b) (-> (+ a 3) extra))")))
     (let [network (:program/net @session)
-          metadata (get (net/network-dict-entry network fvm/name-bindings-key)
-                        definition/call-metadata-scope)
+          metadata (->> (tree-seq net/net? child-networks network)
+                        (mapcat
+                         (fn [nested]
+                           (vals
+                            (get (net/network-dict-entry
+                                  nested fvm/name-bindings-key)
+                                 definition/call-metadata-scope
+                                 {})))))
           warnings (mapcat :warnings
                            (:blocks (runtime/read-tui-view
                                      @session {:client-id "A"})))
-          placeholders (->> (vals metadata)
+          placeholders (->> metadata
                             (mapcat :placeholder-ids)
                             set)]
       (is (= 6 (semantic-result @session "A" 1)))
       (is (= #{:missing-inputs :missing-outputs}
              (set (map :warning warnings))))
       (is (= 2 (count placeholders)))
-      (is (every? #(contains? (net/net-env network) %) placeholders))
+      (is (every? (fn [placeholder-id]
+                    (some (fn [nested]
+                            (contains? (net/net-env nested) placeholder-id))
+                          (tree-seq net/net? child-networks network)))
+                  placeholders))
       (runtime/commit-version!
        session
        (block-request "00000000-0000-0000-0000-000000000005" 1 0

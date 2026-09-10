@@ -2,167 +2,79 @@
 
 ## Current Status
 
-Compiler-2 has working GUR coverage in the current tested scope:
+Compiler 2 uses accumulating GUR for primitive and user-authored callable
+application. The same substrate also supports lazy topology, HOP chains,
+cdr-gated list traversal, map/filter construction, and `when` as
+presence-gated topology.
 
-- accumulating GUR lazy topology and HOP chains;
-- compiler-2 cdr-gated list / map-chain examples;
-- `when` as presence-gated topology;
-- local-first lexical access as a primitive env accessor;
-- a pure web multi-client coordinator proof slice.
+## Direct GUR Application
 
-The important limitation is not GUR itself. The remaining limitation is the
-compiler-2 application boundary.
+Application has this declared shape:
 
-## What Works
+```text
+compile operator and argument forms to cell ids
+retain inspectable application IR
+install gur/p:apply-closure immediately
+wait through ordinary propagator readiness
+declare deterministic body topology in the accumulated subnet
+project declared outputs through explicit boundary relations
+```
 
-The lower GUR substrate can build topology lazily and wake it when a delayed
-tail or source becomes usable. Existing tests cover lazy `when` topology,
-linked-list access, map chains, late cdr propagation, and bidirectional HOP
-chain cases.
+The application propagator does not classify the operator, unwrap scoped
+values, materialize arguments, or keep pending-reader state. `nothing` waits,
+contradiction propagates as evidence, and late usable information wakes the
+already-installed network.
 
-Compiler-2 also has a local-first lexical accessor:
+Closure IR retains the source AST, parameters, output declaration, and lexical
+environment cell id. A first-class callable cell contains a canonical
+accumulating-GUR closure referencing that declaration and its captured cells.
+
+## Live Lexical Scope
+
+Closure invocation imports captured cells through declared GUR boundaries. It
+then composes:
 
 ```clojure
-(p:lexical-access-local-first sym env-id out-id)
+(p:scope-frame parent-env-id scope-id local-symbols)
+(p:declare-canonical-local symbol scope-id binding-id)
+(p:binding-value binding? binding-id value-id)
 ```
 
-This accessor walks env frames structurally:
+Lexical lookup is structural and local-first. If a scope declares `x`, lookup
+waits for that local binding instead of falling through to a parent `x`.
+Neither the environment nor its arguments are copied into an
+application-specific host object.
 
-1. inspect the current frame local binding slots;
-2. if the frame declares `sym`, wait for that binding value;
-3. only if the frame definitely does not declare `sym`, continue to the parent;
-4. emit the nearest raw binding value.
+## Persistent Applied Topology
 
-This is intentionally separate from provenance-aware `p:lexical-access`.
-`p:lexical-access` keeps scoped candidates for strongest/provenance selection.
-`p:lexical-access-local-first` is for compiler dispatch, where the compiler
-needs the actual binding identity.
-
-## What Application Still Blocks
-
-Compiler-2 closure application still behaves like:
+Closure body topology remains in the accumulated network:
 
 ```text
-operator cell becomes usable
-argument cells become usable
-build a transient activation env
-compile the closure body in that transient network
-run it to quiescence
-copy declared output values back to the outer network
-```
-
-That blocks the cleaner architecture in five concrete ways.
-
-### Live Lexical Env
-
-Closure bodies are still compiled against a materialized host env value during
-application. They are not yet compiled against a live env cell using
-`p:sub-env`, `p:bind-local`, and structural lexical access.
-
-This means later env facts do not naturally wake already-compiled closure
-bodies. Workarounds still have to refresh or re-run application instead of
-letting lexical access propagate through env topology.
-
-### Persistent Applied Topology
-
-The topology declared by a closure body is mostly inside a transient activation
-network. It is not retained as a durable applied topology fragment in the outer
-program network.
-
-For GUR, the desired shape is:
-
-```text
-application = declared child topology
-env/args/outputs = live cells
+application = retained declaration plus canonical apply propagator
+env/args/outputs = boundary cells
 updates = wake existing topology
 ```
 
-The current shape is closer to:
+Stable semantic ids make equivalent activation idempotent. Recursive closure
+application composes the same application propagator, so linked tails add only
+missing topology. Tail-call optimization is outside this design.
 
-```text
-application = evaluate body now
-result = copy selected outputs out
-```
+## Effects
 
-### Delayed Binding Lookup
-
-Correct lexical lookup is structural, not availability-based. If a local frame
-declares `x`, lookup must wait for the local `x` binding rather than falling
-back to parent `x`.
-
-The local-first accessor provides this primitive, but general compiler symbol
-compilation has not been migrated onto it. Directly replacing symbol compilation
-would be unsafe because compiler-2 symbols denote cell/operator bindings, not
-ordinary cell values.
-
-### Boundary And Effect Escape
-
-If a closure body installs bridge/effect topology, the current application path
-only reliably externalizes declared output values. Topology declarations or
-boundary effects produced inside a transient activation need special escape
-handling.
-
-This is a bad fit for declarative bridge models such as web-client routing,
-where a GUR body should be able to declare durable bridge topology.
-
-### Direct Recursive Closure Style
-
-The goal is that ordinary self-application inside lazy topology is enough:
-
-```clojure
-(when rest
-  (walk rest out))
-```
-
-without `def-recursive`, special `recur`, or recursion detection. Current tests
-show important pieces working, but the general closure application path is still
-mediated by transient compile/run/copy behavior rather than stable applied
-network fragments.
+Closure metadata explicitly declares boundary input cells, boundary output
+cells, and the narrow `Net` dictionary keys needed by its body. Effectful
+operators emit effect descriptions to an outbox boundary cell. Only the effect
+runtime drains those descriptions and performs external actions.
 
 ## Multi-Client Proof Slice
 
-The current web-client proof slice is pure runtime/coordinator code, not a full
-browser server.
+The web-client proof slice remains pure runtime/coordinator code rather than a
+complete browser server. It demonstrates independent Compiler 2 sessions, a
+declarative `.lain` routing model, late client growth, and targeted message
+updates through the same retained GUR topology.
 
-It proves:
+## Remaining Scope
 
-- each web client gets an independent compiler-2 runtime session;
-- a separate coordinator runtime loads `examples/lain/multi-client-messaging.lain`;
-- `runtime:clients` publishes a linked client list into the coordinator;
-- the `.lain` GUR model builds route rows from that list;
-- a late client join extends routing;
-- a message from A to B updates only B's latest view;
-- a message from B to C updates only C's latest view.
-
-This is enough to prove the declarative coordinator shape, but not enough to
-claim the browser/WebSocket demo is complete.
-
-## Next Migration Step
-
-Do not replace symbol compilation with value lookup directly.
-
-The next primitive should be a binding-driven application compiler:
-
-```text
-resolve operator/argument bindings structurally
-wait while local bindings are declared but pending
-when bindings are usable, declare an applied child topology
-retain that topology by application identity
-route outputs/effects through explicit outer cells
-```
-
-This lets compiler-2 move from "evaluate closure and copy output" toward
-"declare applied topology with live env, args, and outputs."
-
-## Verification Snapshot
-
-Focused checks run against this status:
-
-```bash
-clojure -M:test propagators.compiler-2-gur-linked-list-test
-clojure -M:test propagators.gur-accumulating-test
-clojure -M:test propagators.compile-2-test
-clojure -M:test graph.compiler-2-web-clients-test
-```
-
-At the time this note was written, all four focused checks passed.
+This change does not replace the independent layered and generic procedure
+application systems. Compound values remain accessor-backed until an explicit
+observer requests a finite value.

@@ -20,7 +20,6 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.stdlib.provenance-arithmetic :as prov-arith]
             [propagators.stdlib.prop :as stdlib-prop]))
 
 (defn- install-protocol
@@ -317,35 +316,6 @@
           tagged (net/network-cell-strongest n2 out-id)]
       (is (= 3 (obj/slot-value tagged :intensity)))
       (is (= :payload (obj/slot-value tagged :base))))))
-
-(deftest layered-arithmetic-adds-intensity-layers
-  (testing "layered arithmetic sums argument intensity like provenance unions sets"
-    (let [{:keys [net operator]} (prov-arith/+ net/empty-net
-                                               {:provenance? false
-                                                :intensity? true})
-          a (new-node-id)
-          b (new-node-id)
-          out (new-node-id)
-          a-base (new-node-id)
-          a-intensity (new-node-id)
-          b-base (new-node-id)
-          b-intensity (new-node-id)
-          n0 (reduce (fn [acc id] (nb/install-cell acc id))
-                     net
-                     [a b out a-base a-intensity b-base b-intensity])
-          [a-props n1] ((intensity/p:with-intensity a-intensity a-base a) n0)
-          [b-props n2] ((intensity/p:with-intensity b-intensity b-base b) n1)
-          [apply-prop n3] ((operator a b out) n2)
-          n4 (-> n3
-                 (nb/seed-cell a-base 10)
-                 (nb/seed-cell a-intensity 2)
-                 (nb/seed-cell b-base 20)
-                 (nb/seed-cell b-intensity 3)
-                 (nb/run-propagators (into a-props b-props))
-                 (nb/run-propagators [apply-prop]))
-          out-object (net/network-cell-strongest n4 out)]
-      (is (= 30 (obj/slot-value out-object :base)))
-      (is (= 5 (obj/slot-value out-object :intensity))))))
 
 (deftest scheduler-wakes-only-when-protocol-strongest-changes
   (testing "contradiction provenance refinement wakes downstream"

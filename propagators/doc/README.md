@@ -153,7 +153,8 @@ Full regression after the shared named-network change:
 
 The intended coordination-language framing is now narrower than "everything is
 GUR." Ordinary programs should mostly be primitive propagators, iterative
-operators, explicit behavior reducers, slots, and retained application data.
+operators, explicit behavior reducers, slots, retained application declarations,
+and canonical accumulating-GUR application.
 GUR is the advanced layer for recursive declaration problems: macros, compiler
 construction, recursive AST/list traversal, recursive lexical accessor
 construction, and higher-order operators that need unbounded but idempotent

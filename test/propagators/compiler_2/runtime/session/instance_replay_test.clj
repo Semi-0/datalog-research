@@ -6,6 +6,7 @@
             [graph.compiler-2-runtime-json-server :as json-server]
             [graph.compiler-2-runtime-server :as server]
             [graph.json :as json]
+            [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.tms.distributed :as tms]
             [propagators.network :as net]
@@ -48,6 +49,25 @@
     :update (tms/distributed-premise-update (:premise-id record)
                                             epoch active?)}))
 
+(defn child-networks
+  [network]
+  (keep (fn [entry]
+          (cond
+            (cell/cell? entry)
+            (let [content (cell/cell-strongest entry)]
+              (cond
+                (net/net? content) content
+                :else nil))
+
+            :else nil))
+        (vals (net/net-env network))))
+
+(defn nested-propagators
+  [network]
+  (->> (tree-seq net/net? child-networks network)
+       (mapcat #(vals (net/net-env %)))
+       (filter prop/prop?)))
+
 (deftest four-edit-json-replay-keeps-tms-in-the-block-display-cell
   (let [runtime-server (start-json-runtime)]
     (try
@@ -62,7 +82,7 @@
             display-props
             (filter #(and (prop/prop? %)
                           (= :runtime/tui-block-display (prop/prop-name %)))
-                    (vals (net/net-env (:program/net state))))
+                    (nested-propagators (:program/net state)))
             topology-before (replay/topology-counts (:program/net state))
             retried (json-server/request
                      "127.0.0.1" port

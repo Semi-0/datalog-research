@@ -76,7 +76,10 @@
 (defn- potential-callee-id
   [network closure-info {:keys [operator operator-label]}]
   (if (= :symbol (ast/type operator))
-    (or (env/lexical-binding-id network
+    (or (env/resolve-binding-id network
+                                (closure-value/closure-env closure-info)
+                                (ast/name operator))
+        (env/lexical-binding-id network
                                 (ast/name operator)
                                 (closure-value/closure-env closure-info))
         (stable-node-id :operator operator-label))
@@ -85,10 +88,16 @@
 (defn potential-call-graph
   "Build the potential call graph stored in one closure body."
   [network closure-id closure-info]
-  (reduce
+  (let [network-with-lexical-topology
+        (env/import-captured-lexical-topology
+         network
+         (closure-value/captured-lexical-topology closure-info))]
+    (reduce
    (fn [graph {:keys [path operator-label] :as site}]
      (let [call-id (stable-node-id :potential closure-id path)
-           callee-id (potential-callee-id network closure-info site)
+           callee-id (potential-callee-id network-with-lexical-topology
+                                          closure-info
+                                          site)
            callee-label (if (= closure-id callee-id)
                           (closure-label closure-info)
                           operator-label)]
@@ -102,14 +111,14 @@
                            :call/operator operator-label}}
          :edges [[closure-id call-id] [call-id callee-id]]})))
    (empty-graph)
-   (call-sites (closure-value/closure-body closure-info))))
+   (call-sites (closure-value/closure-body closure-info)))))
 
 (defn- realized-callee-label
   [operator operator-expr]
   (cond
     (closure-value/closure-info? operator) (closure-label operator)
     (operator-value/operator-closure? operator)
-    (str (or (obj/slot-value operator operator-value/name-slot)
+    (str (or (operator-value/operator-name operator)
              (operator-label operator-expr)))
     :else (operator-label operator-expr)))
 
@@ -196,6 +205,15 @@
   []
   (operator-value/propagator-operator
    {:name 'call-graph
+    :boundary-cell-ids
+    (fn [_network arg-ids]
+      (let [[closure-id] (vec arg-ids)]
+        (cond
+          (ids/node-id? closure-id)
+          [(graph-cell-id closure-id)]
+
+          :else
+          [])))
     :output-selector
     (fn [arg-ids fallback-id]
       (let [[_closure-id explicit-out-id] (vec arg-ids)]

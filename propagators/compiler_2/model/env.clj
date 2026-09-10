@@ -193,6 +193,38 @@
 (defn lookup [env sym]
   (:value (lookup-entry env sym)))
 
+(defn referenced-cell-ids
+  "Enumerate external cell addresses declared by a compound lexical environment."
+  [environment]
+  (loop [frame environment
+         seen #{}
+         referenced []]
+    (cond
+      (or (nil? frame) (value/unusable? frame))
+      (vec (distinct referenced))
+
+      (contains? seen frame)
+      (throw (ex-info "compound lexical environment parent cycle"
+                      {:environment environment}))
+
+      :else
+      (let [frame-ids
+            (->> (local-bindings frame)
+                 (keep (fn [sym]
+                         (let [binding (current-frame-binding frame sym)
+                               id (:binding/id binding)]
+                           (cond
+                             (ids/node-id? id)
+                             id
+
+                             :else
+                             nil))))
+                 vec)
+            parent (obj/slot-value frame env-parent-key)]
+        (recur parent
+               (conj seen frame)
+               (into referenced frame-ids))))))
+
 (defn- declare-prop-id? [effect]
   (= :declare-prop
      (or (:network-vm/op effect)
@@ -218,6 +250,98 @@
 (def lexical-topology-scope
   "Runtime name-binding scope for delayed lexical topology declarations."
   [:compiler-2 :lexical-topology])
+
+(defn retain-compiler-declaration
+  "Retain compiler-owned declaration data by its canonical binding address."
+  [network binding-id declaration]
+  (cond
+    (ids/node-id? binding-id)
+    (net/update-net-dict-entry
+     network
+     lexical-topology-key
+     #(assoc-in (or % {}) [:declarations binding-id] declaration))
+
+    :else
+    (throw (ex-info "compiler declaration requires a binding cell"
+                    {:binding-id binding-id
+                     :declaration declaration}))))
+
+(defn compiler-declaration
+  [network binding-id]
+  (get-in (net/network-dict-entry network lexical-topology-key)
+          [:declarations binding-id]))
+
+(defn- captured-topology
+  [topology captured-frames]
+  (let [captured-ids (->> captured-frames
+                          (tree-seq coll? seq)
+                          (filter ids/node-id?)
+                          set)]
+    {:frames captured-frames
+     :declarations (select-keys (:declarations topology) captured-ids)}))
+
+(defn captured-lexical-topology
+  "Retain the fixed lexical frame chain rooted at `env-id`."
+  [network env-id]
+  (let [topology (net/network-dict-entry network lexical-topology-key)
+        frames (:frames topology)]
+    (loop [frame-id env-id
+           seen #{}
+           captured {}]
+      (let [frame (get frames frame-id)]
+        (cond
+          (contains? seen frame-id)
+          (throw (ex-info "lexical environment parent cycle"
+                          {:env-id env-id
+                           :frame-id frame-id}))
+
+          (nil? frame)
+          (throw (ex-info "missing lexical topology for captured environment"
+                          {:env-id env-id
+                           :frame-id frame-id}))
+
+          (ids/node-id? (:parent-id frame))
+          (recur (:parent-id frame)
+                 (conj seen frame-id)
+                 (assoc captured frame-id frame))
+
+          :else
+          (captured-topology topology
+                             (assoc captured frame-id frame)))))))
+
+(defn captured-lexical-cell-ids
+  "Enumerate cells referenced by a retained lexical topology fragment."
+  [network env-id]
+  (->> (:frames (captured-lexical-topology network env-id))
+       (tree-seq coll? seq)
+       (filter ids/node-id?)
+       (cons env-id)
+       distinct
+       vec))
+
+(defn import-captured-lexical-topology
+  "Merge a retained lexical parent chain into a declaration network."
+  [network captured]
+  (net/update-net-dict-entry
+   network
+   lexical-topology-key
+   (fn [topology]
+     (let [current (cond
+                     (map? topology) topology
+                     :else {})]
+       (-> current
+           (update :frames
+                   (fn [frames]
+                     (merge (cond
+                              (map? frames) frames
+                              :else {})
+                            (:frames captured))))
+           (update :declarations
+                   (fn [declarations]
+                     (merge (cond
+                              (map? declarations) declarations
+                              :else {})
+                            (:declarations captured)))))))))
 
 (defn- runtime-topology
   [network]
@@ -1286,8 +1410,11 @@
              (let [binding (:binding declaration)]
                (if (binding-id binding)
                  [n (assoc slots slot-key declaration)]
-                 (let [value-id (imported-binding-id env-id sym source)]
-                   [(nb/seed-cell (nb/ensure-cell n value-id) value-id binding)
+                 (let [value-id (imported-binding-id env-id sym source)
+                       seeded (nb/seed-cell (nb/ensure-cell n value-id)
+                                            value-id
+                                            binding)]
+                   [(retain-compiler-declaration seeded value-id binding)
                     (assoc slots slot-key
                            (assoc declaration :binding (cell-binding value-id)))]))))
            [network {}]
@@ -1340,9 +1467,16 @@
     (reduce
      (fn [{:keys [net props] :as declared} [sym binding]]
        (let [id (declared-binding-id env-id sym binding)
-             net (if (binding-id binding)
-                   (nb/ensure-cell net id)
-                   (nb/seed-cell (nb/ensure-cell net id) id binding))
+             net
+             (cond
+               (binding-id binding)
+               (nb/ensure-cell net id)
+
+               :else
+               (-> net
+                   (nb/ensure-cell id)
+                   (nb/seed-cell id binding)
+                   (retain-compiler-declaration id binding)))
              [new-props net] ((p:declare-fixed-local sym env-id id) net)]
          (assoc declared :net net :props (into props new-props))))
      {:net network :env env-id :props []}

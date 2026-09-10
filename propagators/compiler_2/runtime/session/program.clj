@@ -14,13 +14,13 @@
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.operators.block-premise :as block-premise]
             [propagators.compiler-2.operators.versioned-definition :as definition]
-            [propagators.compiler-2.runtime.application :as compiler-app]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.compiler-2.main :as compiler]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.ids :as ids]
+            [propagators.gur.accumulating :as gur]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -48,45 +48,23 @@
 
 (declare runtime-compiler)
 
-(defn runtime-application-installer
-  [application-id operator-id args-id arg-ids context-id out-id]
-  (compiler-app/p:apply-application-with runtime-compiler
-                                         application-id
-                                         operator-id
-                                         args-id
-                                         arg-ids
-                                         context-id
-                                         out-id))
-
 (defn runtime-compiler
   [compiler-state expr]
-  (compiler/default-compiler
-   (assoc compiler-state :application-installer runtime-application-installer)
-   expr))
+  (compiler/default-compiler compiler-state expr))
 
 (defn runtime-compile-options
   [opts]
   (assoc opts
-         :compiler (or (:compiler opts) runtime-compiler)
-         :application-installer runtime-application-installer))
+         :compiler (or (:compiler opts) runtime-compiler)))
 
 (declare runtime-env
          settle-application-props)
-
-(defn- expose-application-boundary-outputs
-  [program-net]
-  (net/update-net-dict-entry
-   program-net
-   compiler-app/application-extra-output-ids-key
-   (fnil conj #{})
-   (boundary-outbox-id)))
 
 (defn compiled-state
   [source]
   (let [graph-id (runtime-graph-id)
         base-state (empty-state)
         base-net (-> (:program/net base-state)
-                     expose-application-boundary-outputs
                      (nb/ensure-cell (boundary-outbox-id))
                      (nb/install-cell graph-id
                                       (semantic-trace/graph-union (empty-graph))
@@ -341,16 +319,10 @@
           :env child-id
           :props props})))))
 
-(defn retained-application-props
-  [program-net]
-  (vec (get (net/net-dict-or-empty program-net)
-            compiler-app/apply-application-props-key
-            #{})))
-
 (defn settle-application-props
   [program-net current-props]
-  (let [props (vec (distinct (concat (retained-application-props program-net)
-                                     current-props)))]
+  (let [props (vec (distinct (concat current-props
+                                     (gur/runner-prop-ids program-net))))]
     (-> program-net
         (nb/run-propagators props)
         (nb/run-propagators props))))
@@ -393,7 +365,6 @@
           top-level-trace? (trace-source? source)
           graph-id (runtime-graph-id)
           program-net-input (-> (:program/net state)
-                                expose-application-boundary-outputs
                                 (nb/ensure-cell (boundary-outbox-id))
                                 (nb/install-cell graph-id
                                                  (:graph state)

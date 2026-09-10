@@ -1,7 +1,23 @@
 (ns propagators.gur.accumulating.runner
   "Public runner constructor for accumulated GUR network values."
   (:require [propagators.gur.accumulating.runner.executor :as executor]
+            [propagators.network :as net]
             [propagators.propagator :as prop]))
+
+(def runner-prop-name :gur/run-accumulated-network)
+
+(defn runner-prop-ids
+  [network]
+  (->> (net/net-env network)
+       (keep (fn [[id entry]]
+               (cond
+                 (and (prop/prop? entry)
+                      (= runner-prop-name (prop/prop-name entry)))
+                 id
+
+                 :else
+                 nil)))
+       vec))
 
 (defn- runner-state
   []
@@ -31,23 +47,42 @@
                                        external-output-ids)))
          state (runner-state)]
      (prop/construct-propagator
+      runner-prop-name
       (fn [_inputs _outputs parent-net]
-        (let [token (executor/runner-input-token parent-net inputs)]
-          (if (executor/same-input-token? token @(:last-input-token state))
+        (let [boundary-ids (executor/cached-boundary-cell-ids
+                            state
+                            parent-net
+                            applied-net-id
+                            import-ids
+                            external-output-ids)
+              projected-output-ids
+              (executor/projected-boundary-output-ids parent-net
+                                                      applied-net-id)
+              boundary-dict-keys
+              (executor/boundary-dict-keys parent-net applied-net-id)
+              token {:cells (executor/runner-input-token
+                             parent-net
+                             (distinct (concat inputs boundary-ids)))
+                     :dict (mapv (fn [dict-key]
+                                   [dict-key
+                                    (get (net/net-dict-or-empty parent-net)
+                                         dict-key)])
+                                 boundary-dict-keys)}]
+          (cond
+            (= token @(:last-input-token state))
             []
+
+            :else
             (do
               (reset! (:last-input-token state) token)
-              (let [boundary-ids (executor/cached-boundary-cell-ids
-                                  state
-                                  parent-net
-                                  import-ids
-                                  external-output-ids)]
-                (executor/run-accumulated-messages state
-                                                   parent-net
-                                                   applied-net-id
-                                                   import-ids
-                                                   external-output-ids
-                                                   boundary-ids))))))
+              (executor/run-accumulated-messages state
+                                                 parent-net
+                                                 applied-net-id
+                                                 import-ids
+                                                 external-output-ids
+                                                 boundary-ids
+                                                 projected-output-ids
+                                                 boundary-dict-keys)))))
       inputs
       (into [applied-net-id] (distinct (concat import-ids
                                                external-output-ids)))))))

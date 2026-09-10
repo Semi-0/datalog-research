@@ -3,6 +3,7 @@
   (:require [propagators.compiler-2.runtime.boundary :as boundary]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.cells.value :as value]
+            [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.tms.distributed :as tms]
             [propagators.compiler-2.operators.block-premise :as premise]
@@ -22,23 +23,79 @@
         commit-tick (long (or (:runtime/commit-tick dict) 0))]
     (+ (* program-epoch 1000000000) commit-tick)))
 
-(defn declared-slot-parent-id
-  [network block-id slot-key]
-  (some->> (get (obj/accessor-declarations-for network block-id) slot-key)
-           keys
-           (sort-by pr-str)
-           first))
+(defn declared-slot-cell-id
+  "Return the cell named by one declared accessor slot.
+
+  A live accessor names the cell through a parent route. An accessor projected
+  across a GUR boundary retains the same relation as a source-slot NodeId."
+  [network object-id slot-key]
+  (let [object-value
+        (cond
+          (contains? (net/net-env network) object-id)
+          (net/network-cell-strongest network object-id)
+
+          :else
+          value/nothing)
+        parent-id
+        (->> (get (obj/accessor-declarations-for network object-id) slot-key)
+             keys
+             (sort-by pr-str)
+             first)]
+    (cond
+      (ids/node-id? parent-id)
+      parent-id
+
+      (and (obj/accessor-network? object-value)
+           (obj/accessor-source-slot-present? object-value slot-key))
+      (let [source-value (obj/accessor-source-slot-value object-value slot-key)]
+        (cond
+          (ids/node-id? source-value)
+          source-value
+
+          :else
+          nil))
+
+      :else
+      nil)))
+
+(defn linked-object-id
+  "Resolve a slot cell to the compound object it names."
+  [network cell-id]
+  (cond
+    (not (ids/node-id? cell-id))
+    nil
+
+    :else
+    (let [cell-value (net/network-cell-strongest network cell-id)]
+      (cond
+        (ids/node-id? cell-value)
+        cell-value
+
+        (obj/accessor-network? cell-value)
+        cell-id
+
+        :else
+        nil))))
 
 (defn instance-block-head-id
   [network instance-id]
   (let [instance-value (net/network-cell-strongest network instance-id)
-        instance-id (if (ids/node-id? instance-value)
-                      instance-value
-                      instance-id)]
-    (when-let [blocks-id (declared-slot-parent-id network
-                                                  instance-id
-                                                  :instance/blocks)]
-      (net/network-cell-strongest network blocks-id))))
+        resolved-instance-id
+        (cond
+          (ids/node-id? instance-value)
+          instance-value
+
+          :else
+          instance-id)
+        blocks-id (declared-slot-cell-id network
+                                         resolved-instance-id
+                                         :instance/blocks)]
+    (cond
+      (ids/node-id? blocks-id)
+      (linked-object-id network blocks-id)
+
+      :else
+      nil)))
 
 (defn block-at-slot-id
   [network instance-id index-id slot-key]
@@ -46,20 +103,34 @@
         first-block-id (instance-block-head-id network instance-id)]
     (loop [block-id first-block-id
            seen #{}]
-      (when (and (ids/node-id? block-id)
-                 (not (contains? seen block-id)))
-        (let [index-cell-id (declared-slot-parent-id network
-                                                     block-id
-                                                     :block/index)
-              slot-cell-id (declared-slot-parent-id network block-id slot-key)
-              next-cell-id (declared-slot-parent-id network block-id :cdr)
-              block-index (when index-cell-id
-                            (net/network-cell-strongest network index-cell-id))]
-          (if (= wanted-index block-index)
+      (cond
+        (not (ids/node-id? block-id))
+        nil
+
+        (contains? seen block-id)
+        nil
+
+        :else
+        (let [index-cell-id (declared-slot-cell-id network
+                                                   block-id
+                                                   :block/index)
+              slot-cell-id (declared-slot-cell-id network block-id slot-key)
+              next-cell-id (declared-slot-cell-id network block-id :cdr)
+              block-index
+              (cond
+                (ids/node-id? index-cell-id)
+                (net/network-cell-strongest network index-cell-id)
+
+                :else
+                value/nothing)
+              next-block-id
+              (linked-object-id network next-cell-id)]
+          (cond
+            (= wanted-index block-index)
             slot-cell-id
-            (recur (when next-cell-id
-                     (net/network-cell-strongest network next-cell-id))
-                   (conj seen block-id))))))))
+
+            :else
+            (recur next-block-id (conj seen block-id))))))))
 
 (defn block-at-text-id
   [network instance-id index-id]
@@ -68,6 +139,77 @@
 (defn block-at-display-id
   [network instance-id index-id]
   (block-at-slot-id network instance-id index-id :block/display))
+
+(defn block-at-boundary-cell-ids
+  "Return only the host cells needed to resolve one block by index."
+  [network instance-id index-id]
+  (cond
+    (not (and (ids/node-id? instance-id) (ids/node-id? index-id)))
+    []
+
+    :else
+    (let [wanted-index (net/network-cell-strongest network index-id)
+        instance-value (net/network-cell-strongest network instance-id)
+        resolved-instance-id
+        (cond
+          (ids/node-id? instance-value) instance-value
+          :else instance-id)
+        blocks-id (declared-slot-cell-id network
+                                         resolved-instance-id
+                                         :instance/blocks)
+        first-block-id
+        (linked-object-id network blocks-id)]
+    (loop [block-id first-block-id
+           seen #{}
+           boundary-ids [instance-id index-id blocks-id]]
+      (cond
+        (not (ids/node-id? block-id))
+        (vec (filter ids/node-id? boundary-ids))
+
+        (contains? seen block-id)
+        (vec (filter ids/node-id? boundary-ids))
+
+        :else
+        (let [index-cell-id (declared-slot-cell-id network
+                                                   block-id
+                                                   :block/index)
+              next-cell-id (declared-slot-cell-id network block-id :cdr)
+              block-index
+              (cond
+                (ids/node-id? index-cell-id)
+                (net/network-cell-strongest network index-cell-id)
+
+                :else
+                value/nothing)
+              extended (into boundary-ids
+                             [block-id index-cell-id next-cell-id])]
+          (cond
+            (= wanted-index block-index)
+            (vec (filter ids/node-id? extended))
+
+            (ids/node-id? next-cell-id)
+            (recur (linked-object-id network next-cell-id)
+                   (conj seen block-id)
+                   extended)
+
+            :else
+            (vec (filter ids/node-id? extended)))))))))
+
+(def display-boundary-dict-keys
+  (conj operator-value/effect-boundary-dict-keys
+        premise/binding-contexts-key))
+
+(defn premise-state-boundary-cell-ids
+  [network source-id]
+  (cond
+    (ids/node-id? source-id)
+    (->> (premise/binding-contexts network source-id)
+         (map :premise/state-cell)
+         (filter ids/node-id?)
+         vec)
+
+    :else
+    []))
 
 (defn tui-write-effect-request
   [effect-id text-id payload epoch]

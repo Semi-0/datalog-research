@@ -117,7 +117,7 @@
                                     :cell-id (bridge/client-list-source-id)
                                     :update (bridge/linked-list-value ["A" "B"])})
     (is (= (bridge/client-handle "A")
-           (net/network-cell-strongest
-            (:program/net @session)
-            (cenv/binding-id
-             (cenv/lookup (:program/env @session) 'f)))))))
+           (let [network (:program/net @session)
+                 binding-id (cenv/resolve-binding-id
+                             network (:program/env @session) 'f)]
+             (net/network-cell-strongest network binding-id))))))
