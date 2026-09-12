@@ -21,29 +21,32 @@ protocol, or scheduler.
 - Recovery branch: `codex/compiler-2-application-runtime-cleanup`
 - Recovery implementation: `3eac0243745cf1a6a21495e4f6e77a5bbef5900d`
 - Published location: `Semi-0/datalog-research`, recovery branch
-- Extracted compiler delivery: missing from `Semi-0/lain-compiler`; its observed
-  `main` remained `cf6301167e900e40c5a9137c8264bb874a6d7049`
+- Extracted compiler delivery: published to `Semi-0/lain-compiler`, branch
+  `codex/compiler-2-flat-gur-application`, commit
+  `3ec0685c638a5ff36b8e458a1133fc9945f05282`
+- Extracted integration delivery: blocked in `wired`; the dependency-pinned
+  worktree fails semantic inspection and compound-result projection tests, so
+  no `wired` commit or push was made
 - Database status: Kiroshi evidence was drafted, but the database was not mutated or approved.
 
 The incident checkpoint is preserved for inspection. It must not be treated as
 the implementation base for the next Compiler 2 application change without a
 new review of its GUR and TMS modifications.
 
-The recovery commit is also a monorepo checkpoint, not a completed
+The recovery commit remains the provenance checkpoint for a partially completed
 multi-repository delivery. `Semi-0/lain-compiler` is the canonical Compiler 2
 repository: the extraction renamed `propagators.compiler-2.*` to
 `propagators.compiler.*` and retained the parser, CPS compiler, compiler model,
 application lowering, compiler operators, tests, and documentation there. The
-recovery work should have been delivered through that repository boundary.
+recovery work is now published through that repository boundary.
 
 The commit also changes shared `propagators.gur` and `propagators.install`
 facades, runtime/session integration, demonstrations, tests, and documentation.
-Publishing therefore requires a path-by-path ownership split and
-dependency-ordered, history-preserving ports: shared changes to
-`lain-infrastructure`, compiler changes to `lain-compiler`, then runtime and TUI
-consumers to their repositories. Pushing the complete monorepo commit directly
-to `lain-compiler` would recreate a repository-boundary error. The missing port
-and its required ownership split are recorded in
+The path-by-path ownership split produced published infrastructure, compiler,
+and runtime topic branches. The final TUI consumer port exposed unresolved
+cross-repository behavior and stopped before commit. Pushing the complete
+monorepo commit directly to `lain-compiler` would still recreate a
+repository-boundary error. The delivery receipts and remaining gap are recorded in
 [Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md#multi-repository-delivery-gap).
 
 ## Executive summary

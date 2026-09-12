@@ -183,14 +183,13 @@ lowering, behavior compiler, call-graph and TMS operators, public compiler API,
 tests, and compiler documentation. Its declared dependency is
 `Semi-0/lain-infrastructure`.
 
-This architecture is currently implemented only in monorepo commit
+The implementation originated in monorepo commit
 `3eac0243745cf1a6a21495e4f6e77a5bbef5900d` on
 `Semi-0/datalog-research`, branch
-`codex/compiler-2-application-runtime-cleanup`. It has not been published to
-`lain-compiler`. Developing and publishing the completed Compiler 2 refactor
-only on the monorepo branch was a delivery error. At the time this gap was
-recorded, the remote `lain-compiler` `main` and `HEAD` both remained at
-`cf6301167e900e40c5a9137c8264bb874a6d7049`.
+`codex/compiler-2-application-runtime-cleanup`. Its dependency-ordered
+extraction has now published topic branches for infrastructure, the canonical
+Compiler 2 repository, and runtime. None of these topic branches is described
+as merged to `main`.
 
 The monorepo commit cannot be copied wholesale into `lain-compiler`. Its files
 cross the established extraction boundaries:
@@ -199,9 +198,25 @@ cross the established extraction boundaries:
 {:implemented-in
  {:monorepo {:repository "Semi-0/datalog-research"
              :commit "3eac0243745cf1a6a21495e4f6e77a5bbef5900d"}
-  :compiler-repository {:repository "Semi-0/lain-compiler"
-                        :observed-head "cf6301167e900e40c5a9137c8264bb874a6d7049"
-                        :port-status :missing}}
+  :infrastructure-repository
+  {:repository "Semi-0/lain-infrastructure"
+   :branch "codex/flat-gur-default"
+   :commit "4df5523f709289854e44676a91f10a96b68603f5"
+   :port-status :published}
+  :compiler-repository
+  {:repository "Semi-0/lain-compiler"
+   :branch "codex/compiler-2-flat-gur-application"
+   :commit "3ec0685c638a5ff36b8e458a1133fc9945f05282"
+   :port-status :published}
+  :runtime-repository
+  {:repository "Semi-0/lain-runtime-clojure"
+   :branch "codex/compiler-2-flat-gur-runtime"
+   :commit "e3d726c45a82b3cfb3a00ccd5855ffae6db5d5c2"
+   :port-status :published}
+  :tui-repository
+  {:repository "Semi-0/wired"
+   :branch "codex/compiler-2-flat-gur-tui"
+   :port-status :blocked-uncommitted}}
 
  :required-port-boundaries
  {:lain-infrastructure '#{propagators.gur
@@ -223,17 +238,29 @@ cross the established extraction boundaries:
                        research-documents}}
 
  :delivery-state
- {:ownership-classification :required
-  :history-preserving-port :not-started
-  :cross-repository-verification :not-run}}
+ {:ownership-classification :complete
+  :history-preserving-port :partial
+  :cross-repository-verification :failed-at-wired
+  :published-through :lain-runtime-clojure}}
 ```
 
-Before publishing, classify every changed path against the extracted repository
-map, preserve the original commit as provenance, and port
-`lain-infrastructure` before `lain-compiler`, followed by runtime and TUI
-consumers. Verify the resulting commits inside each destination repository.
-Until that work is complete, the flat-GUR Compiler 2 refactor is a monorepo
-implementation and must not be described as delivered in `lain-compiler`.
+The published compiler port passed 70 standalone test vars under a three-second
+per-test guard. The runtime port passed its 135-test standalone inventory under
+the same guard. The `wired` verification exposed two integration gaps:
+
+1. Its semantic graph adapters delegate to runtime inspection that does not yet
+   interpret callable-wrapped flat-GUR declarations and application names in the
+   form expected by the existing TUI trace views.
+2. Existing TUI consumers expect selected values from compound outputs, while
+   several calls now expose accessor compounds or `nothing`. This affects
+   linked-list projection, block targets and watches, slider arithmetic, and
+   web-client routing.
+
+The exploratory runtime inspection fix was reverted because it would have
+expanded the port into a new runtime design. `wired` remains uncommitted and
+unpushed. Completing it requires a separate ownership decision for runtime
+semantic inspection and compound-result projection; weakening or deleting its
+integration tests would not prove the port.
 
 ## Known limitation: dictionary-backed cell protocols
 
