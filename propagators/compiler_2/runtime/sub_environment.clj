@@ -4,8 +4,8 @@
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.compiler.dispatch :as dispatch]
             [propagators.compiler-2.model.env :as env]
+            [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.runtime.activation :as activation]
-            [propagators.compiler-2.runtime.application-layers :as layers]
             [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -27,10 +27,13 @@
                                             parent-env-id
                                             child-env-id
                                             :parent)
-        [imported _] (env/import-environment network runtime-parent-id parent-env)
-        [props declared] ((env/p:scope-frame runtime-parent-id child-env-id)
-                          (h/ensure-cell imported child-env-id))]
-    [props declared]))
+        {:keys [net prop-ids]}
+        (env/import-environment-topology network runtime-parent-id parent-env
+                                         operator-value/canonical-callable)
+        [scope-props declared]
+        ((env/p:scope-frame runtime-parent-id child-env-id)
+         (h/ensure-cell net child-env-id))]
+    [(into (vec prop-ids) scope-props) declared]))
 
 (defn- compile-expr
   [compile* expr child-env network seed props]
@@ -44,6 +47,24 @@
     :compiler compile*}
    expr))
 
+(defn- install-result-boundary
+  [network child-env-id result-id out-id]
+  (let [prop-id (h/stable-node-id :compiler-2
+                                  :execute-sub-env
+                                  child-env-id
+                                  :result-boundary)
+        prepared (reduce h/ensure-cell network [result-id out-id])]
+    ((prop/construct-propagator
+      prop-id
+      :compiler-2/execute-sub-env-result
+      (prop/concrete-propagator
+       (fn [_inputs _outputs current-net]
+         [(message out-id
+                   (net/network-cell-content current-net result-id))]))
+      [result-id]
+      [out-id])
+     prepared)))
+
 (defn execute-sub-env-messages-with
   [compile* parent-env-id expr-id child-env-id out-id network]
   (let [expr (h/strongest-or-nothing network expr-id)
@@ -56,20 +77,23 @@
             [state result]
             (compile-expr compile* expr child-env-id with-child
                           [:compiler-2/execute-sub-env
-                           parent-env-id expr-id child-env-id out-id]
+                          parent-env-id expr-id child-env-id out-id]
                           env-props)
             result-id (env/binding-id result)
-            after-body (activation/run-network (:net state) [] (:props state))
-            value-id (layers/result-value-id after-body result-id)
-            result-value (h/strongest-or-nothing after-body value-id)
-            result-content (cell-content-or-nothing after-body value-id)
-            output-content (if (value/unusable? result-content)
-                             result-value
-                             result-content)
-            diff (topology-effects/network-diff network after-body (:props state))]
-        (if (value/unusable? output-content)
-          diff
-          (update diff :messages conj (message out-id output-content)))))))
+            [boundary-id connected]
+            (cond
+              (ids/node-id? result-id)
+              (install-result-boundary (:net state)
+                                       child-env-id result-id out-id)
+
+              :else
+              (throw
+               (ex-info "Sub-environment body declared no result cell"
+                        {:child-env-id child-env-id
+                         :result result})))
+            props (conj (vec (:props state)) boundary-id)
+            after-body (activation/run-network connected [] props)]
+        (topology-effects/network-diff network after-body props)))))
 
 (defn execute-sub-env-messages
   [parent-env-id expr-id child-env-id out-id network]

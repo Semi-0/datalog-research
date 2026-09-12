@@ -418,21 +418,39 @@
   ([ctx args out]
    (recur* ctx args out)))
 
+(defn when-named
+  "Declare `body-transform` once when `condition` becomes usable.
+
+  `role` is part of the stable topology identity, so callers can name the
+  semantic branch instead of depending on its position in an effect vector."
+  ([role condition body-transform]
+   (fn [ctx]
+     (when-named ctx role condition body-transform)))
+  ([ctx role condition body-transform]
+   (let [when-f (:when ctx)]
+     (cond
+       (nil? when-f)
+       (throw
+        (ex-info "lazy topology availability is unavailable in this install context"
+                 {:scope (:scope ctx)
+                  :role role
+                  :condition condition}))
+
+       :else
+       (let [[resolved condition-id] (resolve-arg ctx condition)
+             when-key [(:scope resolved) :when role condition-id]
+             body (fn []
+                    (result
+                     (body-transform
+                      (assoc resolved :effects [] :messages []))))]
+         (emit resolved (when-f when-key condition-id body)))))))
+
 (defn when
   ([condition body-transform]
    (fn [ctx]
      (when ctx condition body-transform)))
   ([ctx condition body-transform]
-   (let [when-f (:when ctx)]
-     (when-not when-f
-       (throw (ex-info "lazy topology when is unavailable in this install context"
-                       {:scope (:scope ctx)})))
-     (let [[ctx* condition-id] (resolve-arg ctx condition)
-           when-key [(:scope ctx*) :when condition-id (count (:effects ctx*))]]
-       (emit ctx*
-             (when-f when-key
-                     condition-id
-                     (fn []
-                       (result (body-transform (assoc ctx*
-                                                      :effects []
-                                                      :messages []))))))))))
+   (when-named ctx
+               [:effect-position (count (:effects ctx))]
+               condition
+               body-transform)))

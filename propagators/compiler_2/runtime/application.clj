@@ -1,31 +1,238 @@
 (ns propagators.compiler-2.runtime.application
-  "Application propagator for compiler-2 network closures.
-
-  Closure cells are data. This namespace owns runtime application: bind
-  arguments into an activation-local environment, compile the
-  body into a transient activation network, run it, and emit only the declared
-  output diff back to the outer network.
-  "
-  (:require [propagators.boundary :as boundary]
-            [propagators.cells.value :as value]
-            [propagators.compiler-2.model.application-value :as application-value]
+  "Compiler 2 application as delayed flat-GUR topology in the active Net."
+  (:require [propagators.cells.value :as value]
             [propagators.compiler-2.model.closure-value :as closure-value]
-            [propagators.compiler-2.compiler.dispatch :as dispatch]
             [propagators.compiler-2.model.env :as env]
-            [propagators.compiler-2.compiler.basis :as h]
-            [propagators.compiler-2.model.operator-value :as operator-value]
-            [propagators.compiler-2.runtime.activation :as activation]
-            [propagators.compiler-2.runtime.sub-environment :as sub-environment]
-            [propagators.compiler-2.runtime.application-output :as output]
-            [propagators.compiler-2.runtime.application-layers :as layers]
+            [propagators.compiler-2.runtime.topology-effects :as topology]
+            [propagators.core :as core]
+            [propagators.gur :as gur]
+            [propagators.ids :as ids]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.propagator :as prop]
-            [propagators.stdlib.prop :as stdlib-prop]))
+            [propagators.network-builder :as nb]
+            [propagators.propagator :as prop]))
 
-(def apply-closure-props-key :compiler-2/apply-closure-props)
-(def apply-application-props-key :compiler-2/apply-application-props)
-(def execute-sub-env-props-key sub-environment/execute-sub-env-props-key)
-(def application-extra-output-ids-key :compiler-2/application-extra-output-ids)
+(def compiler-callable-key :compiler-2/callable?)
+(def declaration-id-key :compiler-2/declaration-id)
+(def captured-environment-key :compiler-2/captured-environment)
+(def declaration-key :compiler-2/declaration)
+(def execute-sub-env-props-key :compiler-2/execute-sub-env-props)
+(def application-name-scope [:compiler-2 :applications])
+
+(declare primitive-application-effects)
+(declare closure-application-effects)
+(declare constraint-application-effects)
+
+(defprotocol ApplicationTopology
+  (application-effects
+    [application gur-context invocation-ids result-id]))
+
+(deftype PrimitiveApplication [installer declaration]
+  ApplicationTopology
+  (application-effects
+    [_ gur-context invocation-ids result-id]
+    (primitive-application-effects
+     installer declaration gur-context invocation-ids result-id)))
+
+(deftype ClosureApplication
+  [compile* declaration-id lexical-env-id closure-info]
+  ApplicationTopology
+  (application-effects
+    [_ gur-context invocation-ids result-id]
+    (closure-application-effects
+     compile* declaration-id lexical-env-id closure-info
+     gur-context invocation-ids result-id)))
+
+(deftype ConstraintApplication
+  [compile* declaration-id lexical-env-id closure-info]
+  ApplicationTopology
+  (application-effects
+    [_ gur-context invocation-ids result-id]
+    (constraint-application-effects
+     compile* declaration-id lexical-env-id closure-info
+     gur-context invocation-ids result-id)))
+
+(defn compiler-callable
+  [name declaration-id lexical-env-id application declaration]
+  (assoc
+   (gur/recursive-closure name (partial application-effects application))
+   compiler-callable-key true
+   declaration-id-key declaration-id
+   captured-environment-key lexical-env-id
+   declaration-key declaration))
+
+(defn primitive-callable
+  [name declaration-id installer declaration]
+  (compiler-callable
+   name declaration-id nil
+   (PrimitiveApplication. installer declaration)
+   declaration))
+
+(defn closure-callable
+  [compile* name declaration-id lexical-env-id closure-info]
+  (compiler-callable
+   name declaration-id lexical-env-id
+   (ClosureApplication. compile* declaration-id lexical-env-id closure-info)
+   closure-info))
+
+(defn constraint-callable
+  [compile* name declaration-id lexical-env-id closure-info]
+  (compiler-callable
+   name declaration-id lexical-env-id
+   (ConstraintApplication. compile* declaration-id lexical-env-id closure-info)
+   closure-info))
+
+(defn compiler-callable?
+  [candidate]
+  (and (gur/recursive-closure? candidate)
+       (true? (get candidate compiler-callable-key))
+       (contains? candidate declaration-id-key)
+       (contains? candidate captured-environment-key)))
+
+(defn callable-declaration
+  [candidate]
+  (cond
+    (compiler-callable? candidate)
+    (get candidate declaration-key value/nothing)
+
+    :else
+    candidate))
+
+(defn- application-relation-key?
+  [key]
+  (and (vector? key)
+       (= 2 (count key))
+       (vector? (first key))
+       (= :gur.flat/application (first (first key)))))
+
+(defn- ordered-argument-ids
+  [relations]
+  (->> relations
+       (keep (fn [[role id]]
+               (cond
+                 (and (vector? role)
+                      (= :argument (first role))
+                      (number? (second role)))
+                 [(second role) id]
+
+                 :else
+                 nil)))
+       (sort-by first)
+       (mapv second)))
+
+(defn application-topologies
+  "Read connected application declarations from flat GUR name bindings."
+  [network]
+  (let [bindings (get (net/network-dict-entry network gur/name-bindings-key)
+                      application-name-scope
+                      {})
+        grouped
+        (reduce-kv
+         (fn [applications key id]
+           (cond
+             (application-relation-key? key)
+             (let [[application-id role] key]
+               (assoc-in applications [application-id role] id))
+
+             :else
+             applications))
+         {}
+         bindings)]
+    (mapv (fn [[application-id relations]]
+            {:application-id application-id
+             :operator-id (:operator relations)
+             :argument-ids (ordered-argument-ids relations)
+             :context-id (:context relations)
+             :captured-environment-id (:captured-environment relations)
+             :frame-id (:frame relations)
+             :result-id (:result relations)})
+          grouped)))
+
+(defn application-topology-for-result
+  [network result-id]
+  (let [matches (filterv #(= result-id (:result-id %))
+                         (application-topologies network))]
+    (cond
+      (= 1 (count matches))
+      (first matches)
+
+      (empty? matches)
+      nil
+
+      :else
+      (throw
+       (ex-info "Application result has ambiguous topology"
+                {:result-id result-id
+                 :applications (mapv :application-id matches)})))))
+
+(defn application-topology
+  [network application-id]
+  (let [matches (filterv #(= application-id (:application-id %))
+                         (application-topologies network))]
+    (cond
+      (= 1 (count matches))
+      (first matches)
+
+      (empty? matches)
+      nil
+
+      :else
+      (throw
+       (ex-info "Application identity has ambiguous topology"
+                {:application-id application-id
+                 :applications (mapv :application-id matches)})))))
+
+(defn boundary-name
+  [application-id direction position]
+  [:compiler-2/application application-id direction position])
+
+(defn concrete-boundary
+  [application-id direction position]
+  (fn [source-id target-id]
+    (prop/construct-propagator
+     (boundary-name application-id direction position)
+     (prop/concrete-propagator
+      (fn [_inputs _outputs network]
+        [(message target-id
+                  (net/network-cell-content network source-id))]))
+     [source-id]
+     [target-id])))
+
+(defn- boundary-installer
+  [application-id direction position source-id target-id]
+  (fn [network]
+    (((concrete-boundary application-id direction position)
+      source-id target-id)
+     (reduce nb/ensure-cell network [source-id target-id]))))
+
+(defn- installed-prop-ids
+  [installed]
+  (->> (tree-seq sequential? seq installed)
+       (filter ids/node-id?)
+       vec))
+
+(defn- install-one
+  [{:keys [net prop-ids]} installer]
+  (let [[installed next-net] (installer net)]
+    {:net next-net
+     :prop-ids (into prop-ids (installed-prop-ids installed))}))
+
+(defn- install-all
+  [network installers]
+  (reduce install-one {:net network :prop-ids []} installers))
+
+(defn- invocation
+  [invocation-ids]
+  (let [ids (vec invocation-ids)]
+    (cond
+      (empty? ids)
+      (throw
+       (ex-info "Application requires a context cell"
+                {:invocation-ids ids}))
+
+      :else
+      {:context-id (first ids)
+       :argument-ids (subvec ids 1)})))
 
 (defn- output-symbols
   [output]
@@ -33,360 +240,366 @@
     (nil? output) []
     (symbol? output) [output]
     (vector? output) output
-    :else []))
+    :else
+    (throw
+     (ex-info "Unsupported closure output declaration"
+              {:output output}))))
 
-(defn declare-closure-environment
-  "Declare one live closure frame and all of its addressed locals."
-  [network lexical-env-id frame-id inputs output-targets input-ids]
-  (let [declarations (concat (keep (fn [[sym id]] (if sym [sym id] nil))
-                                   output-targets)
-                             (map vector inputs input-ids))
-        [sub-props network']
-        ((env/p:scope-frame lexical-env-id frame-id (map first declarations))
-         (h/ensure-cell network frame-id))]
-    (reduce
-     (fn [[props n] [sym id]]
-       (let [[ids n'] ((env/p:declare-canonical-local sym frame-id id) n)]
-         [(into props ids) n']))
-     [(vec sub-props) network']
-     declarations)))
-
-(defn ^:deprecated closure-body-env
-  [lexical-env inputs output-targets input-ids]
-  (let [base-env (reduce (fn [scoped-env [sym id]]
-                           (if sym
-                             (env/bind-local scoped-env sym (env/cell-binding id))
-                             scoped-env))
-                         (env/sub-env lexical-env)
-                         output-targets)]
-    (reduce (fn [scoped-env [sym id]]
-              (env/bind-local scoped-env sym (env/cell-binding id)))
-            base-env
-            (map vector inputs input-ids))))
-
-(defn- compile-body
-  [compile* body env-id state]
-  (compile* (assoc state :env env-id :compiler compile*) body))
-
-(defn prepare-closure-frame
-  "Compile a closure body against an already-bound frame environment.
-
-  Returns declaration data only; callers choose transient execution or an
-  outer-network topology diff."
-  ([network closure-info frame-env-id compile-state]
-   (prepare-closure-frame dispatch/default-compiler
-                          network closure-info frame-env-id compile-state))
-  ([compile* network closure-info frame-env-id compile-state]
-   (let [[state result]
-         (compile-body compile*
-                       (closure-value/closure-body closure-info)
-                       frame-env-id
-                       (merge {:net network
-                               :env frame-env-id
-                               :seed [:compiler-2/apply-closure
-                                      (closure-value/closure-scope closure-info)]
-                               :path []
-                               :props []
-                               :applications []
-                               :compiler compile*}
-                              compile-state))]
-     {:state state
-      :net (:net state)
-      :props (:props state)
-      :result result
-      :result-id (env/binding-id result)})))
-
-(defn- install-output-adapter
-  [n result-id out-inner]
-  (if (and result-id (not= result-id out-inner))
-    (let [[prop-id n'] ((stdlib-prop/id result-id out-inner) n)]
-      [n' [prop-id]])
-    [n []]))
-
-(defn- install-output-adapters
-  [n result-id output-inners]
-  (if (= 1 (count output-inners))
-    (install-output-adapter n result-id (first output-inners))
-    [n []]))
-
-(defn- application-extra-output-ids
-  [network]
-  (vec (get (net/net-dict-or-empty network)
-            application-extra-output-ids-key
-            #{})))
-
-(defn- application-external-output-ids
-  [network output-ids]
-  (vec (distinct (concat output-ids
-                         (application-extra-output-ids network)))))
-
-(defn- output-inners-ready?
-  [network output-inners]
-  (and (seq output-inners)
-       (every? (fn [out-inner]
-                 (not (value/unusable?
-                       (output/externalized-cell-value network out-inner))))
-               output-inners)))
-
-(defn- run-closure-body
-  [compile* network closure-info arg-ids output-targets]
-  (let [inputs (closure-value/closure-inputs closure-info)
-        lexical-env (closure-value/closure-env closure-info)
-        body (closure-value/closure-body closure-info)
-        output-ids (mapv second output-targets)
-        external-output-ids (application-external-output-ids network output-ids)]
-    (if (or (value/unusable? lexical-env)
-            (value/unusable? body)
-            (not= (count inputs) (count arg-ids)))
-      network
-      (-> (reduce h/ensure-cell network external-output-ids)
-          (boundary/create-boundary-outputs external-output-ids)
-          (boundary/create-boundary-inputs arg-ids)
-          (#(let [inner-inputs (mapv (partial net/lookup-inner-in %) arg-ids)
-                  output-inners (mapv (partial net/lookup-inner-out %) output-ids)
-                  frame-id (h/stable-node-id :compiler-2/transient-frame
-                                             lexical-env arg-ids output-ids)
-                  lexical-env-value (h/strongest-or-nothing network lexical-env)
-                  with-lexical-env (h/seed-cell % lexical-env lexical-env-value)
-                  [env-props activation-net]
-                  (declare-closure-environment
-                   with-lexical-env
-                   lexical-env
-                   frame-id
-                   inputs
-                   (mapv (fn [[sym _id] inner-id] [sym inner-id])
-                         output-targets
-                         output-inners)
-                   inner-inputs)
-                  prepared (prepare-closure-frame
-                            compile*
-                            activation-net
-                            closure-info
-                            frame-id
-                            {:seed [:compiler-2/apply-closure
-                                    (closure-value/closure-scope closure-info)
-                                    arg-ids
-                                    output-ids]})
-                  result-id (:result-id prepared)
-                  body-net (activation/run-network (:net prepared)
-                                                   inner-inputs
-                                                   (into (vec env-props)
-                                                         (:props prepared)))]
-              (if (output-inners-ready? body-net output-inners)
-                body-net
-                (let [[activation-net adapter-props]
-                      (install-output-adapters body-net
-                                               result-id
-                                               output-inners)]
-                  (activation/run-network activation-net
-                                          inner-inputs
-                                          adapter-props)))))))))
-
-(defn closure-call-plan
-  [closure-info arg-ids out-id]
-  (let [input-count (count (closure-value/closure-inputs closure-info))
-        output-syms (output-symbols (closure-value/closure-output closure-info))
-        output-count (count output-syms)
-        arg-ids (vec arg-ids)
-        implicit-return? (closure-value/implicit-return-output?
-                          (closure-value/closure-output closure-info))]
+(defn- closure-call
+  [closure-info argument-ids result-id]
+  (let [parameters (closure-value/closure-inputs closure-info)
+        output (closure-value/closure-output closure-info)
+        outputs (output-symbols output)
+        input-count (count parameters)
+        output-count (count outputs)
+        arguments (vec argument-ids)]
     (cond
-      (and implicit-return? (= (count arg-ids) input-count))
-      {:input-ids arg-ids
-       :targets [[(first output-syms) out-id]]}
+      (and (closure-value/implicit-return-output? output)
+           (= input-count (count arguments)))
+      {:parameters parameters
+       :input-ids arguments
+       :outputs [{:name (first outputs)
+                  :outer-id result-id
+                  :implicit? true
+                  :result? true}]}
 
-      (pos? output-count)
-      (if (= (count arg-ids) (+ input-count output-count))
-        {:input-ids (subvec arg-ids 0 input-count)
-         :targets (mapv vector
-                        output-syms
-                        (subvec arg-ids input-count))}
-        nil)
+      (and (pos? output-count)
+           (= (+ input-count output-count) (count arguments)))
+      (let [input-ids (subvec arguments 0 input-count)
+            output-ids (subvec arguments input-count)]
+        {:parameters parameters
+         :input-ids input-ids
+         :outputs
+         (mapv (fn [name outer-id]
+                 {:name name
+                  :outer-id outer-id
+                  :implicit? false
+                  :result? (= outer-id (peek output-ids))})
+               outputs
+               output-ids)})
 
-      (= (count arg-ids) input-count)
-      {:input-ids arg-ids
-       :targets [[nil out-id]]}
-
-      :else nil)))
-
-(defn closure-application-messages-with
-  [compile* closure-id _args-id scheduled-arg-ids out-id network]
-  (let [closure-cv (h/strongest-or-nothing network closure-id)
-        closure-info (layers/unwrap-operator closure-cv)
-        arg-ids (vec scheduled-arg-ids)]
-    (if (or (value/unusable? closure-cv)
-            (not (closure-value/closure-info? closure-info)))
-      []
-      (let [{:keys [input-ids targets]} (closure-call-plan closure-info
-                                                           arg-ids
-                                                           out-id)
-            input-values (mapv #(h/strongest-or-nothing network %) input-ids)]
-        (if (or (nil? targets)
-                (value/any-unusable-values? input-values))
-          []
-          (let [output-ids (mapv second targets)
-                network* (reduce h/ensure-cell network output-ids)
-                after-body (run-closure-body compile*
-                                             network*
-                                             closure-info
-                                             (vec input-ids)
-                                             targets)]
-            {:messages (output/externalized-output-messages after-body
-                                                     network*
-                                                     (application-external-output-ids
-                                                      network*
-                                                      output-ids))}))))))
-
-(defn closure-application-messages
-  [closure-id args-id scheduled-arg-ids out-id network]
-  (closure-application-messages-with dispatch/default-compiler
-                                     closure-id args-id scheduled-arg-ids
-                                     out-id network))
-
-(defn p:apply-closure-with
-  "Apply a compiler-2 closure-info cell to argument cells and one output cell."
-  [compile* closure-id args-id arg-ids out-id]
-  (let [arg-ids (vec arg-ids)
-        activate (fn [_inputs _outputs network]
-                   (closure-application-messages-with compile*
-                                                      closure-id
-                                                      args-id
-                                                      arg-ids
-                                                      out-id
-                                                      network))
-        inputs (into [closure-id args-id] arg-ids)]
-    (fn [network]
-      (let [network* (reduce h/ensure-cell network (conj inputs out-id))
-            [prop-id n] ((prop/construct-propagator :compiler-2/apply-closure
-                                                    activate inputs [out-id])
-                         network*)]
-        [prop-id
-         (net/update-net-dict-entry n
-                                    apply-closure-props-key
-                                    (fnil conj #{})
-                                    prop-id)]))))
-
-(defn p:apply-closure
-  [closure-id args-id arg-ids out-id]
-  (p:apply-closure-with dispatch/default-compiler
-                        closure-id args-id arg-ids out-id))
-
-(defn- primitive-application-messages
-  [compile* operator context-id arg-ids out-id network]
-  (let [compiler-activate (operator-value/operator-compiler-activate operator)]
-    (if compiler-activate
-      (compiler-activate compile* network context-id arg-ids out-id)
-      (let [activate (h/application-activate operator)]
-        (if activate
-          (activate network context-id arg-ids out-id)
-          [])))))
-
-(defn application-messages-with
-  [compile* application-id operator-id args-id scheduled-arg-ids context-id out-id
-   network]
-  (let [application-info (h/strongest-or-nothing network application-id)
-        operator-answer (h/strongest-or-nothing network operator-id)
-        operator (layers/unwrap-operator operator-answer)
-        scope-arg-ids (if (closure-value/closure-info? operator)
-                        (take (count (closure-value/closure-inputs operator))
-                              scheduled-arg-ids)
-                        scheduled-arg-ids)
-        argument-values (mapv #(h/strongest-or-nothing network %) scope-arg-ids)
-        scope (layers/application-scope (into [operator-answer] argument-values))
-        result (cond
-      (value/unusable? application-info)
-      []
-
-      (not (application-value/application-info? application-info))
-      []
-
-      (value/unusable? operator)
-      []
-
-      (value/contradiction? operator)
-      []
-
-      (operator-value/operator-closure? operator)
-      (primitive-application-messages compile*
-                                      operator
-                                      context-id
-                                      scheduled-arg-ids
-                                      out-id
-                                      network)
-
-      (h/application-activate operator)
-      (primitive-application-messages compile*
-                                      operator
-                                      context-id
-                                      scheduled-arg-ids
-                                      out-id
-                                      network)
+      (and (zero? output-count)
+           (= input-count (count arguments)))
+      {:parameters parameters
+       :input-ids arguments
+       :outputs []}
 
       :else
-      (closure-application-messages-with compile*
-                                         operator-id
-                                         args-id
-                                         scheduled-arg-ids
-                                         out-id
-                                         network))]
-    (layers/scope-activation-result scope out-id result)))
+      (throw
+       (ex-info "Closure application has invalid arity"
+                {:parameters parameters
+                 :outputs outputs
+                 :argument-ids arguments})))))
 
-(defn application-messages
-  [application-id operator-id args-id scheduled-arg-ids context-id out-id network]
-  (application-messages-with dispatch/default-compiler
-                             application-id operator-id args-id scheduled-arg-ids
-                             context-id out-id network))
+(defn- local-input-id
+  [application-id position]
+  (gur/stable-node-id [application-id :local-input position]))
 
-(defn p:apply-application-with
-  "Evaluate one retained compiler-2 application object.
+(defn- local-output-id
+  [application-id position]
+  (gur/stable-node-id [application-id :local-output position]))
 
-  The application object is declaration data. This propagator owns executable
-  lowering at evaluation time: primitive operators produce messages directly,
-  and closure values delegate to the closure application path."
-  [compile* application-id operator-id args-id arg-ids context-id out-id]
-  (let [arg-ids (vec arg-ids)
-        specs (layers/source-specs application-id operator-id arg-ids)
-        possible-base-ids (mapv :base-id specs)
-        activate (fn [_inputs _outputs network]
-                   (let [pending (layers/pending-base-readers network
-                                                       application-id
-                                                       specs)]
-                     (if (seq pending)
-                       (layers/declare-pending-base-readers network
-                                                     application-id
-                                                     pending)
-                       (let [evaluation-ids (mapv #(layers/evaluation-id network %) specs)]
-                         (application-messages-with compile*
-                                                    application-id
-                                                    (first evaluation-ids)
-                                                    args-id
-                                                    (subvec evaluation-ids 1)
-                                                    context-id
-                                                    out-id
-                                                    network)))))
-        inputs (into [application-id operator-id args-id context-id]
-                     (concat arg-ids possible-base-ids))]
-    (fn [network]
-      (let [network* (reduce h/ensure-cell network (conj inputs out-id))
-            [prop-id n] ((prop/construct-propagator :compiler-2/apply-application
-                                                    activate inputs [out-id])
-                         network*)]
-        [prop-id
-         (net/update-net-dict-entry n
-                                    apply-application-props-key
-                                    (fnil conj #{})
-                                    prop-id)]))))
+(defn- input-installers
+  [application-id frame-id parameters input-ids input-mode]
+  (mapcat
+   (fn [position parameter input-id]
+     (let [local-id (local-input-id application-id position)]
+       (let [inbound
+             [(env/p:declare-canonical-local parameter frame-id local-id)
+              (boundary-installer application-id :inbound position
+                                  input-id local-id)]]
+         (cond
+           (= :bidirectional input-mode)
+           (conj inbound
+                 (boundary-installer application-id :outbound
+                                     [:applicant position]
+                                     local-id input-id))
 
-(defn p:apply-application
-  [application-id operator-id args-id arg-ids context-id out-id]
-  (p:apply-application-with dispatch/default-compiler
-                            application-id operator-id args-id arg-ids
-                            context-id out-id))
+           (= :inbound input-mode)
+           inbound
 
-;; Keep the established entry points while the child-frame runtime owns execution.
-(def execute-sub-env-messages-with sub-environment/execute-sub-env-messages-with)
-(def execute-sub-env-messages sub-environment/execute-sub-env-messages)
-(def p:execute-sub-env-with sub-environment/p:execute-sub-env-with)
-(def p:execute-sub-env sub-environment/p:execute-sub-env)
+           :else
+           (throw
+            (ex-info "Unsupported closure input boundary mode"
+                     {:input-mode input-mode
+                      :application-id application-id}))))))
+   (range)
+   parameters
+   input-ids))
 
-(def application-scope layers/application-scope)
+(defn- output-installers
+  [application-id frame-id outputs result-id]
+  (mapcat
+   (fn [position {:keys [name outer-id result?]}]
+     (let [local-id (local-output-id application-id position)
+           external
+           [(env/p:declare-canonical-local name frame-id local-id)
+            (boundary-installer application-id :outbound position
+                                local-id outer-id)]
+           result-route
+           (cond
+             (and result? (not= outer-id result-id))
+             [(boundary-installer application-id :outbound
+                                  [:result position]
+                                  local-id result-id)]
+
+             :else
+             [])]
+       (into external result-route)))
+   (range)
+   outputs))
+
+(defn- frame-topology
+  [network application-id lexical-env-id frame-id parameters input-ids
+   outputs result-id input-mode]
+  (install-all
+   network
+   (concat
+    [(env/p:scope-frame
+      lexical-env-id
+      frame-id
+      (into (vec parameters) (mapv :name outputs)))]
+    (input-installers application-id frame-id parameters input-ids input-mode)
+    (output-installers application-id frame-id outputs result-id))))
+
+(defn- compile-body
+  [topology compile* caller-id frame-id context-id declaration-id closure-info]
+  (let [[compiled-state body-binding]
+        (compile*
+         {:net (:net topology)
+          :env frame-id
+          :context-id context-id
+          :seed [:compiler-2/application declaration-id frame-id]
+          :path []
+          :props (:prop-ids topology)
+          :applications []
+          :application/caller caller-id
+          :compiler compile*}
+         (closure-value/closure-body closure-info))]
+    {:net (:net compiled-state)
+     :prop-ids (:props compiled-state)
+     :result-id (env/binding-id body-binding)}))
+
+(defn- route-body-result
+  [compiled application-id outputs result-id]
+  (let [implicit-output
+        (first (filter :implicit? outputs))
+        selected-output
+        (first (filter :result? outputs))
+        body-result-id
+        (:result-id compiled)]
+    (cond
+      (and implicit-output (ids/node-id? body-result-id))
+      (let [position (.indexOf outputs implicit-output)
+            local-id (local-output-id application-id position)
+            routed
+            (install-one
+             {:net (:net compiled) :prop-ids (:prop-ids compiled)}
+             (boundary-installer application-id :outbound :body-result
+                                 body-result-id local-id))]
+        (assoc routed :result-id result-id))
+
+      implicit-output
+      (throw
+       (ex-info "Implicit-return closure body declared no result"
+                {:application-id application-id
+                 :result body-result-id}))
+
+      (and selected-output (ids/node-id? body-result-id))
+      (let [position (.indexOf outputs selected-output)
+            local-id (local-output-id application-id position)]
+        (cond
+          (= body-result-id local-id)
+          (assoc compiled :result-id result-id)
+
+          :else
+          (let [routed
+                (install-one
+                 {:net (:net compiled) :prop-ids (:prop-ids compiled)}
+                 (boundary-installer application-id :outbound :body-result
+                                     body-result-id local-id))]
+            (assoc routed :result-id result-id))))
+
+      selected-output
+      compiled
+
+      (ids/node-id? body-result-id)
+      (let [routed
+            (install-one
+             {:net (:net compiled) :prop-ids (:prop-ids compiled)}
+             (boundary-installer application-id :outbound :body-result
+                                 body-result-id result-id))]
+        (assoc routed :result-id result-id))
+
+      :else
+      (throw
+       (ex-info "Closure body declared no result"
+                {:application-id application-id
+                 :result body-result-id})))))
+
+(defn- application-name-effects
+  [application-id relations]
+  (mapv (fn [[role id]]
+          (gur/bind-name application-name-scope
+                         [application-id role]
+                         id))
+        relations))
+
+(defn- declaration-result
+  [base application-id compiled relations]
+  (let [diff (topology/network-diff base (:net compiled) (:prop-ids compiled))]
+    {:effects (into (application-name-effects application-id relations)
+                    (:effects diff))
+     :messages (:messages diff)}))
+
+(defn- declare-closure-effects
+  [compile* declaration-id lexical-env-id closure-info
+   gur-context invocation-ids result-id input-mode]
+  (let [{:keys [context-id argument-ids]} (invocation invocation-ids)
+        application-id (:app-key gur-context)
+        {:keys [parameters input-ids outputs]}
+        (closure-call closure-info argument-ids result-id)
+        frame-id (gur/stable-node-id [application-id :lexical-frame])
+        base (:network gur-context)
+        compiled
+        (-> (frame-topology base application-id lexical-env-id frame-id
+                            parameters input-ids outputs result-id input-mode)
+            (compile-body compile* (:closure-id gur-context)
+                          frame-id context-id
+                          declaration-id closure-info)
+            (route-body-result application-id outputs result-id))]
+    (declaration-result
+     base application-id compiled
+     (concat [[:operator (:closure-id gur-context)]
+              [:context context-id]
+              [:captured-environment lexical-env-id]
+              [:frame frame-id]
+              [:result result-id]]
+             (map-indexed (fn [position id]
+                            [[:argument position] id])
+                          argument-ids)))))
+
+(defn closure-application-effects
+  [compile* declaration-id lexical-env-id closure-info
+   gur-context invocation-ids result-id]
+  (declare-closure-effects
+   compile* declaration-id lexical-env-id closure-info
+   gur-context invocation-ids result-id :inbound))
+
+(defn constraint-application-effects
+  [compile* declaration-id lexical-env-id closure-info
+   gur-context invocation-ids result-id]
+  (declare-closure-effects
+   compile* declaration-id lexical-env-id closure-info
+   gur-context invocation-ids result-id :bidirectional))
+
+(defn- primitive-input-topology
+  [base application-id argument-ids]
+  (let [local-ids (mapv (partial local-input-id application-id)
+                        (range (count argument-ids)))
+        installers
+        (mapcat (fn [position outer-id local-id]
+                  [(boundary-installer application-id :inbound position
+                                       outer-id local-id)
+                   (boundary-installer application-id :outbound
+                                       [:argument position]
+                                       local-id outer-id)])
+                (range)
+                argument-ids
+                local-ids)]
+    (assoc (install-all base installers) :input-ids local-ids)))
+
+(defn primitive-application-effects
+  [installer _declaration gur-context invocation-ids result-id]
+  (let [{:keys [context-id argument-ids]} (invocation invocation-ids)
+        application-id (:app-key gur-context)
+        base (:network gur-context)
+        inbound (primitive-input-topology base application-id argument-ids)
+        [installed primitive-props selected-output]
+        (installer (:net inbound) argument-ids result-id context-id)
+        primitive
+        {:net installed
+         :prop-ids (into (:prop-ids inbound)
+                         (installed-prop-ids primitive-props))}
+        routed
+        (cond
+          (= selected-output result-id)
+          primitive
+
+          (ids/node-id? selected-output)
+          (install-one
+           primitive
+           (boundary-installer application-id :outbound :primitive-result
+                               selected-output result-id))
+
+          :else
+          (throw
+           (ex-info "Primitive application declared no output"
+                    {:application-id application-id
+                     :selected-output selected-output})))]
+    (declaration-result
+     base application-id routed
+     (concat [[:operator (:closure-id gur-context)]
+              [:context context-id]
+              [:result result-id]]
+             (map-indexed (fn [position id]
+                            [[:argument position] id])
+                          argument-ids)))))
+
+(defn install-application
+  [state operator-id argument-ids result-id]
+  (let [application-id (:application/app-id state)
+        invocation-ids (into [(:context-id state)] argument-ids)
+        topology-id (gur/application-key operator-id invocation-ids result-id)
+        apply-effect (gur/apply-closure-effect
+                      operator-id invocation-ids result-id)
+        name-effect (gur/bind-name application-name-scope
+                                   application-id
+                                   (:id apply-effect))
+        relation-effects
+        (application-name-effects
+         topology-id
+         (concat [[:operator operator-id]
+                  [:context (:context-id state)]
+                  [:result result-id]]
+                 (map-indexed (fn [position id]
+                                [[:argument position] id])
+                              argument-ids)))
+        [_ installed]
+        (core/eval-activation-result
+         (into [apply-effect name-effect] relation-effects)
+         (:net state))]
+    [(-> state
+         (assoc :net installed)
+         (update :props (fnil conj []) (:id apply-effect))
+         (update :applications (fnil conj []) topology-id))
+     (env/cell-binding result-id)]))
+
+;; Compatibility entry points owned by the existing sub-environment runtime.
+(defn execute-sub-env-messages-with
+  [& args]
+  (apply
+   (requiring-resolve
+    'propagators.compiler-2.runtime.sub-environment/execute-sub-env-messages-with)
+   args))
+
+(defn execute-sub-env-messages
+  [& args]
+  (apply
+   (requiring-resolve
+    'propagators.compiler-2.runtime.sub-environment/execute-sub-env-messages)
+   args))
+
+(defn p:execute-sub-env-with
+  [& args]
+  (apply
+   (requiring-resolve
+    'propagators.compiler-2.runtime.sub-environment/p:execute-sub-env-with)
+   args))
+
+(defn p:execute-sub-env
+  [& args]
+  (apply
+   (requiring-resolve
+    'propagators.compiler-2.runtime.sub-environment/p:execute-sub-env)
+   args))

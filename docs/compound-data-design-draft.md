@@ -119,7 +119,10 @@ Intentional model:
 
 ## Linked-list access (verified in tests)
 
-Source of truth: `test/propagators_linked_list_access_test.clj`. Scheduling experiments live in `test/propagators_linked_list_schedule_test.clj` (may include intentional failures).
+Source of truth: `test/propagators/linked_list_access_test.clj`. Deprecated
+scheduling experiments live in
+`test/propagators/deprecated/linked_list_schedule_test.clj` and may include
+intentional failures.
 
 ### Wiring: `p:cons` spine + optional accessor writers
 
@@ -203,5 +206,5 @@ Both appear in tests. Chain export (`head2` seeded, run `coll0` only) uses direc
 clojure -M:test propagators-linked-list-access-test propagators-compound-data-test
 
 # Scheduling experiments (install-time enqueue may fail)
-clojure -M:test propagators-linked-list-schedule-test
+clojure -M:test propagators.deprecated.linked-list-schedule-test
 ```

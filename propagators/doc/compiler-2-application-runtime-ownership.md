@@ -1,69 +1,54 @@
 # Compiler 2 application runtime ownership
 
-Ordinary symbol compilation uses `p:lexical-access-local-first` followed by
-`p:binding-value`. Its result is the binding's value, not a scope-source lookup
-candidate. Explicit `p:lexical-access` and `p:access-binding` remain separate
-provenance APIs. Their tests are active contracts, not obsolete compiler tests.
+Status: current after the flat-GUR application refactor. See
+[Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md).
 
-## Reachability of the former application scope-source uses
+## Owned behavior
 
-| Behavior | Reachable caller | Owner after cleanup |
-| --- | --- | --- |
-| Preserve a scope wrapper while externalizing its base | Transient closure output export | `runtime/application_output.clj` |
-| Remap closure environment addresses and materialize accessor slots | Transient closure output export | `runtime/application_output.clj` |
-| Unwrap explicit scoped operators and closures | Direct application and closure activation APIs | `runtime/application_layers.clj` |
-| Select a compatible scope and combine dependencies | `runtime/lexical_application.clj` and direct application activation | `runtime/application_layers.clj` |
-| Refine dependencies on an already-scoped result | Direct application activation; ordinary results remain ordinary | `runtime/application_layers.clj` |
-| Declare base readers and select evaluation IDs | `p:apply-application-with`, including explicit layered inputs | `runtime/application_layers.clj` |
-| Resolve a result's binding address, base-layer parent, or original cell | Injected compiler boundary in `execute-sub-env-messages-with` | `runtime/application_layers.clj`, called by `runtime/sub_environment.clj` |
+| Concern | Owner |
+| --- | --- |
+| Compile operator and operands in CPS order | `compiler/handlers.clj` |
+| Declare callable values and retained closure source data | `compiler/declarations.clj` |
+| Dispatch application topology by protocol | `runtime/application.clj` |
+| Declare same-network recursive application | `propagators.gur` flat facade |
+| Declare and traverse live lexical frames | `model/env.clj` |
+| Project primitive and closure inputs and outputs | named concrete boundaries in `runtime/application.clj` |
+| Inspect realized calls | traversal of flat GUR name bindings |
+| Merge values, evidence, and contradictions | cell protocols and TMS, unchanged |
+| Schedule runnable propagators | generic scheduler, unchanged |
 
-`runtime/application.clj` owns closure call planning and application orchestration.
-`runtime/sub_environment.clj` owns child-frame declaration, compilation, topology
-publication, and result publication. Both use `runtime/activation.clj` to run
-declared propagators and boundary-input readers. Existing public application
-entry points remain available.
+The runtime application boundary owns `ApplicationTopology`,
+`PrimitiveApplication`, `ClosureApplication`, and `ConstraintApplication`.
+Primitive installers and compiled closure bodies extend the active `Net` through
+flat effects. They do not create applied child networks.
 
-No scope-source behavior in this map was proven unreachable across these public
-APIs. Removing the injected-compiler result fallback would narrow that contract,
-even though current CPS symbol lookup does not need it. The cleanup therefore
-isolates it instead of silently retiring it. Unused closure-output and provenance
-candidate bindings, the forward declaration, and dynamic topology resolution
-were removed; topology effects are now a direct dependency of the layer adapter.
+## Removed paths
 
-The deprecated `closure-body-env` still has active closure-frame test callers.
-Those tests and the explicit provenance tests are retained. Reader-discarded
-behavior tests (`#_`) are not counted as coverage and were not revived or deleted
-by this change.
+Production caller searches reached zero before these modules were deleted:
 
-## Verification
+```clojure
+'#{runtime.retained-application
+   runtime.closure-frame
+   runtime.lexical-application
+   runtime.application-layers}
+```
 
-`compiler-2-application-runtime-test` checks raw child-frame results (including
-`false`), provenance compatibility and message refinement, result-address
-selection, base-reader routing, and scalar boundary export. Existing Compiler 2
-and layered-procedure suites cover closure frames, compiler composition,
-accessor results, and explicit provenance integration.
+The application runtime no longer owns operator unwrapping, application scopes,
+pending base readers, strongest-value operator classification, result
+rescoping, or copied lexical frames.
 
-Verified on this cleanup: 172 tests, 763 assertions, no failures or errors.
-These are focused suites, not the full repository test set.
+`runtime/application-output.clj` remains for externalizing values across the
+sub-environment/runtime boundary. It is not part of ordinary application
+selection.
 
-| Namespace under `propagators` | Tests | Assertions |
-| --- | ---: | ---: |
-| `compiler-2-application-runtime-test` | 6 | 48 |
-| `compiler-2-cps-test` | 7 | 37 |
-| `compiler-2-composition-test` | 8 | 41 |
-| `compiler-2-closure-frame-test` | 9 | 47 |
-| `compile-2-test` | 104 | 416 |
-| `compiler-2-call-graph-test` | 6 | 20 |
-| `compiler-2-block-premise-test` | 3 | 11 |
-| `compiler-2-organization-test` | 3 | 28 |
-| `compiler-2-gur-linked-list-test` | 1 | 4 |
-| `layered-procedure-test` | 16 | 45 |
-| `cell-protocol-test` | 9 | 66 |
+## Observable topology
 
-The broader run emitted a Meander dependency reflection warning at
-`meander/util/epsilon.cljc:758:24`.
+```text
+operator -> flat apply -> inbound args -> frame -> body -> outbound -> result
+                         captured env -> scope-frame
+```
 
-The historical distinction is visible in `cf0959a` (initial CPS application
-runtime) and `f7020b6` (canonical closure locals, with the older scope adapters
-otherwise retained). The cleanup preserves their surviving contracts while
-making their ownership explicit.
+`application-topologies`, `application-topology`, and
+`application-topology-for-result` expose these relations to call-graph, session,
+retraction, and TUI consumers. Execution and inspection therefore share one
+representation.

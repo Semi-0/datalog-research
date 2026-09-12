@@ -20,6 +20,10 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 
 ## Map
 
+- [Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md)
+  defines the current application protocol, same-network flat GUR topology,
+  live compound environments, recursive lexical access, and inspection path.
+
 - [Propagators As A Coordination Language](coordination-language-kernel.md)
   frames the experiment as a self-reflective, multi-projectional coordination
   language and defines the minimal-kernel scope.
@@ -153,7 +157,8 @@ Full regression after the shared named-network change:
 
 The intended coordination-language framing is now narrower than "everything is
 GUR." Ordinary programs should mostly be primitive propagators, iterative
-operators, explicit behavior reducers, slots, and retained application data.
+operators, explicit behavior reducers, slots, and connected named application
+topology.
 GUR is the advanced layer for recursive declaration problems: macros, compiler
 construction, recursive AST/list traversal, recursive lexical accessor
 construction, and higher-order operators that need unbounded but idempotent

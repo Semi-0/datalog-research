@@ -1,35 +1,34 @@
 (ns propagators.gur
   "Main public GUR surface.
 
-  This namespace intentionally points at accumulating GUR. Older namespaces
-  such as `propagators.gur.subenv` remain available as compatibility experiments,
-  but new compiler/macro work should require this namespace or
-  `propagators.gur.accumulating` directly."
-  (:require [propagators.gur.accumulating :as acc]))
+  Flat GUR is the default: recursive bodies emit bounded declaration effects
+  into the active immutable Net. Accumulating GUR remains available through
+  `propagators.gur.accumulating` for explicit compatibility use."
+  (:require [propagators.core :as core]
+            [propagators.gur.flat :as flat]))
 
-(def recursive-closure-tag acc/recursive-closure-tag)
-(def frame-index-key acc/frame-index-key)
-(def frame-prop-index-key acc/frame-prop-index-key)
-(def task-index-key acc/task-index-key)
-(def application-request-index-key acc/application-request-index-key)
+(def recursive-closure-tag flat/recursive-closure-tag)
+(def root-key flat/root-key)
+(def cell-index-key flat/cell-index-key)
+(def prop-index-key flat/prop-index-key)
+(def name-bindings-key flat/name-bindings-key)
 
-(def add-task-facts acc/add-task-facts)
-(def application-key acc/application-key)
-(def application-request-fragment acc/application-request-fragment)
-(def application-requests acc/application-requests)
-(def recursive-closure acc/recursive-closure)
-(def recursive-closure? acc/recursive-closure?)
-(def strongest-or-nothing acc/strongest-or-nothing)
-(def p:accumulate-apply-closure acc/p:accumulate-apply-closure)
-(def p:when-topology acc/p:when-topology)
-(def p:run-accumulated-network acc/p:run-accumulated-network)
-(def p:apply-closure acc/p:apply-closure)
+(def stable-node-id flat/stable-node-id)
+(def application-key flat/application-key)
+(def vm-net flat/vm-net)
+(def declare-cell flat/declare-cell)
+(def declare-prop flat/declare-prop)
+(def bind-name flat/bind-name)
+(def recursive-closure flat/recursive-closure)
+(def recursive-closure? flat/recursive-closure?)
+(def recursive-declaration flat/recursive-declaration)
+(def apply-closure-effect flat/apply-closure-effect)
+(def when-effect flat/when-effect)
 
-(def contextual-installers acc/contextual-installers)
-(def default-installers acc/default-installers)
-(def recursive-definition acc/recursive-definition)
-(def source-recursive-closure acc/source-recursive-closure)
-
-(defmacro def-recursive
-  [& args]
-  `(acc/def-recursive ~@args))
+(defn ^:deprecated p:apply-closure
+  "Installer-shaped compatibility wrapper backed by flat GUR effects."
+  [closure-id arg-ids out-id]
+  (fn [network]
+    (let [effect (apply-closure-effect closure-id arg-ids out-id)
+          [_ installed] (core/eval-activation-result effect network)]
+      [[(:id effect)] installed])))

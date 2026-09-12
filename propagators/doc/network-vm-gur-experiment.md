@@ -1,11 +1,12 @@
 # Monotone Network VM GUR Experiment
 
-Status: parallel experiment, not the canonical GUR path.
+Status: the flat effect model is now the canonical public GUR path. The older
+experimental measurements in this document remain historical context.
 
-The current public GUR namespace remains `propagators.gur`, backed by
-accumulating GUR. The network VM experiment asks a narrower question: can a
-recursive declaration system be defined as a program over a small monotone
-instruction set?
+The public `propagators.gur` namespace delegates to flat GUR. Recursive
+declarations emit bounded monotone effects into the active `Net`.
+Accumulating GUR remains available through the explicit
+`propagators.gur.accumulating` namespace.
 
 ## Instruction Vocabulary
 

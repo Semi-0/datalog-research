@@ -3,12 +3,12 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
-            [propagators.compiler-2.model.application-value :as application]
             [propagators.compiler-2.operators.versioned-definition :as definition]
+            [propagators.compiler-2.runtime.application :as application]
             [propagators.compiler-2.runtime.tui.block-model :as block-model]
             [propagators.core :as core]
-            [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.tms.distributed :as tms]
+            [propagators.gur.flat :as fvm]
             [propagators.graph :as graph]
             [propagators.helpers.task-queue :as task-queue]
             [propagators.network :as net]
@@ -124,24 +124,29 @@
 
 (defn- application-row
   [network record ordinal application-id]
-  (let [info (cell-value network application-id)]
-    {:application/id application-id
-     :application/ordinal ordinal
-     :source {:kind :block-version
-              :client-id (:client-id record)
-              :block-index (:index record)
-              :version (:version record)}
-     :active? (:premise/active? (record-context network record))
-     :operator-ast (when (application/application-info? info)
-                     (obj/slot-value info application/application-operator-ast-slot))
-     :operator-cell (when (application/application-info? info)
-                      (obj/slot-value info application/application-operator-cell-slot))
-     :arg-cells (when (application/application-info? info)
-                  (obj/slot-value info application/application-arg-cells-slot))
-     :output-cell (when (application/application-info? info)
-                    (obj/slot-value info application/application-output-slot))
-     :lowering (when (application/application-info? info)
-                 (obj/slot-value info application/application-lowering-slot))}))
+  (let [topology (application/application-topology network application-id)
+        row
+        {:application/id application-id
+         :application/ordinal ordinal
+         :source {:kind :block-version
+                  :client-id (:client-id record)
+                  :block-index (:index record)
+                  :version (:version record)}
+         :active? (:premise/active? (record-context network record))}]
+    (cond
+      topology
+      (assoc row
+             :operator-cell (:operator-id topology)
+             :arg-cells (:argument-ids topology)
+             :context-cell (:context-id topology)
+             :captured-environment-cell
+             (:captured-environment-id topology)
+             :frame-cell (:frame-id topology)
+             :output-cell (:result-id topology)
+             :lowering :flat-gur)
+
+      :else
+      (assoc row :topology/missing? true))))
 
 (defn- block-application-rows
   [network records]
@@ -159,12 +164,17 @@
 
 (defn- candidate-application-rows
   [network]
-  (let [candidates (net/network-dict-entry network definition/candidates-key)]
+  (let [candidates (net/network-dict-entry network definition/candidates-key)
+        calls (get (net/network-dict-entry network fvm/name-bindings-key)
+                   definition/call-metadata-scope
+                   {})]
     (mapv
-     (fn [[[call-id candidate-id] _call]]
+     (fn [[[call-id candidate-id] call]]
        (let [candidate (get candidates candidate-id)
              context (:candidate/context candidate)]
-         {:application/id (candidate-application-id call-id candidate-id)
+         {:application/id
+          (or (:application-id call)
+              (candidate-application-id call-id candidate-id))
           :source {:kind :definition-candidate
                    :name (:candidate/name candidate)
                    :block-id (:candidate/block-id candidate)
@@ -174,7 +184,7 @@
                                          (:premise/id context)
                                          (:premise/state-cell context)))
           :operator-ast (:candidate/name candidate)}))
-     (net/network-dict-entry network definition/calls-key))))
+     calls)))
 
 (defn- all-contexts
   [network records]

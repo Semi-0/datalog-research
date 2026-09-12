@@ -6,13 +6,16 @@
             [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as cenv]
+            [propagators.compiler-2.runtime.application :as application]
             [propagators.compiler-2.main :as compiler]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.graph :as pgraph]
             [propagators.ids :as ids]
+            [propagators.gur :as gur]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.propagator :as prop]))
 
 (def source
   "(let-cell [inc-local]
@@ -76,9 +79,10 @@
 
 (defn network-closure-values [n]
   (keep (fn [[id entry]]
-          (let [strongest (net/network-cell-strongest n id)]
-            (when (closure-value/closure-info? strongest)
-              [id strongest])))
+          (let [strongest (net/network-cell-strongest n id)
+                declaration (application/callable-declaration strongest)]
+            (when (closure-value/closure-info? declaration)
+              [id declaration])))
         (net/net-env n)))
 
 (defn closure-labels [n]
@@ -133,38 +137,97 @@
                     [id (display-name v)]))))
         (net/net-env n)))
 
+(defn- application-relation-key?
+  [key]
+  (and (vector? key)
+       (= 2 (count key))
+       (vector? (first key))
+       (= :gur.flat/application (first (first key)))))
+
+(defn- application-relations
+  [n]
+  (let [bindings (get (net/network-dict-entry n gur/name-bindings-key)
+                      application/application-name-scope
+                      {})]
+    (reduce-kv
+     (fn [applications key id]
+       (cond
+         (application-relation-key? key)
+         (let [[application-id role] key]
+           (assoc-in applications [application-id role] id))
+
+         :else
+         applications))
+     {}
+     bindings)))
+
+(defn- callable-label
+  [n operator-id]
+  (let [binding-name (get (cenv/binding-names n) operator-id)
+        callable-name (:gur.flat/name
+                       (net/network-cell-strongest n operator-id))]
+    (cond
+      binding-name
+      (display-name binding-name)
+
+      (and (vector? callable-name) (seq callable-name))
+      (display-name (peek callable-name))
+
+      callable-name
+      (display-name callable-name)
+
+      :else
+      "callable")))
+
+(defn- argument-cells
+  [relations]
+  (->> relations
+       (keep (fn [[role id]]
+               (cond
+                 (and (vector? role)
+                      (= :argument (first role))
+                      (number? (second role)))
+                 [(second role) id]
+
+                 :else
+                 nil)))
+       (sort-by first)
+       (mapv second)))
+
+(defn- application-lowering
+  [n operator-id]
+  (let [operator (net/network-cell-strongest n operator-id)
+        declaration (application/callable-declaration operator)]
+    (cond
+      (closure-value/closure-info? declaration)
+      :closure-cell
+
+      :else
+      :flat-gur)))
+
 (defn application-records [compiled n]
-  (vec
-   (keep
-    (fn [app-id]
-      (let [info (net/network-cell-strongest n app-id)
-            operator-ast (obj/slot-value
-                          info
-                          compiler/application-operator-ast-slot)
-            output-id (obj/slot-value
-                       info
-                       compiler/application-output-slot)]
-        (when (and operator-ast output-id)
-          {:app-id app-id
-           :operator-label (ast-label operator-ast)
-           :operator-cell (obj/slot-value
-                           info
-                           compiler/application-operator-cell-slot)
-           :args-id (obj/slot-value
-                     info
-                     compiler/application-args-slot)
-           :arg-cells (obj/slot-value
-                       info
-                       compiler/application-arg-cells-slot)
-           :context-id (obj/slot-value
-                        info
-                        compiler/application-context-slot)
-           :output-id output-id
-           :lowering (obj/slot-value
-                      info
-                      compiler/application-lowering-slot)})))
-    (or (:applications compiled)
-        (compiler/compiled-applications (:net compiled))))))
+  (let [declared-applications (set (:applications compiled))]
+    (->> (application-relations n)
+       (filter (fn [[application-id _relations]]
+                 (contains? declared-applications application-id)))
+       (keep (fn [[app-id relations]]
+               (let [operator-id (:operator relations)
+                     output-id (:result relations)
+                     apply-prop-id (gur/stable-node-id [app-id :apply-prop])]
+                 (cond
+                   (and operator-id output-id)
+                   {:application-id app-id
+                    :app-id apply-prop-id
+                    :operator-label (callable-label n operator-id)
+                    :operator-cell operator-id
+                    :arg-cells (argument-cells relations)
+                    :context-id (:context relations)
+                    :output-id output-id
+                    :lowering (application-lowering n operator-id)}
+
+                   :else
+                   nil))))
+       vec)))
 
 (defn label-entry [id label]
   (when (and id (not (value/unusable? id)))
@@ -173,11 +236,10 @@
 (defn application-node-labels [compiled n]
   (into {}
         (mapcat
-         (fn [{:keys [app-id operator-label operator-cell args-id context-id output-id]}]
+         (fn [{:keys [app-id operator-label operator-cell context-id output-id]}]
            (keep identity
                  [(label-entry app-id (str "app:" operator-label))
                   (label-entry operator-cell (str "op:" operator-label))
-                  (label-entry args-id (str "args:" operator-label))
                   (label-entry context-id (str "ctx:" operator-label))
                   (label-entry output-id (str "out:" operator-label))])))
         (application-records compiled n)))
@@ -186,13 +248,18 @@
   (let [graph (net/net-graph n)]
     (into {}
           (mapcat
-           (fn [{:keys [app-id output-id operator-label]}]
-             (keep (fn [[prop-id node]]
-                     (let [inputs (set (pgraph/node-input-ids node))
-                           outputs (set (pgraph/node-output-ids node))]
-                       (when (and (contains? inputs app-id)
-                                  (contains? outputs output-id))
-                         [prop-id (str "prop:" operator-label)])))
+           (fn [{:keys [application-id operator-label]}]
+             (keep (fn [[prop-id _node]]
+                     (let [name (prop/prop-name
+                                 (net/network-env-lookup n prop-id))]
+                       (cond
+                         (and (vector? name)
+                              (= :compiler-2/application (first name))
+                              (= application-id (second name)))
+                         [prop-id (str "prop:" operator-label)]
+
+                         :else
+                         nil)))
                    graph))
            (application-records compiled n)))))
 

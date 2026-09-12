@@ -1,6 +1,11 @@
 # Propagators As A Coordination Language
 
-Status: analysis note, June 2026.
+Status: current architecture note, revised 2026-09-12.
+
+Flat GUR is the default recursive declaration substrate. It adds named,
+idempotent topology to the active `Net`; accumulating GUR remains an explicit
+alternative for programs that need a child network value. Compiler 2 uses the
+flat path for application and lexical access.
 
 This experiment should be framed as a minimal kernel for a coordination
 language, not as a process language with propagators as an implementation
@@ -110,8 +115,9 @@ accessors, and higher-order operators that need unbounded but idempotent network
 declaration. In that role GUR must be fast enough to keep compiler-scale
 prototype work practical, but it does not need to become the lifecycle manager
 for the whole language. The canonical implementation namespace is
-`propagators.gur`, backed by accumulating GUR; older GUR variants are retained
-only as compatibility and regression evidence.
+`propagators.gur`, backed by flat GUR. Accumulating GUR is available explicitly
+from `propagators.gur.accumulating`; older routed variants remain compatibility
+and regression evidence.
 
 This also sets the GC expectation. Accumulating GUR may retain monotone frame
 and task facts for now; garbage collection is not the first prototype

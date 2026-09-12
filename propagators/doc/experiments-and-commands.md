@@ -11,7 +11,7 @@ clj -M:test propagators
 clj -M:test propagators-named-network-test
 clj -M:test propagators-compound-data-test
 clj -M:test propagators-linked-list-access-test
-clj -M:test propagators-linked-list-schedule-test
+clj -M:test propagators.deprecated.linked-list-schedule-test
 clj -M:test propagators-compound-diagnosis-test
 clj -M:bench-test
 ```

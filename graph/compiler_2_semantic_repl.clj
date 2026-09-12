@@ -7,6 +7,7 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.closure-value :as closure-value]
+            [propagators.compiler-2.runtime.application :as application]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
             [propagators.network :as net]))
@@ -271,9 +272,11 @@
 
 (defn- closure-value
   [n {:keys [operator-cell]}]
-  (let [v (net/network-cell-strongest n operator-cell)]
-    (when (closure-value/closure-info? v)
-      v)))
+  (let [v (net/network-cell-strongest n operator-cell)
+        declaration
+        (application/callable-declaration v)]
+    (when (closure-value/closure-info? declaration)
+      declaration)))
 
 (defn- closure-env
   [n labels {:keys [app-id arg-cells output-id]} closure-info]

@@ -1,5 +1,10 @@
 # Compiler 2
 
+Current application architecture: [Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md).
+Compiler applications and local-first lexical access now declare connected,
+named topology directly in the active `Net`. Older retained-application
+sections below are historical and are superseded by that document.
+
 Source files:
 
 - `propagators/compiler_2/language/parser.clj`
@@ -25,8 +30,9 @@ Source files:
 ## Status
 
 Compiler 2 treats compilation as network expansion. It does not turn an AST into
-an opaque runtime function. It declares cells, retained IR data, slot topology,
-application propagators, and closure data inside the propagator network.
+an opaque runtime function. It declares cells, named application relations,
+live slot topology, application propagators, and closure data inside the
+propagator network.
 
 The current surface language is intentionally small:
 

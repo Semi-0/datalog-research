@@ -1,6 +1,9 @@
 # Accumulating GUR
 
-Status: current main GUR implementation.
+Status: supported explicit alternative. Flat GUR is the default public
+`propagators.gur` implementation. Compiler 2 application and lexical access use
+the active-network flat path described in
+[Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md).
 
 This document explains the current accumulating GUR code from the public facade
 down to its submodules. The goal is natural-language orientation: what each
@@ -33,9 +36,9 @@ The split is:
 
 ### `propagators.gur`
 
-`propagators.gur` is the canonical public namespace. It re-exports the
-accumulating implementation. New compiler and macro work should require this
-namespace unless it explicitly needs internal implementation helpers.
+`propagators.gur.accumulating` is the explicit accumulating API. New flat
+recursive topology should require `propagators.gur`; accumulating programs
+should require this namespace directly.
 
 Important exports:
 

@@ -53,6 +53,51 @@
         n (i/run ctx)]
     (is (= 82 (strongest n out-id)))))
 
+(deftest named-when-uses-semantic-identity
+  (let [seen (atom nil)
+        when-f (fn [when-key condition-id body]
+                 (reset! seen {:key when-key
+                               :condition condition-id
+                               :body body})
+                 (fvm/bind-name [:test :when] when-key condition-id))
+        base (-> (i/context net/empty-net [:named-when])
+                 (assoc :when when-f)
+                 (i/$ {:ready (node-id :ready)}))
+        ctx (i/when-named base
+                          :local-binding
+                          :ready
+                          (i/tell :out 1))
+        first-key (:key @seen)
+        ctx* (i/when-named base
+                           :local-binding
+                           :ready
+                           (i/tell :out 1))]
+    (is (= [[:named-when] :when :local-binding (node-id :ready)]
+           first-key))
+    (is (= first-key (:key @seen)))
+    (is (< (count (i/effects base))
+           (count (i/effects ctx))))
+    (is (= (i/effects ctx) (i/effects ctx*)))))
+
+(deftest positional-when-remains-compatible
+  (let [seen (atom nil)
+        when-f (fn [when-key condition-id _body]
+                 (reset! seen [when-key condition-id])
+                 (fvm/bind-name [:test :when] when-key condition-id))
+        ready-id (node-id :positional-ready)
+        base (-> (i/context net/empty-net [:positional-when])
+                 (assoc :when when-f)
+                 (i/$ {:ready ready-id}))
+        position (count (i/effects base))
+        ctx (i/when base :ready (i/tell :out 1))]
+    (is (= [[[:positional-when]
+             :when
+             [:effect-position position]
+             ready-id]
+            ready-id]
+           @seen))
+    (is (< position (count (i/effects ctx))))))
+
 (deftest arithmetic-and-copy-compute-through-names
   (let [n (-> (i/context net/empty-net [:arithmetic])
               (i/tell :x 2)

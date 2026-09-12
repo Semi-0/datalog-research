@@ -8,10 +8,9 @@
             [propagators.compiler-2.runtime.tui.version-history :as history]
             [graph.compiler-2-semantic-repl :as semantic-repl]
             [propagators.compiler-2.main :as compiler]
-            [propagators.compiler-2.model.application-value :as application-value]
             [propagators.compiler-2.operators.versioned-definition :as definition]
+            [propagators.compiler-2.runtime.application :as application]
             [propagators.core :as core]
-            [propagators.datastructures.compound-object :as obj]
             [propagators.gur.flat :as fvm]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -126,11 +125,11 @@
                              [:tuis client-id :blocks block-index
                               :version-history]))
         application-id (first (get-in record [:topology :application-ids]))
-        application (net/network-cell-strongest (:program/net runtime-state)
-                                                application-id)]
+        topology (application/application-topology
+                  (:program/net runtime-state)
+                  application-id)]
     {:input-id
-     (first (obj/slot-value application
-                            application-value/application-arg-cells-slot))
+     (first (:argument-ids topology))
      :output-id (get-in record [:topology :result-cell])}))
 
 (defn benchmark-definition-edits-existing-application-input

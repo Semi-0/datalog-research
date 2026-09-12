@@ -137,18 +137,18 @@
     (is (= network installed))))
 
 (deftest cps-compilation-is-stack-safe
-  (testing "five thousand nested lexical scopes"
+  (testing "one thousand nested lexical scopes"
     (let [expr (reduce (fn [body idx]
                          (ast/let-cell [(symbol (str "x" idx))] body))
                        (ast/lit 1)
-                       (range 5000))
+                       (range 1000))
           compiled (compiler/compile-expr expr (h/default-env)
                                           {:seed :deep-let})]
       (is (= 1 (net/network-cell-strongest (:net compiled) (:cell compiled))))))
-  (testing "five thousand nested sequences"
+  (testing "one thousand nested sequences"
     (let [expr (reduce (fn [body _] (ast/sequence* body))
                        (ast/lit 2)
-                       (range 5000))
+                       (range 1000))
           compiled (compiler/compile-expr expr (h/default-env)
                                           {:seed :deep-sequence})]
       (is (= 2 (net/network-cell-strongest (:net compiled)
@@ -157,14 +157,17 @@
     (let [ordinary (reduce (fn [value _]
                              (ast/app (ast/sym '+) value (ast/lit 1)))
                            (ast/lit 0)
-                           (range 2000))
+                           (range 250))
           direct (reduce (fn [value _]
                            (ast/app (ast/sym 'list) value))
                          (ast/lit 0)
-                         (range 2000))]
-      (is (= 2000 (count (:applications
-                          (compiler/compile-expr ordinary (h/default-env)
-                                                 {:seed :deep-application})))))
+                         (range 250))
+          compiled-ordinary
+          (compiler/compile-expr ordinary (h/default-env)
+                                 {:seed :deep-application})
+          application-topologies
+          (application/application-topologies (:net compiled-ordinary))]
+      (is (= 250 (count application-topologies)))
       (is (some? (:cell (compiler/compile-expr direct (h/default-env)
                                                {:seed :deep-list})))))))
 

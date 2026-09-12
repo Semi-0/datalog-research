@@ -1,135 +1,116 @@
 (ns propagators.compiler-2-application-runtime-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.value :as value]
-            [propagators.compiler-2.compiler.basis :as h]
-            [propagators.compiler-2.cps-core :as compiler]
-            [propagators.compiler-2.language.ast :as ast]
-            [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.application :as application]
-            [propagators.compiler-2.runtime.application-layers :as layers]
-            [propagators.compiler-2.runtime.application-output :as output]
-            [propagators.compiler-2.runtime.topology-effects :as topology]
-            [propagators.datastructures.scope-source :as scope-source]
+            [propagators.core :as core]
+            [propagators.gur :as gur]
             [propagators.ids :as ids]
-            [propagators.layered :as layered]
-            [propagators.message :as msg :refer [message]]
+            [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.propagator :as prop]))
 
-(defn- scoped [source chain v dependencies]
-  (scope-source/scope-value source nil chain v dependencies))
+(defn- increment-installer
+  [network argument-ids result-id _context-id]
+  (let [[argument-id] argument-ids
+        prepared (reduce nb/ensure-cell network [argument-id result-id])
+        [prop-id installed]
+        (((prop/concrete-primitive-propagator :test/increment inc)
+          argument-id
+          result-id)
+         prepared)]
+    [installed [prop-id] result-id]))
 
-(deftest compatible-scopes-combine-only-explicit-provenance
-  (let [root (scoped :root [:root :child] 1 #{:root})
-        child (scoped :child [:root :child] 2 #{:child})
-        unrelated (scoped :other [:other] 3 #{:other})
-        unknown-source (scoped :unknown [:root :child] 4 #{:unknown})
-        scope (layers/application-scope [root 99 child])]
-    (is (nil? (layers/application-scope [])))
-    (is (nil? (layers/application-scope [1 2])))
-    (is (nil? (layers/application-scope [root unrelated])))
-    (is (= child (:candidate scope)))
-    (is (= #{:root :child} (:dependencies scope)))
-    (is (= root (:candidate (layers/application-scope [unknown-source root]))))
-    (is (= scope (application/application-scope [root 99 child])))
-    (is (= 2 (layers/unwrap-operator child)))
-    (is (= false (layers/unwrap-operator false)))))
+(defn- test-callable
+  []
+  (application/primitive-callable
+   :test/increment
+   (gur/stable-node-id [:test :increment-declaration])
+   increment-installer
+   {:name :test/increment}))
 
-(deftest result-provenance-preserves-ordinary-values-and-other-messages
-  (let [scope {:dependencies #{:input}}
-        answer (scoped :root [:root] 12 #{:result})
-        messages [(message :out answer) (message :other answer)]
-        refined (layers/scope-activation-result scope :out messages)
-        effect {:effect :retained}
-        result (layers/scope-activation-result
-                scope :out {:effects [effect] :messages messages})]
-    (is (= #{:input :result}
-           (scope-source/dependencies (msg/message-value (first refined)))))
-    (is (= (second messages) (second refined)))
-    (is (= [effect] (:effects result)))
-    (is (= refined (:messages result)))
-    (is (= messages (layers/scope-activation-result nil :out messages)))
-    (is (= [(message :out false)]
-           (layers/scope-activation-result scope :out [(message :out false)])))
-    (is (= {:messages []}
-           (layers/scope-activation-result scope :out {})))
-    (is (= :unsupported (layers/scope-activation-result scope :out :unsupported)))))
+(defn- installed-application
+  []
+  (let [operator-id (ids/new-node-id)
+        argument-id (ids/new-node-id)
+        context-id (ids/new-node-id)
+        result-id (ids/new-node-id)
+        base (reduce nb/ensure-cell net/empty-net
+                     [operator-id argument-id context-id result-id])
+        [state _binding]
+        (application/install-application
+         {:net base
+          :props []
+          :context-id context-id
+          :application/app-id [:test :application]}
+         operator-id
+         [argument-id]
+         result-id)]
+    {:state state
+     :operator-id operator-id
+     :argument-id argument-id
+     :result-id result-id}))
 
-(deftest base-readers-select-existing-pending-and-raw-sources
-  (let [spec (first (layers/source-specs :application :source [:arg]))
-        specs (layers/source-specs :application :source [:arg])]
-    (is (= [:operator [:arg 0]] (mapv :role specs)))
-    (is (= [:source :arg] (mapv :source-id specs)))
-    (with-redefs [h/strongest-or-nothing (fn [_ _] :value)
-                  layered/layer-addressable? (fn [_ _] false)
-                  layered/layer-parent-id (fn [_ _ _] nil)]
-      (is (= :source (layers/evaluation-id net/empty-net spec)))
-      (is (= [] (layers/pending-base-readers net/empty-net :application specs))))
-    (with-redefs [h/strongest-or-nothing (fn [_ _] :value)
-                  layered/layer-addressable? (fn [_ _] true)
-                  layered/layer-parent-id (fn [_ _ _] nil)
-                  topology/declared? (fn [_ _] false)]
-      (is (= (:base-id spec) (layers/evaluation-id net/empty-net spec)))
-      (is (= specs (layers/pending-base-readers net/empty-net :application specs)))
-      (with-redefs [topology/declared? (fn [_ _] true)]
-        (is (= [] (layers/pending-base-readers net/empty-net :application specs)))))
-    (with-redefs [layered/layer-parent-id (fn [_ _ _] :existing)]
-      (is (= :existing (layers/evaluation-id net/empty-net spec))))
-    (is (= {:effects [] :messages []}
-           (layers/declare-pending-base-readers net/empty-net :application [])))))
+(defn- seed-and-run
+  [network id candidate]
+  (let [[tasks seeded]
+        (core/eval-cell id (message id candidate) network)]
+    (core/run-tasks tasks seeded)))
 
-(deftest explicit-result-addresses-stay-at-the-layer-boundary
-  (let [address (ids/new-node-id)
-        network (nb/install-cell net/empty-net address)
-        answer (scoped :root [:root] 12 #{})]
-    (with-redefs [h/strongest-or-nothing (fn [_ _] answer)
-                  scope-source/binding-address (fn [_] address)
-                  layered/layer-parent-id (fn [_ _ _] :base)]
-      (is (= address (layers/result-value-id network :result)))
-      (is (= :base (layers/result-value-id net/empty-net :result))))
-    (with-redefs [h/strongest-or-nothing (fn [_ _] answer)
-                  scope-source/binding-address (fn [_] :invalid)
-                  layered/layer-parent-id (fn [_ _ _] nil)]
-      (is (= :result (layers/result-value-id network :result))))
-    (with-redefs [h/strongest-or-nothing (fn [_ _] 12)
-                  layered/layer-parent-id (fn [_ _ _] nil)]
-      (is (= :result (layers/result-value-id network :result))))))
+(defn- prop-count
+  [network]
+  (count (filter prop/prop? (vals (net/net-env network)))))
 
-(deftest output-export-preserves-scalars-and-suppresses-unchanged-values
-  (doseq [v [false 0 12]]
-    (let [id (ids/new-node-id)
-          before (nb/install-cell net/empty-net id)
-          after (nb/seed-cell before id v)]
-      (is (= v (output/externalized-cell-value after id)))
-      (is (= [(message id v)]
-             (vec (output/externalized-output-messages after before [id]))))
-      (is (empty? (output/externalized-output-messages after after [id])))))
-  (is (= value/nothing (output/externalized-cell-value net/empty-net :missing))))
+(deftest application-protocol-declares-flat-topology
+  (let [{:keys [state operator-id argument-id result-id]}
+        (installed-application)
+        initial
+        (nb/run-propagators (:net state) (:props state))
+        with-operator
+        (seed-and-run initial operator-id (test-callable))
+        complete
+        (seed-and-run with-operator argument-id 4)
+        name-bindings
+        (get (net/network-dict-entry complete gur/name-bindings-key)
+             application/application-name-scope)]
+    (is (= 5 (net/network-cell-strongest complete result-id)))
+    (is (= 1 (count (:props state))))
+    (is (contains? name-bindings [:test :application]))))
 
-(deftest sub-environment-publishes-the-raw-compiler-result-cell
-  (doseq [v [false 41]]
-    (let [parent-id (ids/new-node-id)
-          expr-id (ids/new-node-id)
-          child-id (ids/new-node-id)
-          out-id (ids/new-node-id)
-          x-id (ids/new-node-id)
-          result-cell (atom nil)
-          compile* (fn [state expr]
-                     (let [[compiled binding] (compiler/default-compiler state expr)]
-                       (reset! result-cell (env/binding-id binding))
-                       [compiled binding]))
-          network (-> net/empty-net
-                      (h/seed-cell x-id v)
-                      (h/seed-cell parent-id
-                                   (env/bind (h/default-env) 'x
-                                             (env/cell-binding x-id) 0))
-                      (h/seed-cell expr-id (ast/sym 'x)))
-          [prop-id installed]
-          ((application/p:execute-sub-env-with compile* parent-id expr-id []
-                                                child-id out-id) network)
-          result (nb/run-propagators installed [prop-id])]
-      (is (= v (net/network-cell-strongest result out-id)))
-      (is (= v (net/network-cell-strongest result @result-cell)))
-      (is (= @result-cell (layers/result-value-id result @result-cell)))
-      (is (not (scope-source/scope-value?
-                (net/network-cell-strongest result @result-cell)))))))
+(deftest application-waits-for-late-operator-and-argument
+  (let [{:keys [state operator-id argument-id result-id]}
+        (installed-application)
+        initial
+        (nb/run-propagators (:net state) (:props state))
+        with-argument
+        (seed-and-run initial argument-id 8)
+        complete
+        (seed-and-run with-argument operator-id (test-callable))]
+    (is (= value/nothing
+           (net/network-cell-strongest initial result-id)))
+    (is (= value/nothing
+           (net/network-cell-strongest with-argument result-id)))
+    (is (= 9 (net/network-cell-strongest complete result-id)))))
+
+(deftest contradictory-operator-waits-without-special-policy
+  (let [{:keys [state operator-id result-id]}
+        (installed-application)
+        initial
+        (nb/run-propagators (:net state) (:props state))
+        contradicted
+        (seed-and-run initial operator-id value/contradiction)]
+    (is (= value/nothing
+           (net/network-cell-strongest contradicted result-id)))))
+
+(deftest equivalent-reactivation-does-not-grow-topology
+  (let [{:keys [state operator-id argument-id]}
+        (installed-application)
+        initial
+        (nb/run-propagators (:net state) (:props state))
+        with-operator
+        (seed-and-run initial operator-id (test-callable))
+        complete
+        (seed-and-run with-operator argument-id 3)
+        reactivated
+        (nb/run-propagators complete (:props state))]
+    (is (= (prop-count complete) (prop-count reactivated)))))

@@ -1,5 +1,18 @@
 # Compiler 2 Direct GUR Application Incident Report
 
+Recovery outcome, 2026-09-12: the replacement implementation keeps generic GUR,
+compound-object, TMS, and scheduler kernels fixed. It makes flat GUR the public
+facade and composes Compiler 2 application and lexical access in the active
+network. See [Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md).
+This report remains the historical record of the discarded over-scoped branch.
+
+The replacement also records one boundary-limited clock prototype defect:
+Compiler 2 topology diffing does not preserve the clock installer's
+dictionary-backed event-cell declaration. The event-to-TUI clock display is
+therefore deprecated diagnostic evidence, while the flat application and
+lexical refactor proceeds without changing the flat-GUR kernel, generic cell
+protocol, or scheduler.
+
 ## Status
 
 - Incident checkpoint: `cabf70e2b99d0d5c8c92c497dae4c7dfdabbeede`

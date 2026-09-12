@@ -1,6 +1,9 @@
 # Compiler-2 adoption context and future-agent prompt
 
-Status snapshot: 2026-07-21.
+Status snapshot: 2026-09-12. The flat-GUR application architecture in
+[Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md)
+supersedes references below to retained application, closure frames, and an
+accumulating-GUR default.
 
 This document is the shortest complete model of the current compiler-2 and
 live-runtime experiment. It is intended to be pasted into a new agent task or
@@ -36,8 +39,8 @@ Maintain these boundaries:
 - the CPS compiler and trampoline are the production compiler;
 - delayed closure, lazy, list, and sub-environment paths must retain the
   selected compiler;
-- compiler-2 closures apply through the retained application and
-  p:apply-closure path;
+- Compiler 2 closures apply through connected flat-GUR topology in the active
+  `Net`; `p:apply-closure` is only a compatibility adapter;
 - cells merge partial information and expose a strongest projection; do not
   move TMS, event, behavior, or provenance policy into the scheduler;
 - external IO occurs only at a runtime boundary after propagation reaches
