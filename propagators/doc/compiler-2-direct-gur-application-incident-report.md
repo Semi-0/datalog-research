@@ -30,13 +30,20 @@ the implementation base for the next Compiler 2 application change without a
 new review of its GUR and TMS modifications.
 
 The recovery commit is also a monorepo checkpoint, not a completed
-multi-repository delivery. It changes Compiler 2, shared `propagators.gur` and
-`propagators.install` facades, runtime/session integration, demonstrations,
-tests, and documentation. Publishing it to the extracted repositories requires
-a path-by-path ownership split and dependency-ordered, history-preserving
-ports. Pushing the complete commit directly to `lain-compiler` would recreate a
-repository-boundary error. The missing port and its required ownership split
-are recorded in
+multi-repository delivery. `Semi-0/lain-compiler` is the canonical Compiler 2
+repository: the extraction renamed `propagators.compiler-2.*` to
+`propagators.compiler.*` and retained the parser, CPS compiler, compiler model,
+application lowering, compiler operators, tests, and documentation there. The
+recovery work should have been delivered through that repository boundary.
+
+The commit also changes shared `propagators.gur` and `propagators.install`
+facades, runtime/session integration, demonstrations, tests, and documentation.
+Publishing therefore requires a path-by-path ownership split and
+dependency-ordered, history-preserving ports: shared changes to
+`lain-infrastructure`, compiler changes to `lain-compiler`, then runtime and TUI
+consumers to their repositories. Pushing the complete monorepo commit directly
+to `lain-compiler` would recreate a repository-boundary error. The missing port
+and its required ownership split are recorded in
 [Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md#multi-repository-delivery-gap).
 
 ## Executive summary
