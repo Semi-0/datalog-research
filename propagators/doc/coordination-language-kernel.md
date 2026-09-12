@@ -136,6 +136,27 @@ not need to be the implementation substrate for behavior reactivity or TMS.
 Behavior owns time/version retention; a future TMS owns support, justification,
 and retraction policy.
 
+## Module-Segregated Delivery
+
+Semantic ownership survives repository extraction. A refactor or port must
+deliver each implementation change, fix, test, and documentation update to the
+repository that owns the affected module. A consumer repository composes an
+owner module through its published contract; moving a file or discovering a
+downstream integration failure does not transfer that responsibility.
+
+When acceptance requires changing another owner or its contract, stop the
+current delivery, retain the failing evidence and checkpoint, and open a
+separately reviewed change in the owning module. Resume downstream integration
+only after that owner-module change has its own boundary, verification, commit,
+and delivery record.
+
+The Compiler 2 application work provides both failure and recovery evidence.
+The [scope-drift incident](compiler-2-direct-gur-application-incident-report.md)
+records how a compiler refactor expanded into shared GUR behavior. The
+[flat-GUR delivery record](flat-gur-compiler-2-application.md#multi-repository-delivery-gap)
+records the corrected repository ownership and the stop at `wired` when the
+port exposed runtime-owned inspection and compound-projection gaps.
+
 ## What To Do
 
 Prefer declaration over procedural control. If a feature needs more structure,
