@@ -19,11 +19,25 @@ protocol, or scheduler.
 - Preserved branch: `codex/compiler-2-direct-gur-application`
 - Recovery base: `39c187569b5262434d4b8d9e8dd37e7d22521bd0`
 - Recovery branch: `codex/compiler-2-application-runtime-cleanup`
+- Recovery implementation: `3eac0243745cf1a6a21495e4f6e77a5bbef5900d`
+- Published location: `Semi-0/datalog-research`, recovery branch
+- Extracted compiler delivery: missing from `Semi-0/lain-compiler`; its observed
+  `main` remained `cf6301167e900e40c5a9137c8264bb874a6d7049`
 - Database status: Kiroshi evidence was drafted, but the database was not mutated or approved.
 
 The incident checkpoint is preserved for inspection. It must not be treated as
 the implementation base for the next Compiler 2 application change without a
 new review of its GUR and TMS modifications.
+
+The recovery commit is also a monorepo checkpoint, not a completed
+multi-repository delivery. It changes Compiler 2, shared `propagators.gur` and
+`propagators.install` facades, runtime/session integration, demonstrations,
+tests, and documentation. Publishing it to the extracted repositories requires
+a path-by-path ownership split and dependency-ordered, history-preserving
+ports. Pushing the complete commit directly to `lain-compiler` would recreate a
+repository-boundary error. The missing port and its required ownership split
+are recorded in
+[Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md#multi-repository-delivery-gap).
 
 ## Executive summary
 

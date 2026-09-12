@@ -174,6 +174,53 @@ execute the call.
 Historical retained-application, closure-frame, lexical-application, and
 application-layer modules have no production callers and were deleted.
 
+## Multi-repository delivery gap
+
+This architecture is implemented in monorepo commit
+`3eac0243745cf1a6a21495e4f6e77a5bbef5900d` on
+`Semi-0/datalog-research`, branch
+`codex/compiler-2-application-runtime-cleanup`. It has not been published to
+the extracted compiler repository, `Semi-0/lain-compiler`. At the time this
+gap was recorded, the remote `lain-compiler` `main` and `HEAD` both remained at
+`cf6301167e900e40c5a9137c8264bb874a6d7049`.
+
+The monorepo commit cannot be copied wholesale into `lain-compiler`. Its files
+cross the established extraction boundaries:
+
+```clojure
+{:implemented-in
+ {:monorepo {:repository "Semi-0/datalog-research"
+             :commit "3eac0243745cf1a6a21495e4f6e77a5bbef5900d"}
+  :compiler-repository {:repository "Semi-0/lain-compiler"
+                        :observed-head "cf6301167e900e40c5a9137c8264bb874a6d7049"
+                        :port-status :missing}}
+
+ :required-port-boundaries
+ {:compiler '#{propagators.compiler-2
+               compiler-2-tests
+               compiler-2-documentation}
+  :shared-infrastructure '#{propagators.gur
+                            propagators.install
+                            shared-builder-tests}
+  :runtime '#{compiler-2-session
+              compiler-2-tui
+              runtime-tests}
+  :research '#{graph-demos
+               research-documents}}
+
+ :delivery-state
+ {:ownership-classification :required
+  :history-preserving-port :not-started
+  :cross-repository-verification :not-run}}
+```
+
+Before publishing, classify every changed path against the extracted repository
+map, preserve the original commit as provenance, and port dependencies before
+their consumers. Verify the resulting commits inside each destination
+repository. Until that work is complete, the flat-GUR Compiler 2 refactor is a
+monorepo implementation and must not be described as delivered in
+`lain-compiler`.
+
 ## Known limitation: dictionary-backed cell protocols
 
 Compiler 2 lowers a topology assembled in a temporary `Net` with
