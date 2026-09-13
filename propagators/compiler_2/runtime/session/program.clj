@@ -4,6 +4,7 @@
             [propagators.compiler-2.runtime.boundary :as boundary]
             [propagators.compiler-2.runtime.boundary.effects :as effects]
             [propagators.compiler-2.runtime.operators :as runtime-ops]
+            [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.compiler-2.runtime.session.program.source :as source]
             [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.bridge.widget :as runtime-widget]
@@ -99,6 +100,10 @@
      :program/graph graph
      :program/results {}
      :program/epoch 0
+     :runtime/errors (:runtime/errors base-state)
+     :environment/effects {}
+     :environment/handlers (:environment/handlers base-state)
+     :session/extensions (:session/extensions base-state)
      :block-order []
      :next-order 0
      :tuis {}
@@ -243,30 +248,29 @@
 
 (defn- static-runtime-bindings
   [graph-id]
-  [['block-at (runtime-ops/block-at-operator (boundary-outbox-id))]
-   ['be:block-at (runtime-ops/be-block-at-operator (boundary-outbox-id))]
-   ['be:event-block-at (runtime-ops/be-event-block-at-operator)]
-   ['instance (runtime-ops/instance-operator)]
-   ['trace-target (runtime-ops/trace-target-operator)]
-   ['trace (runtime-ops/trace-operator graph-id (boundary-outbox-id))]
-   ['xr-io (runtime-ops/xr-io-operator (boundary-outbox-id))]
-   ['io:xr (runtime-ops/io-xr-operator (boundary-outbox-id))]
-   ['slider-io (runtime-widget/slider-io-operator (boundary-outbox-id))]
-   ['slider-panel-io (runtime-widget/slider-panel-io-operator (boundary-outbox-id))]
-   ['io:slider (runtime-widget/io-slider-operator (boundary-outbox-id))]
-   ['io:slider-panel (runtime-widget/io-slider-panel-operator (boundary-outbox-id))]
-   ['io:slider-panels (runtime-widget/io-slider-panel-operator (boundary-outbox-id))]
-   ['io:slider-panel-name
-    (runtime-widget/io-slider-panel-name-operator (boundary-outbox-id))]
-   ['runtime:clients (runtime-ops/runtime-clients-operator)]
-   ['runtime:client-pipe (runtime-ops/runtime-client-pipe-operator)]
-   ['runtime:list-text-events (runtime-ops/list-text-events-operator)]
-   ['load-primitive-environment
-    (runtime-ops/load-primitive-environment-operator (boundary-outbox-id))]
-   ['load-lain (runtime-ops/load-lain-operator (boundary-outbox-id))]
-   ['save-environment
-    (runtime-ops/save-environment-operator (boundary-outbox-id))]
-   ['translate (runtime-ops/translate-operator)]])
+  (into
+   [['block-at (runtime-ops/block-at-operator (boundary-outbox-id))]
+    ['be:block-at (runtime-ops/be-block-at-operator (boundary-outbox-id))]
+    ['be:event-block-at (runtime-ops/be-event-block-at-operator)]
+    ['instance (runtime-ops/instance-operator)]
+    ['trace-target (runtime-ops/trace-target-operator)]
+    ['trace (runtime-ops/trace-operator graph-id (boundary-outbox-id))]
+    ['xr-io (runtime-ops/xr-io-operator (boundary-outbox-id))]
+    ['io:xr (runtime-ops/io-xr-operator (boundary-outbox-id))]
+    ['slider-io (runtime-widget/slider-io-operator (boundary-outbox-id))]
+    ['slider-panel-io (runtime-widget/slider-panel-io-operator (boundary-outbox-id))]
+    ['io:slider (runtime-widget/io-slider-operator (boundary-outbox-id))]
+    ['io:slider-panel (runtime-widget/io-slider-panel-operator (boundary-outbox-id))]
+    ['io:slider-panels (runtime-widget/io-slider-panel-operator (boundary-outbox-id))]
+    ['io:slider-panel-name
+     (runtime-widget/io-slider-panel-name-operator (boundary-outbox-id))]
+    ['runtime:clients (runtime-ops/runtime-clients-operator)]
+    ['runtime:client-pipe (runtime-ops/runtime-client-pipe-operator)]
+    ['runtime:list-text-events (runtime-ops/list-text-events-operator)]
+    ['translate (runtime-ops/translate-operator)]]
+   (extension/program-bindings
+    extension/core-extension
+    {:outbox-id (boundary-outbox-id)})))
 
 (defn- dynamic-runtime-bindings
   [runtime-state current-client-id]
@@ -283,13 +287,13 @@
                                                           instance-id))]
              ['be:block (runtime-ops/be-block-target-operator
                          (boundary-outbox-id) instance-id)]
-             ['load-blocks
-              (runtime-ops/load-blocks-operator (boundary-outbox-id)
-                                                current-client-id)]
-             ['save-blocks
-              (runtime-ops/save-blocks-operator (boundary-outbox-id)
-                                                current-client-id)]
-             ['% (cenv/cell-binding instance-id)]]))))
+             ['% (cenv/cell-binding instance-id)]])
+
+      instance-id
+      (into (extension/program-bindings
+             extension/client-extension
+             {:outbox-id (boundary-outbox-id)
+              :client-id current-client-id})))))
 
 (defn runtime-env
   ([runtime-state network base-env graph-id current-client-id scope-key]

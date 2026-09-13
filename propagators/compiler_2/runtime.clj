@@ -7,6 +7,7 @@
             [propagators.compiler-2.runtime.session.input :as input]
             [propagators.compiler-2.runtime.session.instance-replay :as instance-replay]
             [propagators.compiler-2.runtime.session.program :as program]
+            [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.inspection.temperature :as temperature]
             [propagators.compiler-2.runtime.inspection.trace.session :as trace-session]
@@ -41,6 +42,15 @@
 (def import-instance! instance-replay/import-instance!)
 (def schedule-clock-subscriptions! clock/schedule-subscriptions!)
 (def stop-clocks! clock/stop-all!)
+(def extension-bundle extension/extension-bundle)
+(def install-session-extension extension/install-session-extension)
+
+(defn install-session-extension!
+  [session bundle context]
+  (state/ensure-session-state! session)
+  (state/mutate-session!
+   session
+   #(extension/install-session-extension % bundle context)))
 
 (defn- with-trace-refresh!
   [session result]

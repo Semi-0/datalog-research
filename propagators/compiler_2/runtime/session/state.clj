@@ -2,6 +2,7 @@
   "Shared compiler-2 runtime state primitives."
   (:require [propagators.compiler-2.runtime.boundary :as boundary]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
+            [propagators.compiler-2.runtime.session.extension :as extension]
             [graph.vijual-compiler-2-demo :as demo]
             [propagators.cells.cell-protocol :as cell-protocol]
             [propagators.compile :as compile1]
@@ -74,8 +75,11 @@
    :program/epoch 0
    :runtime/commit-tick 0
    :runtime/full-rebuild-fallbacks 0
+   :runtime/errors []
    :versioned/commit-log []
    :environment/effects {}
+   :environment/handlers (extension/default-handler-registry)
+   :session/extensions {}
    :environment/primitive-imports []
    :environment/source-ledger []
    :environment/load-stack []
@@ -161,6 +165,17 @@
             (->> (conj (vec errors) (assoc entry :at (System/currentTimeMillis)))
                  (take-last 20)
                  vec))))
+
+(defn record-runtime-error
+  [state source throwable]
+  (append-runtime-error state (runtime-error-entry source throwable)))
+
+(defn run-session-activation
+  [state source activate]
+  (try
+    (activate state)
+    (catch Throwable throwable
+      (record-runtime-error state source throwable))))
 
 (defn record-runtime-error!
   [session source throwable]

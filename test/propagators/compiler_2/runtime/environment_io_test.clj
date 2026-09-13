@@ -50,9 +50,10 @@
                           "(+ answer 1)\n"))
         request {:boundary/kind :environment/load-lain
                  :boundary/payload {:file (.getPath file) :revision 0}}
-        result (environment-io/perform-request
-                (runtime-state/empty-state) request
-                effects/drain-environment-effects)]
+        result (environment-io/load-lain
+                {:drain-environment-effects effects/drain-environment-effects}
+                (runtime-state/empty-state)
+                request)]
     (is (= :loaded (get-in result [:receipt :status])))
     (is (= 3 (get-in result [:receipt :installed-form-count])))
     (is (= 37 (get-in result [:state :program/results
@@ -115,11 +116,11 @@
     (spit a (pr-str (list 'load-lain (.getCanonicalPath b) 0)))
     (spit b (pr-str (list 'load-lain (.getCanonicalPath a) 0)))
     (let [result
-          (environment-io/perform-request
+          (environment-io/load-lain
+           {:drain-environment-effects effects/drain-environment-effects}
            (runtime-state/empty-state)
            {:boundary/kind :environment/load-lain
-            :boundary/payload {:file (.getPath a) :revision 0}}
-           effects/drain-environment-effects)]
+            :boundary/payload {:file (.getPath a) :revision 0}})]
       (is (= :failed (get-in result [:receipt :status])))
       (is (re-find #"nested environment effect failed"
                    (pr-str (get-in result [:receipt :diagnostics])))))))

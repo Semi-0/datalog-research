@@ -25,6 +25,49 @@ revision or checkpoint, form count, and diagnostics. Its effect ledger makes a
 repeated identity mutation-free while still delivering the saved receipt to a
 new result cell.
 
+## Session extensions
+
+Primitive bindings and environment effect operators are installed as one
+session extension declaration:
+
+```clojure
+{:program-bindings [['square square-operator]]
+ :effect-specs [{:effect/symbol 'load-project
+                 :boundary/port :environment
+                 :boundary/kind :environment/load-project
+                 :effect/handler-symbol 'project.runtime/load-project}]}
+```
+
+The binding half uses the existing live compound-environment operations:
+`p:scope-frame` declares a child frame and `declare-bindings` publishes its
+locals. Session extensions do not alter or copy lexical environments.
+
+The effect half installs ordinary request-producing operators into that frame
+and registers named handlers in the session. The runtime session owns handler
+registration and catches unexpected propagation failures. Once a valid request
+crosses the runtime boundary, the effect boundary owns handler invocation,
+ledger updates, replay checks, and success or failure receipts. A handler never
+executes inside a propagator.
+
+Unavailable arguments wait. Expected arity and argument validation failures
+produce failed receipt information. They do not enter the external effect
+boundary. Unexpected propagator exceptions are recorded in `:runtime/errors`.
+
+The corresponding Kiroshi evolution is prepared, but remains outside the
+persisted model until committed Git evidence exists:
+
+```clojure
+#{:component/session-extension
+  :boundary/session-extension-under-compiler-2-v1
+  :decision/session-extension-unifies-bindings-and-effect-capabilities
+  :constraint/runtime-session-owns-activation-failure-boundary
+  :constraint/effect-boundary-owns-external-failure-receipts
+  :evidence/compiler-2-session-extension-api}
+```
+
+Every candidate begins at `:needs-verification`. Persistence, approval, and
+supersession require a separate model review after the implementation commit.
+
 ## Primitive modules
 
 A trusted Clojure module exports a zero-argument function returning ordered
