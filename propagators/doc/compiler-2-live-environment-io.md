@@ -42,12 +42,24 @@ The binding half uses the existing live compound-environment operations:
 `p:scope-frame` declares a child frame and `declare-bindings` publishes its
 locals. Session extensions do not alter or copy lexical environments.
 
+A session extension is an immutable declaration. Its binding pairs and effect
+specifications are copied into persistent collections when the bundle is
+constructed. Binding producers are not retained or invoked during installation.
+The values in binding pairs remain opaque and retain their own behavior.
+
 The effect half installs ordinary request-producing operators into that frame
-and registers named handlers in the session. The runtime session owns handler
-registration and catches unexpected propagation failures. Once a valid request
-crosses the runtime boundary, the effect boundary owns handler invocation,
-ledger updates, replay checks, and success or failure receipts. A handler never
-executes inside a propagator.
+and registers fixed handlers in the session. Each qualified handler Var is
+resolved and dereferenced when its registration is created. Later Var
+redefinition cannot change the handler already stored in a session. The runtime
+session owns handler registration and catches unexpected propagation failures.
+Once a valid request crosses the runtime boundary, the effect boundary owns
+handler invocation, ledger updates, replay checks, and success or failure
+receipts. A handler never executes inside a propagator.
+
+Installing an extension returns a new session value whose environment is a
+child of the previous environment. The parent session value remains unchanged.
+Repeating the same frozen declaration is idempotent; another declaration cannot
+reuse its extension identity.
 
 Unavailable arguments wait. Expected arity and argument validation failures
 produce failed receipt information. They do not enter the external effect
@@ -60,6 +72,8 @@ persisted model until committed Git evidence exists:
 #{:component/session-extension
   :boundary/session-extension-under-compiler-2-v1
   :decision/session-extension-unifies-bindings-and-effect-capabilities
+  :decision/session-extension-declarations-are-immutable
+  :constraint/session-extension-declaration-is-immutable
   :constraint/runtime-session-owns-activation-failure-boundary
   :constraint/effect-boundary-owns-external-failure-receipts
   :evidence/compiler-2-session-extension-api}

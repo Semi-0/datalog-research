@@ -8,51 +8,66 @@
 
 (defprotocol SessionExtension
   (extension-id [extension])
-  (extension-bindings [extension context])
-  (extension-effects [extension]))
+  (extension-bindings [extension])
+  (extension-effects [extension])
+  (extension-declaration [extension]))
 
-(deftype ExtensionBundle [id bindings-fn effects]
+(deftype ExtensionBundle [id bindings effects declaration]
   SessionExtension
   (extension-id [_]
     id)
-  (extension-bindings [_ context]
-    (bindings-fn context))
+  (extension-bindings [_]
+    bindings)
   (extension-effects [_]
-    effects))
+    effects)
+  (extension-declaration [_]
+    declaration))
 
 (defprotocol EffectHandler
   (handle-effect [handler services session request]))
 
-(deftype NamedHandler [handler-symbol]
+(deftype FixedHandler [handler-symbol implementation]
   EffectHandler
   (handle-effect [_ services session request]
-    (let [handler (requiring-resolve handler-symbol)]
-      (cond
-        (ifn? handler)
-        (handler services session request)
+    (implementation services session request)))
 
-        :else
-        (throw
-         (ex-info "Named effect handler is not callable"
-                  {:handler-symbol handler-symbol
-                   :request request}))))))
+(defn fixed-handler
+  [handler-symbol]
+  (let [resolved (requiring-resolve handler-symbol)
+        implementation (var-get resolved)]
+    (cond
+      (ifn? implementation)
+      (FixedHandler. handler-symbol implementation)
 
-(defn extension-bundle
-  [{:keys [id bindings effects]}]
+      :else
+      (throw
+       (ex-info "Effect handler is not callable"
+                {:handler-symbol handler-symbol})))))
+
+(defn freeze-bindings
+  [bindings]
   (cond
-    (nil? id)
-    (throw (ex-info "Session extension requires an id" {}))
+    (and (ifn? bindings) (not (sequential? bindings)))
+    (throw (ex-info "Session extension bindings must be declared values"
+                    {:bindings bindings}))
 
-    (not (ifn? bindings))
-    (throw (ex-info "Session extension bindings must be callable"
-                    {:extension-id id :bindings bindings}))
+    (and (seqable? bindings) (not (map? bindings)) (not (set? bindings)))
+    (mapv
+     (fn [binding]
+       (let [pair (vec binding)
+             symbol (first pair)]
+         (cond
+           (and (= 2 (count pair)) (symbol? symbol))
+           [symbol (second pair)]
 
-    (not (sequential? effects))
-    (throw (ex-info "Session extension effects must be sequential"
-                    {:extension-id id :effects effects}))
+           :else
+           (throw (ex-info "Invalid session extension binding"
+                           {:binding binding})))))
+     bindings)
 
     :else
-    (ExtensionBundle. id bindings (vec effects))))
+    (throw (ex-info "Session extension bindings must be seqable"
+                    {:bindings bindings}))))
 
 (defn- validate-effect
   [effect]
@@ -76,6 +91,28 @@
     :else
     effect))
 
+(defn freeze-effect
+  [effect]
+  (into {} (validate-effect effect)))
+
+(defn extension-bundle
+  [{:keys [id bindings effects]}]
+  (cond
+    (nil? id)
+    (throw (ex-info "Session extension requires an id" {}))
+
+    (not (sequential? effects))
+    (throw (ex-info "Session extension effects must be sequential"
+                    {:extension-id id :effects effects}))
+
+    :else
+    (let [bindings (freeze-bindings bindings)
+          effects (mapv freeze-effect effects)
+          declaration {:extension/id id
+                       :extension/bindings bindings
+                       :extension/effects effects}]
+      (ExtensionBundle. id bindings effects declaration))))
+
 (defn effect-registration
   [effect]
   (let [effect (validate-effect effect)
@@ -98,7 +135,7 @@
       :else
       {:key [port kind]
        :id [port kind handler-symbol]
-       :handler (NamedHandler. handler-symbol)})))
+       :handler (fixed-handler handler-symbol)})))
 
 (defn- registrations
   [effects]
@@ -142,7 +179,7 @@
 
 (defn program-bindings
   [extension context]
-  (let [ordinary (extension-bindings extension context)]
+  (let [ordinary (extension-bindings extension)]
     (cond
       (not (sequential? ordinary))
       (throw (ex-info "Session extension bindings must be sequential"
@@ -214,19 +251,10 @@
      :env child-id
      :props (into (vec scope-props) (:props declared))}))
 
-(defn- declaration-id
-  [extension bindings registrations]
-  [(extension-id extension)
-   (mapv first bindings)
-   (mapv :id registrations)])
-
 (defn install-session-extension
   [session extension context]
-  (let [bindings (validate-bindings extension (program-bindings extension context))
-        effects (extension-effects extension)
-        registrations (registrations effects)
-        id (extension-id extension)
-        declaration (declaration-id extension bindings registrations)
+  (let [id (extension-id extension)
+        declaration (extension-declaration extension)
         existing (get-in session [:session/extensions id])]
     (cond
       (= declaration (:declaration existing))
@@ -239,7 +267,14 @@
                        :proposed declaration}))
 
       :else
-      (let [handlers (register-effects (:environment/handlers session) effects)
+      (let [bindings (validate-bindings
+                      extension
+                      (program-bindings extension context))
+            effects (extension-effects extension)
+            registrations (registrations effects)
+            handlers (reduce add-registration
+                             (or (:environment/handlers session) {})
+                             registrations)
             parent (live-parent (:program/net session) (:program/env session) id)
             child-id (runtime-ids/stable-node-id
                       :compiler-2 :session-extension id)
@@ -261,7 +296,7 @@
 (def core-extension
   (extension-bundle
    {:id :compiler-2/core-session-effects
-    :bindings (constantly [])
+    :bindings []
     :effects [(operators/load-primitive-environment-effect)
               (operators/load-lain-effect)
               (operators/save-environment-effect)]}))
@@ -269,7 +304,7 @@
 (def client-extension
   (extension-bundle
    {:id :compiler-2/client-session-effects
-    :bindings (constantly [])
+    :bindings []
     :effects [(operators/load-blocks-effect)
               (operators/save-blocks-effect)]}))
 

@@ -228,7 +228,7 @@
                       (.getPath canonical) entry revision digest]
         bundle (extension/extension-bundle
                 {:id extension-id
-                 :bindings (constantly bindings)
+                 :bindings bindings
                  :effects []})
         installed (extension/install-session-extension
                    runtime-state bundle {})

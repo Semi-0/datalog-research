@@ -25,6 +25,11 @@
   [_services _session _request]
   :invalid)
 
+(defn replacement-effect
+  [_services session _request]
+  {:state (assoc session :test/redefined true)
+   :receipt {:status :redefined}})
+
 (defn prop-count
   [network]
   (count (filter prop/prop? (vals (net/net-env network)))))
@@ -33,7 +38,7 @@
   [id bindings effects]
   (extension/extension-bundle
    {:id id
-    :bindings (constantly bindings)
+    :bindings bindings
     :effects effects}))
 
 (defn effect
@@ -87,6 +92,70 @@
            (prop-count (:program/net twice))))
     (is (= (:session/extensions once)
            (:session/extensions twice)))))
+
+(deftest extension-declaration-rejects-deferred-bindings
+  (is (thrown-with-msg?
+       clojure.lang.ExceptionInfo
+       #"declared values"
+       (extension/extension-bundle
+        {:id :test/deferred
+         :bindings (constantly [['answer 42]])
+         :effects []}))))
+
+(deftest extension-snapshots-a-mutable-binding-collection
+  (let [source (java.util.ArrayList.)]
+    (.add source ['answer 42])
+    (let [declared (extension/extension-bundle
+                    {:id :test/snapshot
+                     :bindings source
+                     :effects []})]
+      (.clear source)
+      (is (= [['answer 42]]
+             (extension/extension-bindings declared)))
+      (is (= [['answer 42]]
+             (get (extension/extension-declaration declared)
+                  :extension/bindings))))))
+
+(deftest changed-declaration-cannot-reuse-an-extension-id
+  (let [first-extension (bundle :test/fixed-id [['answer 42]] [])
+        changed-extension (bundle :test/fixed-id [['answer 43]] [])
+        installed {:session/extensions
+                   {:test/fixed-id
+                    {:declaration
+                     (extension/extension-declaration first-extension)}}}]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"already installed"
+         (extension/install-session-extension
+          installed changed-extension {})))
+    (is (= (extension/extension-declaration first-extension)
+           (get-in installed
+                   [:session/extensions :test/fixed-id :declaration])))))
+
+(deftest descendant-extensions-preserve-parent-session-values
+  (let [parent (extension/install-session-extension
+                (state/empty-state)
+                (bundle :test/parent [['x 1]] [])
+                {})
+        child (extension/install-session-extension
+               parent
+               (bundle :test/child [['y 2]] [])
+               {})
+        value-at (fn [session symbol]
+                   (net/network-cell-strongest
+                    (:program/net session)
+                    (env/binding-id
+                     (env/resolve-binding
+                      (:program/net session)
+                      (:program/env session)
+                      symbol))))]
+    (is (not= (:program/env parent) (:program/env child)))
+    (is (= 1 (value-at parent 'x)))
+    (is (= 1 (value-at child 'x)))
+    (is (= 2 (value-at child 'y)))
+    (is (nil? (get-in parent [:session/extensions :test/child])))
+    (is (= :installed
+           (get-in child [:session/extensions :test/child :status])))))
 
 (deftest extension-validation-is-atomic
   (let [initial (state/empty-state)
@@ -163,6 +232,27 @@
     (is (:test/handled performed))
     (is (= :handled
            (get-in performed [:environment/effects [kind :test] :status])))))
+
+(deftest installed-handler-is-fixed-across-var-redefinition
+  (let [kind :environment/test-fixed-handler
+        custom (effect kind
+                       'propagators.compiler-2.runtime.session-extension-test/handled-effect)
+        declared (bundle :test/fixed-handler [] [custom])
+        installed (extension/install-session-extension
+                   (state/empty-state)
+                   declared
+                   {:outbox-id (state/stable-node-id :test :outbox)})
+        [reinstalled performed]
+        (with-redefs [handled-effect replacement-effect]
+          (let [reinstalled (extension/install-session-extension
+                             installed declared {})]
+            [reinstalled (perform reinstalled kind)]))]
+    (is (identical? installed reinstalled))
+    (is (:test/handled performed))
+    (is (nil? (:test/redefined performed)))
+    (is (= :handled
+           (get-in performed
+                   [:environment/effects [kind :test] :status])))))
 
 (deftest mixed-extension-installs-bindings-and-effects-together
   (let [kind :environment/test-mixed
