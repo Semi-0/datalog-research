@@ -302,28 +302,15 @@
   ([runtime-state network base-env graph-id current-client-id scope-key
     {:keys [fixed-scope?]}]
    (let [dynamic (dynamic-runtime-bindings runtime-state current-client-id)]
-     (if-not (ids/node-id? base-env)
-       (let [root-id (state/stable-node-id :compiler-2 :runtime-env :root)
-             initial (reduce (fn [environment [sym binding]]
-                               (cenv/bind-at environment sym binding 0))
-                             base-env
-                             (into dynamic (static-runtime-bindings graph-id)))
-             {:keys [net env-id prop-ids]}
-             (cenv/import-environment-topology network root-id initial)]
-         {:net (nb/run-propagators net prop-ids)
-          :env env-id
-          :props prop-ids})
-       (let [child-id (state/stable-node-id :compiler-2 :runtime-env scope-key)
-             scope-installer (if fixed-scope?
-                               (cenv/p:scope-frame base-env child-id)
-                               (cenv/p:sub-env base-env child-id))
-             [scope-props network] (scope-installer
-                                    (nb/ensure-cell network base-env))
-             declared (cenv/declare-bindings network child-id child-id dynamic)
-             props (into (vec scope-props) (:props declared))]
-         {:net (nb/run-propagators (:net declared) props)
-          :env child-id
-          :props props})))))
+     (when-not (ids/node-id? base-env)
+       (throw (ex-info "Runtime environment must be a live environment cell"
+                       {:environment base-env})))
+     (let [child-id (state/stable-node-id :compiler-2 :runtime-env scope-key)
+           bindings (into (vec (static-runtime-bindings graph-id)) dynamic)
+           declared (cenv/declare-child network base-env child-id bindings)]
+       {:net (nb/run-propagators (:net declared) (:props declared))
+        :env child-id
+        :props (:props declared)}))))
 
 (defn settle-application-props
   [program-net current-props]

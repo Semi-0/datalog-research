@@ -229,16 +229,8 @@
      :env parent
      :props []}
 
-    (map? parent)
-    (let [root-id (runtime-ids/stable-node-id
-                   :compiler-2 :session-extension-root extension-id)
-          imported (env/import-environment-topology network root-id parent)]
-      {:net (:net imported)
-       :env (:env-id imported)
-       :props (:prop-ids imported)})
-
     :else
-    (throw (ex-info "Session extension requires a lexical environment"
+    (throw (ex-info "Session extension requires a live environment cell"
                     {:extension-id extension-id :environment parent}))))
 
 (defn install-extension-bindings
@@ -246,7 +238,7 @@
   (let [[scope-props scoped]
         ((env/p:scope-frame parent-id child-id (set (map first bindings)))
          network)
-        declared (env/declare-bindings scoped child-id child-id bindings)]
+        declared (env/declare-bindings scoped child-id bindings)]
     {:net (:net declared)
      :env child-id
      :props (into (vec scope-props) (:props declared))}))

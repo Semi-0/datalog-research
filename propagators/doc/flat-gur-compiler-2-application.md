@@ -111,9 +111,9 @@ The graph shape is:
   'x {:value value-cell}}}
 ```
 
-Imported host environments use `import-environment-topology`. Each imported
-slot points to a binding descriptor, and the descriptor points to the bound
-value cell:
+Compiler bootstrap and session extensions declare root or child environments
+with `declare-root` and `declare-child`. Each symbol slot points to a binding
+descriptor, and the descriptor points to the bound value cell:
 
 ```text
 environment --slot(x)--> binding-slot
@@ -122,7 +122,7 @@ binding-descriptor --binding-id--> value-cell
 ```
 
 Callers schedule every returned `:prop-id`, so later values refine the same
-environment topology.
+environment topology. Materialized environment imports are not supported.
 
 ## Recursive lexical access
 

@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.runtime.session.program.rebuild
   "Transactional rebuild path for compiler-2 runtime source blocks."
   (:require [propagators.compiler-2.runtime.session.program :as program]
+            [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.session.program.topology :as topology]
             [propagators.compiler-2.runtime.inspection.temperature :as temperature]
             [graph.compiler-2-semantic-repl :as semantic-repl]
@@ -104,27 +105,30 @@
 
 (defn- base-rebuild-state
   [state epoch]
-  (assoc state
-         :program/net (nb/install-cell
-                       (net/assoc-net-dict-entry
-                        (nb/ensure-cell
-                         (topology/seed-program-topology
-                          state
-                          (program/runtime-base-net))
-                         (program/boundary-outbox-id))
-                        :program/epoch
-                        epoch)
-                       (program/runtime-graph-id)
-                       (semantic-trace/graph-union (program/empty-graph))
-                       (semantic-trace/graph-union (program/empty-graph)))
-         :program/env (program/runtime-compiler-env)
+  (let [base-net (nb/install-cell
+                  (net/assoc-net-dict-entry
+                   (nb/ensure-cell
+                    (topology/seed-program-topology
+                     state
+                     (program/runtime-base-net))
+                    (program/boundary-outbox-id))
+                   :program/epoch
+                   epoch)
+                  (program/runtime-graph-id)
+                  (semantic-trace/graph-union (program/empty-graph))
+                  (semantic-trace/graph-union (program/empty-graph)))
+        root (state/runtime-root base-net)]
+   (assoc state
+         :program/net (:net root)
+         :program/env (:env root)
+         :program/props (:props root)
          :program/graph (program/empty-graph)
          :program/results {}
          :program/epoch epoch
          :compiled nil
          :compiled-network net/empty-net
          :graph (program/empty-graph)
-         :source nil))
+         :source nil)))
 
 (defn- compiled-entry
   [state block]

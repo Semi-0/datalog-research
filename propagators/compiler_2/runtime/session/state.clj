@@ -7,8 +7,10 @@
             [propagators.cells.cell-protocol :as cell-protocol]
             [propagators.compile :as compile1]
             [propagators.compiler-2.compiler.basis :as compiler-helpers]
+            [propagators.compiler-2.model.env :as compiler-env]
             [propagators.ids :as ids]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.network-cache :as network-cache])
   (:import [java.util.concurrent Executors]))
 
@@ -61,15 +63,24 @@
 (defn runtime-base-net []
   (install-runtime-protocols net/empty-net))
 
+(defn runtime-root
+  [network]
+  (let [env-id (stable-node-id :compiler-2 :runtime :root-environment)
+        bindings ((requiring-resolve
+                   'propagators.compiler-2.operators.behavior/behavior-tms-bindings))
+        declared (compiler-env/declare-root network env-id bindings)]
+    (assoc declared
+           :net (nb/run-propagators (:net declared) (:props declared)))))
+
 (defn runtime-compiler-env []
-  ((requiring-resolve
-    'propagators.compiler-2.operators.behavior/bind-behavior-operators)
-   (compiler-helpers/default-env)))
+  (:env (runtime-root (runtime-base-net))))
 
 (defn empty-state []
-  {:network (install-runtime-protocols net/empty-net)
-   :program/net (runtime-base-net)
-   :program/env (runtime-compiler-env)
+  (let [root (runtime-root (runtime-base-net))]
+   {:network (install-runtime-protocols net/empty-net)
+   :program/net (:net root)
+   :program/env (:env root)
+   :program/props (:props root)
    :program/graph {:nodes {} :edges [] :values {} :expansions {}}
    :program/results {}
    :program/epoch 0
@@ -93,15 +104,14 @@
    :next-order 0
    :traces {}
    :xr {:launched {}}
-   :tuis {}})
+   :tuis {}}))
 
 (defn- initialized-state?
   [state]
   (and (map? state)
        (net/network? (:network state))
        (net/network? (:program/net state))
-       (or (map? (:program/env state))
-           (ids/node-id? (:program/env state)))))
+       (ids/node-id? (:program/env state))))
 
 (defn- repair-partial-state
   [state]

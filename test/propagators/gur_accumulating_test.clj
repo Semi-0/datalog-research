@@ -4,7 +4,6 @@
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.compile :as compile]
-            [propagators.compiler-2.model.env :as compiler-env]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.scope-source :as scope-source]
@@ -924,7 +923,7 @@
 
 (defn- bias-access
   [env-id out-id]
-  (compiler-env/p:lexical-access 'bias env-id out-id))
+  (obj/p:slot 'bias out-id env-id))
 
 (defn- scoped-plus
   [a-id b-id out-id]
@@ -944,9 +943,7 @@
 
 (defn- lexical-env
   [sym value]
-  (-> (obj/empty-compound-object)
-      (compiler-env/set-depth 0)
-      (compiler-env/bind-local sym value)))
+  (obj/as-accessor-network {sym value}))
 
 (defn- compiler-installers
   [runtime]

@@ -1,9 +1,11 @@
 # Compiler 2
 
 Current application architecture: [Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md).
+Current environment architecture: [Compiler 2 live environment API](compiler-2-environment-api.md).
 Compiler applications and local-first lexical access now declare connected,
 named topology directly in the active `Net`. Older retained-application
-sections below are historical and are superseded by that document.
+and materialized-environment sections below are historical and are superseded
+by those documents.
 
 Source files:
 
@@ -18,14 +20,17 @@ Source files:
 - `propagators/compiler_2/model/closure_value.clj`
 - `propagators/compiler_2/model/context.clj`
 - `propagators/compiler_2/model/env.clj`
+- `propagators/compiler_2/model/env/binding.clj`
+- `propagators/compiler_2/model/env/index.clj`
+- `propagators/compiler_2/model/env/access.clj`
+- `propagators/compiler_2/model/env/topology.clj`
 - `propagators/compiler_2/compiler/basis.clj`
-- `propagators/compiler_2/tms_behavior.clj`
 - `propagators/datastructures/scope_source.clj`
 - `propagators/datastructures/dependency.clj`
 - `propagators/gur.clj`
 - `test/propagators_compile_2_test.clj`
 - `test/propagators/compiler_2_call_graph_test.clj`
-- `test/propagators/compiler_2_gur_linked_list_test.clj`
+- `test/propagators/compiler_2_live_environment_test.clj`
 
 ## Status
 

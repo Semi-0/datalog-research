@@ -280,8 +280,9 @@
       :text "(behavior events retain-event (behavior-empty-state) out)"})
     (runtime/append-tui-block! session {:client-id "A"
                                         :text "(-> out (be:block 5))"})
-    (let [events-id (:binding/id (cenv/lookup (:program/env @session)
-                                              'events))]
+    (let [events-id (cenv/resolve-binding-id (:program/net @session)
+                                             (:program/env @session)
+                                             'events)]
       (runtime/commit-runtime-input! session
                                      {:runtime/input :cell-message
                                       :cell-id events-id

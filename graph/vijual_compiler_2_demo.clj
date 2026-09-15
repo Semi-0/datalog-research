@@ -51,27 +51,6 @@
       :apply (str "(" (ast-label (ast/operator expr)) " ...)")
       (display-name (ast/type expr)))))
 
-(defn- env-frames [env]
-  (take-while #(and (some? %) (not (value/unusable? %)))
-              (iterate #(obj/slot-value % cenv/env-parent-key) env)))
-
-(defn environment-labels [env]
-  (reduce
-   (fn [labels frame]
-     (reduce
-      (fn [labels slot-key]
-        (if (contains? cenv/env-internal-keys slot-key)
-          labels
-          (if-let [id (cenv/binding-id (cenv/lookup frame slot-key))]
-            (if (contains? labels id)
-              labels
-              (assoc labels id (display-name slot-key)))
-            labels)))
-      labels
-      (obj/public-slot-keys frame)))
-   {}
-   (env-frames env)))
-
 (defn topology-binding-labels [n]
   (into {}
         (map (fn [[id sym]] [id (display-name sym)]))
@@ -107,12 +86,6 @@
                  (assoc acc k closure-info))))
            {}
            (network-closure-values n))))
-
-(defn closure-env-labels [n]
-  (apply merge
-         (map (fn [[_ closure-info]]
-                (environment-labels (closure-value/closure-env closure-info)))
-              (network-closure-values n))))
 
 (defn generated-labels [ids prefix]
   (into {}
@@ -277,9 +250,7 @@
 
 (defn compiled-labels [compiled n]
   (let [graph (net/net-graph n)
-        env-labels (merge (environment-labels (:env compiled))
-                          (closure-env-labels n)
-                          (topology-binding-labels n))
+        env-labels (topology-binding-labels n)
         props (vec (or (:props compiled)
                        (compiler/compiled-props (:net compiled))))
         applications (vec (or (:applications compiled)
@@ -352,9 +323,7 @@
   ([compiled n]
    (semantic-base-labels compiled n {}))
   ([compiled n {:keys [result-label] :or {result-label "result"}}]
-   (let [env-labels (merge (environment-labels (:env compiled))
-                           (closure-env-labels n)
-                           (topology-binding-labels n))
+   (let [env-labels (topology-binding-labels n)
          labels (merge (literal-cell-labels n)
                        (closure-labels n)
                        env-labels)]

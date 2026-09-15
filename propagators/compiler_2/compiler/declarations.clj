@@ -219,7 +219,9 @@
 
 (defn declare-local
   [state sym binding-id]
-  (install-env-topology state (env/p:declare-local sym (:env state) binding-id)))
+  (install-env-topology state
+                        (env/p:declare-canonical-local
+                         sym (:env state) binding-id)))
 
 (defn declare-fixed-local
   [state sym binding-id]
