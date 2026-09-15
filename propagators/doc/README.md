@@ -24,6 +24,10 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
   defines the current application protocol, same-network flat GUR topology,
   live compound environments, recursive lexical access, and inspection path.
 
+- [Compiler 2 One-Time Network Tracing](compiler-2-one-time-network-tracing.md)
+  defines snapshot-based node observation, disposable flat-GUR execution, and
+  the generic Lain traversal loaded through the existing environment boundary.
+
 - [Propagators As A Coordination Language](coordination-language-kernel.md)
   frames the experiment as a self-reflective, multi-projectional coordination
   language and defines the minimal-kernel scope.

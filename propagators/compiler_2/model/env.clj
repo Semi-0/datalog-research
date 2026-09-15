@@ -2,8 +2,10 @@
   "Compound-object lexical environments for compile-2.
 
   A child environment is a lexical frame with a parent link. Local bindings are
-  ordinary frame slots; lexical access builds scope-source candidates while
-  walking parent frames.
+  ordinary frame slots. Active compiler lookup composes flat-GUR
+  `p:lexical-access-local-first` with `p:binding-value`. Scoped structural
+  lookup remains in use by runtime resolution and compatibility consumers.
+  Unused public adapters are deprecated; see doc/compiler-2-environment-api.md.
   "
   (:require [propagators.cells.value :as value]
             [propagators.core :as core]
@@ -176,7 +178,7 @@
 (defn bind-local [env sym binding]
   (bind-at env sym binding (depth env)))
 
-(defn bind-locals [env sym->binding]
+(defn ^:deprecated bind-locals [env sym->binding]
   (reduce-kv bind-local env sym->binding))
 
 (defn lookup-entry [env sym]
@@ -435,7 +437,7 @@
                                            [install-key :parent-frame]))
         i/effects)))
 
-(defn p:lexical-access
+(defn p:structural-lexical-access
   "Build the lexical candidate for `sym` by walking declared env frames.
 
   Local declaration metadata controls topology. If a frame declares `sym`,
@@ -457,10 +459,6 @@
                                          out-id
                                          [install-key :root]))
           apply-install-context))))
-
-(def p:structural-lexical-access
-  "Compatibility name for the original frame-walking accessor."
-  p:lexical-access)
 
 (defn p:binding-declaration
   "Retain one binding declaration using lineage/source inferred from the chain."
@@ -503,7 +501,7 @@
         value/nothing)))
    bindings-id candidates-id))
 
-(defn p:reducer-lexical-access
+(defn ^:deprecated p:reducer-lexical-access
   [lookup-key sym env-id out-id]
   (let [bindings-id (stable-node-id :reducer-lexical lookup-key env-id :bindings)
         candidates-id (stable-node-id :reducer-lexical lookup-key env-id :candidates)
@@ -672,12 +670,12 @@
        (scope-source/dependencies candidate))))
    bound-id out-id))
 
-(defn p:bound-value-layer
+(defn ^:deprecated p:bound-value-layer
   "Connect a lexical answer's base layer to its addressed binding cell."
   [value-answer-id bound-id]
   (obj/p:slot scope-source/base-layer bound-id value-answer-id))
 
-(defn p:scope-dependent-read
+(defn ^:deprecated p:scope-dependent-read
   "Read one known binding cell as a lexical value with provenance."
   [lookup-key source-id chain-id bound-id value-answer-id]
   ((prop/primitive-propagator
@@ -895,7 +893,7 @@
                           id))))
       frames))))
 
-(defn p:direct-lexical-value
+(defn ^:deprecated p:direct-lexical-value
   "Read a known canonical binding cell without constructing reducer access."
   [lookup-key source-id chain-id bound-id value-answer-id]
   (fn [network]
@@ -905,7 +903,7 @@
            network)]
       [[prop-id] installed])))
 
-(defn p:reducer-lexical-value
+(defn ^:deprecated p:reducer-lexical-value
   "Resolve a binding through the lexical reducer, then read its live value."
   [lookup-key sym env-id value-answer-id]
   (let [binding-answer-id
@@ -921,7 +919,7 @@
             ((p:access-binding binding-answer-id value-answer-id) with-access)]
         [(into (vec access-props) read-props) with-read]))))
 
-(defn p:structural-lexical-value
+(defn ^:deprecated p:structural-lexical-value
   "Walk local-first frame topology, then dereference the selected binding.
 
   This retains the scope candidate emitted by `p:structural-lexical-access`;
@@ -940,7 +938,7 @@
             ((p:access-binding binding-answer-id value-answer-id) with-access)]
         [(into (vec access-props) read-props) with-read]))))
 
-(defn p:legacy-lexical-value
+(defn ^:deprecated p:legacy-lexical-value
   "Adapt one already-materialized legacy frame lookup to scoped-read topology."
   [lookup-key sym legacy-env value-answer-id]
   (fn [network]
@@ -963,7 +961,7 @@
          network))
       [[] network])))
 
-(defn p:local-first-lexical-value
+(defn ^:deprecated p:local-first-lexical-value
   "Compiler lexical read: fixed address, then the cheapest compatible fallback.
 
   Legacy materialized frames retain reducer lookup. Live accessor frames use
@@ -983,7 +981,7 @@
           ((p:structural-lexical-value lookup-key sym env-id value-answer-id)
            network))))))
 
-(defn p:lexical-value
+(defn ^:deprecated p:lexical-value
   "Read `sym` as one scope-dependent live value.
 
   A declared canonical binding is selected local-first through fixed frame
@@ -1003,14 +1001,14 @@
        ((p:reducer-lexical-value lookup-key sym env-id value-answer-id)
         network)))))
 
-(defn boundary-ids [x]
+(defn ^:deprecated boundary-ids [x]
   (cond
     (ids/node-id? x) [x]
     (cell-binding? x) [(:binding/id x)]
     (compound-binding? x) [(:binding/id x)]
     :else []))
 
-(defn rebind-boundary [binding inner-ids]
+(defn ^:deprecated rebind-boundary [binding inner-ids]
   (cond
     (ids/node-id? binding) (cell-binding (first inner-ids))
     (cell-binding? binding) (cell-binding (first inner-ids))
