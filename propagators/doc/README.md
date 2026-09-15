@@ -76,6 +76,10 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Boundary Effect Runtime](boundary-effect-runtime.md) defines the commit /
   propagate / effect split for external IO, so XR, TUI, trace, socket, and file
   communication stay outside propagation.
+- [Cells As Agents](cells-as-agents.md) proposes agent descriptions as partial
+  information, including contradiction provenance, supported behavior, and
+  explicit effect commitment. [Composition examples](agent-network-examples.md)
+  compare six possible network structures with current mechanisms.
 - [XR Runtime Surface](xr-runtime-surface.md) describes the browser/WebXR graph
   projection experiment and its boundary rule: extend graph or send a cell
   message.
