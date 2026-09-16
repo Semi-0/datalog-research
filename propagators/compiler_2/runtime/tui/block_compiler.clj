@@ -126,7 +126,7 @@
   [context]
   (operator-value/operator-closure
    {:name dependency-term-name
-    :direct-compiler (partial compile-dependency-term context)}))
+    :compiler-operands (partial compile-dependency-term context)}))
 
 (defn- declare-supported-input
   [state binding context]
@@ -157,7 +157,7 @@
 (defn supported-input-term-operator [context]
   (operator-value/operator-closure
    {:name supported-input-term-name
-    :direct-compiler (partial compile-supported-input context)}))
+    :compiler-operands (partial compile-supported-input context)}))
 
 (defn- compile-definition-term
   [name signature explicit compile-k state operand-forms _out-id k]
@@ -175,7 +175,7 @@
 (defn definition-term-operator [name signature explicit]
   (operator-value/operator-closure
    {:name definition-term-name
-    :direct-compiler
+    :compiler-operands
     (partial compile-definition-term name signature explicit)}))
 
 (defn- named-literal-operator?

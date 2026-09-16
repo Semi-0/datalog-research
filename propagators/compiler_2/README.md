@@ -3,13 +3,16 @@
 - `cps_core.clj` — canonical stack-safe compiler assembly and public compile
   entrypoints.
 - `compiler/` — CPS predicates, handlers, declarations, dispatch, the default
-  operator basis, and a deprecated `core` namespace shim.
+  operator basis, and a deprecated `core` namespace shim. Application handlers
+  explicitly compile the operator, declare its context, compile operand cells,
+  and declare the application topology.
 - `language/` — parser and AST representation.
-- `model/` — compiler environment and retained closure/application/operator
-  values.
+- `model/` — live compiler environments, closure values, and operator
+  declarations. Syntax-aware operators expose one `compiler-operands` callback;
+  ordinary operators flow through the same application-topology declaration.
 - `runtime/` — compiler execution and the reusable live runtime:
-  - delayed application, closure frames, retained/lexical application, and
-    lazy topology execution live at the root;
+  - `application.clj` owns flat-GUR application execution after the compiler
+    has declared operator and argument cells;
   - `session/` owns state, commands, program compilation, and replay;
   - `tui/` owns block state, version history, and versioned commits;
   - `boundary/`, `inspection/`, `bridge/`, and `operators/` isolate their

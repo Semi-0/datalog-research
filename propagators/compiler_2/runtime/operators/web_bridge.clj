@@ -3,10 +3,11 @@
   (:require [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.bridge.web :as bridge]
             [propagators.cells.value :as value]
-            [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.model.operator-value :as operator-value]
+            [propagators.compiler-common.core :as common]
+            [propagators.compiler-common.cps :as cps]
             [propagators.datastructures.event :as event]
             [propagators.message :refer [message]]
             [propagators.network :as net]
@@ -19,11 +20,24 @@
     (net/network-cell-strongest network id)
     value/nothing))
 
-(defn- compile-form
-  [state form role]
-  (let [compile* (compiler-dispatch/state-compiler state)
-        [state' binding] (compile* (h/child state role) form)]
-    [(assoc state' :path (:path state)) binding]))
+(defn- compile-role-operands
+  [compile-k state forms roles continuation]
+  (let [base-path (:path state)
+        forms (vec forms)
+        roles (vec roles)]
+    (letfn [(step [compiled-state position bindings]
+              (if (= position (count forms))
+                (cps/continue continuation compiled-state bindings)
+                (cps/call
+                 compile-k
+                 (h/child (common/with-path compiled-state base-path)
+                          (nth roles position))
+                 (nth forms position)
+                 (fn [next-state binding]
+                   #(step (common/with-path next-state base-path)
+                          (inc position)
+                          (conj bindings binding))))))]
+      (step state 0 []))))
 
 (defn- add-prop
   [state inputs outputs activate prop-key]
@@ -64,39 +78,32 @@
                    (conj (message to-id from)))))
              prop-key)))
 
-(defn- one-arg-target
-  [state operand-forms fallback-id role]
-  (let [[form] (vec operand-forms)
-        [state' binding] (compile-form state form role)
-        target-id (or (cenv/binding-id binding) fallback-id)]
-    (when-not (and target-id (= 1 (count operand-forms)))
-      (throw (ex-info "expected one target cell"
-                      {:operand-forms operand-forms})))
-    [state' target-id]))
-
 (defn runtime-clients-operator []
   (operator-value/operator-closure
    {:name 'runtime:clients
-    :direct-installer
-    (fn [state operand-forms out-id]
-      (let [[state' target-id] (one-arg-target state
-                                               operand-forms
-                                               out-id
-                                               :runtime-clients)
-            source-id (bridge/client-list-source-id)]
-        [(install-static-relation state'
-                                  source-id
-                                  target-id
-                                  [:clients source-id target-id])
-         (cenv/cell-binding target-id)]))}))
-
-(defn- compile-route-output
-  [state operand-forms fallback-id]
-  (let [forms (vec operand-forms)]
-    (if-let [out-form (nth forms 3 nil)]
-      (let [[state' binding] (compile-form state out-form :runtime-client-pipe-out)]
-        [state' (cenv/binding-id binding)])
-      [state fallback-id])))
+    :compiler-operands
+    (fn [compile-k state operand-forms out-id continuation]
+      (let [forms (vec operand-forms)]
+        (if (= 1 (count forms))
+          (cps/call
+           compile-k
+           (h/child state :runtime-clients)
+           (first forms)
+           (fn [compiled-state target-binding]
+             (let [target-id (or (cenv/binding-id target-binding) out-id)
+                   source-id (bridge/client-list-source-id)
+                   installed
+                   (install-static-relation
+                    (common/with-path compiled-state (:path state))
+                    source-id
+                    target-id
+                    [:clients source-id target-id])]
+               (cps/continue continuation
+                             installed
+                             (cenv/cell-binding target-id)))))
+          (throw
+           (ex-info "runtime:clients expects one target cell"
+                    {:operand-forms forms})))))}))
 
 (defn- route-messages
   [from to pipe out-id]
@@ -105,32 +112,49 @@
 (defn runtime-client-pipe-operator []
   (operator-value/operator-closure
    {:name 'runtime:client-pipe
-    :direct-installer
-    (fn [state operand-forms out-id]
+    :compiler-operands
+    (fn [compile-k state operand-forms out-id continuation]
       (let [forms (vec operand-forms)]
-        (when-not (#{2 3 4} (count forms))
-          (throw (ex-info "runtime:client-pipe expects from-client, to-client, optional pipe, and optional output"
-                          {:operand-forms operand-forms})))
-        (let [[state1 from-binding] (compile-form state (nth forms 0) :runtime-client-pipe-from)
-              [state2 to-binding] (compile-form state1 (nth forms 1) :runtime-client-pipe-to)
-              [state3 pipe-binding] (if-let [pipe-form (nth forms 2 nil)]
-                                      (compile-form state2 pipe-form :runtime-client-pipe-name)
-                                      (compile-form state2 bridge/default-pipe :runtime-client-pipe-name))
-              [state4 target-id] (compile-route-output state3 forms out-id)
-              from-id (cenv/binding-id from-binding)
-              to-id (cenv/binding-id to-binding)
-              pipe-id (cenv/binding-id pipe-binding)]
-          [(first (add-prop state4
-                            [from-id to-id pipe-id]
-                            [target-id]
-                            (fn [_inputs _outputs network]
-                              (let [from (base-value (strongest network from-id))
-                                    to (base-value (strongest network to-id))
-                                    pipe (base-value (strongest network pipe-id))]
-                                (if (or (value/unusable? from)
-                                        (value/unusable? to)
-                                        (value/unusable? pipe))
-                                  []
-                                  (route-messages from to pipe target-id))))
-                            [:client-pipe from-id to-id pipe-id target-id]))
-           (cenv/cell-binding target-id)])))}))
+        (if (contains? #{2 3 4} (count forms))
+          (let [compile-forms
+                (cond-> [(nth forms 0)
+                         (nth forms 1)
+                         (or (nth forms 2 nil) bridge/default-pipe)]
+                  (= 4 (count forms))
+                  (conj (nth forms 3)))
+                roles
+                (cond-> [:runtime-client-pipe-from
+                         :runtime-client-pipe-to
+                         :runtime-client-pipe-name]
+                  (= 4 (count forms))
+                  (conj :runtime-client-pipe-out))]
+            (compile-role-operands
+             compile-k state compile-forms roles
+             (fn [compiled-state bindings]
+               (let [binding-ids (mapv cenv/binding-id bindings)
+                     from-id (nth binding-ids 0)
+                     to-id (nth binding-ids 1)
+                     pipe-id (nth binding-ids 2)
+                     target-id (or (nth binding-ids 3 nil) out-id)
+                     [installed _prop-id]
+                     (add-prop
+                      compiled-state
+                      [from-id to-id pipe-id]
+                      [target-id]
+                      (fn [_inputs _outputs network]
+                        (let [from (base-value (strongest network from-id))
+                              to (base-value (strongest network to-id))
+                              pipe (base-value (strongest network pipe-id))]
+                          (if (or (value/unusable? from)
+                                  (value/unusable? to)
+                                  (value/unusable? pipe))
+                            []
+                            (route-messages from to pipe target-id))))
+                      [:client-pipe from-id to-id pipe-id target-id])]
+                 (cps/continue continuation
+                               installed
+                               (cenv/cell-binding target-id))))))
+          (throw
+           (ex-info
+            "runtime:client-pipe expects from-client, to-client, optional pipe, and optional output"
+            {:operand-forms operand-forms})))))}))

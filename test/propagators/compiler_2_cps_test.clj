@@ -210,36 +210,22 @@
         (is (= (inc before) @calls))
         (is (= 17 (net/network-cell-strongest result out-id)))))))
 
-(deftest direct-compiler-is-additive-over-legacy-installer
-  (let [legacy-calls (atom 0)
-        cps-calls (atom 0)
-        legacy (operator-value/operator-closure
-                {:name 'legacy
-                 :direct-installer
-                 (fn [state _forms out-id]
-                   (swap! legacy-calls inc)
-                   [state (env/cell-binding out-id)])})
-        preferred (operator-value/operator-closure
-                   {:name 'preferred
-                    :direct-installer
-                    (fn [state _forms out-id]
-                      (swap! legacy-calls inc)
-                      [state (env/cell-binding out-id)])
-                    :direct-compiler
-                    (fn [_compile-k state _forms out-id k]
-                      (swap! cps-calls inc)
-                      (cps/continue k state (env/cell-binding out-id)))})
+(deftest compiler-operands-handles-syntax-application
+  (let [calls (atom 0)
+        operator (operator-value/operator-closure
+                  {:name 'compiler-operands
+                   :compiler-operands
+                   (fn [_compile-k state _forms out-id k]
+                     (swap! calls inc)
+                     (cps/continue k state (env/cell-binding out-id)))})
         compile* (cps/make-compiler
                   (cps/compose-rules
                    (cps/on #(= :direct-operator-test (ast/type %))
                            (fn [_compile-k state expr k]
                              (cps/continue k state (ast/value expr))))
                    compiler/compiler-dispatch))]
+    (is (fn? (operator-value/operator-compiler-operands operator)))
     (compiler/compile-expr-with-bindings
-     (ast/app (direct-operator-expr legacy))
+     (ast/app (direct-operator-expr operator))
      (h/default-bindings) {:compiler compile*})
-    (compiler/compile-expr-with-bindings
-     (ast/app (direct-operator-expr preferred))
-     (h/default-bindings) {:compiler compile*})
-    (is (= 1 @legacy-calls))
-    (is (= 1 @cps-calls))))
+    (is (= 1 @calls))))

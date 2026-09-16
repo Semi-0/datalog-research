@@ -3,11 +3,13 @@
   (:require [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.cells.value :as value]
             [propagators.compiler-2.language.ast :as ast]
-            [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.compiler-2.compiler.basis :as compiler-helpers]
             [propagators.compiler-2.model.operator-value :as operator-value]
+            [propagators.compiler-common.core :as common]
+            [propagators.compiler-common.cps :as cps]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -57,11 +59,24 @@
                                              epoch)}))
          (message out-id descriptor)]))))
 
-(defn- compile-form
-  [state form role]
-  (let [compile* (compiler-dispatch/state-compiler state)]
-    (let [[state' binding] (compile* (compiler-helpers/child state role) form)]
-      [(assoc state' :path (:path state)) binding])))
+(defn- compile-indexed-operands
+  [compile-k state forms role continuation]
+  (let [base-path (:path state)
+        forms (vec forms)]
+    (letfn [(step [compiled-state position bindings]
+              (if (= position (count forms))
+                (cps/continue continuation compiled-state bindings)
+                (cps/call
+                 compile-k
+                 (compiler-helpers/child
+                  (common/with-path compiled-state base-path)
+                  (role position))
+                 (nth forms position)
+                 (fn [next-state binding]
+                   #(step (common/with-path next-state base-path)
+                          (inc position)
+                          (conj bindings binding))))))]
+      (step state 0 []))))
 
 (defn- ast-symbol-name
   [form]
@@ -128,27 +143,36 @@
   [outbox-id]
   (operator-value/operator-closure
    {:name 'io:slider
-    :direct-installer
-    (fn [state operand-forms out-id]
+    :compiler-operands
+    (fn [compile-k state operand-forms out-id continuation]
       (let [{:keys [widget-label cell-form]} (io-slider-plan operand-forms)
             [state' widget-binding] (add-literal-cell state
                                                       [:io-slider widget-label :id]
-                                                      widget-label)
-            [state'' cell-binding] (compile-form state' cell-form :io-slider-cell)
-            cell-id (cenv/binding-id cell-binding)]
-        (when-not cell-id
-          (throw (ex-info "io:slider value expression must compile to a cell"
-                          {:cell-form cell-form
-                           :binding cell-binding})))
-        (install-widget-registration state''
-                                     outbox-id
-                                     out-id
-                                     cell-id
-                                     :slider
-                                     (cenv/binding-id widget-binding)
-                                     [{:widget/channel "value"
-                                       :widget/view-cell cell-id
-                                       :widget/event-cell cell-id}])))}))
+                                                      widget-label)]
+        (cps/call
+         compile-k
+         (compiler-helpers/child state' :io-slider-cell)
+         cell-form
+         (fn [compiled-state cell-binding]
+           (let [cell-id (cenv/binding-id cell-binding)]
+             (if (ids/node-id? cell-id)
+               (let [[installed result-binding]
+                     (install-widget-registration
+                      (common/with-path compiled-state (:path state))
+                      outbox-id
+                      out-id
+                      cell-id
+                      :slider
+                      (cenv/binding-id widget-binding)
+                      [{:widget/channel "value"
+                        :widget/view-cell cell-id
+                        :widget/event-cell cell-id}])]
+                 (cps/continue continuation installed result-binding))
+               (throw
+                (ex-info
+                 "io:slider value expression must compile to a cell"
+                 {:cell-form cell-form
+                  :binding cell-binding}))))))))}))
 
 (defn- require-slider-panel-cells
   [name cell-forms]
@@ -190,42 +214,47 @@
   [outbox-id named?]
   (operator-value/operator-closure
    {:name (if named? 'io:slider-panel-name 'io:slider-panel)
-    :direct-installer
-    (fn [state operand-forms out-id]
+    :compiler-operands
+    (fn [compile-k state operand-forms out-id continuation]
       (let [{:keys [panel-label cell-forms]} (io-slider-panel-plan operand-forms
                                                                     named?)
             [state' widget-binding] (add-literal-cell state
                                                       [:io-slider-panel panel-label :id]
-                                                      panel-label)
-            [state'' channels]
-            (reduce
-             (fn [[state channels] [idx cell-form]]
-               (let [channel-name (or (ast-symbol-name cell-form)
-                                      (str "value" idx))
-                     [state' cell-binding] (compile-form state
-                                                         cell-form
-                                                         [:io-slider-panel-cell idx])
-                     cell-id (cenv/binding-id cell-binding)]
-                 (when-not cell-id
-                   (throw (ex-info "io:slider-panel cell expression must compile to a cell"
-                                   {:cell-form cell-form
-                                    :binding cell-binding})))
-                 [state'
-                  (conj channels
-                        {:widget/channel channel-name
+                                                      panel-label)]
+        (compile-indexed-operands
+         compile-k
+         state'
+         cell-forms
+         (fn [position] [:io-slider-panel-cell position])
+         (fn [compiled-state cell-bindings]
+           (let [channels
+                 (mapv
+                  (fn [position cell-form cell-binding]
+                    (let [cell-id (cenv/binding-id cell-binding)]
+                      (if (ids/node-id? cell-id)
+                        {:widget/channel (or (ast-symbol-name cell-form)
+                                             (str "value" position))
                          :widget/view-cell cell-id
-                         :widget/event-cell (event-source-id state'
-                                                             cell-form
-                                                             cell-id)})]))
-             [state' []]
-             (map-indexed vector cell-forms))]
-        (install-widget-registration state''
-                                     outbox-id
-                                     out-id
-                                     out-id
-                                     :slider-panel
-                                     (cenv/binding-id widget-binding)
-                                     channels)))}))
+                         :widget/event-cell
+                         (event-source-id compiled-state cell-form cell-id)}
+                        (throw
+                         (ex-info
+                          "io:slider-panel cell expression must compile to a cell"
+                          {:cell-form cell-form
+                           :binding cell-binding})))))
+                  (range)
+                  cell-forms
+                  cell-bindings)
+                 [installed result-binding]
+                 (install-widget-registration
+                  compiled-state
+                  outbox-id
+                  out-id
+                  out-id
+                  :slider-panel
+                  (cenv/binding-id widget-binding)
+                  channels)]
+             (cps/continue continuation installed result-binding))))))}))
 
 (defn io-slider-panel-operator
   [outbox-id]

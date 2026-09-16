@@ -116,12 +116,6 @@
 
 (def list-empty-marker :compiler-2/list-empty)
 
-(defn- compile-direct-form
-  [state form role]
-  (let [compile* (compiler-dispatch/state-compiler state)
-        [state' binding] (compile* (child state role) form)]
-    [(assoc state' :path (:path state)) binding]))
-
 (defn declare-list
   [state element-bindings out-id]
   (let [element-ids (mapv env/binding-id element-bindings)]
@@ -177,7 +171,7 @@
    out-id
    #(list-topology % element-ids out-id)))
 
-(defn- compile-list-k
+(defn list-compiler-operands
   [compile-k state operand-forms out-id k]
   (let [base-path (:path state)
         forms (vec operand-forms)]
@@ -202,19 +196,7 @@
     :compiler-activate
     (fn [_compile* network _context-id arg-ids out-id]
       (list-application-effects network arg-ids out-id))
-    :direct-compiler compile-list-k
-    :direct-installer
-    (fn [state operand-forms out-id]
-      (let [[state' element-bindings]
-            (reduce
-             (fn [[state acc] [idx form]]
-               (let [[state' binding] (compile-direct-form state
-                                                           form
-                                                           [:list-element idx])]
-                 [state' (conj acc binding)]))
-             [state []]
-             (map-indexed vector operand-forms))]
-        (declare-list state' element-bindings out-id)))}))
+    :compiler-operands list-compiler-operands}))
 
 (defn- concrete-copy-activation
   [[source-id] [target-id] network]
