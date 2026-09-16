@@ -5,3 +5,4 @@ leapfrog-rs/target/
 .lsp/
 .DS_Store
 better-layering/
+.agent-memory/
