@@ -34,6 +34,13 @@
 
 (defn assoc-graph [graph id node] (assoc graph id node))
 
+(defn ensure-node
+  "Associate a blank node only when `id` is absent."
+  [graph id]
+  (if (contains? graph id)
+    graph
+    (assoc-graph graph id (blank-node))))
+
 (defn node-inputs
   "Input node-id tokens for `node`."
   [_graph node]

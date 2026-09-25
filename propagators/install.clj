@@ -2,8 +2,8 @@
   "Threaded installer API for named network declarations.
 
   This namespace is an authoring surface over existing installers. It resolves
-  cell names to stable node ids, emits flat VM declaration effects, and leaves
-  propagation to `propagators.core`."
+  cell names to stable node ids, emits network declaration patches, and leaves
+  propagation to the constructed runner."
   (:refer-clojure :exclude [+ - * / <= not and or when cons])
   (:require [clojure.core :as c]
             [propagators.core :as kernel]
@@ -221,7 +221,7 @@
 (defn run
   [ctx]
   (let [[tasks n] (kernel/eval-activation-result (result ctx) (:net ctx))]
-    (kernel/run-tasks tasks n)))
+    (nb/run-propagators n tasks)))
 
 (defn relation
   [tag installer]

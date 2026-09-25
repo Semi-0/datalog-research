@@ -6,10 +6,10 @@
             [propagators.cells.merge :as merge]
             [propagators.cells.value :refer [cell-value-equal?]]
             [propagators.propagator :refer [compound-propagator]]
-            [propagators.core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.stdlib.boundary :refer [bi-sync-closure]]
             [propagators.stdlib.prop :refer [id]]))
 
@@ -50,7 +50,7 @@
   (net/assoc-net-cell n cell-id (cell/cell v v)))
 
 (defn- run-prop [n prop-id]
-  (run-tasks (tq/enqueue tq/empty-queue prop-id) n))
+  (nb/run-propagators n (tq/enqueue tq/empty-queue prop-id)))
 
 (defn- run-compound-chain [n prop-ids]
   (reduce run-prop n prop-ids))

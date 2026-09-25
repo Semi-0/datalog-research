@@ -18,6 +18,7 @@
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
 
 (def compiler-result-key common/compiler-result-key)
@@ -60,7 +61,7 @@
   [{:keys [net] :as state} role v]
   (let [id (h/node-id state role)
         net' (-> net
-                 (h/ensure-cell id)
+                 (nb/ensure-cell id)
                  (net/assoc-net-cell id (cell/cell v (behavior/strongest-value v))))]
     [(assoc state :net net')
      (env/cell-binding id)]))

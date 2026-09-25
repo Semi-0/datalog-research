@@ -5,7 +5,8 @@
             [propagators.dispatch :as dispatch]
             [propagators.ids :as ids]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.runner :as runner]))
 
 (defn make-frame
   []
@@ -79,10 +80,13 @@
 
 (defn run-reduced-application
   [{:keys [net branch-prop-ids reducer-install trace]}]
-  (let [after-branches (nb/run-propagators net branch-prop-ids)
+  (let [after-branches
+        (runner/completed-network
+         (runner/run-network branch-prop-ids net))
         _ (report-trace! :after-branches trace after-branches)
         [reducer-prop-ids reducer-net] (reducer-install after-branches)
-        after (nb/run-propagators reducer-net reducer-prop-ids)]
+        after (runner/completed-network
+               (runner/run-network reducer-prop-ids reducer-net))]
     (report-trace! :after-reducer trace after)
     after))
 

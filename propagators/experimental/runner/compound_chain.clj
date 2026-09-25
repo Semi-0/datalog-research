@@ -103,7 +103,12 @@
                next-network)))))
 
 (def patch-evaluator-cps
-  (constructor/direct-patches->cps evaluate-patches))
+  (fn [patches network {:keys [success fail]}]
+    (try
+      (let [[new-tasks patched-network] (evaluate-patches patches network)]
+        (success new-tasks patched-network))
+      (catch Throwable error
+        (fail error)))))
 
 (defn- complete-run
   [result]
@@ -312,7 +317,7 @@
 (defn- run-state
   [variant state]
   (case variant
-    :vanilla (core/run-tasks (:tasks state) (:network state))
+    :vanilla (nb/run-propagators (:network state) (:tasks state))
     :port (complete-run (port-runner state))
     :closure (complete-run (closure-runner state))
     (throw (ex-info "unknown chain variant" {:variant variant}))))

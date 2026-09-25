@@ -4,7 +4,8 @@
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.operators.environment :as operators]
             [propagators.ids :as ids]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.runner :as runner]))
 
 (defprotocol SessionExtension
   (extension-id [extension])
@@ -273,7 +274,8 @@
             installed (install-extension-bindings
                        (:net parent) (:env parent) child-id bindings)
             props (into (vec (:props parent)) (:props installed))
-            network (nb/run-propagators (:net installed) props)
+            network (runner/completed-network
+                     (runner/run-network props (:net installed)))
             receipt {:status :installed
                      :declaration declaration
                      :environment child-id

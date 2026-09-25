@@ -24,10 +24,21 @@
   (core/eval-activation-result patches network))
 
 (def propagator-evaluator-cps
-  (constructor/direct-propagator->cps evaluate-propagator))
+  (fn [propagator-id network {:keys [success fail]}]
+    (try
+      (let [[patches propagated-network]
+            (evaluate-propagator propagator-id network)]
+        (success patches propagated-network))
+      (catch Throwable error
+        (fail error)))))
 
 (def patch-evaluator-cps
-  (constructor/direct-patches->cps evaluate-patches))
+  (fn [patches network {:keys [success fail]}]
+    (try
+      (let [[new-tasks patched-network] (evaluate-patches patches network)]
+        (success new-tasks patched-network))
+      (catch Throwable error
+        (fail error)))))
 
 (defn network-iterator
   [task-policy]

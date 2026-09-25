@@ -2,22 +2,24 @@
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.model.env.binding :as binding]
             [propagators.compiler-2.model.env.index :as index]
-            [propagators.core :as core]
             [propagators.ids :as ids]
             [propagators.install :as i]
             [propagators.network-builder :as nb]
+            [propagators.network-patch :as patch]
             [propagators.propagator :as prop]))
 
 (defn- declared-prop-ids [effects]
   (->> effects
        (tree-seq sequential? seq)
-       (filter #(= :declare-prop
-                   (or (:network-vm/op %) (:gur.flat/op %) (:op %))))
+       (filter #(= :network/declare-propagator (:op %)))
        (mapv :id)))
 
 (defn- commit [ctx]
-  (let [{:keys [effects] :as result} (i/result ctx)
-        [_ network] (core/eval-activation-result result (:net ctx))]
+  (let [{:keys [effects messages]} (i/result ctx)
+        network (reduce (fn [current declaration]
+                          (second (patch/apply-patch declaration current)))
+                        (:net ctx)
+                        (concat effects messages))]
     [(declared-prop-ids effects) network]))
 
 (defn- p:extend-chain [chain-id scope-id out-id]

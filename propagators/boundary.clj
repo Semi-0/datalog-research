@@ -2,9 +2,9 @@
   (:require [propagators.cells.avatar :as avatar]
             [propagators.cells.cell :as cell]
             [propagators.cells.snapshot :refer [pop-inputs]]
-            [propagators.core :refer [run-tasks]]
             [propagators.ids :as id]
             [propagators.network :as net :refer [net-graph]]
+            [propagators.network-builder :as nb]
             [propagators.stdlib.boundary :as boundary]))
 
 (defn spawn-avatar-cell
@@ -62,4 +62,5 @@
   "Resolve inner ids for `external-inputs` from dict :avatars-in; inner fixpoint."
   [external-inputs network]
   (let [inner-ids (mapv #(net/lookup-inner-in network %) (vec external-inputs))]
-    (run-tasks (pop-inputs inner-ids (net-graph network)) network)))
+    (nb/run-propagators network
+                        (pop-inputs inner-ids (net-graph network)))))

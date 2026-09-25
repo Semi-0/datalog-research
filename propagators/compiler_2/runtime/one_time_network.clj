@@ -4,12 +4,13 @@
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.runtime.operators.network-observation :as observation]
-            [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.gur :as gur]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.network-patch :as patch]
+            [propagators.runner :as runner]))
 
 (defprotocol TraceProjection
   (project-trace [projection completed-net result-id]))
@@ -163,11 +164,10 @@
          (into [context-id snapshot-id] argument-ids)
          inner-result-id)
 
-        [tasks declared]
-        (core/eval-activation-result effect prepared)
+        [tasks declared] (patch/apply-patch effect prepared)
 
-        completed
-        (core/run-tasks tasks declared)]
+        completed (runner/completed-network
+                   (runner/run-network tasks declared))]
     {:value
      (project-trace projection completed inner-result-id)
 

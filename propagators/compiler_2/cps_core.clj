@@ -13,6 +13,7 @@
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
 
 (def compiler-result-key common/compiler-result-key)
@@ -49,7 +50,7 @@
   [network compiler-env prop-ids]
   (cond
     (ids/node-id? compiler-env)
-    {:net (h/ensure-cell network compiler-env)
+    {:net (nb/ensure-cell network compiler-env)
      :env-id compiler-env
      :prop-ids (vec prop-ids)}
 

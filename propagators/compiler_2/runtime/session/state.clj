@@ -5,13 +5,13 @@
             [propagators.compiler-2.runtime.session.extension :as extension]
             [graph.vijual-compiler-2-demo :as demo]
             [propagators.cells.cell-protocol :as cell-protocol]
-            [propagators.compile :as compile1]
             [propagators.compiler-2.compiler.basis :as compiler-helpers]
             [propagators.compiler-2.model.env :as compiler-env]
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.network-cache :as network-cache])
+            [propagators.network-cache :as network-cache]
+            [propagators.runner :as runner])
   (:import [java.util.concurrent Executors]))
 
 (defn empty-graph []
@@ -53,12 +53,7 @@
 
 (defn install-runtime-protocols
   [n]
-  (-> n
-      (compile1/install-and-run (cell-protocol/install-cell-protocol))
-      (compile1/install-and-run (cell-protocol/install-event-protocol))
-      (compile1/install-and-run (cell-protocol/install-behavior-protocol))
-      (compile1/install-and-run (cell-protocol/install-tms-distributed-protocol))
-      (cell-protocol/prefer-direct-standard-protocols)))
+  (cell-protocol/prefer-direct-standard-protocols n))
 
 (defn runtime-base-net []
   (install-runtime-protocols net/empty-net))
@@ -70,7 +65,8 @@
                    'propagators.compiler-2.operators.behavior/behavior-tms-bindings))
         declared (compiler-env/declare-root network env-id bindings)]
     (assoc declared
-           :net (nb/run-propagators (:net declared) (:props declared)))))
+           :net (runner/completed-network
+                 (runner/run-network (:props declared) (:net declared))))))
 
 (defn runtime-compiler-env []
   (:env (runtime-root (runtime-base-net))))

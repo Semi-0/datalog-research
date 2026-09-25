@@ -21,7 +21,8 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.runner :as runner]))
 
 (def apply-behavior-application-props-key
   :compiler-behavior/apply-application-props)
@@ -132,7 +133,8 @@
             [activation-net adapter-props]
             (install-output-adapter (:net state') result-id out-inner)
             props (into (:props state') adapter-props)
-            after-body (nb/run-propagators activation-net props)]
+            after-body (runner/completed-network
+                        (runner/run-network props activation-net))]
         {:net after-body
          :out-inner out-inner
          :props props}))))

@@ -1,9 +1,9 @@
 (ns propagators.effectful-execution
   "Helpers for activation-local effectful subnet execution."
   (:require [propagators.cells.snapshot :refer [pop-inputs]]
-            [propagators.core :refer [run-tasks]]
             [propagators.helpers.task-queue :as tq]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.stdlib.effect :as effect]))
 
 (defn- effect-tap-key [outer-id]
@@ -43,7 +43,7 @@
   (let [updated* (atom #{})
         subnet (hook-subnet exec-net updated*)
         tasks (effectful-tasks subnet (seed-ids subnet))]
-    [exec-net (run-tasks tasks subnet) updated*]))
+    [exec-net (nb/run-propagators subnet tasks) updated*]))
 
 (defn project-stable-cells
   "Copy stable cell entries from executed `after` back into `stable-net`."

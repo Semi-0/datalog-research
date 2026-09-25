@@ -1,12 +1,9 @@
 (ns propagators.datastructures.compound-object
-  "Public facade for compound-object slots, reducers, and sequence helpers."
+  "Public facade for compound-object slots and reducers."
   (:require [propagators.datastructures.compound-object.core :as core]
-            [propagators.datastructures.compound-object.cursor :as cursor]
-            [propagators.datastructures.compound-object.map :as map]
             [propagators.datastructures.compound-object.merge :as compound-merge]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.compound-object.reduce :as reduce]
-            [propagators.datastructures.compound-object.sequence :as sequence]
             [propagators.datastructures.compound-object.slot :as slot]))
 
 (def slot-sync-key core/slot-sync-key)
@@ -22,12 +19,6 @@
 (def slot-content core/slot-content)
 (def slot-value core/slot-value)
 (def public-slot-keys core/public-slot-keys)
-
-(def empty-cons-net sequence/empty-cons-net)
-(def ensure-cons-net sequence/ensure-cons-net)
-(def ^:deprecated p:legacy-car sequence/p:car)
-(def ^:deprecated p:legacy-cdr sequence/p:cdr)
-(def ^:deprecated p:legacy-cons sequence/p:cons)
 
 (def slot-declarations slot/slot-declarations)
 (def slot-declarations-for slot/slot-declarations-for)
@@ -58,17 +49,5 @@
 (def p:car network-slot/p:network-car)
 (def p:cdr network-slot/p:network-cdr)
 (def p:cons network-slot/p:network-cons)
-(def ^:deprecated p:slot-cursor cursor/p:slot-cursor)
-(def ^:deprecated slot-cursor-value cursor/slot-cursor-value)
 
 (def p:reduce reduce/p:reduce)
-(def p:map-slots-with-recursive-closure map/p:map-slots-with-recursive-closure)
-(def p:map-slots-with-recursive-accumulator map/p:map-slots-with-recursive-accumulator)
-(def install-declared-nested-recursive-map-with-closure
-  map/install-declared-nested-recursive-map-with-closure)
-(def install-declared-nested-recursive-map-with-accumulator
-  map/install-declared-nested-recursive-map-with-accumulator)
-(def install-accessor-nested-recursive-map-with-closure
-  map/install-accessor-nested-recursive-map-with-closure)
-(def install-accessor-nested-recursive-map-with-accumulator
-  map/install-accessor-nested-recursive-map-with-accumulator)

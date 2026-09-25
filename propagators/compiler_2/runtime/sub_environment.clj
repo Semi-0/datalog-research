@@ -9,6 +9,7 @@
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.propagator :as prop]))
 
 (def execute-sub-env-props-key :compiler-2/execute-sub-env-props)
@@ -42,7 +43,7 @@
                                   :execute-sub-env
                                   child-env-id
                                   :result-boundary)
-        prepared (reduce h/ensure-cell network [result-id out-id])]
+        prepared (reduce nb/ensure-cell network [result-id out-id])]
     ((prop/construct-propagator
       prop-id
       :compiler-2/execute-sub-env-result
@@ -101,7 +102,7 @@
                                                   out-id
                                                   network))]
     (fn [network]
-      (let [network* (reduce h/ensure-cell network (into inputs outputs))
+      (let [network* (reduce nb/ensure-cell network (into inputs outputs))
             [prop-id n] ((prop/construct-propagator :compiler-2/execute-sub-env
                                                     activate inputs outputs)
                          network*)]

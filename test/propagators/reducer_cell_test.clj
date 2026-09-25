@@ -127,7 +127,7 @@
 (defn- apply-effects
   [effects]
   (let [[tasks n] (core/eval-activation-result effects (fvm/vm-net))]
-    (core/run-tasks tasks n)))
+    (nb/run-propagators n tasks)))
 
 (defn- source-list-effects
   [run-key values]
@@ -274,7 +274,7 @@
         [_ n2] ((reducer/p:reduced-result reducer-id out-id)
                 n1)
         [tasks n3] (core/eval-cells [(message value-id 7)] n2)
-        n4 (core/run-tasks tasks n3)]
+        n4 (nb/run-propagators n3 tasks)]
     (is (= {:a 7} (strongest n4 out-id)))))
 
 (deftest install-helpers-emit-slots-and-project-result

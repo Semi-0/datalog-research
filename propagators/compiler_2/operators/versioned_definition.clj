@@ -124,14 +124,14 @@
    [registry-id]))
 
 (defn- ensure-premise-context [network context]
-  (h/ensure-cell network (:premise/state-cell context)))
+  (nb/ensure-cell network (:premise/state-cell context)))
 
 (defn- public-definition-state
   [compile* state definition-id name public-id registry-id scalar?]
   (let [new? (not (contains? (net/net-env (:net state)) public-id))
         state (-> state
-                  (update :net h/ensure-cell public-id)
-                  (update :net h/ensure-cell registry-id))
+                  (update :net nb/ensure-cell public-id)
+                  (update :net nb/ensure-cell registry-id))
         state (if new?
                 (cond-> (declarations/declare-fixed-local state name public-id)
                   (not scalar?)

@@ -1,7 +1,6 @@
 (ns propagators.network-builder
   "Small construction helpers for immutable propagator networks."
   (:require [propagators.cells.cell :as cell]
-            [propagators.core :as core]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -45,7 +44,11 @@
 (defn run-propagators
   "Run propagators by id on `n`."
   [n prop-ids]
-  (core/run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
+  (let [run-network (requiring-resolve 'propagators.runner/run-network)
+        completed-network
+        (requiring-resolve 'propagators.runner/completed-network)]
+    (completed-network
+     (run-network prop-ids n))))
 
 (defn install-propagator!
   "Install a propagator and enqueue it, returning `[updated-network updated-tasks]`."

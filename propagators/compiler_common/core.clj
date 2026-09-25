@@ -10,7 +10,8 @@
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.network :as net]))
+            [propagators.network :as net]
+            [propagators.network-builder :as nb]))
 
 (def compiler-result-key :compiler/result)
 (def compiler-props-key :compiler/props)
@@ -85,8 +86,8 @@
       (let [binding-id (h/node-id state [:symbol sym :binding])
             value-id (h/node-id state [:symbol sym :value])
             prepared (-> (:net state)
-                         (h/ensure-cell binding-id)
-                         (h/ensure-cell value-id))
+                         (nb/ensure-cell binding-id)
+                         (nb/ensure-cell value-id))
             [access-props accessed]
             ((env/p:lexical-access-local-first sym env binding-id) prepared)
             [value-props resolved]

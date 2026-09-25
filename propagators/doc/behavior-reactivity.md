@@ -362,8 +362,8 @@ compound-object slots. A support has:
 ```
 
 The `:support/source` value may be a `propagators.scoped-address/name-ref`.
-The focused test registers a child scope with `gur.subenv.env` and verifies that
-the same source address resolves through `env/resolve-dispatch` to
+The focused test registers a child scope with `propagators.scoped-routing` and
+verifies that the same source address resolves through `resolve-dispatch` to
 `[:dispatch/subenv owner local]`. That means provenance can carry the same
 scoped addresses used by sub-env routing. It does not mean the TMS projection
 executes lexical routing itself; reducer strongest still decides the active

@@ -92,8 +92,10 @@
                (seed-round-cell update-id update)
                (seed-round-cell out-id value/nothing))
         tasks (pop-inputs [acc-id update-id] (net/net-graph n0))
-        run-tasks (requiring-resolve 'propagators.core/run-tasks)
-        after (run-tasks tasks n0)]
+        run-network (requiring-resolve 'propagators.runner/run-network)
+        completed-network
+        (requiring-resolve 'propagators.runner/completed-network)
+        after (completed-network (run-network tasks n0))]
     (net/network-cell-strongest after out-id)))
 
 (defn strongest

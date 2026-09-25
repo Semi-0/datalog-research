@@ -87,8 +87,10 @@
   [template seed-values wake-ids]
   (let [n0 (reduce-kv seed-cell template seed-values)
         tasks (pop-inputs wake-ids (net/net-graph n0))
-        run-tasks (requiring-resolve 'propagators.core/run-tasks)]
-    (run-tasks tasks n0)))
+        run-network (requiring-resolve 'propagators.runner/run-network)
+        completed-network
+        (requiring-resolve 'propagators.runner/completed-network)]
+    (completed-network (run-network tasks n0))))
 
 (defn- run-merge-net
   [template content-slots update-slots]

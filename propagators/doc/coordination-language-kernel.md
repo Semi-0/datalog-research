@@ -115,15 +115,12 @@ accessors, and higher-order operators that need unbounded but idempotent network
 declaration. In that role GUR must be fast enough to keep compiler-scale
 prototype work practical, but it does not need to become the lifecycle manager
 for the whole language. The canonical implementation namespace is
-`propagators.gur`, backed by flat GUR. Accumulating GUR is available explicitly
-from `propagators.gur.accumulating`; older routed variants remain compatibility
-and regression evidence.
+`propagators.gur`, backed by flat GUR declaration patches.
 
-This also sets the GC expectation. Accumulating GUR may retain monotone frame
-and task facts for now; garbage collection is not the first prototype
-requirement. What is required is idempotence: re-running the same recursive
-application must not grow equivalent frames, routes, props, sync topology, or
-task facts forever. Versioning and retention for behavior reactivity should
+This also sets the GC expectation. Garbage collection is not the first
+prototype requirement. What is required is idempotence: re-running the same
+recursive application must not grow equivalent cells, propagators, or routes
+forever. Versioning and retention for behavior reactivity should
 belong to behavior-aware propagators and behavior cell merge, not to generic GUR
 application keys.
 

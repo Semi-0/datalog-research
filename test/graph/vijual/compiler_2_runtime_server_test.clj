@@ -76,7 +76,7 @@
         [tasks n3] (core/eval-cells [(message graph-id expanded-graph)
                                      (message epoch-id (semantic-trace/epoch 1))]
                                     n2)
-        n4 (core/run-tasks tasks n3)
+        n4 (nb/run-propagators n3 tasks)
         trace (net/network-cell-strongest n4 out-id)]
     (is (contains? (set (:edges trace)) [:a :b]))
     (is (contains? (set (:edges trace)) [:b :c]))

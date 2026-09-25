@@ -7,12 +7,13 @@
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.graph :as graph]
-            [propagators.gur.subenv.env :as env]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
             [propagators.message :refer [message-id message-value]]
             [propagators.network :as net]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.runner :as runner]
+            [propagators.scoped-routing :as routing]))
 
 (defn- queue-items
   [tasks]
@@ -93,9 +94,10 @@
   [render-id n target]
   (try
     (short-text (render-data render-id
-                             (env/resolve-dispatch (net/net-dict-or-empty n)
-                                                   target
-                                                   n)))
+                             (routing/resolve-dispatch
+                              (net/net-dict-or-empty n)
+                              target
+                              n)))
     (catch Exception e
       (str "unresolved " (short-text (ex-message e))))))
 
@@ -160,45 +162,54 @@
              :exclusive-ns (max 0 (- elapsed-ns child-ns))}
       error (assoc :error (str (class error))))))
 
-(defn run-tasks-profiled
-  "Debug task runner that times the unchanged `core/eval-propagator` extension point."
-  [tasks network]
-  (loop [tasks (tq/into-queue tasks)
-         current network]
+(defn activation-profile-transform
+  [advance]
+  (fn [{:keys [network tasks] :as state} continuations]
     (if (tq/queue-empty? tasks)
-      current
-      (let [[prop-id remaining] (tq/pop-task tasks)
+      (advance state continuations)
+      (let [[prop-id _remaining] (tq/pop-task tasks)
             parent-child-ns *activation-child-elapsed-ns*
             child-ns (volatile! 0)
             started (System/nanoTime)
-            outcome (try
-                      {:result
-                       (binding [*activation-profile-depth*
-                                 (inc *activation-profile-depth*)
-                                 *activation-child-elapsed-ns* child-ns]
-                         (core/eval-propagator prop-id remaining current))}
-                      (catch Throwable t
-                        {:error t}))
-            elapsed-ns (- (System/nanoTime) started)
-            error (:error outcome)]
-        (when parent-child-ns
-          (vswap! parent-child-ns + elapsed-ns))
-        (record-activation! *activation-profile-state*
-                            (activation-event current
-                                              prop-id
-                                              elapsed-ns
-                                              @child-ns
-                                              error))
-        (if error
-          (throw error)
-          (let [[next-tasks next-net] (:result outcome)]
-            (recur next-tasks next-net)))))))
+            record! (fn [after error]
+                      (let [elapsed-ns (- (System/nanoTime) started)]
+                        (when parent-child-ns
+                          (vswap! parent-child-ns + elapsed-ns))
+                        (record-activation!
+                         *activation-profile-state*
+                         (activation-event network prop-id elapsed-ns
+                                           @child-ns error))))
+            wrapped (-> continuations
+                        (assoc :continue
+                               (fn [next-state]
+                                 (record! (:network next-state) nil)
+                                 ((:continue continuations) next-state)))
+                        (assoc :fail
+                               (fn [error]
+                                 (record! network error)
+                                 ((:fail continuations) error))))]
+        (binding [*activation-profile-depth* (inc *activation-profile-depth*)
+                  *activation-child-elapsed-ns* child-ns]
+          (advance state wrapped))))))
+
+(defn run-tasks-profiled
+  "Run tasks to quiescence while recording outer activation timings."
+  [tasks network]
+  (runner/completed-network
+   (binding [runner/*advance-transform*
+             (runner/compose-advance-transforms
+              activation-profile-transform
+              runner/*advance-transform*)]
+     (runner/run-network tasks network))))
 
 (defn call-with-activation-profile
   [profile f]
-  (binding [*activation-profile-state* profile]
-    (with-redefs [core/run-tasks run-tasks-profiled]
-      (f))))
+  (binding [*activation-profile-state* profile
+            runner/*advance-transform*
+            (runner/compose-advance-transforms
+             activation-profile-transform
+             runner/*advance-transform*)]
+    (f)))
 
 (defmacro with-activation-profile
   [profile & body]
@@ -333,7 +344,7 @@
     [merged new-net]))
 
 (defn run-tasks-debug
-  "Run `tasks` like `core/run-tasks`, printing each propagator step.
+  "Run `tasks` to quiescence while printing each propagator step.
 
   Options:
   - `:log-fn` receives each rendered line, defaults to `println`

@@ -31,29 +31,3 @@
                         :tasks (add-tasks remaining-tasks new-tasks))))
               :fail fail}))
           :fail fail})))))
-
-(defn direct-propagator->cps
-  "Adapt `(fn [propagator-id network] [patches network])` to the CPS contract."
-  [evaluate-propagator]
-  (fn [propagator-id network {:keys [success fail]}]
-    (let [result (try
-                   {:value (evaluate-propagator propagator-id network)}
-                   (catch Throwable error
-                     {:error error}))]
-      (if (contains? result :error)
-        (fail (:error result))
-        (let [[patches propagated-network] (:value result)]
-          (success patches propagated-network))))))
-
-(defn direct-patches->cps
-  "Adapt `(fn [patches network] [tasks network])` to the CPS contract."
-  [evaluate-patches]
-  (fn [patches network {:keys [success fail]}]
-    (let [result (try
-                   {:value (evaluate-patches patches network)}
-                   (catch Throwable error
-                     {:error error}))]
-      (if (contains? result :error)
-        (fail (:error result))
-        (let [[new-tasks patched-network] (:value result)]
-          (success new-tasks patched-network))))))

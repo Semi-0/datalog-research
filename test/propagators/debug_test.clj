@@ -1,14 +1,14 @@
 (ns propagators.debug-test
   (:require [clojure.string :as str]
             [clojure.test :refer [deftest is]]
-            [propagators.core :as core]
             [propagators.debug :as debug]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.runner :as runner]))
 
 (deftest run-tasks-debug-runs-and-logs
   (let [in-id (ids/new-node-id)
@@ -59,8 +59,12 @@
           [middle-id]
           [out-id])
          n1)
-        result (debug/with-activation-profile profile
-                 (core/run-tasks (tq/enqueue tq/empty-queue first-prop) n2))
+        result (debug/with-activation-profile
+                 profile
+                 (runner/completed-network
+                  (runner/run-network
+                   (tq/enqueue tq/empty-queue first-prop)
+                   n2)))
         report (debug/activation-profile-report profile)
         by-name (into {} (map (juxt :prop-name identity)) (:by-name report))]
     (is (= 3 (net/network-cell-strongest result out-id)))

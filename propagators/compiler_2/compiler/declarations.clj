@@ -13,6 +13,7 @@
             [propagators.compiler-common.core :as common]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
+            [propagators.network-builder :as nb]
             [propagators.stdlib.prop :as stdlib-prop]))
 
 (defn- application-operator-label
@@ -210,7 +211,7 @@
 (defn declare-child-environment
   [state role local-names]
   (let [child-id (h/node-id state role)
-        state' (update state :net h/ensure-cell child-id)]
+        state' (update state :net nb/ensure-cell child-id)]
     [(-> state'
          (install-env-topology
           (env/p:scope-frame (:env state) child-id local-names))
@@ -243,7 +244,7 @@
      (fn [[state bindings] name]
        (let [binding-id (h/stable-node-id :compiler-2 :binding child-id name)
              state' (-> state
-                        (update :net h/ensure-cell binding-id)
+                        (update :net nb/ensure-cell binding-id)
                         (reserve-fixed-local name binding-id))]
          [state' (assoc bindings name (env/cell-binding binding-id))]))
      [state' {}]
@@ -282,7 +283,7 @@
          closure-id (or reserved-id proposed-id)
          state' (if (and name (nil? reserved-id))
                   (-> state
-                      (update :net h/ensure-cell closure-id)
+                      (update :net nb/ensure-cell closure-id)
                       (reserve-fixed-local name closure-id))
                   state)
          closure-object (closure-value/closure-object (:env state')
@@ -308,7 +309,7 @@
          closure-binding (env/cell-binding closure-id)
          declared (-> state'
                       (update :net h/seed-cell declaration-id closure-object)
-                      (update :net h/ensure-cell graph-id)
+                      (update :net nb/ensure-cell graph-id)
                       (update :net h/seed-cell closure-id callable))]
      [declared
       closure-binding])))
@@ -348,7 +349,7 @@
                            (env/compound-binding target-id)
                            (env/cell-binding target-id))
           state' (-> state
-                     (update :net h/ensure-cell target-id)
+                     (update :net nb/ensure-cell target-id)
                      (copy-binding-value source-id target-id))
           declared (if (or reserved-id reused-id)
                      state'
@@ -485,7 +486,7 @@
 
           :else
           (-> state
-              (update :net h/ensure-cell closure-id)
+              (update :net nb/ensure-cell closure-id)
               (reserve-fixed-local name closure-id)))
         closure-info (closure-value/closure-object (:env state')
                                                    closure-body
@@ -504,7 +505,7 @@
                   closure-info)
         declared (-> state'
                      (update :net h/seed-cell declaration-id closure-info)
-                     (update :net h/ensure-cell graph-id)
+                     (update :net nb/ensure-cell graph-id)
                      (update :net h/seed-cell closure-id callable)
                      (update :net env/consume-reserved-binding
                              (:env state) name closure-id (:seed state)))]

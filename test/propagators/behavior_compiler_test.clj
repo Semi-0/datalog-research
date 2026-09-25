@@ -3,7 +3,6 @@
             [clojure.test :refer [deftest is testing]]
             [propagators.cells.cell-protocol :as protocol]
             [propagators.cells.value :as value]
-            [propagators.compile :as compile]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as h]
@@ -24,9 +23,7 @@
 
 (defn- behavior-net
   []
-  (-> net/empty-net
-      (compile/install-and-run (protocol/install-cell-protocol))
-      (compile/install-and-run (protocol/install-behavior-protocol))))
+  (protocol/prefer-direct-standard-protocols net/empty-net))
 
 (defn- strongest
   [n id]
@@ -349,11 +346,11 @@
                     {:net n3})
           empty-result (run-compiled compiled)
           [inc-tasks n4] (seed-behavior-message empty-result f-id inc-closure)
-          inc-result (core/run-tasks inc-tasks n4)
+          inc-result (nb/run-propagators n4 inc-tasks)
           [double-tasks n5] (seed-behavior-message inc-result
                                                    f-id
                                                    double-closure)
-          double-result (core/run-tasks double-tasks n5)
+          double-result (nb/run-propagators n5 double-tasks)
           closure-content (content double-result f-id)]
       (is (= value/nothing (strongest empty-result (:cell compiled))))
       (is (= 11 (current-value inc-result (:cell compiled))))
@@ -387,11 +384,11 @@
                     {:net n3})
           empty-result (run-compiled compiled)
           [inc-tasks n4] (seed-behavior-message empty-result f-id inc-closure)
-          inc-result (core/run-tasks inc-tasks n4)
+          inc-result (nb/run-propagators n4 inc-tasks)
           [double-tasks n5] (seed-behavior-message inc-result
                                                    f-id
                                                    double-closure)
-          result-net (core/run-tasks double-tasks n5)]
+          result-net (nb/run-propagators n5 double-tasks)]
       (is (= [{:at 0 :value 11}
               {:at 1 :value 40}]
              (records (content result-net (:cell compiled))))))))
@@ -414,9 +411,9 @@
                     {:net n3})
           empty-result (run-compiled compiled)
           [v1-tasks n4] (seed-behavior-message empty-result f-id v1-closure)
-          v1-result (core/run-tasks v1-tasks n4)
+          v1-result (nb/run-propagators n4 v1-tasks)
           [v2-tasks n5] (seed-behavior-message v1-result f-id v2-closure)
-          v2-result (core/run-tasks v2-tasks n5)
+          v2-result (nb/run-propagators n5 v2-tasks)
           closure-content (content v2-result f-id)]
       (is (= value/nothing (strongest empty-result (:cell compiled))))
       (is (= 1 (current-value v1-result (:cell compiled))))

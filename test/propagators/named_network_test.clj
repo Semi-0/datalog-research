@@ -4,12 +4,12 @@
             [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
-            [propagators.core :refer [run-tasks]]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.datastructures.named-network :as named]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.network :as net]
+            [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
             [propagators.stdlib.boundary :as boundary]
             [propagators.stdlib.prop :as stdlib-prop]))
@@ -86,7 +86,7 @@
 
 (defn- run-props
   [n prop-ids]
-  (run-tasks (tq/enqueue-all tq/empty-queue prop-ids) n))
+  (nb/run-propagators n (tq/enqueue-all tq/empty-queue prop-ids)))
 
 (defn- strongest
   [n cell-id]

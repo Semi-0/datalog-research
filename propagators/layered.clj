@@ -13,6 +13,7 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
+            [propagators.runner :as runner]
             [propagators.stdlib.prop :as stdlib-prop])
   (:import [java.nio.charset StandardCharsets]
            [java.util UUID]))
@@ -169,7 +170,7 @@
                (nb/ensure-cell proc-id)
                (nb/ensure-cell closure-id))
         [prop-id n1] ((p:layered-procedure layer-name closure-id proc-id) n0)]
-    {:net (nb/run-propagators n1 [prop-id])
+    {:net (runner/completed-network (runner/run-network [prop-id] n1))
      :prop prop-id
      :closure closure-id}))
 
@@ -460,7 +461,9 @@
                  [(conj prop-ids prop-id) acc']))
              [[] n1]
              declared-layers)
-            materialized-net (nb/run-propagators n2 slot-prop-ids)]
+            materialized-net
+            (runner/completed-network
+             (runner/run-network slot-prop-ids n2))]
         (strongest-or-nothing materialized-net object-id)))))
 
 (defn- materialize-procedure
@@ -509,7 +512,9 @@
                 (layer-values-from-object arg-value)))
              [n []]
              (map vector arg-ids arg-values))
-            materialized (nb/run-propagators n' materialization-props)
+            materialized
+            (runner/completed-network
+             (runner/run-network materialization-props n'))
             branches (install-layer-branches materialized
                                                frame
                                                proc-id

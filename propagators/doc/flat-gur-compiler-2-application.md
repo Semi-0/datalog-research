@@ -3,9 +3,8 @@
 Status: current architecture, 2026-09-12.
 
 `propagators.gur` is the public flat-GUR facade. Compiler 2 application and
-local-first lexical access declare additive topology in the active `Net`.
-`propagators.gur.accumulating` remains an explicit alternative for programs
-that need an accumulated child-network value.
+local-first lexical access emit deterministic declaration patches into the
+active `Net`.
 
 ## Boundary
 
@@ -168,8 +167,7 @@ retraction inspection, and TUI publishing traverse the same relations that
 execute the call.
 
 `gur/p:apply-closure` remains as a deprecated installer-shaped adapter over
-`gur/apply-closure-effect`. Accumulating GUR is imported explicitly from
-`propagators.gur.accumulating`.
+`gur/apply-closure-effect`.
 
 Historical retained-application, closure-frame, lexical-application, and
 application-layer modules have no production callers and were deleted.

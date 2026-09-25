@@ -2,7 +2,6 @@
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
-            [propagators.compile :as compile]
             [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :refer [new-node-id]]
@@ -12,11 +11,11 @@
 
 (defn- install-protocol
   [n]
-  (compile/install-and-run n (protocol/install-cell-protocol)))
+  (protocol/prefer-direct-standard-protocols n))
 
 (defn- install-behavior
   [n]
-  (compile/install-and-run n (protocol/install-behavior-protocol)))
+  (protocol/prefer-direct-standard-protocols n))
 
 (defn- behavior-net
   []

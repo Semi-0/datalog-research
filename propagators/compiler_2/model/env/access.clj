@@ -9,6 +9,7 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
+            [propagators.runner :as runner]
             [propagators.stdlib.prop :as stdlib-prop]))
 
 (defn- p:contains? [sym]
@@ -112,7 +113,8 @@
           [props installed]
           ((p:lexical-access-local-first sym environment-id answer-id)
            (nb/ensure-cell network answer-id))
-          settled (nb/run-propagators installed props)
+          settled (runner/completed-network
+                   (runner/run-network props installed))
           answer (net/network-cell-strongest settled answer-id)]
       (when-not (value/unusable? answer) answer))))
 

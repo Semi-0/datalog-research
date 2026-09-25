@@ -233,7 +233,7 @@
                                        coll
                                        (obj/accessor-declaration :x child-ref))
                                       n2)
-          n4 (core/run-tasks tasks n3)
+          n4 (nb/run-propagators n3 tasks)
           coll-with-scoped (net/network-cell-value n4 coll)
           n5 (-> n4
                  (nb/seed-cell parent 10)
@@ -273,7 +273,7 @@
           [n3 tasks] (nb/install-propagator! n2 tasks
                                              (obj/p:network-slot :value leaf second))
           [n4 tasks] (nb/seed-cell! n3 tasks leaf 9)
-          n5 (core/run-tasks tasks n4)]
+          n5 (nb/run-propagators n4 tasks)]
       (is (= 9 (net/network-cell-value n5 leaf)))
       (is (obj/accessor-network? (net/network-cell-value n5 top)))
       (is (obj/accessor-network? (net/network-cell-value n5 second))))))

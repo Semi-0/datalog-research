@@ -42,7 +42,7 @@
         props (into (into (:props child-declaration) lookup-props) value-props)
         before (nb/run-propagators installed props)
         [tasks updated] (core/eval-cells [(message value-id 9)] before)
-        after (core/run-tasks tasks updated)]
+        after (nb/run-propagators updated tasks)]
     (is (value/nothing? (net/network-cell-strongest before value-answer)))
     (is (= 9 (net/network-cell-strongest after value-answer)))))
 

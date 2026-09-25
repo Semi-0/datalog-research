@@ -1,12 +1,10 @@
 (ns propagators.experimental.runner-constructor-test
   (:require [clojure.test :refer [deftest is testing]]
-            [propagators.cells.value :as value]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.experimental.runner.controlled :as controlled]
             [propagators.experimental.runner.drivers :as drivers]
             [propagators.experimental.runner.examples :as examples]
-            [propagators.experimental.runner.integration-examples :as integration]
             [propagators.experimental.runner.task-policy :as task-policy]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
@@ -305,38 +303,3 @@
       (is (= 10 (net/network-cell-value final-network scoped-target)))
       (is (= coll-before (net/network-cell-value final-network coll)))
       (is (not (contains? (net/net-env final-network) child-ref))))))
-
-(deftest accumulating-gur-runs-as-an-ordinary-outer-propagator
-  (let [{:keys [result props network out-id applied-net-id]}
-        (integration/run-accumulated-closure integration/experimental-double [5])
-        rerun (run-experimental network props)]
-    (is (= :completed (:status result)))
-    (is (= 10 (net/network-cell-strongest network out-id)))
-    (is (net/net? (net/network-cell-strongest network applied-net-id)))
-    (is (= network (:network rerun)))
-    (is (not (value/contradiction?
-              (net/network-cell-strongest network out-id)))))
-
-  (let [{:keys [result network out-id applied-net-id]}
-        (integration/run-accumulated-closure integration/experimental-fib [5])]
-    (is (= :completed (:status result)))
-    (is (= 5 (net/network-cell-strongest network out-id)))
-    (is (= #{applied-net-id} (integration/route-owner-ids network))))
-
-  (let [initial-list (integration/lazy-cons-cell-value
-                      0
-                      value/nothing)
-        {:keys [network out-id applied-net-id]}
-        (integration/run-accumulated-closure
-         integration/experimental-map-list
-         [initial-list integration/experimental-fib ::unused])
-        target (integration/rest-target-with-nothing network applied-net-id)]
-    (is (= [0] (integration/list->vec
-                (net/network-cell-strongest network out-id))))
-    (is (some? target))
-    (let [final-network (integration/route-late-cdr network target [1 2])]
-      (is (= [0 1 1]
-             (integration/list->vec
-              (net/network-cell-strongest final-network out-id))))
-      (is (= #{applied-net-id}
-             (integration/route-owner-ids final-network))))))

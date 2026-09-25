@@ -4,7 +4,6 @@
             [propagators.cells.cell-protocol :as protocol]
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
-            [propagators.compile :as compile]
             [propagators.compiler-2.runtime.application :as compiler-app]
             [propagators.compiler-2.runtime.session.program.source :as program-source]
             [propagators.compiler-2.language.ast :as ast]
@@ -55,7 +54,7 @@
 (defn- seed-and-run
   [n id v]
   (let [[tasks n'] (core/eval-cell id (message id v) n)]
-    (core/run-tasks tasks n')))
+    (nb/run-propagators n' tasks)))
 
 (defn- seeded-cell
   [n v]
@@ -64,30 +63,19 @@
 
 (defn- behavior-protocol-net
   []
-  (-> net/empty-net
-      (compile/install-and-run (protocol/install-cell-protocol))
-      (compile/install-and-run (protocol/install-event-protocol))
-      (compile/install-and-run (protocol/install-behavior-protocol))))
+  (protocol/prefer-direct-standard-protocols net/empty-net))
 
 (defn- behavior-tms-protocol-net
   []
-  (-> net/empty-net
-      (compile/install-and-run (protocol/install-cell-protocol))
-      (compile/install-and-run (protocol/install-event-protocol))
-      (compile/install-and-run (protocol/install-behavior-protocol))
-      (compile/install-and-run (protocol/install-tms-distributed-protocol))))
+  (protocol/prefer-direct-standard-protocols net/empty-net))
 
 (defn- scope-source-protocol-net
   []
-  (-> net/empty-net
-      (compile/install-and-run (protocol/install-cell-protocol))
-      (compile/install-and-run (protocol/install-scope-source-protocol))))
+  (protocol/prefer-direct-standard-protocols net/empty-net))
 
 (defn- tms-distributed-protocol-net
   []
-  (-> net/empty-net
-      (compile/install-and-run (protocol/install-cell-protocol))
-      (compile/install-and-run (protocol/install-tms-distributed-protocol))))
+  (protocol/prefer-direct-standard-protocols net/empty-net))
 
 (defn- behavior-view
   [records source-keys]
@@ -118,7 +106,7 @@
 (defn- run-event-update
   [n id fact]
   (let [[tasks n'] (core/eval-cell id (message id fact) n)]
-    (core/run-tasks tasks n')))
+    (nb/run-propagators n' tasks)))
 
 (defn- with-binding
   ([bindings sym candidate]
@@ -135,7 +123,7 @@
                     prop-id (h/stable-node-id :compile-2-test
                                               :operator-activation
                                               sym arg-ids selected)
-                    prepared (reduce h/ensure-cell network
+                    prepared (reduce nb/ensure-cell network
                                      (conj (vec arg-ids) selected))
                     [installed-id installed]
                     ((prop/construct-propagator
@@ -1423,7 +1411,7 @@
           n3 (run-compiled compiled)
           [_left-tasks n4] (seed-behavior-message n3 a-id left-6-8)
           [right-tasks n5] (seed-behavior-message n4 b-id right-6-8)
-          result-net (core/run-tasks right-tasks n5)
+          result-net (nb/run-propagators n5 right-tasks)
           out-content (net/network-cell-content result-net (:cell compiled))]
       (is (= 13 (behavior-current-value result-net (:cell compiled))))
       (is (= [{:at 6 :value 9}
@@ -2464,7 +2452,7 @@
         compiled (compile-expr expr outer-env {:net (:net parent)})
         n6 (run-compiled compiled)
         [tasks n7] (core/eval-cell input-id (message input-id later-input) n6)
-        n8 (core/run-tasks tasks n7)]
+        n8 (nb/run-propagators n7 tasks)]
     (is (= 10 (reducer/reduced-result (strongest n6 (:cell compiled)))))
     (is (= 20 (reducer/reduced-result (strongest n8 (:cell compiled)))))
     (is (= 20 (reducer/reduced-result (strongest n8 storage-id))))))
@@ -2532,7 +2520,7 @@
         [inactive-tasks n1] (core/eval-cell inactive-id
                                             (message inactive-id false)
                                             result-net)
-        inactive-net (core/run-tasks inactive-tasks n1)
+        inactive-net (nb/run-propagators n1 inactive-tasks)
         inactive-view (reducer/reduced-result (strongest inactive-net tms-id))]
     (is (= #{premise-value} (tms/active-premises view)))
     (is (= :yes (tms/proposition-value view :answer)))
@@ -2591,7 +2579,7 @@
         [retract-tasks n1] (core/eval-cell retract-epoch-id
                                            (message retract-epoch-id 1)
                                            believed-net)
-        retracted-net (core/run-tasks retract-tasks n1)
+        retracted-net (nb/run-propagators n1 retract-tasks)
         retracted-view (reducer/reduced-result (strongest retracted-net tms-id))]
     (is (= #{premise-value} (tms/active-premises believed-view)))
     (is (= :yes (tms/proposition-value believed-view :answer)))
@@ -2730,17 +2718,17 @@
         [p1-retract-tasks n1] (core/eval-cell p1-retract-id
                                                (message p1-retract-id 1)
                                                n0)
-        n2 (core/run-tasks p1-retract-tasks n1)
+        n2 (nb/run-propagators n1 p1-retract-tasks)
         view1 (reducer/reduced-result (strongest n2 tms-id))
         [p1-bring-tasks n3] (core/eval-cell p1-bring-id
                                             (message p1-bring-id 2)
                                             n2)
-        n4 (core/run-tasks p1-bring-tasks n3)
+        n4 (nb/run-propagators n3 p1-bring-tasks)
         view2 (reducer/reduced-result (strongest n4 tms-id))
         [p2-retract-tasks n5] (core/eval-cell p2-retract-id
                                                (message p2-retract-id 3)
                                                n4)
-        n6 (core/run-tasks p2-retract-tasks n5)
+        n6 (nb/run-propagators n5 p2-retract-tasks)
         view3 (reducer/reduced-result (strongest n6 tms-id))]
     (is (= :yes (tms/proposition-value view0 :answer)))
     (is (value/nothing? (tms/proposition-value view1 :answer)))
@@ -2845,12 +2833,12 @@
         [retract-tasks n1] (core/eval-cell pa-retract-id
                                             (message pa-retract-id 1)
                                             n0)
-        n2 (core/run-tasks retract-tasks n1)
+        n2 (nb/run-propagators n1 retract-tasks)
         view1 (reducer/reduced-result (strongest n2 tms-id))
         [bring-tasks n3] (core/eval-cell pa-bring-id
                                          (message pa-bring-id 2)
                                          n2)
-        n4 (core/run-tasks bring-tasks n3)
+        n4 (nb/run-propagators n3 bring-tasks)
         view2 (reducer/reduced-result (strongest n4 tms-id))]
     (is (= 28 (strongest n0 f-id)))
     (is (= 28 (tms/proposition-value view0 :computed)))
@@ -3228,7 +3216,7 @@
         n4 (run-compiled compiled)
         [_left-tasks n5] (seed-behavior-message n4 a-id left-6-8)
         [right-tasks n6] (seed-behavior-message n5 b-id right-6-8)
-        result-net (core/run-tasks right-tasks n6)
+        result-net (nb/run-propagators n6 right-tasks)
         out-content (net/network-cell-content result-net (:cell compiled))]
     (is (= 9 (behavior-current-value n4 (:cell compiled))))
     (is (= 13 (behavior-current-value result-net (:cell compiled))))
@@ -3258,7 +3246,7 @@
         n3 (run-compiled compiled)
         [_left-tasks n4] (seed-behavior-message n3 a-id left-6-8)
         [right-tasks n5] (seed-behavior-message n4 b-id right-6-8)
-        result-net (core/run-tasks right-tasks n5)
+        result-net (nb/run-propagators n5 right-tasks)
         out-content (net/network-cell-content result-net (:cell compiled))]
     (is (= 9 (behavior-current-value n3 (:cell compiled))))
     (is (= 13 (behavior-current-value result-net (:cell compiled))))

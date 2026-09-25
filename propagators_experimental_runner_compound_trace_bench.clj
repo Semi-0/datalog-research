@@ -1,7 +1,6 @@
 (ns propagators-experimental-runner-compound-trace-bench
   "Benchmark causal tracing over the real vanilla compound-object chain."
-  (:require [propagators.core :as core]
-            [propagators.experimental.runner.compound-chain :as chain]
+  (:require [propagators.experimental.runner.compound-chain :as chain]
             [propagators.experimental.runner.compound-trace :as trace]
             [propagators.helpers.task-queue :as tq]
             [propagators.network :as net]
@@ -28,7 +27,7 @@
 (defn- execute
   [variant state]
   (case variant
-    :vanilla {:network (core/run-tasks (:tasks state) (:network state))
+    :vanilla {:network (nb/run-propagators (:network state) (:tasks state))
               :events []}
     :full-trace (complete (trace/run-with-trace state))
     :scoped-trace (complete (trace/run-with-scoped-trace state))

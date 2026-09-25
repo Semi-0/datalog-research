@@ -5,9 +5,7 @@
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.session.input :as runtime-input]
             [graph.compiler-2-tui :as tui]
-            [propagators.cells.cell-protocol :as cell-protocol]
-            [propagators.compiler-2.model.env :as cenv]
-            [propagators.generic-procedure :as generic]))
+            [propagators.compiler-2.model.env :as cenv]))
 
 (def simple-trace-commands
   [{:op :tui/register :client-id "A"}
@@ -228,24 +226,14 @@
     :channel channel
     :value value}))
 
-(defn- prefer-generic-protocol-session!
-  [session]
-  (swap! session update :program/net cell-protocol/prefer-generic-standard-protocols)
-  nil)
-
 (defn- with-slider-cache-session
-  [{:keys [full? generic-protocol? retained-generic?]} f]
+  [{:keys [full?]} f]
   (let [session (runtime/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (let [setup-ms (elapsed-ms
                     #(doseq [source (slider-cache-sources full?)]
                        (runtime-append! session source)))]
-      (when generic-protocol?
-        (prefer-generic-protocol-session! session))
-      (if retained-generic?
-        (generic/with-retained-apply-generic-values
-          (f session setup-ms))
-        (f session setup-ms)))))
+      (f session setup-ms))))
 
 (defn- summarize-ms
   [xs]
@@ -255,7 +243,7 @@
          :count (count xs)))
 
 (defn- slider-cache-profile-variant
-  [{:keys [variant full? retained-generic?] :as options}]
+  [{:keys [variant full?] :as options}]
   (with-slider-cache-session
     options
     (fn [session setup-ms]
@@ -274,8 +262,6 @@
          :first-update-ms (:ms (first rows))
          :last-update-ms (:ms (last rows))
          :cache-stats (:runtime/network-cache-stats @session)
-         :retained-generic-stats (when retained-generic?
-                                   (generic/retained-apply-stats))
          :graph (graph-size session)
          :final {:d (:strongest cell-d)
                  :block-7 (when full? (get-in view [:blocks 7 :value]))}}))))
@@ -285,15 +271,6 @@
   {:variants [(slider-cache-profile-variant
                {:variant :direct-standard-plain-slider-arithmetic
                 :full? false})
-              (slider-cache-profile-variant
-               {:variant :generic-rebuild-plain-slider-arithmetic
-                :full? false
-                :generic-protocol? true})
-              (slider-cache-profile-variant
-               {:variant :generic-retained-plain-slider-arithmetic
-                :full? false
-                :generic-protocol? true
-                :retained-generic? true})
               (slider-cache-profile-variant
                {:variant :direct-standard-trace-xr-block-slider-arithmetic
                 :full? true})]})

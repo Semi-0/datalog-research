@@ -1,6 +1,5 @@
 (ns propagators.experimental.runner-compound-trace-test
   (:require [clojure.test :refer [deftest is testing]]
-            [propagators.core :as core]
             [propagators.experimental.runner.compound-chain :as chain]
             [propagators.experimental.runner.compound-trace :as trace]
             [propagators.helpers.task-queue :as tq]
@@ -19,7 +18,7 @@
   [depth]
   (let [built (chain/build-vanilla-chain depth)
         state (select-keys built [:network :tasks])
-        vanilla (core/run-tasks (:tasks state) (:network state))
+        vanilla (nb/run-propagators (:network state) (:tasks state))
         traced (trace/run-with-trace state)]
     {:built built
      :vanilla vanilla
@@ -79,7 +78,7 @@
                                       tq/empty-queue
                                       (:input built)
                                       30)
-        vanilla (core/run-tasks tasks seeded)
+        vanilla (nb/run-propagators seeded tasks)
         traced (trace/run-with-trace {:network seeded :tasks tasks})
         traced-network* (completed-network traced)]
     (is (= (trace/semantic-snapshot vanilla)

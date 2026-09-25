@@ -2,10 +2,8 @@
   "Main public GUR surface.
 
   Flat GUR is the default: recursive bodies emit bounded declaration effects
-  into the active immutable Net. Accumulating GUR remains available through
-  `propagators.gur.accumulating` for explicit compatibility use."
-  (:require [propagators.core :as core]
-            [propagators.gur.flat :as flat]))
+  into the active immutable Net."
+  (:require [propagators.gur.flat :as flat]))
 
 (def recursive-closure-tag flat/recursive-closure-tag)
 (def root-key flat/root-key)
@@ -24,11 +22,3 @@
 (def recursive-declaration flat/recursive-declaration)
 (def apply-closure-effect flat/apply-closure-effect)
 (def when-effect flat/when-effect)
-
-(defn ^:deprecated p:apply-closure
-  "Installer-shaped compatibility wrapper backed by flat GUR effects."
-  [closure-id arg-ids out-id]
-  (fn [network]
-    (let [effect (apply-closure-effect closure-id arg-ids out-id)
-          [_ installed] (core/eval-activation-result effect network)]
-      [[(:id effect)] installed])))

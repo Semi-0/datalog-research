@@ -7,7 +7,7 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.reducer-cell :as reducer]
             [propagators.datastructures.tms :as tms]
-            [propagators.gur.subenv.env :as env]
+            [propagators.scoped-routing :as env]
             [propagators.install :as i]
             [propagators.message :refer [message]]
             [propagators.network :as net]
@@ -33,7 +33,7 @@
    (apply-effects (fvm/vm-net) effects))
   ([n effects]
    (let [[tasks n*] (core/eval-activation-result effects n)]
-     (core/run-tasks tasks n*))))
+     (nb/run-propagators n* tasks))))
 
 (defn- merge-updates
   [& updates]
@@ -331,7 +331,7 @@
                                                    (tms/claim-update :truth
                                                                      claim))
                                           n0)
-        n2 (core/run-tasks claim-tasks n1)
+        n2 (nb/run-propagators n1 claim-tasks)
         [active-prop n3] ((tms/p:tms-premise-source :truth
                                                      premise-id
                                                      0
@@ -349,7 +349,7 @@
         [inactive-tasks n6] (core/eval-cell inactive-id
                                             (message inactive-id false)
                                             n5)
-        n7 (core/run-tasks inactive-tasks n6)
+        n7 (nb/run-propagators n6 inactive-tasks)
         inactive-view (-> (strongest n7 tms-id) reducer/reduced-result)]
     (is (= #{:dynamic} (tms/active-premises active-view)))
     (is (= 42 (tms/proposition-value active-view :answer)))

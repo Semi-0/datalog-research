@@ -2,7 +2,6 @@
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.closure :as closure]
             [propagators.cells.value :as value]
-            [propagators.compile :as compile]
             [propagators.datastructures.compound-object :as obj]
             [propagators.debugger :as debugger]
             [propagators.ids :refer [new-node-id]]
@@ -18,69 +17,51 @@
             [propagators.stdlib.provenance-arithmetic :as prov-arith]
             [propagators.stdlib.prop :as stdlib-prop]))
 
-(def ^:private layered-installers
-  {'layered/p:base layered/p:base
-   'layered/p:layer layered/p:layer
-   'layered/p:layered-procedure layered/p:layered-procedure
-   'layered/p:apply-layered2 (fn [proc a b out]
-                               (layered/p:apply-layered proc [a b] out))
-   'prop/+ stdlib-prop/+
-   'prop// stdlib-prop//
-   'layered/+ layered-ops/+
-   'layered/- layered-ops/-
-   'layered/* layered-ops/*
-   'layered// layered-ops//})
+(defn- install-empty-cells
+  [network ids]
+  (reduce nb/install-cell network ids))
 
-(defn- layered-ctx [n sym->value expr]
-  (compile/eval-layered n layered-installers sym->value expr))
+(defn- install-propagators
+  [network installers]
+  (reduce (fn [[ids current] installer]
+            (let [[id next-network] (nb/install-propagator current installer)]
+              [(conj ids id) next-network]))
+          [[] network]
+          installers))
 
 (defn- new-layered-call
   [n]
-  (let [ctx (layered-ctx n {} '(let-cell [a b out] out))]
-    {:net (:net ctx)
-     :a (compile/cell-ref ctx 'a)
-     :b (compile/cell-ref ctx 'b)
-     :out (compile/cell-ref ctx 'out)}))
+  (let [[a b out] (repeatedly 3 new-node-id)]
+    {:net (install-empty-cells n [a b out])
+     :a a :b b :out out}))
 
 (defn- new-output-cell
   [n]
-  (let [ctx (layered-ctx n {} '(let-cell [out] out))]
-    {:net (:net ctx)
-     :out (compile/cell-ref ctx 'out)}))
+  (let [out (new-node-id)]
+    {:net (nb/install-cell n out)
+     :out out}))
 
 (defn- install-layered-apply
   [n proc a b out]
-  (let [ctx (layered-ctx
-             n
-             {'proc proc 'a a 'b b 'out out}
-             '(layered/p:apply-layered2 proc a b out))]
-    {:net (:net ctx)
-     :prop (first (:props ctx))}))
+  (let [[prop-id network]
+        (nb/install-propagator n (layered/p:apply-layered proc [a b] out))]
+    {:net network :prop prop-id}))
 
 (defn- install-operator-apply
-  [n operator-symbol operator a b out]
-  (let [ctx (compile/eval-layered
-             (compile/bind-vars n {'a a 'b b 'out out})
-             (assoc layered-installers operator-symbol operator)
-             {}
-             (list operator-symbol 'a 'b 'out))]
-    {:net (:net ctx)
-     :prop (first (:props ctx))}))
+  [n _operator-symbol operator a b out]
+  (let [[prop-id network] (nb/install-propagator n (operator a b out))]
+    {:net network :prop prop-id}))
 
 (defn- units-closure-value []
   (closure/closure
    (fn [_closure-net input-ids output-ids network]
      (let [[_current _arg-a _arg-b] input-ids
            [out] output-ids]
-       (:net
-        (compile/eval-layered
+       (second
+        (nb/install-propagator
          network
-         {'p:unitless (prop/primitive-propagator (fn [& _] :unitless))}
-         {'current _current
-          'arg-a _arg-a
-          'arg-b _arg-b
-          'out out}
-         '(p:unitless current arg-a arg-b out)))))
+         ((prop/primitive-propagator (fn [& _] :unitless))
+          _current _arg-a _arg-b out)))))
    net/empty-net))
 
 (defn- install-procedure-layer-value
@@ -105,78 +86,51 @@
 
 (defn- install-layered-inputs
   [n a b]
-  (let [ctx (layered-ctx
-             n
-             {'a a 'b b}
-             '(let-cell [a-base a-prov b-base b-prov]
-                (layered/p:base a-base a)
-                (layered/p:layer :provenance a-prov a)
-                (layered/p:base b-base b)
-                (layered/p:layer :provenance b-prov b)))]
-    {:net (:net ctx)
-     :slot-props (:props ctx)
-     :a-base (compile/cell-ref ctx 'a-base)
-     :a-prov (compile/cell-ref ctx 'a-prov)
-     :b-base (compile/cell-ref ctx 'b-base)
-     :b-prov (compile/cell-ref ctx 'b-prov)}))
+  (let [[a-base a-prov b-base b-prov] (repeatedly 4 new-node-id)
+        prepared (install-empty-cells n [a-base a-prov b-base b-prov])
+        [slot-props network]
+        (install-propagators
+         prepared
+         [(layered/p:base a-base a)
+          (layered/p:layer :provenance a-prov a)
+          (layered/p:base b-base b)
+          (layered/p:layer :provenance b-prov b)])]
+    {:net network :slot-props slot-props
+     :a-base a-base :a-prov a-prov :b-base b-base :b-prov b-prov}))
 
 (defn- install-provenance-inputs
   [n a b]
-  (let [ctx (layered-ctx
-             n
-             {'a a 'b b}
-             '(let-cell [a-prov b-prov]
-                (layered/p:layer :provenance a-prov a)
-                (layered/p:layer :provenance b-prov b)))]
-    {:net (:net ctx)
-     :slot-props (:props ctx)
-     :a-prov (compile/cell-ref ctx 'a-prov)
-     :b-prov (compile/cell-ref ctx 'b-prov)}))
+  (let [[a-prov b-prov] (repeatedly 2 new-node-id)
+        prepared (install-empty-cells n [a-prov b-prov])
+        [slot-props network]
+        (install-propagators
+         prepared
+         [(layered/p:layer :provenance a-prov a)
+          (layered/p:layer :provenance b-prov b)])]
+    {:net network :slot-props slot-props :a-prov a-prov :b-prov b-prov}))
 
 (defn- seed-layered-inputs
   [n {:keys [a-base a-prov b-base b-prov]} a-value a-provenance b-value b-provenance]
-  (:net
-   (layered-ctx
-    n
-    {'a-base a-base
-     'a-prov a-prov
-     'b-base b-base
-     'b-prov b-prov
-     'a-value a-value
-     'a-provenance a-provenance
-     'b-value b-value
-     'b-provenance b-provenance}
-    '(do
-       (seed a-base a-value)
-       (seed a-prov a-provenance)
-       (seed b-base b-value)
-       (seed b-prov b-provenance)))))
+  (-> n
+      (nb/seed-cell a-base a-value)
+      (nb/seed-cell a-prov a-provenance)
+      (nb/seed-cell b-base b-value)
+      (nb/seed-cell b-prov b-provenance)))
 
 (defn- install-base-inputs
   [n a b]
-  (let [ctx (layered-ctx
-             n
-             {'a a 'b b}
-             '(let-cell [a-base b-base]
-                (layered/p:base a-base a)
-                (layered/p:base b-base b)))]
-    {:net (:net ctx)
-     :slot-props (:props ctx)
-     :a-base (compile/cell-ref ctx 'a-base)
-     :b-base (compile/cell-ref ctx 'b-base)}))
+  (let [[a-base b-base] (repeatedly 2 new-node-id)
+        prepared (install-empty-cells n [a-base b-base])
+        [slot-props network]
+        (install-propagators prepared [(layered/p:base a-base a)
+                                       (layered/p:base b-base b)])]
+    {:net network :slot-props slot-props :a-base a-base :b-base b-base}))
 
 (defn- seed-base-inputs
   [n {:keys [a-base b-base]} a-value b-value]
-  (:net
-   (layered-ctx
-    n
-    {'a-base a-base
-     'b-base b-base
-     'a-value a-value
-     'b-value b-value}
-    '(do
-       (seed a-base a-value)
-       (seed b-base b-value)))))
+  (-> n
+      (nb/seed-cell a-base a-value)
+      (nb/seed-cell b-base b-value)))
 
 (defn- run-layered-application
   [n install-apply a-value a-provenance b-value b-provenance]

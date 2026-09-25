@@ -2,7 +2,6 @@
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.cell-protocol :as protocol]
             [propagators.cells.value :as value]
-            [propagators.compile :as compile]
             [propagators.core :as core]
             [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.behavior-algebra :as hist]
@@ -15,9 +14,7 @@
 
 (defn- install-protocols
   [n]
-  (-> n
-      (compile/install-and-run (protocol/install-cell-protocol))
-      (compile/install-and-run (protocol/install-behavior-protocol))))
+  (protocol/prefer-direct-standard-protocols n))
 
 (defn- behavior-net
   []
@@ -191,7 +188,7 @@
           n2 (nb/run-propagators n1 [prop-id])
           [_left-tasks n3] (seed-behavior-message n2 a left-6-8)
           [right-tasks n4] (seed-behavior-message n3 b right-6-8)
-          result (core/run-tasks right-tasks n4)
+          result (nb/run-propagators n4 right-tasks)
           out-content (net/network-cell-content result out)]
       (is (= 13 (current-value result out)))
       (is (= [{:at 6 :value 9}

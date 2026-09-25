@@ -7,7 +7,8 @@
             [propagators.compiler-2.runtime.lazy-topology :as lazy-topology]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-common.cps :as cps]
-            [propagators.compiler-common.core :as common]))
+            [propagators.compiler-common.core :as common]
+            [propagators.network-builder :as nb]))
 
 (defn- finish
   [k [state binding]]
@@ -31,8 +32,8 @@
   (let [binding-id (h/node-id state [:lexical-access sym :binding])
         value-id (h/node-id state [:lexical-access sym :value])
         network (-> (:net state)
-                    (h/ensure-cell binding-id)
-                    (h/ensure-cell value-id))
+                    (nb/ensure-cell binding-id)
+                    (nb/ensure-cell value-id))
         [access-props with-access]
         ((env/p:lexical-access-local-first sym (:env state) binding-id) network)
         [value-props compiled]
@@ -47,7 +48,7 @@
   [state sym k]
   (let [binding-id (h/node-id state [:free-symbol sym])
         declared (-> state
-                     (update :net h/ensure-cell binding-id)
+                     (update :net nb/ensure-cell binding-id)
                      (declarations/reserve-fixed-local sym binding-id))]
     (cps/continue k declared (env/cell-binding binding-id))))
 

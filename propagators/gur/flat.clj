@@ -5,22 +5,33 @@
   from the canonical accumulating GUR and from the nested network VM."
   (:require [propagators.application :as app]
             [propagators.cells.value :as value]
-            [propagators.gur.flat.effects :as effects]
+            [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-vm.instructions :as instr]))
+            [propagators.network-patch :as patch])
+  (:import [java.nio.charset StandardCharsets]
+           [java.util UUID]))
 
-(def root-key effects/root-key)
-(def cell-index-key effects/cell-index-key)
-(def prop-index-key effects/prop-index-key)
-(def name-bindings-key effects/name-bindings-key)
+(def root-key [:gur.flat :root])
+(def cell-index-key [:gur.flat :cells])
+(def prop-index-key [:gur.flat :props])
+(def name-bindings-key patch/name-bindings-key)
 
-(def stable-node-id effects/stable-node-id)
-(def vm-net effects/vm-net)
+(defn stable-node-id
+  [parts]
+  (ids/->NodeId
+   (UUID/nameUUIDFromBytes
+    (.getBytes (pr-str (into [:gur.flat] parts))
+               StandardCharsets/UTF_8))))
 
-(def declare-cell instr/declare-cell)
-(def declare-prop instr/declare-prop)
-(def bind-name instr/bind-name)
+(defn vm-net
+  ([] (vm-net net/empty-net))
+  ([network]
+   (net/assoc-net-dict-entry network root-key true)))
+
+(def declare-cell patch/declare-cell)
+(def declare-prop patch/declare-propagator)
+(def bind-name patch/bind-name)
 
 (def recursive-closure-tag :gur.flat/recursive-closure?)
 (def frame-scope [:gur.flat :frames])

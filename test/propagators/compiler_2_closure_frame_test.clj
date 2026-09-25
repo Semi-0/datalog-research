@@ -27,7 +27,7 @@
   [network id candidate]
   (let [[tasks seeded]
         (core/eval-cell id (message id candidate) network)]
-    (core/run-tasks tasks seeded)))
+    (nb/run-propagators seeded tasks)))
 
 (defn- live-root
   [network bindings]

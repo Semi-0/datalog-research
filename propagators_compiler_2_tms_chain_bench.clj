@@ -10,9 +10,7 @@
     clojure -M:compiler-2-tms-chain-bench conflicts 1000 3 10"
   (:require [clojure.string :as str]
             [propagators.cells.cell :as cell]
-            [propagators.cells.cell-protocol :as protocol]
             [propagators.cells.value :as value]
-            [propagators.compile :as compile]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as helpers]
             [propagators.compiler-2.main :as compiler]
@@ -51,14 +49,10 @@
              [(last nodes)])))))
 
 (defn protocol-net []
-  (-> net/empty-net
-      (compile/install-and-run (protocol/install-cell-protocol))
-      (compile/install-and-run (protocol/install-tms-distributed-protocol))))
+  net/empty-net)
 
 (defn behavior-protocol-net []
-  (-> net/empty-net
-      (compile/install-and-run (protocol/install-cell-protocol))
-      (compile/install-and-run (protocol/install-behavior-protocol))))
+  net/empty-net)
 
 (defn current-value [network id]
   (let [answer (scope-source/unwrap
@@ -69,7 +63,7 @@
 
 (defn seed-and-run [network id update]
   (let [[tasks updated] (core/eval-cell id (message id update) network)]
-    (core/run-tasks tasks updated)))
+    (nb/run-propagators updated tasks)))
 
 (defn- unique-binding-id
   [network sym]
@@ -235,10 +229,10 @@
                     (nb/install-cell a-id initial-a (behavior/strongest-value initial-a))
                     (nb/install-cell b-id initial-b (behavior/strongest-value initial-b))
                     (nb/install-cell c-id initial-c (behavior/strongest-value initial-c)))
-        compiler-env (-> (compiler/behavior-tms-env)
-                         (env/bind 'a (env/cell-binding a-id) 0)
-                         (env/bind 'b (env/cell-binding b-id) 0)
-                         (env/bind 'c (env/cell-binding c-id) 0))
+        compiler-env (-> (compiler/behavior-tms-bindings)
+                         (assoc 'a (env/cell-binding a-id))
+                         (assoc 'b (env/cell-binding b-id))
+                         (assoc 'c (env/cell-binding c-id)))
         compiled (compiler/compile-source
                   "(let-cell [d] (-> (be:+ (be:- a b) c) d) d)"
                   compiler-env
@@ -292,15 +286,14 @@
         initial-a (event-content :a :source/a 0 10)
         initial-b (event-content :b :source/b 0 3)
         initial-c (event-content :c :source/c 0 2)
-        network (-> (compile/install-and-run net/empty-net
-                                             (protocol/install-cell-protocol))
+        network (-> net/empty-net
                     (nb/install-cell a-id initial-a (event/strongest-value initial-a))
                     (nb/install-cell b-id initial-b (event/strongest-value initial-b))
                     (nb/install-cell c-id initial-c (event/strongest-value initial-c)))
-        compiler-env (-> (helpers/default-env)
-                         (env/bind 'a (env/cell-binding a-id) 0)
-                         (env/bind 'b (env/cell-binding b-id) 0)
-                         (env/bind 'c (env/cell-binding c-id) 0))
+        compiler-env (-> (helpers/default-bindings)
+                         (assoc 'a (env/cell-binding a-id))
+                         (assoc 'b (env/cell-binding b-id))
+                         (assoc 'c (env/cell-binding c-id)))
         compiled (compiler/compile-source
                   "(let-cell [d] (-> (+ (- a b) c) d) d)"
                   compiler-env

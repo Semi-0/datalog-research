@@ -35,11 +35,6 @@
 (defn node-id [{:keys [seed path]} role]
   (stable-node-id seed path role))
 
-(defn ensure-cell [network id]
-  (if (contains? (net/net-env network) id)
-    network
-    (nb/install-cell network id)))
-
 (defn strongest-or-nothing
   [network id]
   (if (contains? (net/net-env network) id)
@@ -47,14 +42,14 @@
     value/nothing))
 
 (defn seed-cell [network id v]
-  (nb/seed-cell (ensure-cell network id) id v))
+  (nb/seed-cell (nb/ensure-cell network id) id v))
 
 (defn new-cell
   ([state role] (new-cell state role value/nothing))
   ([{:keys [net] :as state} role v]
    (let [id (node-id state role)]
      [(assoc state :net (if (value/nothing? v)
-                          (ensure-cell net id)
+                          (nb/ensure-cell net id)
                           (seed-cell net id v)))
       (env/cell-binding id)])))
 
@@ -143,7 +138,7 @@
           [installed-prop-ids network']
           (reduce
            (fn [[acc-prop-ids network] [head-id tail-id collection-id]]
-             (let [network (reduce ensure-cell network
+             (let [network (reduce nb/ensure-cell network
                                    [head-id tail-id collection-id])
                    [ids network'] ((obj/p:cons head-id tail-id collection-id)
                                    network)]

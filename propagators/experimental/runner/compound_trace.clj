@@ -5,7 +5,7 @@
             [propagators.experimental.runner.drivers :as drivers]
             [propagators.experimental.runner.examples :as examples]
             [propagators.experimental.runner.task-policy :as task-policy]
-            [propagators.gur.flat.effects :as effects]
+            [propagators.network-patch :as patch]
             [propagators.message :as msg]
             [propagators.network :as net]
             [propagators.propagator :as prop]
@@ -151,7 +151,7 @@
    (scoped-spawn-diff activation-result before after default-max-depth))
   ([activation-result before after max-depth]
    (let [{:keys [messages effects]}
-         (effects/normalize-activation-return activation-result)
+         (patch/normalize-activation-return activation-result)
          target-ids (set (map msg/message-id messages))]
      (if (or (seq effects)
              (not-every? #(direct-cell-target? before after %) target-ids))

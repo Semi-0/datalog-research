@@ -4,7 +4,6 @@
             [propagators.cells.cell-protocol :as protocol]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
-            [propagators.compile :as compile]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.compound-information :as information]
@@ -14,7 +13,6 @@
             [propagators.datastructures.intensity :as intensity]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms :as tms]
-            [propagators.generic-procedure :as generic]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :refer [new-node-id]]
             [propagators.message :refer [message]]
@@ -25,19 +23,19 @@
 
 (defn- install-protocol
   [n]
-  (compile/install-and-run n (protocol/install-cell-protocol)))
+  (protocol/prefer-direct-standard-protocols n))
 
 (defn- install-intensity
   [n]
-  (compile/install-and-run n (protocol/install-intensity-protocol)))
+  (protocol/prefer-direct-standard-protocols n))
 
 (defn- install-scope-source
   [n]
-  (compile/install-and-run n (protocol/install-scope-source-protocol)))
+  (protocol/prefer-direct-standard-protocols n))
 
 (defn- install-dependency
   [n]
-  (compile/install-and-run n (protocol/install-dependency-protocol)))
+  (protocol/prefer-direct-standard-protocols n))
 
 (defn- protocol-net
   []
@@ -54,18 +52,6 @@
 (defn- dependency-net
   []
   (install-dependency (protocol-net)))
-
-(defn- define-merge-handler
-  [n applicability handler]
-  (compile/install-and-run
-   n
-   (protocol/define-merge-handler applicability handler)))
-
-(defn- define-strongest-handler
-  [n applicability handler]
-  (compile/install-and-run
-   n
-   (protocol/define-strongest-handler applicability handler)))
 
 (defn- intensity-update
   [intensity payload]
@@ -117,20 +103,6 @@
     (is (= [4] (vec (vals (event/active-values event-selected)))))
     (is (= 7 (behavior/base-value behavior-selected)))
     (is (= 9 (tms/distributed-base-value tms-selected)))))
-
-(deftest protocol-generics-are-extendable-through-generic-handlers
-  (testing "merge and strongest can be extended by network-local generic cells"
-    (let [n0 (protocol-net)
-          n1 (define-merge-handler
-              n0
-              (generic/match-cells-pred #(= :left %) #(= :right %))
-              (generic/handler-closure (fn [_content _update] :merged)))
-          n2 (define-strongest-handler
-              n1
-              (generic/match-cells-pred vector?)
-              (generic/handler-closure first))]
-      (is (= :merged (merge/cell-merge :left :right n2)))
-      (is (= :a (merge/strongest-value [:a :b] n2))))))
 
 (deftest intensity-protocol-merges-and-selects-highest-intensity
   (testing "nothing plus one tagged update keeps a layered intensity value"
@@ -358,7 +330,7 @@
           [tasks1 n2] (core/eval-cell source-id
                                        (message source-id first-conflict)
                                        n1)
-          n3 (core/run-tasks tasks1 n2)
+          n3 (nb/run-propagators n2 tasks1)
           [tasks2 n4] (core/eval-cell source-id
                                        (message source-id refined-conflict)
                                        n3)]
@@ -377,7 +349,7 @@
                  (nb/install-cell out-id))
           [sync-prop n1] ((stdlib-prop/id source-id out-id) n0)
           [tasks1 n2] (core/eval-cell source-id (message source-id left) n1)
-          n3 (core/run-tasks tasks1 n2)
+          n3 (nb/run-propagators n2 tasks1)
           [tasks2 n4] (core/eval-cell source-id (message source-id right) n3)]
       (is (queued? tasks2 sync-prop))
       (is (= #{:left :right}
@@ -394,7 +366,7 @@
           [tasks1 n2] (core/eval-cell source-id
                                        (message source-id (intensity-update 1 :low))
                                        n1)
-          n3 (core/run-tasks tasks1 n2)
+          n3 (nb/run-propagators n2 tasks1)
           [tasks2 n4] (core/eval-cell source-id
                                        (message source-id (intensity-update 10 :high))
                                        n3)]
@@ -412,7 +384,7 @@
           [tasks1 n2] (core/eval-cell source-id
                                        (message source-id (intensity-update 10 :high))
                                        n1)
-          n3 (core/run-tasks tasks1 n2)
+          n3 (nb/run-propagators n2 tasks1)
           [tasks2 n4] (core/eval-cell source-id
                                        (message source-id (intensity-update 1 :low))
                                        n3)]

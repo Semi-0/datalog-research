@@ -518,7 +518,7 @@ Use the observation plane that answers the actual question:
 | What did clients commit over time? | Append-only versioned TUI commit log/version history. |
 | How did a semantic value vary over logical time? | Event/behavior history data structures, not the task scheduler log. |
 | What graph is upstream of a runtime target? | Language/runtime `trace` subscription and semantic graph projection. |
-| What is the accumulating GUR runner doing? | Dynamic observers in `gur.accumulating.runner.instrumentation`. |
+| Which compound propagator introduced a child? | The runner result's indexed semantic relationship store. |
 
 ### Step-by-step task trace
 
@@ -552,9 +552,8 @@ routes, and newly queued neighbors.
 ```
 
 The profile ranks propagator IDs and semantic names by calls and inclusive/
-exclusive time. The implementation dynamically substitutes the task runner
-inside the scope while preserving `core/eval-propagator`; it is diagnostic,
-not production state.
+exclusive time. It composes an observer around one continuation-runner
+transition; it is diagnostic state outside the immutable network.
 
 `propagators.debugger/with-debugger` plus `set-sink!`/`report!` is a smaller
 generic dispatch hook. It currently helps generic/application dispatch but is

@@ -9,6 +9,7 @@
             [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.bridge.widget :as runtime-widget]
             [graph.compiler-2-semantic-repl :as semantic-repl]
+            [propagators.cell-evaluator :as cell-evaluator]
             [propagators.cells.value :as value]
             [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.closure-value :as closure-value]
@@ -18,13 +19,13 @@
             [propagators.compiler-2.runtime.application :as compiler-app]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.compiler-2.main :as compiler]
-            [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
+            [propagators.runner :as runner]
             [propagators.stdlib.prop :as stdlib-prop]
             [propagators.semantic-trace :as semantic-trace]))
 
@@ -80,14 +81,15 @@
                                           (runtime-compile-options
                                            {:net (:net environment)
                                             :seed [:runtime/xr source]}))
-        network0 (nb/run-propagators (:net compiled) (:props compiled))
-        [tasks network1] (core/eval-cells
-                          [(message graph-id
-                                    (semantic-repl/compiled-semantic-graph
-                                     compiled
-                                     network0))]
-                          network0)
-        network2 (core/run-tasks tasks network1)
+        network0 (runner/completed-network
+                  (runner/run-network (:props compiled) (:net compiled)))
+        [tasks network1]
+        (cell-evaluator/evaluate-all
+         [(message graph-id
+                   (semantic-repl/compiled-semantic-graph compiled network0))]
+         network0)
+        network2 (runner/completed-network
+                  (runner/run-network tasks network1))
         network (settle-application-props network2 (:props compiled))
         graph (assoc (semantic-repl/compiled-semantic-graph compiled network)
                      :source source)]
@@ -154,7 +156,8 @@
                   [:block-result (:premise/id context)] raw-id contexts out-id)
                  program-net)]
             [(assoc compiled :cell out-id)
-             (nb/run-propagators installed [prop-id])]))))))
+             (runner/completed-network
+              (runner/run-network [prop-id] installed))]))))))
 
 (defn namespace-graph
   [graph prefix]
@@ -198,7 +201,7 @@
   [n {:keys [instance-id blocks-id]}]
   (let [[_cell-id prop-ids n]
         (obj/install-slot-access n :instance/blocks instance-id blocks-id)]
-    (nb/run-propagators n prop-ids)))
+    (runner/completed-network (runner/run-network prop-ids n))))
 
 (defn install-block-slots
   [n {:keys [block-id index-id text-id display-id next-id]}]
@@ -210,11 +213,10 @@
         (obj/install-slot-access n :block/display block-id display-id)
         [_next-cell next-props n]
         (obj/install-slot-access n :cdr block-id next-id)]
-    (nb/run-propagators n
-                        (into [] cat [index-props
-                                     text-props
-                                     display-props
-                                     next-props]))))
+    (runner/completed-network
+     (runner/run-network
+      (into [] cat [index-props text-props display-props next-props])
+      n))))
 
 (defn seed-program-instances [state program-net]
   (reduce-kv
@@ -308,16 +310,17 @@
      (let [child-id (state/stable-node-id :compiler-2 :runtime-env scope-key)
            bindings (into (vec (static-runtime-bindings graph-id)) dynamic)
            declared (cenv/declare-child network base-env child-id bindings)]
-       {:net (nb/run-propagators (:net declared) (:props declared))
+       {:net (runner/completed-network
+              (runner/run-network (:props declared) (:net declared)))
         :env child-id
         :props (:props declared)}))))
 
 (defn settle-application-props
   [program-net current-props]
-  (let [props (vec (distinct current-props))]
-    (-> program-net
-        (nb/run-propagators props)
-        (nb/run-propagators props))))
+  (let [props (vec (distinct current-props))
+        once (runner/completed-network
+              (runner/run-network props program-net))]
+    (runner/completed-network (runner/run-network props once))))
 
 (defn refresh-semantic-graph
   "Project the current compiled block receipts on demand for tracing."
@@ -336,8 +339,11 @@
         network (-> (:program/net state)
                     (nb/ensure-cell graph-id)
                     (nb/seed-cell graph-id graph))
-        network (nb/run-propagators
-                 network (nb/neighbor-propagator-ids network graph-id))]
+        network
+        (runner/completed-network
+         (runner/run-network
+          (nb/neighbor-propagator-ids network graph-id)
+          network))]
     (assoc state :program/net network :program/graph graph :graph graph)))
 
 (defn compile-program-form
@@ -377,7 +383,9 @@
                       :block/premise-context premise-context
                       :seed [:runtime/block (:order block) (:epoch block)]
                       :reuse-existing-bindings? reuse-existing-bindings?}))
-          program-net0 (nb/run-propagators (:net compiled) (:props compiled))
+          program-net0
+          (runner/completed-network
+           (runner/run-network (:props compiled) (:net compiled)))
           program-net2 (if (and needs-live-graph?
                                 (not top-level-trace?))
                          (let [graph* (namespace-graph
@@ -391,10 +399,11 @@
                                              graph*)
                                             :source source)
                                [tasks program-net1]
-                               (core/eval-cells [(message graph-id graph)]
-                                                (nb/ensure-cell program-net0
-                                                                graph-id))]
-                           (core/run-tasks tasks program-net1))
+                               (cell-evaluator/evaluate-all
+                                [(message graph-id graph)]
+                                (nb/ensure-cell program-net0 graph-id))]
+                           (runner/completed-network
+                            (runner/run-network tasks program-net1)))
                          program-net0)
           program-net (application-settler program-net2 (:props compiled))
           [compiled program-net]
@@ -490,7 +499,9 @@
                  (net/network-cell-strongest program-net resolved-id))))
       (let [[prop-id installed]
             ((stdlib-prop/id resolved-id operator-id) program-net)]
-        (assoc state :program/net (nb/run-propagators installed [prop-id])))
+        (assoc state :program/net
+               (runner/completed-network
+                (runner/run-network [prop-id] installed))))
 
       :else
       state)))

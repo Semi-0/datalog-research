@@ -16,6 +16,7 @@
     propagators.behavior-compiler-test
     propagators.behavior-test
     propagators.cell-protocol-test
+    propagators.combinator-test
     propagators.compile-2-test
     propagators.compiler-2-application-runtime-test
     propagators.compiler-2-call-graph-test
@@ -24,25 +25,16 @@
     propagators.compiler-2-cps-test
     propagators.compiler-2-network-observation-test
     propagators.compiler-2-organization-test
-    propagators.compound-data-test
     propagators.compound-object-network-slot-test
-    propagators.compound-object-test
     propagators.debug-test
     propagators.dispatch-test
-    propagators.generic-procedure-test
-    propagators.gur-accumulating-test
-    propagators.gur-subenv-test
+    propagators.experimental.runner-constructor-test
+    propagators.experimental.runner-semantic-compound-trace-test
     propagators.install-test
     propagators.layered-procedure-test
-    propagators.linked-list-access-test
     propagators.named-network-test
-    propagators.network-vm-flat-test
-    propagators.network-vm-test
-    propagators.network-vm-nested-test
-    propagators.primitive-basis-test
     propagators.reducer-cell-test
-    propagators.recursive-compound-test
-    propagators.network-test
+    propagators.runner-test
     propagators.structural-records-test
     propagators.tms-test])
 
