@@ -33,12 +33,17 @@ The runtime separates topology from state:
 | graph | `id -> Node` | wiring: input and output node ids |
 | env | `id -> Cell or Propagator` | runtime content and behavior |
 | dict | `name -> id` | optional named interface |
+| relationship | `[path id] -> Node` | parent/child topology introduced during evaluation |
 
-`Net` stores all three:
+`Net` stores all four:
 
 ```clojure
-(net graph env dict)
+(net graph env dict relationship)
 ```
+
+Relationships are structural ancestry, not chronological events or value
+provenance. Declaration and accessor patch handlers add exact newly installed
+children; ordinary cell updates do not scan or change the relationship graph.
 
 This is different from a monolithic network object. A caller can construct a
 network, inspect it, seed cells, enqueue tasks, and run the scheduler explicitly.

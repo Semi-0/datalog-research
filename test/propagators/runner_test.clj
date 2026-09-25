@@ -5,60 +5,72 @@
             [propagators.helpers.task-queue :as tq]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.runner :as runner]
-            [propagators.semantic-relationships :as relationships]))
+            [propagators.propagator :as prop]
+            [propagators.relationship :as relationship]
+            [propagators.runner :as runner]))
 
 (defn- completed
   [execution]
   (runner/completed-network execution))
 
 (deftest relationship-store-indexes-both-directions-idempotently
-  (let [parent {:propagator-id :parent
-                :propagator-kind :parent-kind
-                :network-path [:outer]}
-        child {:propagator-id :child
-               :propagator-kind :child-kind
-               :network-path [:outer [:cell :nested]]}
-        parent-key (relationships/semantic-node-key
-                    (:network-path parent)
-                    (:propagator-id parent))
-        child-key (relationships/semantic-node-key
-                   (:network-path child)
-                   (:propagator-id child))
-        store (-> relationships/empty-store
-                  (relationships/add-spawn parent child)
-                  (relationships/add-spawn parent child))]
+  (let [parent-key (relationship/node-key [:outer] :parent)
+        child-key (relationship/node-key [:outer [:cell :nested]] :child)
+        store (-> relationship/empty-relationship
+                  (relationship/relate parent-key child-key)
+                  (relationship/relate parent-key child-key))]
     (is (= #{child-key}
-           (relationships/spawned-children store parent-key)))
+           (relationship/children store parent-key)))
     (is (= #{parent-key}
-           (relationships/spawned-parents store child-key)))))
+           (relationship/parents store child-key)))))
+
+(defn- propagator-for-output
+  [network output-id expected-name]
+  (some
+   (fn [[id entry]]
+     (when (and (prop/prop? entry)
+                (= expected-name (prop/prop-name entry))
+                (contains? (graph/node-output-ids
+                            (graph/get-node (net/net-graph network) id))
+                           output-id))
+       id))
+   (net/net-env network)))
+
+(defn- nested-propagator-name
+  [outer-network [network-path node-id]]
+  (let [[_ [_ collection-id]] network-path
+        nested-network (net/network-cell-value outer-network collection-id)
+        entry (net/network-env-lookup nested-network node-id)]
+    (when (prop/prop? entry)
+      (prop/prop-name entry))))
 
 (deftest runner-reaches-quiescence-and-records-compound-ancestry
   (let [built (chain/build-vanilla-chain 1)
         execution (runner/run-network (:tasks built) (:network built))
         final-network (completed execution)
-        store (:semantic-relationships execution)
-        entities (:entities store)
-        network-slot-keys
-        (for [[key descriptor] entities
-              :when (= :compound-object/network-slot
-                       (first (:propagator-kind descriptor)))]
-          key)
-        spawned-kinds
-        (set
-         (mapcat
-          (fn [parent-key]
-            (map #(get-in entities [% :propagator-kind])
-                 (relationships/spawned-children store parent-key)))
-          network-slot-keys))]
+        parent-id (propagator-for-output
+                   (:network built)
+                   (:output built)
+                   [:compound-object/network-slot :car])
+        parent-key (relationship/node-key [:outer] parent-id)
+        children (relationship/children
+                  (net/net-relationship final-network)
+                  parent-key)
+        child-names (set (keep #(nested-propagator-name final-network %)
+                               children))]
     (is (= :completed (:status execution)))
     (is (= (net/network-cell-value final-network (:input built))
            (net/network-cell-value final-network (:output built))))
-    (is (seq (:present-at-start store)))
-    (is (contains? spawned-kinds
+    (is (some? parent-id))
+    (is (contains? child-names
                    [:compound-object/slot-sync :car :to-canonical]))
-    (is (contains? spawned-kinds
-                   [:compound-object/slot-sync :car :from-canonical]))))
+    (is (contains? child-names
+                   [:compound-object/slot-sync :car :from-canonical]))
+    (doseq [child children]
+      (is (= #{parent-key}
+             (relationship/parents
+              (net/net-relationship final-network)
+              child))))))
 
 (deftest ordinary-update-creates-no-spawn-relationships
   (let [built (chain/build-vanilla-chain 3)
@@ -69,13 +81,8 @@
                                       (:input built)
                                       30)
         execution (runner/run-network tasks seeded)
-        relation-graph
-        (get-in execution
-                [:semantic-relationships :relations
-                 relationships/spawned-relation])]
+        final-network (completed execution)]
     (is (= 30
-           (net/network-cell-value (completed execution) (:output built))))
-    (is (every? (fn [[_ node]]
-                  (and (empty? (graph/node-input-ids node))
-                       (empty? (graph/node-output-ids node))))
-                relation-graph))))
+           (net/network-cell-value final-network (:output built))))
+    (is (= (net/net-relationship settled)
+           (net/net-relationship final-network)))))

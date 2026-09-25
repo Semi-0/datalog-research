@@ -185,7 +185,7 @@
      :propagator-kind (prop/prop-name propagator)
      :network-path [:outer]}))
 
-(defn originating-propagator-evaluator
+(defn causal-propagator-evaluator
   "CPS evaluator that adds causal origin without changing activation results."
   [propagator-id network {:keys [success fail]}]
   (try
@@ -199,7 +199,7 @@
       (fail error))))
 
 (defn traced-patch-evaluator
-  "Apply an originated activation result and report newly installed propagators."
+  "Apply a causally attributed activation and report newly installed propagators."
   ([observe] (traced-patch-evaluator observe default-max-depth))
   ([observe max-depth]
    (fn [envelope network {:keys [success fail]}]
@@ -249,7 +249,7 @@
   ([observe max-depth]
    (constructor/network-iterator-constructor
     task-policy/fifo-task-policy
-    originating-propagator-evaluator
+    causal-propagator-evaluator
     (traced-patch-evaluator observe max-depth))))
 
 (defn traced-runner
@@ -264,7 +264,7 @@
    (drivers/trampoline-runner
     (constructor/network-iterator-constructor
      task-policy/fifo-task-policy
-     originating-propagator-evaluator
+     causal-propagator-evaluator
      (scoped-traced-patch-evaluator observe max-depth)))))
 
 (defn run-with-trace

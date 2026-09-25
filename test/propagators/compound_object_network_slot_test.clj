@@ -4,6 +4,7 @@
             [propagators.cells.value :as value]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.compound-object.patch :as compound-patch]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.named-network :as named]
             [propagators.helpers.task-queue :as tq]
@@ -51,6 +52,8 @@
         n0 (nb/install-cells [parent coll])
         [m] ((network-slot/network-slot-activation :x parent coll) nil nil n0)]
     (is (= coll (msg/message-id m)))
+    (is (= compound-patch/accessor-declaration-op (:op m)))
+    (is (= 4 (count (:child-ids m))))
     (is (= #{parent}
            (obj/accessor-parent-ids (msg/message-value m) :x)))))
 

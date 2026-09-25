@@ -100,11 +100,11 @@ source
   -> runtime projects cells and performs boundary effects
 ```
 
-A `Net` contains a graph, an environment of cells/propagators, and a dictionary
-of annotations/indexes. Cells retain partial information. A propagator reads
-cells and returns messages; it does not mutate the scheduler or live session.
-Cell merge retains information, while `network-cell-strongest` returns the
-currently usable projection.
+A `Net` contains a graph, an environment of cells/propagators, a dictionary of
+annotations/indexes, and path-qualified parent/child relationships. Cells retain
+partial information. A propagator reads cells and returns messages; it does not
+mutate the scheduler or live session. Cell merge retains information, while
+`network-cell-strongest` returns the currently usable projection.
 
 The compiler's internal traversal is continuation based:
 

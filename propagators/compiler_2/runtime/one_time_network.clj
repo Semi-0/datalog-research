@@ -164,7 +164,7 @@
          (into [context-id snapshot-id] argument-ids)
          inner-result-id)
 
-        [tasks declared] (patch/apply-patch effect prepared)
+        [tasks declared] (patch/apply-root-patch effect prepared)
 
         completed (runner/completed-network
                    (runner/run-network tasks declared))]

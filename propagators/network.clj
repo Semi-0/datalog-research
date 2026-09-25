@@ -1,8 +1,9 @@
 (ns propagators.network
   (:require [propagators.cells.cell :as cell]
-            [propagators.graph :as graph]))
+            [propagators.graph :as graph]
+            [propagators.relationship :as relationship]))
 
-(defrecord Net [graph env dict])
+(defrecord Net [graph env dict relationship])
 
 ;; in net dict shall store link to sub-env
 
@@ -12,15 +13,25 @@
        (contains? x :graph)
        (contains? x :env)
        (contains? x :dict)
+       (contains? x :relationship)
        (map? (:graph x))
        (map? (:env x))
-       (map? (:dict x))))
+       (map? (:dict x))
+       (map? (:relationship x))))
 
 (def empty-dict {})
 (defn net
-  ([graph env] (->Net graph env empty-dict))
+  ([graph env]
+   (net graph env empty-dict relationship/empty-relationship))
   ([graph env dict]
-   (->Net graph env (if (map? dict) dict empty-dict))))
+   (net graph env dict relationship/empty-relationship))
+  ([graph env dict relationships]
+   (->Net graph
+          env
+          (if (map? dict) dict empty-dict)
+          (if (map? relationships)
+            relationships
+            relationship/empty-relationship))))
 (def empty-net (net {} {}))
 (def empty-network empty-net)
 (defn network? [x] (net? x))
@@ -28,9 +39,17 @@
 (defn net-graph [n] (:graph n))
 (defn net-env [n] (:env n))
 (defn net-dict [n] (:dict n))
-(defn net-with-graph [n graph] (net graph (net-env n) (net-dict n)))
-(defn net-with-env [n env] (net (net-graph n) env (net-dict n)))
-(defn net-with-dict [n dict] (net (net-graph n) (net-env n) dict))
+(defn net-relationship [n] (:relationship n))
+(defn net-with-graph [n graph]
+  (net graph (net-env n) (net-dict n) (net-relationship n)))
+(defn net-with-env [n env]
+  (net (net-graph n) env (net-dict n) (net-relationship n)))
+(defn net-with-dict [n dict]
+  (net (net-graph n) (net-env n) dict (net-relationship n)))
+(defn net-with-relationship [n relationships]
+  (net (net-graph n) (net-env n) (net-dict n) relationships))
+(defn update-net-relationship [n f & args]
+  (net-with-relationship n (apply f (net-relationship n) args)))
 
 (defn as-net
   "Coerce network-shaped input to net record."
@@ -39,19 +58,21 @@
     (net? x)
     (let [d0 (net-dict x)
           d (if (map? d0) d0 empty-dict)]
-      (net (net-graph x) (net-env x) d))
+      (net (net-graph x) (net-env x) d (net-relationship x)))
 
     (and (map? x) (contains? x :graph) (contains? x :env))
     (let [d0 (:dict x)
-          d (if (map? d0) d0 empty-dict)]
-      (net (:graph x) (:env x) d))
+          d (if (map? d0) d0 empty-dict)
+          relationships (:relationship x)]
+      (net (:graph x) (:env x) d relationships))
 
     (and (sequential? x) (<= 2 (count x)))
     (let [g (first x)
           e (second x)
           d0 (nth x 2 nil)
-          d (if (map? d0) d0 empty-dict)]
-      (net g e d))
+          d (if (map? d0) d0 empty-dict)
+          relationships (nth x 3 relationship/empty-relationship)]
+      (net g e d relationships))
 
     :else
     (throw (ex-info "cannot coerce to network"

@@ -11,6 +11,7 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
+            [propagators.relationship :as relationship]
             [propagators.stdlib.boundary :as boundary]
             [propagators.stdlib.prop :as stdlib-prop]))
 
@@ -201,6 +202,30 @@
       (is (= #{content update} merged))
       (is (named/named-network? strongest))
       (is (= #{:x :y} (set (keys (net/net-dict-or-empty strongest))))))))
+
+(deftest named-network-join-preserves-path-sensitive-relationships
+  (let [shared-child-id (new-node-id)
+        left-parent (relationship/node-key [:outer] (new-node-id))
+        right-parent (relationship/node-key [:outer] (new-node-id))
+        left-child (relationship/node-key [:outer [:cell :left]] shared-child-id)
+        right-child (relationship/node-key [:outer [:cell :right]] shared-child-id)
+        left (net/net-with-relationship
+              (named-cell-net [[:left true]])
+              (relationship/relate relationship/empty-relationship
+                                   left-parent
+                                   left-child))
+        right (net/net-with-relationship
+               (named-cell-net [[:right false]])
+               (relationship/relate relationship/empty-relationship
+                                    right-parent
+                                    right-child))
+        joined (named/join left right)
+        relationships (net/net-relationship joined)]
+    (is (= #{left-child} (relationship/children relationships left-parent)))
+    (is (= #{right-child} (relationship/children relationships right-parent)))
+    (is (= #{left-parent} (relationship/parents relationships left-child)))
+    (is (= #{right-parent} (relationship/parents relationships right-child)))
+    (is (not= left-child right-child))))
 
 (deftest named-network-cell-merge-joins-incomparable-cell-values
   (testing "same named cell with incomparable Bool4 values keeps evidence and joins strongest"

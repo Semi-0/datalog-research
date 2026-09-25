@@ -29,10 +29,10 @@
     propagators.debug-test
     propagators.dispatch-test
     propagators.experimental.runner-constructor-test
-    propagators.experimental.runner-semantic-compound-trace-test
     propagators.install-test
     propagators.layered-procedure-test
     propagators.named-network-test
+    propagators.network-patch-test
     propagators.reducer-cell-test
     propagators.runner-test
     propagators.structural-records-test

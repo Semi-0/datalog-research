@@ -34,7 +34,11 @@
       (is (graph/node? node))
       (is (graph/node? {:inputs #{} :outputs #{}}))
       (is (net/net? n))
-      (is (net/net? {:graph {} :env {} :dict net/empty-dict}))
+      (is (net/net? {:graph {}
+                     :env {}
+                     :dict net/empty-dict
+                     :relationship {}}))
+      (is (false? (net/net? {:graph {} :env {} :dict net/empty-dict})))
       (is (net/network? n)))))
 
 (deftest accessors-remain-stable

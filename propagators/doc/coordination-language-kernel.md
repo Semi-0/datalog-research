@@ -43,11 +43,12 @@ process-local state.
 
 The minimal kernel should remain close to the current runtime model:
 
-- immutable `Net` values made of `graph`, `env`, and `dict`
+- immutable `Net` values made of `graph`, `env`, `dict`, and `relationship`
 - cell entries with `content` and `strongest`
 - propagator activation functions that return messages
 - merge and strongest policy at cell absorption time
 - explicit task queues and fixpoint evaluation
+- path-qualified parent/child relationships reported by topology patch handlers
 - installers as pure network-value transformations
 - activation-local subnet execution through boundaries, avatars, diffs, and
   ordinary outbound messages

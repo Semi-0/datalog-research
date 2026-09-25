@@ -13,9 +13,11 @@
   (let [calls (atom [])
         dispatch
         (combinator/branch
-         #(= :number %)
+         (fn [kind value]
+           (and (= :number kind) (even? value)))
          (fn [_kind value] (swap! calls conj :number) (* 2 value))
-         #(= :fallback-kind %)
+         (fn [kind value]
+           (and (= :fallback-kind kind) (pos? value)))
          (fn [_kind value] (swap! calls conj :second) value)
          (fn [_kind value] (swap! calls conj :fallback) value))]
     (is (= 8 (dispatch :number 4)))

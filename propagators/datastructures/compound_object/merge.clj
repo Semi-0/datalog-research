@@ -202,6 +202,33 @@
          (contains? (:inputs prop-node) from-id)
          (contains? (:outputs prop-node) to-id))))
 
+(defn accessor-declaration-child-ids
+  "Return the exact topology nodes a new accessor declaration will install."
+  [collection-net slot-key parent-id]
+  (let [network (as-accessor-network collection-net)
+        canonical-id (canonical-cell-id slot-key)
+        avatar-id (avatar-cell-id slot-key parent-id)
+        to-canonical-id (sync-prop-id slot-key parent-id :from->canonical)
+        from-canonical-id (sync-prop-id slot-key parent-id :canonical->from)]
+    (cond-> []
+      (not (contains? (net/net-env network) canonical-id))
+      (conj canonical-id)
+
+      (not (contains? (net/net-env network) avatar-id))
+      (conj avatar-id)
+
+      (not (content-copy-installed? network
+                                    to-canonical-id
+                                    avatar-id
+                                    canonical-id))
+      (conj to-canonical-id)
+
+      (not (content-copy-installed? network
+                                    from-canonical-id
+                                    canonical-id
+                                    avatar-id))
+      (conj from-canonical-id))))
+
 (defn- install-content-copy
   [n prop-id name from-id to-id]
   (if (content-copy-installed? n prop-id from-id to-id)

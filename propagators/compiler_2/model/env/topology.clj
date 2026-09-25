@@ -17,7 +17,7 @@
 (defn- commit [ctx]
   (let [{:keys [effects messages]} (i/result ctx)
         network (reduce (fn [current declaration]
-                          (second (patch/apply-patch declaration current)))
+                          (second (patch/apply-root-patch declaration current)))
                         (:net ctx)
                         (concat effects messages))]
     [(declared-prop-ids effects) network]))

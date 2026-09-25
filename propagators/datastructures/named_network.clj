@@ -9,7 +9,8 @@
             [propagators.cells.value :as value]
             [propagators.ids :as ids]
             [propagators.network :as net]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.relationship :as relationship]))
 
 (defn named-network? [x]
   (and (net/net? x)
@@ -165,7 +166,12 @@
            env (merge (net/net-env a) (net/net-env b))
            dict (merge-with merge-metadata a-dict b-dict)]
       (if-not ks
-        (net/net (merge-graph a b) env dict)
+        (net/net (merge-graph a b)
+                 env
+                 dict
+                 (relationship/merge-relationships
+                  (net/net-relationship a)
+                  (net/net-relationship b)))
         (let [k (first ks)
               a-id (get a-dict k)
               b-id (get b-dict k)]

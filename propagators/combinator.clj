@@ -4,9 +4,8 @@
 (defn branch
   "Build an ordered predicate/handler branch with a final fallback.
 
-  Predicates receive the first invocation argument. Handlers receive every
-  invocation argument. The first matching handler runs; if none match, the
-  final fallback runs."
+  Predicates and handlers receive every invocation argument. The first matching
+  handler runs; if none match, the final fallback runs."
   [& clauses]
   (when-not (and (pos? (count clauses))
                  (odd? (count clauses)))
@@ -18,6 +17,6 @@
       (if (= 1 (count remaining))
         (apply (first remaining) inputs)
         (let [[predicate handler & more] remaining]
-          (if (predicate (first inputs))
+          (if (apply predicate inputs)
             (apply handler inputs)
             (recur more)))))))

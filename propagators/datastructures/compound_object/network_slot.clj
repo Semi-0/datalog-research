@@ -3,6 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object.merge :as compound-merge]
+            [propagators.datastructures.compound-object.patch :as compound-patch]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.effectful-execution :as effect]
             [propagators.effectful-sync :as sync]
@@ -182,10 +183,17 @@
                                                  slot-key
                                                  parent-id
                                                  parent-net)
-            msgs (into [(message collection-id
-                                  (compound-merge/accessor-declaration
-                                   slot-key
-                                   parent-id))]
+            declaration (compound-merge/accessor-declaration
+                         slot-key
+                         parent-id)
+            child-ids (compound-merge/accessor-declaration-child-ids
+                       collection-net
+                       slot-key
+                       parent-id)
+            msgs (into [(compound-patch/accessor-declaration
+                         collection-id
+                         declaration
+                         child-ids)]
                        source-messages)]
         (observe-network-slot! {:slot-key slot-key
                                 :branch :declare
