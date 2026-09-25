@@ -8,6 +8,9 @@ const graphFromPayload = (payload) => {
   return null;
 };
 
+const viewsFromPayload = (payload) =>
+  payload?.result?.views || payload?.views || [];
+
 const widgetId = (ui) => ui?.widgetId || ui?.["widget-id"] || ui?.id;
 
 const channelEpoch = (channel) => {
@@ -163,6 +166,7 @@ export const update = (model, msg) => {
       }
       const graph = graphFromPayload(msg.payload);
       if (!graph) return [model, none()];
+      const views = viewsFromPayload(msg.payload);
       const incomingWidgets = widgetsFromGraph(graph);
       const widgets = mergeWidgets(model.widgets, incomingWidgets);
       const graphWithRegisteredWidgets = graphWithWidgets(graph, widgets);
@@ -172,10 +176,11 @@ export const update = (model, msg) => {
         {
           ...model,
           graph: graphWithRegisteredWidgets,
+          views,
           widgets,
           layout: reconcileLayout(model.layout, graphWithRegisteredWidgets),
           pulses: { ...model.pulses, ...graphPulses(model, graphWithRegisteredWidgets) },
-          status: `graph ${nodeCount} nodes / ${edgeCount} edges`,
+          status: `graph ${nodeCount} nodes / ${edgeCount} edges · ${views.length} views`,
         },
         none(),
       ];

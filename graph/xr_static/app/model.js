@@ -2,6 +2,7 @@ export const initialModel = () => ({
   connected: false,
   status: "disconnected",
   graph: { nodes: [], edges: [] },
+  views: [],
   widgets: {},
   layout: {},
   pulses: {},

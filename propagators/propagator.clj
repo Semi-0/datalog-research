@@ -24,6 +24,19 @@
 (def make-propagator prop)
 (defn propagator? [x] (prop? x))
 
+(defn compose-activation
+  "Apply result transforms left-to-right after `activate`.
+
+  A transform receives `[result inputs outputs network]` and returns the next
+  activation result.  Scheduling and patch interpretation remain outside this
+  composition boundary."
+  [activate & transforms]
+  (fn [inputs outputs network]
+    (reduce (fn [result transform]
+              (transform result inputs outputs network))
+            (activate inputs outputs network)
+            transforms)))
+
 (defn input-values
   "Return strongest values for `input-ids` in `network`."
   [network input-ids]

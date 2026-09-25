@@ -4,7 +4,8 @@
             [clojure.string :as str]
             [graph.json :as json]
             [graph.xr-runtime :as xr]
-            [propagators.compiler-2.runtime :as runtime])
+            [propagators.compiler-2.runtime :as runtime]
+            [propagators.visualizer :as visualizer])
   (:import [java.io BufferedInputStream BufferedOutputStream ByteArrayOutputStream]
            [java.net ServerSocket Socket URLDecoder]
            [java.nio ByteBuffer]
@@ -77,6 +78,8 @@
           (do (.write out b)
               (recur b)))))))
 
+(declare read-exact)
+
 (defn- parse-request
   [^BufferedInputStream in]
   (when-let [request-line (read-line* in)]
@@ -89,10 +92,14 @@
                           (recur (assoc m
                                         (str/lower-case k)
                                         (str/trim (or v ""))))))))]
-      {:method method
-       :path path
-       :protocol protocol
-       :headers headers})))
+      (let [content-length (Long/parseLong (get headers "content-length" "0"))
+            body (when (pos? content-length)
+                   (String. (read-exact in (int content-length)) "UTF-8"))]
+        {:method method
+         :path path
+         :protocol protocol
+         :headers headers
+         :body body}))))
 
 (defn- write-response
   [^BufferedOutputStream out status headers body]
@@ -111,7 +118,9 @@
 
 (defn- content-type
   [path]
-  (let [path (if (or (= path "/") (= path "/xr"))
+  (let [path (if (or (= path "/")
+                     (= path "/xr")
+                     (= path "/relationships"))
                "/index.html"
                (first (str/split path #"\?")))]
     (cond
@@ -124,7 +133,11 @@
   [path]
   (let [path (first (str/split path #"\?"))
         path (URLDecoder/decode path "UTF-8")
-        path (if (or (= path "/") (= path "/xr")) "/index.html" path)
+        path (if (or (= path "/")
+                     (= path "/xr")
+                     (= path "/relationships"))
+               "/index.html"
+               path)
         path (str/replace-first path #"^/" "")]
     (when-not (str/includes? path "..")
       (str "graph/xr_static/" path))))
@@ -276,6 +289,19 @@
              (= :xr/launch-trace (:boundary/kind effect)))
     (get-in effect [:boundary/payload :graph])))
 
+(defn- view-effect-declaration
+  [effect]
+  (when (and (= :xr (:boundary/port effect))
+             (= :xr/present-view (:boundary/kind effect)))
+    (get-in effect [:boundary/payload :view])))
+
+(defn- resolve-view-effect
+  [session effect]
+  (when-let [declaration (view-effect-declaration effect)]
+    (->> declaration
+         (visualizer/resolve-view (:program/net @session))
+         xr/view->json)))
+
 (defn- widget-id
   [widget]
   (or (:widgetId widget)
@@ -308,18 +334,36 @@
   [session]
   (let [result (xr/handle-command! session {:op :xr/effects})
         change-token (:runtime/commit-tick @session)
-        widgets (vals (:widgets result))]
-    (when-let [graph (some launch-effect-graph (reverse (:effects result)))]
-      {:graph (cond-> (assoc (xr/graph->json
-                               graph
-                               {:changed-node-ids (:changed-node-ids result)
-                                :changed-cell-ids (:changed-cells result)})
+        widgets (vals (:widgets result))
+        effects (:effects result)
+        graph (some launch-effect-graph (reverse effects))
+        views (->> effects
+                   (keep #(resolve-view-effect session %))
+                   (reduce (fn [by-id view]
+                             (assoc by-id (:id view) view))
+                           {})
+                   vals
+                   vec)]
+    (when (or graph (seq views))
+      {:graph (cond-> (assoc (if graph
+                               (xr/graph->json
+                                graph
+                                {:changed-node-ids (:changed-node-ids result)
+                                 :changed-cell-ids (:changed-cells result)})
+                               {:graph true :nodes [] :edges []})
                               :widgets widgets)
                 true
                 (graph-with-current-widgets widgets)
 
                 (seq (:changed-node-ids result))
-                (assoc :change-token change-token))})))
+                (assoc :change-token change-token))
+       :views views})))
+
+(defn- latest-relationship-payload
+  [session relationship-state]
+  (or @relationship-state
+      (latest-effect-payload session)
+      {:graph {:nodes [] :edges []}}))
 
 (defn- start-effect-push!
   [session out]
@@ -353,9 +397,32 @@
      TimeUnit/MILLISECONDS)
     #(.shutdownNow executor)))
 
+(defn- start-relationship-push!
+  [relationship-state out]
+  (let [interval-ms 250
+        last-payload (atom nil)
+        executor (daemon-executor "xr-relationships")]
+    (.scheduleAtFixedRate
+     executor
+     (fn []
+       (try
+         (when-let [payload @relationship-state]
+           (when-not (= payload @last-payload)
+             (reset! last-payload payload)
+             (locking out
+               (write-frame out
+                            (response "relationship/update"
+                                      {:ok true :result payload})))))
+         (catch Throwable _ nil)))
+     interval-ms
+     interval-ms
+     TimeUnit/MILLISECONDS)
+    #(.shutdownNow executor)))
+
 (defn- websocket-loop
-  [session ^BufferedInputStream in ^BufferedOutputStream out]
-  (loop [stops [(start-effect-push! session out)]]
+  [session relationship-state ^BufferedInputStream in ^BufferedOutputStream out]
+  (loop [stops [(start-effect-push! session out)
+                (start-relationship-push! relationship-state out)]]
     (let [{:keys [opcode text]} (read-frame in)]
       (case opcode
         8 (doseq [stop stops] (stop))
@@ -379,8 +446,18 @@
   [{:keys [headers]}]
   (= "websocket" (some-> (get headers "upgrade") str/lower-case)))
 
+(defn- relationship-api?
+  [request]
+  (= "/api/relationships" (first (str/split (:path request) #"\?"))))
+
+(defn- write-json-response
+  [out status value]
+  (write-response out status
+                  {"Content-Type" "application/json; charset=utf-8"}
+                  (json/write-json value)))
+
 (defn- handle-socket
-  [session ^Socket socket]
+  [session relationship-state ^Socket socket]
   (daemon-thread
    "xr-client"
    (fn []
@@ -397,7 +474,21 @@
              (do (write-websocket-handshake out
                                             (get-in request [:headers
                                                              "sec-websocket-key"]))
-                 (websocket-loop session in out))
+                 (websocket-loop session relationship-state in out))
+
+             (and (= "GET" (:method request))
+                  (relationship-api? request))
+             (write-json-response
+              out "200 OK"
+              (latest-relationship-payload session relationship-state))
+
+             (and (= "POST" (:method request))
+                  (relationship-api? request))
+             (let [decoded (json/read-json (or (:body request) "{}"))
+                   graph (or (:graph decoded) decoded)
+                   payload {:graph graph}]
+               (reset! relationship-state payload)
+               (write-json-response out "200 OK" payload))
 
              (= "GET" (:method request))
              (if-let [body (static-bytes (:path request))]
@@ -427,6 +518,7 @@
    (let [session (or session (runtime/new-session))
          host (or host default-host)
          tls (or tls {})
+         relationship-state (atom nil)
          server (server-socket port host tls)
          running? (atom true)
          accept-thread
@@ -435,10 +527,11 @@
           (fn []
             (while @running?
               (try
-                (handle-socket session (.accept server))
+                (handle-socket session relationship-state (.accept server))
                 (catch java.net.SocketException _ nil)))))]
      {:server server
       :session session
+      :relationship-state relationship-state
       :host host
       :scheme (if (:https? tls) "https" "http")
       :port (.getLocalPort server)

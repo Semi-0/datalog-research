@@ -59,6 +59,26 @@
         (close)
         (.delete temporary)))))
 
+(deftest runtime-server-watch-loads-a-fresh-relationship-environment
+  (let [temporary (java.io.File/createTempFile "compiler2-watch-server-" ".lain")
+        _ (spit temporary
+                "(def-cells a graph) (<-> 1 a) (relationship:roots a graph) (xr:io graph)")
+        path (.getAbsolutePath temporary)
+        opts (#'server/parse-server-args ["--watch" path "--no-dashboard"])
+        server-state (binding [server/*temperature-logger-enabled?* false]
+                       (server/start-server 0))]
+    (try
+      (is (:xr? opts))
+      (is (= path (:load-file opts)))
+      (is (= path (:watch-file opts)))
+      (#'server/load-startup-file! server-state opts)
+      (#'server/start-file-watch! server-state opts)
+      (is (some? @(:file-watch-state server-state)))
+      (is (seq (get-in @(:session server-state) [:xr :effects])))
+      (finally
+        ((:close server-state))
+        (.delete temporary)))))
+
 (deftest lain-source-normalizer-accepts-consecutive-top-level-forms
   (is (= ['(def-cell x) '(<-> 1 x)]
          (loader/source-forms "(def-cell x)\n(<-> 1 x)"))))
@@ -76,10 +96,56 @@
                                    {:runtime/input :cell-message
                                     :cell-id (bridge/client-list-source-id)
                                     :update (bridge/linked-list-value ["A" "B"])})
-    (is (= (bridge/client-handle "A")
+      (is (= (bridge/client-handle "A")
            (net/network-cell-strongest
             (:program/net @session)
             (cenv/resolve-binding-id
              (:program/net @session)
              (:program/env @session)
              'f))))))
+
+(defn- binding-value
+  [session symbol]
+  (let [state @session]
+    (net/network-cell-strongest
+     (:program/net state)
+     (cenv/resolve-binding-id (:program/net state)
+                              (:program/env state)
+                              symbol))))
+
+(deftest fresh-replacement-discards-the-previous-environment
+  (let [session (loader/load-session-from-source "(def old-name 1)")]
+    (loader/replace-session-from-source! session "(def new-name 2)")
+    (is (nil? (cenv/resolve-binding-id
+               (:program/net @session) (:program/env @session) 'old-name)))
+    (is (= 2 (binding-value session 'new-name)))))
+
+(deftest failed-replacement-retains-the-last-good-environment
+  (let [session (loader/load-session-from-source "(def stable 7)")
+        before @session]
+    (is (thrown? Throwable
+                 (loader/replace-session-from-source! session "(def stable")))
+    (is (identical? before @session))
+    (is (= 7 (binding-value session 'stable)))))
+
+(deftest watched-file-promotes-only-successful-fresh-environments
+  (let [temporary (java.io.File/createTempFile "compiler2-watch-" ".lain")
+        reloaded (promise)
+        failed (promise)
+        _ (spit temporary "(def watched 1)")
+        session (loader/load-session-from-file temporary)
+        watcher (loader/watch-file!
+                 session temporary
+                 {:interval-ms 10
+                  :on-reload #(deliver reloaded %)
+                  :on-error #(deliver failed %)})]
+    (try
+      (spit temporary "(def watched 2)")
+      (is (not= ::timeout (deref reloaded 2000 ::timeout)))
+      (is (= 2 (binding-value session 'watched)))
+      (spit temporary "(def watched")
+      (is (instance? Throwable (deref failed 2000 ::timeout)))
+      (is (= 2 (binding-value session 'watched)))
+      (finally
+        ((:close watcher))
+        (.delete temporary)))))

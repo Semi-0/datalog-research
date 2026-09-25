@@ -38,6 +38,36 @@ Supported XR operations:
 The bridge speaks JSON to the browser. Cell ids are serialized as strings, and
 semantic graph values are projected into browser-friendly node/edge records.
 
+## Declarative Views
+
+The opt-in relationship/XR extension also binds port-neutral view propagators:
+
+```clojure
+(def-cells value references tree current history dashboard)
+
+(cell-window value current)
+(cell-history value history)
+(propagator-references value :inputs references)
+(hierarchy references tree)
+(juxtapose current tree history dashboard)
+(xr:io dashboard)
+```
+
+`cell-window` describes the cell's content and strongest value. `cell-history`
+retains timestamped content and strongest-value samples in a private network
+cell. `propagator-references` derives live structural references from the
+ordinary network graph; `hierarchy` follows the native relationship graph to
+all descendants. `juxtapose` preserves its child order without choosing any
+geometry.
+
+These propagators emit only declarative data. They do not know about HTTP,
+WebSockets, Babylon.js, panels, or force layout. `xr:io` publishes the
+declaration as a boundary effect, and the XR server resolves it against the
+current immutable network for every delivered snapshot. Consequently ordinary
+cell updates refresh views without adding topology or tracing the update path.
+The browser alone interprets juxtaposition as adjacent planes and hierarchy as
+a parent/child drawing on a plane.
+
 ## Known Fragility And Projection Boundary
 
 The propagation scheduler is synchronous and intentionally small: a commit
@@ -123,7 +153,8 @@ The web side is plain JavaScript modules using The Elm Architecture:
 - `model.js` owns plain model data and force-layout state;
 - `update.js` is the pure state transition;
 - `effects.js` owns WebSocket, animation, and XR session effects;
-- `render.js` projects model snapshots into Three.js objects.
+- `babylon-render.js` projects model snapshots into Babylon.js objects;
+- `babylon-views.js` interprets declarative views as XR scene planes.
 
 The first projection is a normal 3D browser view. WebXR is layered on top after
 that view works. Pinch recognition updates selection state first; committed
@@ -179,7 +210,7 @@ existing sparse-history rule that point events do not automatically continue.
 The desktop 3D view remains available even when XR is unsupported. It renders
 cells as white illuminated spheres and propagators/operators as white
 illuminated triangles on a black background. Camera controls in 3D mode use
-Three.js `OrbitControls`: left-drag rotates, wheel zooms, and right-drag pans.
+Babylon.js camera controls: left-drag rotates, wheel zooms, and drag pans.
 The `3D View` / `XR View` toggle changes presentation mode without changing the
 runtime graph model. When a cell appears or receives a changed value in a graph
 snapshot, it briefly blooms with a white halo and then fades back to normal.
@@ -210,6 +241,21 @@ clojure -M:wired/xr
 ```
 
 Then open `http://127.0.0.1:45666/`.
+
+To observe a relationship graph from a `.lain` file and rebuild the complete
+environment whenever the file changes, run:
+
+```text
+clojure -M:wired/server --watch examples/lain/relationship-chain.lain --no-dashboard
+```
+
+`--watch` installs the opt-in `relationship:roots` and `xr:io` bindings and
+starts XR automatically. `relationship:roots` takes seed cells followed by its
+graph output cell and observes their top-level connected components. Each
+successful edit replaces the whole
+environment; a failed edit leaves the last good environment running. The
+force-directed view is served at `http://127.0.0.1:45666/relationships`, and
+its graph endpoint is `/api/relationships`.
 
 For LAN testing, bind the XR projection to all interfaces:
 

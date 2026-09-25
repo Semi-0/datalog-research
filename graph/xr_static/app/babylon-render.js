@@ -1,6 +1,7 @@
 import { selectedNode } from "./model.js";
 import { createBabylonGraphView } from "./babylon-graph-view.js";
 import { createBabylonInput } from "./babylon-input.js";
+import { createBabylonViewLayer } from "./babylon-views.js";
 
 const requireBabylon = () => {
   if (!window.BABYLON) {
@@ -40,6 +41,7 @@ export const createRenderer = ({ root, selectionEl, dispatch }) => {
   key.intensity = 1.8;
 
   const graphView = createBabylonGraphView({ BABYLON, scene });
+  const viewLayer = createBabylonViewLayer({ BABYLON, scene });
   const input = createBabylonInput({ BABYLON, scene, canvas, graphView, dispatch, camera });
   let framedGraphKey = "";
   let xrExperience = null;
@@ -94,6 +96,7 @@ export const createRenderer = ({ root, selectionEl, dispatch }) => {
     input.setModel(model);
     frameGraph(model);
     graphView.renderGraph(model);
+    viewLayer.renderViews(model);
     const selected = selectedNode(model);
     selectionEl.textContent = selected ? JSON.stringify(selected, null, 2) : "no selection";
     key.position.copyFrom(camera.position);
@@ -118,4 +121,3 @@ export const createRenderer = ({ root, selectionEl, dispatch }) => {
     },
   };
 };
-

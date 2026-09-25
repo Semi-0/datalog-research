@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [clojure.walk :as walk]
             [propagators.compiler-2.runtime :as runtime]
+            [propagators.compiler-2.runtime.extensions.relationship-xr :as relationship-xr]
             [propagators.compiler-2.runtime.session.file-loader :as file-loader]
             [graph.compiler-2-runtime-json-server :as json-server]
             [graph.compiler-2-semantic-repl :as semantic-repl]
@@ -140,16 +141,49 @@
                                  {:client-id load-client-id
                                   :rebuild? false}))))
 
+(defn- relationship-loader-opts
+  [{:keys [load-client-id]}]
+  (cond-> {:extensions [(relationship-xr/extension)]}
+    load-client-id
+    (assoc :client-id load-client-id)))
+
 (defn- load-startup-file!
-  [server {:keys [load-file load-client-id] :as opts}]
+  [server {:keys [load-file load-client-id watch-file] :as opts}]
   (when load-file
-    (prepare-load-client! server opts)
-    (let [loaded (file-loader/load-file! (:session server)
-                                         load-file
-                                         (cond-> {}
-                                           load-client-id
-                                           (assoc :client-id load-client-id)))]
+    (when-not watch-file
+      (prepare-load-client! server opts))
+    (let [loaded (if watch-file
+                   (file-loader/replace-session-from-file!
+                    (:session server) load-file (relationship-loader-opts opts))
+                   (file-loader/load-file!
+                    (:session server)
+                    load-file
+                    (cond-> {}
+                      load-client-id
+                      (assoc :client-id load-client-id))))]
       (dissoc loaded :session))))
+
+(defn- start-file-watch!
+  [server {:keys [watch-file] :as opts}]
+  (when watch-file
+    (let [watcher
+          (file-loader/watch-file!
+           (:session server)
+           watch-file
+           (merge
+            (relationship-loader-opts opts)
+            {:on-reload
+             (fn [{:keys [file]}]
+               (println (str "reloaded .lain file " file))
+               (ensure-xr-server! server))
+             :on-error
+             (fn [error]
+               (runtime/record-runtime-error!
+                (:session server)
+                {:phase :file/reload :file watch-file}
+                error))}))]
+      (reset! (:file-watch-state server) watcher)
+      watcher)))
 
 (defn- handle-command-response!
   [server command]
@@ -355,8 +389,10 @@
   ([port xr-port udp-port xr-host xr-tls]
    (let [session (runtime/new-session)
          xr-state (atom nil)
+         file-watch-state (atom nil)
          server-state {:session session
                        :xr-state xr-state
+                       :file-watch-state file-watch-state
                        :xr-port xr-port
                        :xr-host xr-host
                        :xr-tls xr-tls}
@@ -375,6 +411,7 @@
      {:server server
       :session session
       :xr-state xr-state
+      :file-watch-state file-watch-state
       :xr-port xr-port
       :xr-host xr-host
       :xr-tls xr-tls
@@ -383,6 +420,8 @@
       :udp-port (:port udp)
       :close (fn []
                (reset! running? false)
+               (when-let [watcher @file-watch-state]
+                 ((:close watcher)))
                (runtime/stop-clocks! session)
                (when-let [xr (:server @xr-state)]
                  ((:close xr)))
@@ -478,6 +517,7 @@
                :xr-tls {}
                :dashboard? true
                :load-file nil
+               :watch-file nil
                :load-client-id nil
                :load-blocks default-load-blocks
                :udp-port default-udp-port
@@ -539,6 +579,13 @@
         ("--load" "--load-file" "-load")
         (recur (nnext args)
                (assoc opts :load-file (second args)))
+
+        ("--watch")
+        (recur (nnext args)
+               (assoc opts
+                      :xr? true
+                      :load-file (second args)
+                      :watch-file (second args)))
 
         ("--load-client" "--load-client-id")
         (recur (nnext args)
@@ -629,6 +676,7 @@
         (when-let [loaded (load-startup-file! server opts)]
           (println (str "loaded .lain file " (:file loaded)
                         " as client " (:client-id loaded))))
+        (start-file-watch! server opts)
         (if dashboard?
           (run-server-dashboard server)
           (do
@@ -756,4 +804,4 @@
                      :client-id client-id
                      :text (pr-str expression)})))
 
-    (println "usage: server [port] [--json-port <port>] [--load <file.lain>] [--load-client <client-id> --load-blocks <n>] [--xr] [--no-dashboard] [--xr-port <port>] [--xr-host <host>|--xr-lan] [--xr-https --xr-keystore <path> --xr-keystore-password <password>] [--udp-port <port>] | request <port> '<edn>' | udp-request <port> '<edn>' | json-request <port> '<json>' | json-export <port> [file] | json-import <port> <file> | graph <port> | trace <port> <label> | block-list PORT CLIENT | block-show PORT CLIENT INDEX | block-focus PORT CLIENT INDEX | block-send PORT CLIENT SOURCE | block-load PORT CLIENT FILE [REVISION] | block-save PORT CLIENT FILE MODE SELECTION CHECKPOINT")))
+    (println "usage: server [port] [--json-port <port>] [--load <file.lain>|--watch <file.lain>] [--load-client <client-id> --load-blocks <n>] [--xr] [--no-dashboard] [--xr-port <port>] [--xr-host <host>|--xr-lan] [--xr-https --xr-keystore <path> --xr-keystore-password <password>] [--udp-port <port>] | request <port> '<edn>' | udp-request <port> '<edn>' | json-request <port> '<json>' | json-export <port> [file] | json-import <port> <file> | graph <port> | trace <port> <label> | block-list PORT CLIENT | block-show PORT CLIENT INDEX | block-focus PORT CLIENT INDEX | block-send PORT CLIENT SOURCE | block-load PORT CLIENT FILE [REVISION] | block-save PORT CLIENT FILE MODE SELECTION CHECKPOINT")))

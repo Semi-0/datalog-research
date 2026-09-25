@@ -410,6 +410,7 @@
         state' (reduce (fn [s request]
                          (case [(:boundary/port request) (:boundary/kind request)]
                            [:xr :xr/launch-trace] (record-xr-launch s request)
+                           [:xr :xr/present-view] (record-xr-launch s request)
                            [:xr :xr/trace-subscribe] (record-trace-subscription s request)
                            [:xr :xr/widget-register] (record-widget-register s request)
                            [:tui :tui/write-block] (record-tui-write s request)

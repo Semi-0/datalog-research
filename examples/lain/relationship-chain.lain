@@ -1,0 +1,6 @@
+(def-cells source middle result relationships)
+(<-> 1 source)
+(-> (+ source 1) middle)
+(-> (* middle 2) result)
+(relationship:roots source relationships)
+(xr:io relationships)

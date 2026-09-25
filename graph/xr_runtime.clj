@@ -18,13 +18,6 @@
 
 (def default-xr-client-id "xr")
 
-(defonce installed-traces
-  (atom {}))
-
-(defn- session-trace-key
-  [session trace-id]
-  [session trace-id])
-
 (defn- node-id-string
   [x]
   (pr-str x))
@@ -312,6 +305,39 @@
       (seq changed-cell-ids)
       (assoc :changed-cell-ids (mapv id-string changed-cell-ids))))))
 
+(defn- history-sample->json
+  [sample]
+  (-> sample
+      (update :sample/content value-summary)
+      (update :sample/strongest value-summary)))
+
+(defn view->json
+  "Project a resolved visualizer declaration into browser-friendly data."
+  [view]
+  (let [base {:type (name (:view/type view))
+              :id (id-string (:view/id view))}]
+    (case (:view/type view)
+      :cell-window
+      (assoc base
+             :content (value-summary (:view/content view))
+             :strongest (value-summary (:view/strongest view)))
+
+      :cell-history
+      (assoc base
+             :samples (mapv history-sample->json (:view/samples view)))
+
+      :hierarchy
+      (assoc base
+             :roots (mapv node-id-string (:view/roots view))
+             :graph (graph->json (:view/graph view)))
+
+      :juxtapose
+      (assoc base
+             :layout {:axis (name (get-in view [:view/layout :axis]))}
+             :children (mapv view->json (:view/resolved-children view)))
+
+      (throw (ex-info "unknown resolved view type" {:view view})))))
+
 (defn- trace-request
   [{:keys [label node direction] :as command}]
   (let [direction (cond
@@ -329,7 +355,6 @@
   (let [trace-id (str (random-uuid))
         request (trace-request command)
         graph (runtime/semantic-trace @session request)]
-    (swap! installed-traces assoc (session-trace-key session trace-id) request)
     (swap! session #(-> %
                         (assoc-in [:xr/traces trace-id] request)
                         (assoc-in [:xr :traces trace-id] request)))
@@ -343,10 +368,7 @@
   (let [session? (instance? clojure.lang.IAtom state-or-session)
         state (if session? @state-or-session state-or-session)
         request (or (get-in state [:xr/traces trace-id])
-                    (get-in state [:xr :traces trace-id])
-                    (when session?
-                      (get @installed-traces
-                           (session-trace-key state-or-session trace-id))))]
+                    (get-in state [:xr :traces trace-id]))]
     (when-not request
       (throw (ex-info "xr trace not found" {:trace-id trace-id})))
     {:trace-id trace-id
