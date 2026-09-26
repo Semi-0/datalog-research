@@ -11,7 +11,11 @@ const requireBabylon = () => {
 };
 
 const graphKey = (model) =>
-  `${model.graph.nodes.map((node) => node.id).sort().join("|")}::${model.graph.edges.length}`;
+  `${model.viewMode}::${model.graph.nodes.map((node) => node.id).sort().join("|")}::${model.graph.edges.length}`;
+
+// Preserve the desktop framing while allowing room along a narrow screen's width.
+export const viewportFramingRadius = (radius, width, height) =>
+  radius / Math.min(1, Math.max(width, 1) / Math.max(height, 1));
 
 export const createRenderer = ({ root, selectionEl, dispatch }) => {
   const BABYLON = requireBabylon();
@@ -45,9 +49,49 @@ export const createRenderer = ({ root, selectionEl, dispatch }) => {
   const input = createBabylonInput({ BABYLON, scene, canvas, graphView, dispatch, camera });
   let framedGraphKey = "";
   let xrExperience = null;
+  let cameraMode = null;
 
-  const resize = () => engine.resize();
+  const resize = () => {
+    engine.resize();
+    framedGraphKey = "";
+  };
   window.addEventListener("resize", resize);
+
+  const updateOrthographicBounds = () => {
+    const halfHeight = Math.max(camera.radius * 0.6, 2.5);
+    const width = Math.max(engine.getRenderWidth(), 1);
+    const height = Math.max(engine.getRenderHeight(), 1);
+    const halfWidth = halfHeight * (width / height);
+    camera.orthoLeft = -halfWidth;
+    camera.orthoRight = halfWidth;
+    camera.orthoTop = halfHeight;
+    camera.orthoBottom = -halfHeight;
+  };
+
+  const applyCameraMode = (viewMode) => {
+    const nextMode = viewMode === "2d" ? "2d" : "3d";
+    if (cameraMode === nextMode) {
+      if (nextMode === "2d") updateOrthographicBounds();
+      return;
+    }
+    cameraMode = nextMode;
+    framedGraphKey = "";
+    input.interaction.userAdjusted = false;
+    if (nextMode === "2d") {
+      camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+      camera.alpha = Math.PI / 2;
+      camera.beta = Math.PI / 2;
+      camera.lowerBetaLimit = Math.PI / 2;
+      camera.upperBetaLimit = Math.PI / 2;
+      updateOrthographicBounds();
+    } else {
+      camera.mode = BABYLON.Camera.PERSPECTIVE_CAMERA;
+      camera.lowerBetaLimit = 0.01;
+      camera.upperBetaLimit = Math.PI - 0.01;
+      camera.alpha = -Math.PI / 3;
+      camera.beta = Math.PI / 3;
+    }
+  };
 
   const frameGraph = (model) => {
     const key = graphKey(model);
@@ -55,14 +99,15 @@ export const createRenderer = ({ root, selectionEl, dispatch }) => {
     const points = model.graph.nodes
       .map((node) => model.layout[node.id])
       .filter(Boolean)
-      .map((p) => new BABYLON.Vector3(p.x, p.y, p.z));
+      .map((p) => new BABYLON.Vector3(p.x, p.y, model.viewMode === "2d" ? 0 : p.z));
     if (points.length === 0) return;
     const min = points.reduce((a, p) => BABYLON.Vector3.Minimize(a, p), points[0].clone());
     const max = points.reduce((a, p) => BABYLON.Vector3.Maximize(a, p), points[0].clone());
     const center = min.add(max).scale(0.5);
     const radius = Math.max(max.subtract(min).length() * 1.05, 4.5);
     camera.target.copyFrom(center);
-    camera.radius = radius;
+    camera.radius = viewportFramingRadius(radius, engine.getRenderWidth(), engine.getRenderHeight());
+    if (model.viewMode === "2d") updateOrthographicBounds();
     framedGraphKey = key;
   };
 
@@ -94,6 +139,7 @@ export const createRenderer = ({ root, selectionEl, dispatch }) => {
 
   const render = (model) => {
     input.setModel(model);
+    applyCameraMode(model.viewMode);
     frameGraph(model);
     graphView.renderGraph(model);
     viewLayer.renderViews(model);
