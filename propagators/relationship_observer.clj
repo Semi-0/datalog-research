@@ -3,6 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.datastructures.compound-object.patch :as compound-patch]
             [propagators.graph :as graph]
+            [propagators.gur.flat :as gur]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
@@ -13,6 +14,10 @@
             [propagators.semantic-trace :as semantic-trace]))
 
 (def observer-name :relationship/observer)
+
+(def ^:private application-name-scope [:compiler-2 :applications])
+(def ^:private lexical-topology-key
+  :propagators.compiler-2.model.env.index/lexical-topology)
 
 (defn stable-node-id
   [& parts]
@@ -96,12 +101,87 @@
     (conj (relationship/children (net/net-relationship network) parent)
           parent)))
 
-(defn- node-label
-  [network node-key]
-  (let [entry (node-entry network node-key)]
+(defn- lexical-binding-names
+  [network]
+  (let [frames (:frames (net/network-dict-entry network lexical-topology-key))]
+    (reduce-kv
+     (fn [names _environment-id {:keys [bindings current-bindings]}]
+       (let [declared
+             (reduce-kv
+              (fn [current name ids]
+                (reduce #(update %1 %2 (fnil conj #{}) name)
+                        current
+                        ids))
+              names
+              (or bindings {}))]
+         (reduce-kv
+          (fn [current name id]
+            (update current id (fnil conj #{}) name))
+          declared
+          (or current-bindings {}))))
+     {}
+     (or frames {}))))
+
+(defn- unique-binding-name
+  [names-by-id id]
+  (let [names (get names-by-id id)]
+    (when (= 1 (count names))
+      (first names))))
+
+(defn- application-operator-ids
+  [network]
+  (let [bindings (get (net/network-dict-entry network patch/name-bindings-key)
+                      application-name-scope
+                      {})]
+    (reduce-kv
+     (fn [operators relation-key operator-id]
+       (if (and (vector? relation-key)
+                (= 2 (count relation-key))
+                (= :operator (second relation-key))
+                (vector? (first relation-key))
+                (= :gur.flat/application (ffirst relation-key)))
+         (let [application-id (first relation-key)
+               propagator-id (gur/stable-node-id [application-id :apply-prop])]
+           (assoc operators propagator-id operator-id))
+         operators))
+     {}
+     bindings)))
+
+(defn- dictionary-node-label
+  [network node-id entry]
+  (let [names-by-id (lexical-binding-names network)]
     (cond
-      (prop/prop? entry) (prop/prop-name entry)
-      (cell/cell? entry) (or (:name entry) "cell")
+      (cell/cell? entry)
+      (unique-binding-name names-by-id node-id)
+
+      (prop/prop? entry)
+      (some->> (get (application-operator-ids network) node-id)
+               (unique-binding-name names-by-id))
+
+      :else
+      nil)))
+
+(defn- node-label
+  [network [path node-id :as node-key]]
+  (let [owner (network-at-path network path)
+        entry (node-entry network node-key)
+        dictionary-label (when owner
+                           (dictionary-node-label owner node-id entry))]
+    (cond
+      (prop/prop? entry)
+      (let [name (prop/prop-name entry)]
+        (if (= :propagator/anonymous name)
+          (or dictionary-label name)
+          name))
+
+      (cell/cell? entry)
+      (let [name (:name entry)]
+        (if (or (nil? name)
+                (= :cell/anonymous name)
+                (ids/node-id? name))
+          (or dictionary-label name "cell")
+          name))
+
       :else (pr-str (second node-key)))))
 
 (defn- node-value
@@ -137,6 +217,9 @@
   (let [selected (set (filter #(node-entry network %) node-keys))]
     (semantic-trace/graph-union
      {:nodes (into {} (map (fn [key] [key (node-label network key)])) selected)
+      :node-kinds (into {} (map (fn [key]
+                                 [key (if (prop/prop? (node-entry network key))
+                                        :propagator :cell)])) selected)
       :node-aliases {}
       :values (into {}
                     (keep (fn [key]

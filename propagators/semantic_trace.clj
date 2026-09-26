@@ -92,6 +92,7 @@
   (let [graphs (remove value/unusable? graphs)]
     {:semantic-trace/graph true
      :nodes (apply merge (map :nodes graphs))
+     :node-kinds (apply merge (map :node-kinds graphs))
      :node-aliases (merge-node-aliases graphs)
      :values (apply merge (map :values graphs))
      :node-ui (apply merge (map :node-ui graphs))
@@ -115,6 +116,7 @@
       (if (empty? frontier)
         (let [kept (vec (distinct kept))]
           (graph-union {:nodes (select-keys (:nodes graph) seen)
+                        :node-kinds (select-keys (:node-kinds graph) seen)
                         :node-aliases (select-node-aliases (:node-aliases graph)
                                                            seen)
                         :values (select-keys (:values graph) seen)

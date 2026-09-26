@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [graph.json :as json]
             [graph.xr-runtime :as xr]
+            [propagators.experimental.visualization.interaction :as interaction]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.visualizer :as visualizer])
   (:import [java.io BufferedInputStream BufferedOutputStream ByteArrayOutputStream]
@@ -300,6 +301,7 @@
   (when-let [declaration (view-effect-declaration effect)]
     (->> declaration
          (visualizer/resolve-view (:program/net @session))
+         (interaction/generation-view @session)
          xr/view->json)))
 
 (defn- widget-id

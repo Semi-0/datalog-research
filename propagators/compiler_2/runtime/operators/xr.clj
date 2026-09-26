@@ -8,6 +8,7 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.event :as event]
             [propagators.datastructures.tms :as tms]
+            [propagators.experimental.visualization.data :as collection-data]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.semantic-trace :as semantic-trace]
@@ -74,7 +75,9 @@
   (let [source-value (when trace-id
                        (net/network-cell-strongest network trace-id))
         trace-graph (trace-graph-value source-value)
-        view (view-declaration-value source-value)
+        view (if (collection-data/collection? source-value)
+               (visualizer/collection-declaration trace-id trace-id)
+               (view-declaration-value source-value))
         epoch (program-epoch network)
         trace-effect-id [:xr/launch-trace trace-id receipt-id epoch (hash trace-graph)]
         view-effect-id [:xr/present-view trace-id receipt-id epoch (hash view)]]

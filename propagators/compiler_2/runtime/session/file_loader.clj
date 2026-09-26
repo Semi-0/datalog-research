@@ -3,10 +3,19 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [propagators.compiler-2.runtime :as runtime]
+            [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.session.program.source :as source]))
 
 (def default-client-id "file")
 (def default-watch-interval-ms 250)
+
+(defn- install-extensions!
+  [session extensions]
+  (doseq [extension extensions]
+    (runtime/install-session-extension!
+     session
+     extension
+     {:outbox-id (runtime-ids/boundary-outbox-id)})))
 
 (defn- top-level-form-list?
   [form]
@@ -44,6 +53,13 @@
    (let [source (normalized-source text)
          load-result (runtime/extend-source! session {:source source
                                                       :client-id client-id})]
+     ;; Deterministic topology IDs can repeat after a complete replacement.
+     ;; A public runtime generation distinguishes commands from the old session.
+     (swap! session
+            (fn [state]
+              (if (:environment/generation state)
+                state
+                (assoc state :environment/generation (str (java.util.UUID/randomUUID))))))
      (runtime/refresh-trace-subscriptions! session)
      {:session session
       :client-id client-id
@@ -65,8 +81,7 @@
   ([text] (load-session-from-source text {}))
   ([text opts]
    (let [session (runtime/new-session)]
-     (doseq [extension (:extensions opts)]
-       (runtime/install-session-extension! session extension {}))
+     (install-extensions! session (:extensions opts))
      (load-source! session text opts)
      session)))
 
@@ -74,8 +89,7 @@
   ([file] (load-session-from-file file {}))
   ([file opts]
    (let [session (runtime/new-session)]
-     (doseq [extension (:extensions opts)]
-       (runtime/install-session-extension! session extension {}))
+     (install-extensions! session (:extensions opts))
      (load-file! session file opts)
      session)))
 
@@ -88,8 +102,7 @@
   ([text] (load-server-instance-from-source text {}))
   ([text opts]
    (let [session (runtime/new-session)
-         _ (doseq [extension (:extensions opts)]
-             (runtime/install-session-extension! session extension {}))
+         _ (install-extensions! session (:extensions opts))
          loaded (load-source! session text opts)]
      {:session session
       :loaded loaded})))
@@ -98,8 +111,7 @@
   ([file] (load-server-instance-from-file file {}))
   ([file opts]
    (let [session (runtime/new-session)
-         _ (doseq [extension (:extensions opts)]
-             (runtime/install-session-extension! session extension {}))
+         _ (install-extensions! session (:extensions opts))
          loaded (load-file! session file opts)]
      {:session session
       :loaded loaded})))
@@ -128,8 +140,7 @@
   ([session text opts]
    (let [candidate (runtime/new-session)]
      (try
-       (doseq [extension (:extensions opts)]
-         (runtime/install-session-extension! candidate extension {}))
+       (install-extensions! candidate (:extensions opts))
        (let [loaded (load-source! candidate text opts)
              candidate-state @candidate]
          (stop-session-resources! candidate)

@@ -25,7 +25,8 @@
         a-id (cenv/resolve-binding-id network (:program/env @session) 'a)
         b-id (cenv/resolve-binding-id network (:program/env @session) 'b)
         traced (net/network-cell-strongest network graph-id)
-        traced-ids (set (map second (keys (:nodes traced))))]
+        traced-ids (set (map second (keys (:nodes traced))))
+        labels (set (vals (:nodes traced)))]
     (is (semantic-trace/semantic-trace-graph? traced))
     (is (contains? traced-ids a-id))
     (is (contains? traced-ids b-id))
@@ -34,6 +35,8 @@
                 (keys (:nodes traced))))
     (is (not-any? #(= relationship-observer/observer-name %)
                   (vals (:nodes traced))))
+    (is (contains? labels '+))
+    (is (contains? labels '->))
     (is (seq (:edges traced)))
     (is (seq (get-in @session [:xr :effects])))
     (is (= "/api/relationships"

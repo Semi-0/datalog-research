@@ -13,6 +13,7 @@
             [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.tms :as tms]
+            [propagators.experimental.visualization.interaction :as interaction]
             [propagators.ids :as ids]
             [propagators.network :as net]))
 
@@ -193,7 +194,7 @@
     old))
 
 (defn- canonicalize-graph
-  [{:keys [nodes node-aliases values node-ui expansions edges] :as graph}]
+  [{:keys [nodes node-kinds node-aliases values node-ui expansions edges] :as graph}]
   (let [groups (->> (vals node-aliases)
                     (map alias-node-set)
                     (filter #(<= 2 (count %))))
@@ -241,6 +242,7 @@
                               node-aliases)]
     (assoc graph
            :nodes nodes*
+           :node-kinds (into {} (map (fn [[id kind]] [(canonical id) kind])) node-kinds)
            :node-aliases node-aliases*
            :values values*
            :node-ui node-ui*
@@ -280,7 +282,9 @@
                             (let [ui (get node-ui id)]
                               (cond-> {:id (node-id-string id)
                                        :label (str label)
-                                       :kind (node-kind label ui)}
+                                       :kind (if-let [kind (get (:node-kinds graph) id)]
+                                               (name kind)
+                                               (node-kind label ui))}
                                 ui
                                 (assoc :ui ui)
 
@@ -317,6 +321,24 @@
   (let [base {:type (name (:view/type view))
               :id (id-string (:view/id view))}]
     (case (:view/type view)
+      :graph
+      (assoc base :graph (graph->json (:view/graph view)))
+
+      :collection
+      (let [collection (:view/collection view)]
+        (assoc base
+               :kind (name (:kind collection))
+               :epoch (:view/epoch view) :revision (:view/revision view)
+               :generation (:view/generation view)
+               :selectable (some? (:view/selection-cell view))
+               :items (mapv (fn [row]
+                              {:id (pr-str (:identity row))
+                               :label (:label row)
+                               :kind (some-> (:node-kind row) name)
+                               :value (value-summary (:payload row))}) (:items collection))
+               :edges (mapv (fn [[a b]] {:from (pr-str a) :to (pr-str b)}) (:edges collection))
+               :pending (count (filter #(= :pending (:membership %)) (:candidates collection)))))
+
       :cell-window
       (assoc base
              :content (value-summary (:view/content view))
@@ -460,6 +482,10 @@
     :xr/extend-graph (xr-extend-graph! session command)
     :xr/send-message (xr-send-message! session command)
     :xr/widget-event (xr-widget-event! session command)
+    :xr/view-select
+    (locking session
+      (runtime/commit-runtime-input! session (interaction/selection-input @session command))
+      {:status :selected})
     ;; Delegate existing runtime commands for convenience.
     (:result (runtime/handle-command! session command))))
 

@@ -2,6 +2,7 @@ import { selectedNode } from "./model.js";
 import { createBabylonGraphView } from "./babylon-graph-view.js";
 import { createBabylonInput } from "./babylon-input.js";
 import { createBabylonViewLayer } from "./babylon-views.js";
+import { flattenViewPlanes } from "./views.js";
 
 const requireBabylon = () => {
   if (!window.BABYLON) {
@@ -11,7 +12,7 @@ const requireBabylon = () => {
 };
 
 const graphKey = (model) =>
-  `${model.viewMode}::${model.graph.nodes.map((node) => node.id).sort().join("|")}::${model.graph.edges.length}`;
+  `${model.viewMode}::${model.graph.nodes.map((node) => node.id).sort().join("|")}::${model.graph.edges.length}::${flattenViewPlanes(model.views).length}`;
 
 // Preserve the desktop framing while allowing room along a narrow screen's width.
 export const viewportFramingRadius = (radius, width, height) =>
@@ -45,7 +46,7 @@ export const createRenderer = ({ root, selectionEl, dispatch }) => {
   key.intensity = 1.8;
 
   const graphView = createBabylonGraphView({ BABYLON, scene });
-  const viewLayer = createBabylonViewLayer({ BABYLON, scene });
+  const viewLayer = createBabylonViewLayer({ BABYLON, scene, dispatch });
   const input = createBabylonInput({ BABYLON, scene, canvas, graphView, dispatch, camera });
   let framedGraphKey = "";
   let xrExperience = null;
@@ -95,11 +96,21 @@ export const createRenderer = ({ root, selectionEl, dispatch }) => {
 
   const frameGraph = (model) => {
     const key = graphKey(model);
-    if (input.interaction.userAdjusted || framedGraphKey === key || model.graph.nodes.length === 0) return;
+    if (input.interaction.userAdjusted || framedGraphKey === key) return;
     const points = model.graph.nodes
       .map((node) => model.layout[node.id])
       .filter(Boolean)
       .map((p) => new BABYLON.Vector3(p.x, p.y, model.viewMode === "2d" ? 0 : p.z));
+    const cards = flattenViewPlanes(model.views).length;
+    if (cards > 0) {
+      const extent = (cards - 1) * 3.55 / 2 + 1.6;
+      points.push(new BABYLON.Vector3(-extent, -1.05, 0),
+        new BABYLON.Vector3(extent, 1.05, 0));
+      if (model.graph.nodes.length === 0) {
+        camera.alpha = -Math.PI / 2;
+        camera.beta = Math.PI / 2;
+      }
+    }
     if (points.length === 0) return;
     const min = points.reduce((a, p) => BABYLON.Vector3.Minimize(a, p), points[0].clone());
     const max = points.reduce((a, p) => BABYLON.Vector3.Maximize(a, p), points[0].clone());

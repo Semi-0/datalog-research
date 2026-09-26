@@ -14,6 +14,7 @@
    {:id :compiler-2/relationship-xr
     :bindings
     [['relationship:roots (relationship-observer/roots-operator)]
+     ['relationship:dataflow (relationship-observer/dataflow-operator)]
      ['cell-window (visualizer/cell-window-operator)]
      ['cell-history (visualizer/cell-history-operator)]
      ['propagator-references (visualizer/propagator-references-operator)]

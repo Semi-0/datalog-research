@@ -1,7 +1,9 @@
 (ns propagators.relationship-observer-test
   (:require [clojure.test :refer [deftest is]]
+            [propagators.cells.cell :as cell]
             [propagators.graph :as graph]
             [propagators.experimental.runner.compound-chain :as chain]
+            [propagators.gur.flat :as gur]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -63,6 +65,53 @@
                    [(relationship/node-key [:outer] a) child]))
     (is (contains? (set (:edges traced)) [parent child]))
     (is (= 2 (get (:values traced) child)))))
+
+(deftest snapshot-uses-existing-dictionary-names-for-anonymous-nodes
+  (let [environment-id (cell-id)
+        operator-id (cell-id)
+        result-id (cell-id)
+        application-id (gur/application-key operator-id [] result-id)
+        propagator-id (gur/stable-node-id [application-id :apply-prop])
+        network0 (-> net/empty-net
+                     (nb/ensure-cell operator-id)
+                     (nb/ensure-cell result-id))
+        [_ network1]
+        (nb/install-propagator
+         network0
+         (prop/construct-propagator propagator-id (fn [_ _ _] [])
+                                    [operator-id] [result-id]))
+        network
+        (-> network1
+            (net/assoc-net-dict-entry
+             :propagators.compiler-2.model.env.index/lexical-topology
+             {:frames {environment-id
+                       {:bindings {'+ #{operator-id}}
+                        :current-bindings {'+ operator-id}}}})
+            (net/assoc-net-dict-entry
+             patch/name-bindings-key
+             {[:compiler-2 :applications]
+              {[application-id :operator] operator-id}}))
+        explicitly-named (net/assoc-net-cell
+                          network operator-id
+                          (cell/cell :test/operator
+                                     (cell/cell-content
+                                      (net/network-env-lookup network operator-id))
+                                     (cell/cell-strongest
+                                      (net/network-env-lookup network operator-id))))
+        traced (observer/snapshot
+                network
+                #{(relationship/node-key [:outer] operator-id)
+                  (relationship/node-key [:outer] propagator-id)})
+        explicitly-named-trace
+        (observer/snapshot explicitly-named
+                           #{(relationship/node-key [:outer] operator-id)})]
+    (is (= '+ (get (:nodes traced)
+                   (relationship/node-key [:outer] operator-id))))
+    (is (= '+ (get (:nodes traced)
+                   (relationship/node-key [:outer] propagator-id))))
+    (is (= :test/operator
+           (get (:nodes explicitly-named-trace)
+                (relationship/node-key [:outer] operator-id))))))
 
 (deftest observer-reacts-to-its-input-and-reads-current-net
   (let [source (cell-id)

@@ -242,6 +242,22 @@ clojure -M:wired/xr
 
 Then open `http://127.0.0.1:45666/`.
 
+The graph page offers three interpretations of the same declarative graph:
+`2D View` uses a planar force layout and orthographic camera, `3D View` uses a
+spatial force layout and perspective camera, and `XR View` presents that 3D
+layout through WebXR when supported. Switching modes does not alter the graph
+payload or propagator network.
+
+The chain example composes `(relationship:roots source relationships)`,
+`(relationship:dataflow relationships semantic)`, and `(xr:io semantic)`.
+The experimental dataflow operator reads Compiler 2 application roles from
+the current Net dictionary and emits a smaller declarative graph. It preserves
+argument/result connections and bidirectional routes, and contracts unnamed
+expression results only when there is one outgoing route to a named cell.
+Fan-out remains explicit. Non-application runtime topology is outside this
+projection; the original `relationships` cell retains the raw graph. This
+projection changes graph content, not the browser's force-layout algorithm.
+
 To observe a relationship graph from a `.lain` file and rebuild the complete
 environment whenever the file changes, run:
 
@@ -249,7 +265,7 @@ environment whenever the file changes, run:
 clojure -M:wired/server --watch examples/lain/relationship-chain.lain --no-dashboard
 ```
 
-`--watch` installs the opt-in `relationship:roots` and `xr:io` bindings and
+`--watch` installs the opt-in `relationship:roots`, `relationship:dataflow`, and `xr:io` bindings and
 starts XR automatically. `relationship:roots` takes seed cells followed by its
 graph output cell and observes their top-level connected components. Each
 successful edit replaces the whole

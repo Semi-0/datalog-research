@@ -16,6 +16,38 @@
   [network tasks]
   (runner/completed-network (runner/run-network tasks network)))
 
+(deftest raw-trace-graphs-compose-with-nested-views-and-resolve-freshly
+  (let [source (node-id)
+        graph-cell (node-id)
+        window-cell (node-id)
+        nested-cell (node-id)
+        graph {:semantic-trace/graph true
+               :nodes {:a "input" :b "output"} :edges [[:a :b]]}
+        window (visualizer/cell-window-declaration :window source)
+        nested (visualizer/juxtapose-declaration :nested [window-cell graph-cell])
+        declaration (visualizer/juxtapose-declaration :outer [graph-cell nested-cell])
+        network (-> net/empty-net
+                    (nb/install-cell source 5 5)
+                    (nb/install-cell graph-cell graph graph)
+                    (nb/install-cell window-cell window window)
+                    (nb/install-cell nested-cell nested nested))
+        resolved (visualizer/resolve-view network declaration)
+        updated-graph (assoc graph :values {:a 5 :b 7})
+        updated (nb/install-cell network graph-cell updated-graph updated-graph)
+        refreshed (visualizer/resolve-view updated declaration)]
+    (is (= [:graph :juxtapose] (mapv :view/type (:view/resolved-children resolved))))
+    (is (= graph (get-in resolved [:view/resolved-children 0 :view/graph])))
+    (is (= graph-cell (get-in resolved [:view/resolved-children 0 :view/source-cell])))
+    (is (= [:cell-window :graph]
+           (mapv :view/type (get-in resolved [:view/resolved-children 1 :view/resolved-children]))))
+    (is (= updated-graph (get-in refreshed [:view/resolved-children 0 :view/graph])))
+    (is (= updated-graph
+           (get-in refreshed [:view/resolved-children 1 :view/resolved-children 1 :view/graph])))
+    (is (= graph (net/network-cell-strongest network graph-cell)))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Graph view source is not a trace graph"
+                         (visualizer/resolve-view network
+                           (visualizer/graph-declaration :invalid source))))))
+
 (deftest cell-window-resolves-current-content-and-strongest
   (let [source (node-id)
         port (node-id)

@@ -30,7 +30,10 @@
     (try
       (let [page (request :get (str base "/relationships") nil)]
         (is (= 200 (.statusCode page)))
-        (is (re-find #"Compiler-2 XR Graph" (.body page))))
+        (is (re-find #"Compiler-2 XR Graph" (.body page)))
+        (is (re-find #"id=\"view-2d\"" (.body page)))
+        (is (re-find #"id=\"view-3d\"" (.body page)))
+        (is (re-find #"id=\"view-xr\"" (.body page))))
       (let [graph {:nodes [{:id "a" :label "A" :kind "cell"}]
                    :edges []}
             posted (request :post
@@ -114,6 +117,41 @@
         ((:close watcher))
         ((:close xr))
         (.delete temporary)))))
+
+(deftest dataflow-endpoint-refreshes-after-an-external-file-edit
+  (let [file (java.io.File/createTempFile "dataflow-reload-" ".lain")
+        source (fn [v]
+                 (str "(def-cells a b raw semantic) (<-> " v " a)"
+                      "(-> (+ a 1) b) (relationship:roots a raw)"
+                      "(relationship:dataflow raw semantic) (xr:io semantic)"))
+        _ (spit file (source 1))
+        opts {:extensions [(relationship-xr/extension)]}
+        session (loader/load-session-from-file file opts)
+        watcher (loader/watch-file! session file (assoc opts :interval-ms 20))
+        running (server/start-server 0 session)
+        endpoint (str "http://" server/default-host ":" (:port running)
+                      "/api/relationships")
+        fetch #(-> (request :get endpoint nil) .body json/read-json :graph)
+        result-value (fn [graph]
+                       (some #(when (= "b" (:label %)) (get-in % [:value :value]))
+                             (:nodes graph)))]
+    (try
+      (is (= "2" (result-value (fetch))))
+      (spit file (source 9))
+      (let [deadline (+ (System/currentTimeMillis) 5000)
+            graph (loop []
+                    (let [g (fetch)]
+                      (if (or (= "10" (result-value g))
+                              (> (System/currentTimeMillis) deadline))
+                        g
+                        (do (Thread/sleep 20) (recur)))))]
+        (is (= "10" (result-value graph)))
+        (is (= 5 (count (:nodes graph))))
+        (is (not-any? #(= ":propagator/anonymous" (:label %)) (:nodes graph))))
+      (finally
+        ((:close watcher))
+        ((:close running))
+        (.delete file)))))
 
 (deftest xr-view-payload-resolves-against-the-replaced-environment
   (let [source (fn [value]

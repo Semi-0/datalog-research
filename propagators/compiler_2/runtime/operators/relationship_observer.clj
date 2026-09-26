@@ -7,6 +7,7 @@
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.network :as net]
             [propagators.propagator :as prop]
+            [propagators.relationship-dataflow :as dataflow]
             [propagators.relationship-observer :as observer]))
 
 (defn- compile-form
@@ -55,4 +56,17 @@
         [(-> state'
              (assoc :net installed)
              (h/add-props (sort-by pr-str introduced)))
+         (cenv/cell-binding output-id)]))}))
+
+(defn dataflow-operator []
+  (operator-value/operator-closure
+   {:name 'relationship:dataflow
+    :direct-installer
+    (fn [state forms _out-id]
+      (when-not (= 2 (count forms))
+        (throw (ex-info "relationship:dataflow expects input and output cells"
+                        {:operand-forms forms})))
+      (let [[compiled [input-id] output-id] (observed-and-output-cells state forms)
+            [id installed] ((dataflow/p:dataflow input-id output-id) (:net compiled))]
+        [(-> compiled (assoc :net installed) (h/add-props [id]))
          (cenv/cell-binding output-id)]))}))

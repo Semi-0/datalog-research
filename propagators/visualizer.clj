@@ -3,6 +3,7 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.event :as event]
+            [propagators.experimental.visualization.data :as collection-data]
             [propagators.graph :as graph]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -10,11 +11,12 @@
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
             [propagators.relationship :as relationship]
-            [propagators.relationship-observer :as relationship-observer])
+            [propagators.relationship-observer :as relationship-observer]
+            [propagators.semantic-trace :as trace])
   (:import [java.nio.charset StandardCharsets]
            [java.util UUID]))
 
-(def view-types #{:cell-window :cell-history :hierarchy :juxtapose})
+(def view-types #{:cell-window :cell-history :hierarchy :juxtapose :collection :graph})
 (def directions #{:inputs :outputs})
 
 (defn stable-id
@@ -41,6 +43,12 @@
   {:view/type :cell-window
    :view/id view-id
    :view/source-cell source-id})
+
+(defn collection-declaration [view-id source-id]
+  {:view/type :collection :view/id view-id :view/source-cell source-id})
+
+(defn graph-declaration [view-id source-id]
+  {:view/type :graph :view/id view-id :view/source-cell source-id})
 
 (defn cell-history-declaration
   [view-id source-id history-id]
@@ -216,13 +224,40 @@
     (when (value/unusable? declaration)
       (throw (ex-info "view declaration cell is not ready"
                       {:cell-id cell-id})))
-    (resolve-view* network declaration (conj visited cell-id))))
+    (resolve-view* network
+                   (cond
+                     (trace/semantic-trace-graph? declaration)
+                     (graph-declaration cell-id cell-id)
+
+                     (collection-data/collection? declaration)
+                     (collection-declaration cell-id cell-id)
+
+                     :else declaration)
+                   (conj visited cell-id))))
 
 (defn- resolve-view*
   [network declaration visited]
   (when-not (view-declaration? declaration)
     (throw (ex-info "not a declarative view" {:declaration declaration})))
   (case (:view/type declaration)
+    :graph
+    (let [source (net/network-cell-strongest network (:view/source-cell declaration))]
+      (when-not (trace/semantic-trace-graph? source)
+        (throw (ex-info "Graph view source is not a trace graph" {:declaration declaration})))
+      (assoc declaration :view/graph source))
+
+    :collection
+    (let [collection (net/network-cell-strongest network (:view/source-cell declaration))
+          projection (collection-data/resolve-collection network collection)
+          selection (or (:view/selection-cell declaration)
+                        (collection-data/field collection :collection/selection-cell))]
+      (when-not (collection-data/collection? collection)
+        (throw (ex-info "Collection view source is not a collection" {:declaration declaration})))
+      (assoc declaration :view/collection projection
+             :view/selection-cell (when-not (value/unusable? selection) selection)
+             :view/epoch (:program/epoch (net/net-dict-or-empty network) 0)
+             :view/revision (str (hash projection))))
+
     :cell-window
     (let [source-id (:view/source-cell declaration)
           source (net/network-env-lookup network source-id)]

@@ -204,6 +204,15 @@ export const update = (model, msg) => {
         [runtimeCommand("xr/extend-graph", { source: msg.source })],
       ];
 
+    case "view/select":
+      return [model, [runtimeCommand("xr/view-select", {
+        "view-id": msg.view.id,
+        "item-id": msg.itemId,
+        epoch: msg.view.epoch,
+        revision: msg.view.revision,
+        generation: msg.view.generation,
+      })]];
+
     case "widget/input":
       {
         const widgets = setWidgetChannelValue(model.widgets, msg.widgetId, msg.channel, msg.value);
