@@ -1,0 +1,9 @@
+(def analysis
+  (clojure-call-graph
+   "propagators"
+   "propagators.runner/run-network"
+   0))
+
+(def calls (call-graph-result analysis))
+
+(xr:io calls)

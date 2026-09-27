@@ -1,5 +1,6 @@
 {:paths ["." "deprecated" "leapfrog" "reference" "differential_leapfrog"]
  :deps {danlentz/clj-uuid {:mvn/version "0.2.5"}
+        clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
         io.github.TimoKramer/charm.clj {:git/url "https://github.com/TimoKramer/charm.clj"
                                          :git/sha "38e6823dc85ec932eefe2ad9c1f204307674c24f"}
         meander/epsilon {:mvn/version "0.0.650"}
@@ -73,4 +74,6 @@
            :wired/environment-io-bench
            {:main-opts ["-m" "graph.compiler-2-environment-io-bench"]}
            :wired/xr
-           {:main-opts ["-m" "graph.xr-server"]}}}
+           {:main-opts ["-m" "graph.xr-server"]}
+           :example/static-call-graph
+           {:main-opts ["-m" "examples.lain.static-call-graph.main"]}}}
