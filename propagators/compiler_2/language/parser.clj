@@ -6,7 +6,8 @@
   before reading."
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
-            [propagators.compiler-2.language.ast :as ast])
+            [propagators.compiler-2.language.ast :as ast]
+            [propagators.compiler-2.model.rest-parameters :as rest-parameters])
   (:import [java.io PushbackReader StringReader]))
 
 (def network-marker :compiler/network)
@@ -42,6 +43,13 @@
     (parse-error (str role " must contain only symbols") {:value v}))
   v)
 
+(defn- fixed-inputs [v role]
+  (symbol-vector v role)
+  (when (some #{'&} v)
+    (parse-error "Rest parameters are supported only in :: and cell-expr"
+                 {:role role :value v}))
+  v)
+
 (defn- body-form [forms role]
   (when-not (seq forms)
     (parse-error (str role " requires at least one body expression")
@@ -71,15 +79,17 @@
               (body-form body "let"))))
 
 (defn- parse-network [[params & body]]
-  (ast/network (symbol-vector params ":: params")
+  (rest-parameters/parameter-spec (symbol-vector params ":: params"))
+  (ast/network params
                (body-form body "::")))
 
 (defn- parse-cell-expr [[params & body]]
-  (ast/network (symbol-vector params "cell-expr params")
+  (rest-parameters/parameter-spec (symbol-vector params "cell-expr params"))
+  (ast/network params
                (body-form body "cell-expr")))
 
 (defn- parse-network-form [[inputs outputs & body]]
-  (ast/compound {:inputs (symbol-vector inputs "network inputs")
+  (ast/compound {:inputs (fixed-inputs inputs "network inputs")
                  :output (symbol-vector outputs "network outputs")}
                 (body-form body "network")))
 
@@ -87,7 +97,7 @@
   (when-not (symbol? name)
     (parse-error "def-net name must be a symbol" {:name name}))
   (ast/def-net name
-               (symbol-vector inputs "def-net inputs")
+               (fixed-inputs inputs "def-net inputs")
                (symbol-vector outputs "def-net outputs")
                (body-form body "def-net")))
 
@@ -95,7 +105,7 @@
   (when-not (symbol? name)
     (parse-error "def-constraint name must be a symbol" {:name name}))
   (ast/def-constraint name
-                      (symbol-vector inputs "def-constraint inputs")
+                      (fixed-inputs inputs "def-constraint inputs")
                       (body-form body "def-constraint")))
 
 (defn- parse-def [[name expr & more]]
@@ -135,10 +145,10 @@
   (cond
     (map? spec)
     (let [{:keys [inputs output]} spec]
-      [(symbol-vector inputs "compound inputs") output])
+      [(fixed-inputs inputs "compound inputs") output])
 
     (vector? spec)
-    [(symbol-vector spec "compound inputs") nil]
+    [(fixed-inputs spec "compound inputs") nil]
 
     :else
     (parse-error "compound expects an input vector or {:inputs ... :output ...}"

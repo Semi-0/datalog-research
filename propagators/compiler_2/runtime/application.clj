@@ -250,11 +250,12 @@
   (let [parameters (closure-value/closure-inputs closure-info)
         output (closure-value/closure-output closure-info)
         outputs (output-symbols output)
+        implicit? (closure-value/implicit-return-output? output)
         input-count (count parameters)
         output-count (count outputs)
         arguments (vec argument-ids)]
     (cond
-      (and (closure-value/implicit-return-output? output)
+      (and implicit?
            (= input-count (count arguments)))
       {:parameters parameters
        :input-ids arguments
@@ -263,7 +264,7 @@
                   :implicit? true
                   :result? true}]}
 
-      (and (pos? output-count)
+      (and (not implicit?) (pos? output-count)
            (= (+ input-count output-count) (count arguments)))
       (let [input-ids (subvec arguments 0 input-count)
             output-ids (subvec arguments input-count)]

@@ -1,0 +1,34 @@
+;; :: always returns its body result; every supplied argument is an input.
+;; Rest parameters are reactive compound lists, not snapshots of their values.
+(def-net pipe-list [x stages] [out]
+  (when (switch true (= stages :compiler-2/list-empty))
+    (-> x out))
+  (when (switch true (not (= stages :compiler-2/list-empty)))
+    (pipe-list ((car stages) x) (cdr stages) out)))
+
+(def pipe
+  (:: [x & stages]
+    (let-cell [out]
+      (pipe-list x stages out)
+      out)))
+
+(def-net compose-list [x stages] [out]
+  (when (switch true (= stages :compiler-2/list-empty))
+    (-> x out))
+  (when (switch true (not (= stages :compiler-2/list-empty)))
+    (let-cell [tail-result]
+      (compose-list x (cdr stages) tail-result)
+      (-> ((car stages) tail-result) out))))
+
+(def compose
+  (:: [& stages]
+    (:: [x]
+      (let-cell [out]
+        (compose-list x stages out)
+        out))))
+
+(def inc1 (:: [x] (+ x 1)))
+(def double (:: [x] (* x 2)))
+(def piped (pipe 3 inc1 double inc1 double))       ;; 18
+(def composed ((compose inc1 double inc1 double) 3)) ;; 15
+(def identity-result ((compose) 3))               ;; 3

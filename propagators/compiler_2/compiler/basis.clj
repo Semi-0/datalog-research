@@ -146,7 +146,9 @@
            [[] (:net state'')]
            (map vector element-ids tail-ids cons-ids))]
       [(-> state''
-           (assoc :net network')
+           (assoc :net (if (empty? element-ids)
+                         (seed-cell network' out-id list-empty-marker)
+                         network'))
            (add-props installed-prop-ids))
        (env/cell-binding out-id)])))
 

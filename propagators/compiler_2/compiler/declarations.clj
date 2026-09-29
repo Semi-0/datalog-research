@@ -7,6 +7,7 @@
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.compiler.dispatch :as dispatch]
+            [propagators.compiler-2.compiler.rest-closure :as rest-closure]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.operators.call-graph :as call-graph]
             [propagators.compiler-common.cps :as cps]
@@ -270,9 +271,9 @@
          (h/add-props [prop-id]))
      prop-id]))
 
-(defn declare-closure
+(defn- declare-fixed-closure
   ([state inputs output body]
-   (declare-closure state nil inputs output body))
+   (declare-fixed-closure state nil inputs output body))
   ([state name inputs output body]
    (let [{closure-output :output closure-body :body}
          (normalize-closure-output (hidden-return-symbol state) output body)
@@ -313,6 +314,8 @@
                       (update :net h/seed-cell closure-id callable))]
      [declared
       closure-binding])))
+
+(def declare-closure (rest-closure/declaration declare-fixed-closure))
 
 (defn- fresh-definition-id
   [state name source-id]
