@@ -137,8 +137,34 @@
   (let [old (observation 30 (premise :A 1 :active) (premise :B 1 :active))
         advanced (join old (observation value/nothing (premise :A 2 :active)))]
     (is (value/nothing? (base advanced)))
-    (is (= #{(premise :A 2 :active) (premise :B 1 :active)}
+    ;; B belonged only to the stale computation, not the current observation.
+    (is (= #{(premise :A 2 :active)}
            (datum/support-of (strongest advanced))))))
+
+(deftest stale-observation-support-does-not-contaminate-current-projection
+  (let [c1 (premise :C 1 :active) c2 (premise :C 2 :active)
+        a2 (premise :A 2 :retracted) b1 (premise :B 1 :active)
+        old (observation value/nothing c1 a2)]
+    (doseq [payload [20 value/nothing value/contradiction]
+            order [[old (observation payload c2 b1)]
+                   [(observation payload c2 b1) old]]]
+      (let [content (apply join order)
+            result (strongest content)]
+        (is (= 2 (count (:support/observations content))))
+        (is (= payload (datum/layer-value result :base)))
+        (is (= #{c2 b1} (datum/support-of result)))
+        (is (= (value/unusable? payload) (value/unusable? result)))
+        (is (= result (strongest (join content old))))))))
+
+(deftest no-current-observation-still-carries-invalidation-information
+  (let [a1 (premise :A 1 :active) a2 (premise :A 2 :active)
+        b1 (premise :B 1 :active) b2 (premise :B 2 :retracted)
+        content (join (observation 10 a1 b2) (observation 20 a2 b1))
+        result (strongest content)]
+    (is (= 2 (count (:support/observations content))))
+    (is (value/nothing? (datum/layer-value result :base)))
+    (is (= #{a2 b2} (datum/support-of result)))
+    (is (value/unusable? result))))
 
 (deftest sources-are-conjunctive-even-for-equal-values
   (let [initial (join (observation 10 (premise :A 1 :active))

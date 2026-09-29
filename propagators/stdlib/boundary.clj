@@ -16,7 +16,7 @@
 
 (defn- sync-link
   [name from to]
-  ((p/primitive-propagator name identity) from to))
+  (p/construct-propagator name prop/forward-activation [from] [to]))
 
 (defn bi-sync
   [_closure-struct input-nodes output-nodes network]

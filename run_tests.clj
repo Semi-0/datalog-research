@@ -41,7 +41,13 @@
     propagators.structural-records-test
     propagators.support-test
     propagators.support-collection-test
+    propagators.support-transport-test
     propagators.support-glitch-test
+    propagators.ttms-branching-test
+    propagators.ttms-accessor-switch-test
+    propagators.ttms-compound-boundary-test
+    propagators.ttms-primitives-test
+    propagators.ttms-publication-test
     propagators.tms-test])
 
 (def graph-test-namespaces

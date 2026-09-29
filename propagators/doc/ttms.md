@@ -120,9 +120,18 @@ Incomparable observations and equal-support unequal-value observations remain.
 `strongest-value` compacts supplied content, computes current source states with
 `support/join`, and excludes payloads whose per-source latest timestamp is stale.
 It merges eligible bases using the injected existing cell merge function, then
-combines the current source states with eligible observations' full support.
+combines **only eligible observations' full support**. The global source frontier
+is a freshness index, not a dependency of every projected value. If no observation
+is eligible, the projection is `nothing` with the frontier as invalidation
+information; no stale payload is relabelled with fresh support.
 Mixed versions in a still-current observation remain visible. Empty content yields
 `nothing`; nonempty content yields a layered datum even when it is unusable.
+
+For example, retained `nothing/{C@1,A@2-retracted}` and `20/{C@2,B@1}`
+project to `20/{C@2,B@1}`. The old observation remains in content but is stale
+through C, so A is not a dependency of the current output. This projection-only
+correction was approved on September 30; the September 29 KIROSHI constraint's
+clause 5 awaits separate model supersession. Evidence merge is unchanged.
 
 - `x/{A@1}` plus distinct `y/{B@7}` yields a contradictory base with `{A@1,B@7}`.
 - Adding `z/{A@1,B@7}` or `z/{A@2,B@7}` subsumes both singleton observations.

@@ -4,12 +4,28 @@
   (:require [clojure.core :as core]
             [propagators.cells.bool4 :as bool4]
             [propagators.cells.value :as value]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support-collection :as collection]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
-(def id
-  (prop/primitive-propagator :stdlib/id (fn [x] x)))
+(defn forward-value
+  "Publish whole supported information without inventing sources or versions.
+  Preserve retained TTMS observations; ordinary values keep strongest semantics."
+  [content strongest]
+  (cond
+    (collection/content? content) content
+    (datum/layer-present? strongest :support) (collection/content strongest)
+    :else strongest))
+
+(defn forward-activation
+  [[from] [to] network]
+  [(message to (forward-value (net/network-cell-content network from)
+                             (net/network-cell-strongest network from)))])
+
+(defn id [from to]
+  (prop/construct-propagator :stdlib/id forward-activation [from] [to]))
 
 (defn- arithmetic-primitive
   [name f]

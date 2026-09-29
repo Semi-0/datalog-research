@@ -10,7 +10,8 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.stdlib.prop :as stdlib-prop]))
 
 (def compiler-callable-key :compiler-2/callable?)
 (def declaration-id-key :compiler-2/declaration-id)
@@ -187,14 +188,18 @@
   [:compiler-2/application application-id direction position])
 
 (defn concrete-boundary
+  "Forward usable ordinary content and supported information, including withdrawal."
   [application-id direction position]
   (fn [source-id target-id]
     (prop/construct-propagator
      (boundary-name application-id direction position)
-     (prop/concrete-propagator
-      (fn [_inputs _outputs network]
-        [(message target-id
-                  (net/network-cell-content network source-id))]))
+     (fn [_inputs _outputs network]
+       (let [content (net/network-cell-content network source-id)
+             update (stdlib-prop/forward-value
+                     content (net/network-cell-strongest network source-id))]
+         (if (value/unusable? update)
+           []
+           [(message target-id (stdlib-prop/forward-value content content))])))
      [source-id]
      [target-id])))
 

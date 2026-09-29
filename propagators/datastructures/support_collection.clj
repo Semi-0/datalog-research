@@ -109,5 +109,11 @@
             ranks (source-ranks frontier)
             current (sort-by pr-str (filter #(current-observation? ranks %) retained))
             base (reduce merge-base value/nothing (map :base current))
-            supports (apply support/combine frontier (map :support current))]
+            ;; The frontier detects freshness; it is not a result dependency.
+            ;; A stale observation's premises must not contaminate a current one.
+            ;; With no current observation, nothing still carries the frontier
+            ;; so an earlier downstream computation can be invalidated.
+            supports (if (seq current)
+                       (apply support/combine (map :support current))
+                       frontier)]
         (projection base supports)))))

@@ -9,6 +9,10 @@ Status: **linear live retraction and all 8 tested diamond schedules pass after
 timestamp-aware support-set compaction. Same-epoch support extension and
 one-newer-source replacement pass; source premises carry injection-cell IDs.
 General glitch freedom is not claimed.**
+Latest slice (September 30): strongest projection and branch recovery are fixed;
+opt-in scalar procedures and headless source-stamped tracing are implemented.
+Whole-TTMS-wrapped compound access has a separately failing migration gate;
+collection/XR migration is not complete. See the final section for current results.
 No runner, Net, cell evaluator, distributed-TMS policy, compound synchronization,
 or generic reducer semantics were changed. Implementation slices below initially
 made no KIROSHI mutations; the later authorized supersession is recorded next.
@@ -420,7 +424,7 @@ opt-in compaction policy; no model facts were changed.
 | Slice | Status and completion gate |
 |---|---|
 | 1. Collection, message lift, live retraction | Headless linear and all 8 diamond schedules pass after approved dominance compaction; default suite passes. Two independent dataflow error-reporting failures remain. |
-| 2. Whole-datum transport audit | Pending. Distinguish unusability for computation from information transport in forwarding and compound access. Obtain renewed approval before changing compound synchronization. |
+| 2. Whole-datum transport audit | Shared identity publication implemented after renewed user approval. Identity, compiler forwarding, application boundaries, and compound-slot chains preserve TTMS updates/withdrawal. Scoped-address and other consumer transport coverage is not exhaustive. |
 | 3. Complete tracer and reactive publication | Pending. Keep tracing pure; compose source/epoch stamping and message lifting separately. Stable source identities; duplicate activation must not manufacture epochs. |
 | 4. Consumer migration | Pending. Migrate trace/dataflow/view consumers, preserve error reasons, and keep XR interpretation separate. Remove graph-specific snapshot merging only after parity. Review clock/TUI/event producers individually. |
 | 5. Cleanup and end-to-end verification | Pending. Audit reducer-cell TMS reachability before removal; verify headless views, desktop/mobile interaction, and full-environment reload. Report runtime, visualization, and regression results separately. |
@@ -430,7 +434,522 @@ browser/reload verification or reducer-cell TMS removal is claimed. The original
 implementation slices did not include commits or model mutation; the subsequently
 authorized model supersession and isolated commit checks are recorded above.
 
-The earlier whole-datum network-slot probe still identifies a transport audit
-item: computation-unusable layered datums must not be discarded merely because
-their bases/support are unusable. Compound synchronization has not been patched.
-The pre-existing tracer work remains untouched.
+The earlier whole-datum network-slot probe identified a transport audit item:
+computation-unusable layered datums must not be discarded merely because their
+bases/support are unusable. The approved forwarding correction is documented
+below. The pre-existing tracer work remains untouched.
+
+## Initial TTMS transport audit — September 29 (before the forwarding fix)
+
+The results below describe the initial audit. The runnable diagnostic has since
+been updated to assert the corrected behavior documented in the next section.
+
+Run the diagnostic without modifying runtime policies:
+
+```sh
+clojure -M -m examples.lain.visualization-combinators.ttms-transport-audit
+```
+
+The command exited successfully. Its 12 assertions verify that identity activation
+and subsequent message lifting preserve the exact payload/support in four cases.
+The other outputs are observations of current behavior, not passing assertions
+for the desired migration behavior.
+
+| Input | Identity / lifted messages | Compiler mono-sync messages | Compound slot result |
+|---|---|---|---|
+| Active `10/{A@1}` | 1 / 1 | 1 | Same value and support |
+| Retracted `nothing/{A@2 retracted}` | 1 / 1 | 0 | Bare nothing; no support |
+| Contradiction with `{A@1}` | 1 / 1 | 0 | Bare nothing; no support |
+| Mixed `30/{A@1,A@2}` | 1 / 1 | 0 | Bare nothing; no support |
+
+Here A is an actual source-cell NodeId. These are isolated snapshot probes, not
+proof of live compound withdrawal. A compiled lexical `x` expression also follows
+10 → 20 → retraction → 7, retaining support. Its result is the source cell itself;
+this does **not** demonstrate transport across compiler-generated forwarding cells.
+
+Responsible boundaries:
+
+- `layered/forward-transport-messages` accepts whole values and skips only nil.
+- Compiler basis `sync-update`, used by `mono-sync-messages`, returns nil for
+  unusable TTMS strongest values. Its existing event/TMS policies are separate.
+- Compound `network-slot` source projection, peer forwarding, and projected
+  accessor paths contain usability gates. The executed probe confirms loss at
+  the slot boundary; it does not separately exercise every peer-routing branch.
+- `stdlib/id` emits the whole datum. `message/lift-message collection/content`
+  correctly packages that emitted datum but cannot restore a suppressed patch.
+
+The reviewed grounding/evolution boundary requires renewed consent before
+changing compound synchronization. No compiler, compound, runner, cell evaluator,
+or distributed-TMS implementation was changed by this audit. A TTMS compiler
+extension cannot yet be claimed to support all primitives and transport paths;
+an arithmetic-only chain benchmark would not establish that claim.
+
+Next decision: approve a separately reviewed, opt-in TTMS transport migration
+covering forwarding and compound access while preserving persistent bidirectional
+topology, or explicitly exclude compound transport from the first compiler
+experiment. Tracer publication, consumer migration, and end-to-end verification
+remain incomplete. No new full-suite, browser, or performance result is claimed
+for this audit-only slice.
+
+## Shared primitive publication — September 29
+
+Following the user's approval to make existing forwarding primitives dependency
+aware, publication is now shared through `stdlib.prop/forward-value`:
+
+```clojure
+(defn forward-value [content strongest]
+  (cond
+    (collection/content? content) content
+    (datum/layer-present? strongest :support) (collection/content strongest)
+    :else strongest))
+```
+
+This operation retains separate TTMS observations when available. It must not
+replace a collection with a newly combined projection: doing so could fabricate
+a jointly supported observation and change dominance. A supported datum without
+collection content uses the existing two-layer publication contract. Extra
+layers are rejected rather than silently discarded. Ordinary values keep their
+previous strongest semantics.
+
+`stdlib/id` and ordinary boundary links share one forwarding activation. Compiler
+basis forwarding and compound-slot source/peer/avatar publication reuse the same
+value operation. TTMS collections can travel even when their projected base or
+support is unusable. No new source identity or timestamp is generated.
+
+The compiled `def-net` test exposed an additional blocking forwarding primitive:
+`application/concrete-boundary` guarded its copy with `concrete-propagator`.
+That boundary now tests the publishable information, retaining supported
+withdrawals. Ordinary nothing/contradiction still block; false still forwards;
+ordinary retained content is still copied intact. The global concrete guard,
+closure construction, application wiring, compiler syntax, scheduler, `Net`,
+cell evaluator, merge, and existing distributed-TMS policy are unchanged.
+The unrelated existing `closure-call` visibility edit was preserved.
+
+This Lain composition is exercised directly by the new tests:
+
+```clojure
+(let-cell [middle out]
+  (def-net copy [input] [output] (-> input output))
+  (copy x middle)
+  (copy middle out)
+  out)
+```
+
+Here `x` is bound to a real injection cell. Explicit updates produce
+`10/A@1 → 20/A@2 → nothing/A@3-retracted → 7/A@4` at the final output.
+Neither the network body nor its application needs a TTMS-specific operator.
+
+Verification:
+
+- `propagators.support-transport-test`: **206 assertions passed** across six
+  tests, including live identity/compiler/bidirectional/compound-slot chains,
+  compiled single and double compound applications, stale replay, quiescent
+  reruns, unchanged topology, conflicts retaining two separate observations,
+  support-only withdrawal, recovery, and ordinary boundary behavior.
+- The runnable audit passes **20 assertions** for active, retracted,
+  contradictory, and mixed-version input. All four now produce forwarding
+  messages and preserve exact support at the compound slot.
+- Separate event and visualization regressions pass **22** and **33** assertions.
+  Dataflow remains **36 passed / 2 known failures**; its diagnostic assertions
+  were not changed. That combined command exits 1.
+- Final `clojure -M:test`: **3,260 assertions passed, zero failures/errors**.
+  This includes the 206 transport assertions; the separately reported dataflow
+  namespace is not in the default suite.
+
+This establishes the tested forwarding compositions, not universal dependency
+awareness of every primitive. Arithmetic continues to use layered procedures
+with the support layer and message lift. An all-primitive compiler environment,
+comparative chain benchmark, tracer publication, consumer migration, and
+desktop/mobile/reload verification remain separate pending work. No KIROSHI
+facts were mutated, and no commit or push was performed in this slice.
+
+## Primitive branching — September 29: implemented, integration blocked
+
+The opt-in `propagators.experimental.ttms-branching/session-extension` declares
+`if`, `switch`, and `branch` through the standard session extension API. Existing
+Compiler 2 syntax and argument/output selectors are reused; `cond` already lowers
+to these operators. Default compiler bindings are unchanged.
+
+The primitive selects argument cell IDs. An ordinary layered procedure returns
+the last selected base and applies `stdlib.support/procedure` to the selected
+arguments. `message/lift-message` packages the result as TTMS evidence. No
+branching code retracts premises, changes source IDs, or advances timestamps.
+
+```clojure
+;; Usable condition: only these two arguments enter layered application.
+(layered/p:apply-layered procedure-id
+                         [condition-id selected-input-id] output-id)
+
+;; Publication is composed using the existing activation interface.
+(prop/compose-activation activation
+                         (message/lift-message collection/content))
+```
+
+Disabled `switch`/`branch` outputs select the condition and a constant `nothing`
+cell. This emits absence with condition support, not a retracted premise.
+An unusable condition selects only itself. Unselected value dependencies never
+enter the emitted observation. Plain constants carry empty support.
+
+Application activations are prepared once using the public layered installer
+on a disposable scratch graph. That graph is not installed in the live network;
+the live selector owns all input/output edges. Evaluation uses the unchanged
+layered runtime and its existing activation-local materialization. There is no
+private executor, mutable history, or persistent per-activation topology.
+
+### Verified boundary and stopping condition
+
+`clojure -M:test propagators.ttms-branching-test`:
+**30 passed, 2 failed, 0 errors (4 tests, 32 assertions)**.
+
+Passing checks cover primitive truthiness (`true`, `false`, `nil`, `0`), exact
+selected support, both branch outputs, disabled output publication, layered
+nothing/contradiction/retracted/mixed conditions, selected unusable values, plain
+constants, compiled `if` and `cond`, unselected-source withdrawal, unchanged
+topology, and quiescent reruns.
+
+The required recovery test reproduces this failure:
+
+```text
+select A:                10      / {C@1 active, A@1 active}
+A withdraws:             nothing / {C@1 active, A@2 retracted}
+select B, primitive:     20      / {C@2 active, B@1 active}       CORRECT
+select B, TTMS strongest:20      / {C@2 active, B@1 active,
+                                   A@2 retracted}               UNUSABLE
+```
+
+Both failing assertions concern the strongest projection: exact support and
+usability. The primitive emission assertion passes. The test remains registered
+in the default suite; it is not skipped, inverted, or weakened.
+
+Current `support-collection/strongest-value` combines the retained source frontier
+with support from current observations. Correcting that is a separate revision
+of clause 5 of `:constraint/ttms-compacts-by-support-dominance`, not a branching
+responsibility. Implementation stopped at the approved boundary. The collection,
+runner, compiler, compound synchronization, and KIROSHI facts were not changed
+by this slice.
+
+The earlier in-memory projection experiment (33 tests / 1,512 assertions passed)
+is supporting evidence only. It is not an implemented or approved contract change.
+Any proposal must preserve independent-source conjunctive invalidation and
+mixed-version incompatibility, while separating obsolete evidence from current
+result dependencies. It needs separate review before consumer migration.
+
+Additional regression check: events **22 passed**, visualization composition
+**33 passed**, and dataflow **36 passed / 2 known failures**. The dataflow command
+exits 1; this slice does not fix its diagnostic failures. `git diff --check` passed.
+The full `clojure -M:test` run completed with **3,290 passed / 2 failed / 0 errors**.
+Only the two newly registered branch-recovery assertions fail; the existing
+default-suite assertions remain green. This is a blocked implementation, not a
+completed migration or a healthy full-suite result.
+
+### Remaining slices and acceptance gates
+
+1. **Branching integration:** resolve the TTMS projection contract separately.
+   Then complete nested conditional support, compiled switch/branch, repeated
+   branch flips, same-valued branches, condition withdrawal/recovery, and task
+   order tests. Current evidence does not establish full reactive branching.
+2. **Transport and core primitives:** complete scoped/nested coverage and the
+   opt-in core primitive environment. No compound synchronization redesign.
+3. **Tracer publication:** pure complete snapshots composed with stable-source,
+   change-sensitive epoch stamping and message lift; unchanged activation must
+   not manufacture observations.
+4. **Consumer migration:** migrate selected dataflow/collection/view consumers;
+   preserve reasons and source references. Retire graph snapshot merging only
+   after replacement parity. XR clears stale data but keeps a status card.
+5. **End-to-end verification:** headless composition, desktop/mobile interaction,
+   external-process file reload, stale controls, and plain/TTMS chain benchmarks
+   (10/100/1,000 stages; initial execution separate from update/withdrawal/recovery).
+
+`when` stays an availability-triggered topology constructor, including concrete
+false values; it is not a truthiness branch. Withdrawal of its already-created
+topology is explicitly deferred. Reducer-cell TMS remains while maintained
+callers exist. Clock/TUI/event migration, commits, pushes, and cross-repository
+ports are not part of this slice.
+
+## Projection correction and continued slices — September 30
+
+The user approved correcting strongest projection while retaining cell content.
+`strongest-value` still uses the global source frontier to identify stale
+observations, but combines only current observations' full support into a current
+result. When no observation is current, the base is `nothing` and the frontier
+remains as invalidation information. No stale payload receives a fresh support.
+Evidence merge and dominance are unchanged. Incompatible current support is
+still incompatible; current independent sources still obey conjunctive retraction.
+
+This fixes the previously recorded branch-recovery failure. The old B-support
+expectation in `incompatible-computations-are-not-relabeled` was updated: B belonged
+only to a stale observation and cannot become a dependency of the current
+`nothing/A@2` observation. New tests cover both arrival orders, stale replay,
+concrete/nothing/contradictory payloads, retained content, and the no-current case.
+The canonical TTMS documentation is updated. KIROSHI clause 5 and its historical
+declaration are not silently overwritten; separate model supersession is pending.
+
+### Continued implementation
+
+- **Branching:** 81 assertions pass, including nested `cond`, compiled `switch`
+  and `branch`, repeated activation/deactivation, condition withdrawal/recovery,
+  equal-valued branches with distinct supports, and all six arrival orders of
+  condition/A/B updates. The existing diamond test separately explores eight
+  task schedules. These finite tests do not prove unrestricted glitch freedom.
+  Correct Lain syntax is `(cond [c a d b else z])`; the earlier multi-vector
+  `cond` test was incorrect and did not establish the coverage previously claimed.
+- **Scalar extension:** `propagators.experimental.ttms-primitives/session-extension`
+  provides `+ - * / <= < > >= = not and or str` plus the branching bindings through
+  the existing session extension API. Each call installs an ordinary base/support
+  layered procedure and composes its activation with message lift. No compiler
+  defaults, lowering, or application contracts changed. **62 assertions pass**,
+  including a compiled arithmetic/conditional chain and `def-net` with both
+  explicit input and lexical capture through update/withdrawal/recovery. Scalar
+  `not` retains Compiler 2 truthiness, and comparisons retain variable arity.
+- **Publication:** `propagators.experimental.ttms-publication` provides
+  `next-source-datum`, `stamp-source`, and a composition of the existing pure
+  observer with stamping and message lift. The source is a dedicated injection
+  cell with positive integer epochs, not the observed cell. All prior state is
+  read explicitly from that cell; no counter/cache is hidden in a closure.
+  Identical base/status reuses the epoch. More than one message to the same
+  source in one activation is rejected, avoiding ambiguous epoch assignment.
+  **22 assertions pass** for pure complete sampling, unchanged reruns, no topology
+  growth, one-source evidence compaction, withdrawal/recovery through forwarding,
+  source ownership validation, and preservation of unrelated patches/metadata.
+
+### New transport boundary: whole supported compound objects
+
+The previously verified shape was a compound object whose slot contains a TTMS
+datum. The additional migration gate tests the distinct shape:
+
+```clojure
+(collection/content
+ {:base (obj/compound-object {:x 10})
+  :support #{{:source owner :timestamp 1 :premises-status :active}}})
+
+;; Access the wrapped object's x slot through the existing bidirectional API.
+((obj/p:network-slot :x output owner) network)
+```
+
+`clojure -M:test propagators.ttms-compound-boundary-test` reports **1 passed,
+0 failed, 1 error**. The plain compound control passes. The wrapped case throws
+`Expected supported collection content`: the accessor declaration sends a raw
+accessor-network fragment to the owner cell, and the normal merge dispatch sends
+that fragment to TTMS evidence merge, which accepts only supported observations.
+The intended wrapped-value assertions are not reached; no correctness is claimed.
+
+This probe is a separately executable migration gate, **not included in the
+default suite**. Its expected behavior is not inverted into an expected exception.
+The current shape must not be advertised as supported merely because the default
+suite passes. The failure is independent of the corrected strongest projection.
+
+The grounding stop boundary applies: do not make TTMS evidence accept raw
+topology declarations, reinterpret writes through source references, change
+compound synchronization, or introduce a private execution path to bypass this.
+The next review must choose an explicit compound-access composition that preserves
+bidirectionality, or approve a narrowly scoped routing change for supported owners.
+Scalar and headless sampler publication do not require that change and are verified
+independently. Consumer migration is paused pending that review.
+
+### Remaining work
+
+- Resolve whole-supported compound access; finish scoped/nested transport gates.
+- Migrate trace/dataflow/map/filter/view consumers and preserve diagnostic reasons.
+  Keep old graph merging until all maintained callers have replacement parity.
+- Integrate source-stamped observers into the live session/loader and XR status
+  cards; verify desktop/mobile interactions and full-environment external reload.
+- Run the plain/TTMS chain-family benchmark with separate timing and instrumentation.
+- Retain reachable reducer-cell TMS. `when` topology withdrawal remains deferred.
+
+Separate regression command: events **22 passed**, visualization **33 passed**,
+dataflow **36 passed / 2 known failures**. The dataflow assertions were not changed.
+No benchmark, browser, phone, reload, or all-primitive-environment completion is
+claimed by this slice. No KIROSHI mutation, commit, or push was performed.
+
+Final verification of this working tree: `clojure -M:test` passed **3,459
+assertions, zero failures/errors**. This includes the corrected projection,
+expanded branching, scalar extension, and source publication tests. It excludes
+the explicitly reported compound migration gate and separate dataflow namespace.
+`git diff --check` passed. Unrelated pre-existing work was preserved.
+
+## Composed read-only compound access: simple and nested gates (2026-09-30)
+
+This section supersedes the **current-status interpretation** of the preceding
+compound probe and 3,459-pass report, not their historical results. The probe had
+sent an accessor declaration to the outer TTMS evidence cell instead of accessing
+the ordinary compound in its base. That failure does not prove that all supported
+compound access requires changing compound synchronization.
+
+The experiment now exposes `ttms-primitives/slot-operator` using the existing
+`scalar-operator` installation: a base closure, `support/procedure`, ordinary
+`layered/p:apply-layered`, and `message/lift-message`. The base closure explicitly
+projects a retained named-network evidence set with `evidence/strongest`, then
+reads the selected slot with `obj/slot-value`. A missing slot produces `nothing`.
+There is no raw accessor declaration into the TTMS owner, source counter, private
+executor, or change to the compiler, runner, cell evaluator, TTMS rules, or compound
+synchronization in this slice. This is **read-only derived access**, not a new
+implementation of the persistent bidirectional `p:network-slot` relation.
+
+The compiled nested test supplies these bindings through the existing compiler
+binding contract (compiler defaults are unchanged):
+
+```clojure
+['read-scope (primitives/slot-operator :scope)]
+['read-x (primitives/slot-operator :x)]
+['environment (env/cell-binding owner)]
+```
+
+It runs the Lain expression:
+
+```clojure
+(+ (read-x (read-scope environment)) 1)
+```
+
+An environment-shaped compound `{:scope <compound {:x 10}>}` produces `11`;
+a fresh environment with `x=20` produces `21`; source withdrawal produces
+`nothing` with retracted support; reactivation with `x=7` produces `8`. Each
+output retains the exact source cell identity, timestamp, and status. This proves
+withdrawal of **data derived from an environment-shaped value**, not deletion of
+compiler lexical bindings, removal of installed topology, or rollback of effects.
+
+### Tests and discovered limits
+
+`propagators.ttms-compound-boundary-test` is now registered in `run_tests.clj`.
+Its **11 tests report 47 passed assertions, 1 failure, and 2 errors**. Failing
+assertions remain normal regression tests, not inverted expected-error checks.
+
+Passing cases cover plain access parity, whole-supported slot reads, source
+isolation, fresh updates, withdrawal/recovery, delayed stale replay, missing and
+false-valued slots, two nested accessors followed by compiled arithmetic,
+two-source support, independent equal-valued assertions under the existing
+conjunctive rule, inspectable slot-local support, stable outer topology, and
+quiescent reruns. The topology assertion covers the active outer network, not
+allocation inside activation-local layered execution.
+
+Two distinct limitations remain:
+
+1. **Nested support is retained but not honored by readiness.** A selected slot
+   can carry a retracted premise inside a nested layered datum. The output's base
+   becomes retained named-network evidence. Explicit evidence projection exposes
+   the child premise correctly, but `value/unusable?` reports the outer result as
+   usable. Current layered readiness does not traverse that evidence container.
+   Retention alone is therefore insufficient to claim correct downstream
+   withdrawal for arbitrary nested supported values.
+2. **Domain `:support` fields are mistaken for TTMS layers.** Both a compound
+   containing `{:x 10 :support :domain-data}` and one also containing a domain
+   `:base` field throw during shared forwarding. `stdlib.prop/forward-value`
+   classifies strongest values by presence of `:support`, then calls
+   `collection/content`, whose exact two-layer contract rejects the domain
+   compound. A domain `:base` field alone passes. These failures occur inside
+   layered application's ordinary compound transport before the new accessor
+   can interpret its base.
+
+Grounding used the current bidirectional-slot constraint (2026-09-24) and explicit
+projection constraint (2026-09-09), with current source and tests checked against
+their older evidence. The affected runtime path stops at the approved fixed
+boundary. No shared readiness/forwarding patch or TTMS policy change is smuggled
+into this experiment. A follow-up needs review of explicit layer identification
+and evidence-aware readiness before this can support arbitrary environments.
+
+Focused existing regressions remain green: compound network slots **71**,
+TTMS primitive/compiler tests **62**, and TTMS branching **81** passing assertions.
+No browser/reload, benchmark, or full compiler-environment retraction claim is
+made. No KIROSHI fact mutation, commit, or push was performed.
+
+Full registered suite: `clojure -M:test` reports **3,506 pass, 1 fail, 2 errors**.
+All failures/errors are the new boundary cases above; other registered tests
+pass. The two separately documented dataflow error-reporting failures are outside
+this default registration and were not rerun or fixed in this slice.
+
+## Bidirectional switch route experiment (2026-09-30): not promoted
+
+The user authorized trying a support-aware bidirectional switch in the accessor,
+continuing migration only if it works, otherwise documenting and committing the
+experiment. `propagators.experimental.ttms-accessor-switch` therefore composes
+the existing opt-in TTMS switches, without replacing ordinary compound bi-sync.
+
+```clojure
+(accessor/install-collection-switch network collection slot-port participant)
+;; => {:network installed :tasks initial-tasks :enabled condition-cell}
+```
+
+The collection-presence condition is an ordinary base/support layered procedure.
+The two directions are the existing switch operator installed as
+`[slot-port enabled] -> participant` and `[participant enabled] -> slot-port`.
+They use the normal constructed runner. No source identities or epochs are
+invented; there is no private executor, mutable reader state, or support stripping.
+
+This is a **route-level acceptance experiment** over explicitly supplied ports,
+not a completed accessor that discovers nested slot addresses or writes a raw
+accessor declaration into a TTMS owner. It tests a necessary condition before
+promoting the route into actual compound-slot installation. Whole-value wrapping
+and the shared projection/identification defects remain separate gates.
+
+### Failure mechanism
+
+With `C` the collection source and `B` the independent slot source:
+
+```text
+before:       slot contains 10 / {B@1 active}
+forward:      participant receives 10 / {C@1 active, B@1 active}
+feedback:     slot receives the same supported value
+compaction:   {C@1, B@1} dominates {B@1}; original evidence is removed
+withdraw C:   route outputs nothing / {C@2 retracted}
+reactivate C: route reads its own withdrawn result, not the original 10/B@1
+              support combines C@2-retracted and C@3-active; result is unusable
+```
+
+This uses the approved timestamp-aware support-set dominance law, not a scheduler
+bug. It also demonstrates why checking a concrete base alone is insufficient:
+the acceptance tests separately require usability and exact support on recovery.
+The source collection cell itself remains unchanged by route execution, both
+initial directions propagate, and the network reaches quiescence without growing
+its outer topology. These passing properties do not repair evidence loss.
+
+`propagators.ttms-accessor-switch-test` retains ordinary **failing acceptance
+assertions** for original-evidence retention and recovery, in both directions.
+The test is registered in the default runner. This checkpoint is deliberately
+not represented as a passing migration or as a supported default accessor.
+
+### Stop boundary and remaining slices
+
+The direct two-switch proposal does **not** satisfy the migration gate. Migration
+of trace/dataflow/map/filter/view consumers and live XR publication is paused.
+Ordinary bidirectional slot topology, TTMS dominance, runner, and compiler
+contracts were not altered to force this experiment to pass.
+
+A follow-up could investigate explicit separation of independent source facts
+from received route contributions, including how a collection update reconstructs
+the current slot projection. That requires a reviewed ownership/transport design;
+simply dropping the collection premise on reverse flow would manufacture an
+unjustified dependency-free result. This failure does not prove that all
+bidirectional supported accessors are impossible.
+
+The earlier temporary JVM diagnosis of whole-compound access remains separate:
+validating support entries before forwarding and explicitly projecting merged
+base evidence passed 3,511 registered assertions under temporary substitutions.
+Those substitutions were **not applied**. A further temporary supported-slot
+arithmetic probe still produced contradiction and lost child premises, showing
+that full selected-slot base/support composition needs its own gate as well.
+
+Deferred work remains: whole-datum/accessor transport, complete tracer consumer
+migration, XR desktop/mobile/reload checks, chain performance measurements, and
+the reachability-gated reducer-cell TMS cleanup. `when` topology withdrawal stays
+explicitly deferred. No KIROSHI mutation is part of this checkpoint.
+
+### Checkpoint verification
+
+- Bidirectional route gate: **3 tests, 18 passed assertions, 10 failures,
+  0 errors**. The failures cover both initial directions: independent evidence
+  loss, failure to recover on collection reactivation, and a fresh source value
+  that restores the base `10` but remains unusable with incorrect support.
+- Earlier whole-compound gate: **47 passed, 1 failure, 2 errors** (nested
+  readiness and ordinary domain `:support` fields).
+- `clojure -M:test` in the working checkout: **3,524 passed, 11 failures,
+  2 errors**. Other registered suites pass. The experimental failures remain
+  visible and are not converted into expected-error assertions.
+
+The checkpoint includes earlier TTMS transport/branching/publication work needed
+to reproduce the experiment. Unrelated tracer/dataflow changes, local skills,
+system-model files, and other prototypes are excluded. The guarded
+bidirectional route is not installed in any default environment.
+
+The exact staged source tree was separately exported and tested without any
+unstaged tracer changes. Its full suite reproduced **3,524 passed, 11 failures,
+2 errors**. Staged whitespace validation passed. This is a reproducible failed
+experiment checkpoint, not an assertion that the full test suite is healthy.

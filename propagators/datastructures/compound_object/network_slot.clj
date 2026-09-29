@@ -12,7 +12,8 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.scoped-address :as scoped]))
+            [propagators.scoped-address :as scoped]
+            [propagators.stdlib.prop :as stdlib-prop]))
 
 (def ^:dynamic *network-slot-observer*
   "Debug hook for measuring accessor routing. Bound by benchmark/debug tooling."
@@ -113,19 +114,18 @@
 
 (defn- message-value
   [v]
-  (if (evidence/evidence-set? v)
-    (evidence/strongest v)
-    v))
+  (stdlib-prop/forward-value
+   v (if (evidence/evidence-set? v) (evidence/strongest v) v)))
 
 (defn- source-slot-message
   [collection-net slot-key parent-id parent-net]
-  (let [v (compound-merge/source-slot-value collection-net slot-key)]
+  (let [v (message-value (compound-merge/source-slot-value collection-net slot-key))]
     (if (or (not (compound-merge/source-slot-present? collection-net slot-key))
             (value/unusable? v)
             (not (messageable-parent? parent-net parent-id))
             (equivalent-to-parent? parent-net parent-id v))
       []
-      [(message parent-id (message-value v))])))
+      [(message parent-id v)])))
 
 (defn- source-slot-messages
   [collection-net slot-key parent-net]
@@ -154,7 +154,9 @@
                (let [avatar-id (compound-merge/accessor-avatar-id slot-key parent-id)]
                  (when (and (messageable-parent? parent-net parent-id)
                             (contains? (net/net-env executed-net) avatar-id))
-                   (let [v (net/network-cell-strongest executed-net avatar-id)]
+                   (let [v (stdlib-prop/forward-value
+                            (net/network-cell-content executed-net avatar-id)
+                            (net/network-cell-strongest executed-net avatar-id))]
                      (when-not (or (value/unusable? v)
                                    (equivalent-to-parent? parent-net parent-id v))
                        (message parent-id (message-value v))))))))

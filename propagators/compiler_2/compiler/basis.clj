@@ -22,6 +22,7 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
+            [propagators.stdlib.prop :as stdlib-prop]
             [propagators.datastructures.behavior.core :as behavior]
             [propagators.datastructures.behavior.arithmetic :as behavior-arithmetic])
   (:import [java.nio.charset StandardCharsets]
@@ -594,7 +595,8 @@
 (defn- sync-update
   [network id]
   (let [content (net/network-cell-content network id)
-        strongest (net/network-cell-strongest network id)]
+        update (stdlib-prop/forward-value
+                content (net/network-cell-strongest network id))]
     (cond
       (tms/distributed-value? content)
       (tms/distributed-forward-update content)
@@ -603,8 +605,8 @@
        content)
       content
 
-      (not (value/unusable? strongest))
-      strongest
+      (not (value/unusable? update))
+      update
 
       :else nil)))
 
