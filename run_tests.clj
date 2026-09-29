@@ -32,11 +32,16 @@
     propagators.experimental.runner-constructor-test
     propagators.install-test
     propagators.layered-procedure-test
+    propagators.layered-support-test
+    propagators.message-lift-test
     propagators.named-network-test
     propagators.network-patch-test
     propagators.reducer-cell-test
     propagators.runner-test
     propagators.structural-records-test
+    propagators.support-test
+    propagators.support-collection-test
+    propagators.support-glitch-test
     propagators.tms-test])
 
 (def graph-test-namespaces

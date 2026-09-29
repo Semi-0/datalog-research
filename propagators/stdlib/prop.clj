@@ -17,7 +17,11 @@
    name
    (fn [& values]
      (cond
-       (some value/contradiction? values) value/contradiction
+       (some value/contradiction? values)
+       (let [provenance (into #{} (mapcat value/contradiction-provenance) values)]
+         (if (seq provenance)
+           (value/contradiction-with-provenance provenance)
+           value/contradiction))
        (some value/nothing? values) value/nothing
        :else
        (try

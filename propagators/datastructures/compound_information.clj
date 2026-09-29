@@ -3,6 +3,7 @@
   (:require [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.event :as event]
+            [propagators.datastructures.support-collection :as supported]
             [propagators.datastructures.tms :as tms]))
 
 (defn slot-data
@@ -18,6 +19,7 @@
 (defn semantic-kind
   [value]
   (cond
+    (supported/content? value) :support-collection
     (or (event/event-content? value)
         (event/event-fact? value)
         (event/event-projection? value)) :event-content

@@ -201,7 +201,7 @@
       (assert-layer (:out-object result) :base 30)
       (assert-layer (:out-object result) :provenance #{:a :b}))))
 
-(deftest layered-apply-bypasses-base-on-provenance-contradiction
+(deftest layered-apply-retains-layers-on-provenance-contradiction
   (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
         contradiction (value/contradiction-with-provenance #{:event/conflict})
         result (run-layered-application
@@ -210,9 +210,11 @@
                 contradiction #{:argument/a}
                 20 #{:argument/b})
         output (:out-object result)]
-    (is (value/contradiction? output))
+    (is (value/contradiction? (obj/slot-value output :base)))
+    (is (= #{:event/conflict}
+           (value/contradiction-provenance (obj/slot-value output :base))))
     (is (= #{:event/conflict :argument/a :argument/b}
-           (value/contradiction-provenance output)))))
+           (obj/slot-value output :provenance)))))
 
 (deftest layered-contradiction-unions-scoped-operator-provenance
   (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
@@ -230,8 +232,11 @@
         n0 (nb/install-cell net scoped-proc-id scoped-proc scoped-proc)
         contradiction (value/contradiction-with-provenance #{:input/conflict})
         result (run-base-only-application n0 scoped-proc-id contradiction 5)]
-    (is (= #{:input/conflict operator-token}
-           (value/contradiction-provenance (:out-object result))))))
+    (is (value/contradiction? (obj/slot-value (:out-object result) :base)))
+    (is (= #{:input/conflict}
+           (value/contradiction-provenance (obj/slot-value (:out-object result) :base))))
+    (is (= #{operator-token}
+           (obj/slot-value (:out-object result) :provenance)))))
 
 (deftest apply-layered-carries-scope-provenance
   (testing "scope provenance joins the existing provenance layer"

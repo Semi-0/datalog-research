@@ -28,6 +28,11 @@
 (defn- resolved [symbol]
   (delay (requiring-resolve symbol)))
 
+(def ^:private support-merge-fn
+  (resolved 'propagators.datastructures.support-collection/merge-content))
+(def ^:private support-strongest-fn
+  (resolved 'propagators.datastructures.support-collection/strongest-value))
+
 (def ^:private event-merge-fn
   (resolved 'propagators.datastructures.event/merge-content))
 (def ^:private event-strongest-fn
@@ -150,6 +155,10 @@
     (value/contradiction? content) content
     (value/contradiction? update) update
     :else (merge-fn content update)))
+
+(defmethod built-in-cell-merge :support-collection
+  [content update _network]
+  (@support-merge-fn content update))
 
 (defmethod built-in-cell-merge :event-content
   [content update _network]
@@ -341,6 +350,10 @@
 (defmethod built-in-strongest-value :distributed-tms
   [content _network]
   (@tms-strongest-fn content))
+
+(defmethod built-in-strongest-value :support-collection
+  [content network]
+  (@support-strongest-fn content #(cell-merge %1 %2 network)))
 
 (defmethod built-in-strongest-value :cell
   [c _network]

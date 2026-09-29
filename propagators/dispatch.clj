@@ -177,17 +177,33 @@
         (net/assoc-net-dict-entry slot-key slot-id))))
 
 (defn layered-object-policy
-  "Reducer combinator that copies each result-bank slot to the same output slot."
-  [_slot-keys]
+  "Lossless layer assembly. Generic reducers intentionally skip unusable values;
+  layers are data even when their values are nothing or contradiction."
+  [slot-keys]
   (fn [n result-bank-id out-id]
-    (install-reducer
-     n
-     result-bank-id
-     (reducer-merge-net
-      (fn [acc {:keys [slot value]}]
-        (assoc-layer-value acc slot value)))
-     (empty-layered-object)
-     out-id)))
+    (let [parents (keep #(obj/existing-slot-cell-id n % result-bank-id) slot-keys)
+          copy-layers
+          (prop/construct-propagator
+           :layered/assemble
+           (fn [_inputs _outputs network]
+             (let [bank (net/network-cell-strongest network result-bank-id)
+                   declared (obj/accessor-slot-keys bank)
+                   result
+                   (reduce
+                    (fn [result slot]
+                      (if (contains? declared slot)
+                        (let [parent (obj/existing-slot-cell-id network slot result-bank-id)
+                              v (if parent
+                                  (net/network-cell-strongest network parent)
+                                  (obj/accessor-source-slot-value bank slot))]
+                          (assoc-layer-value result slot v))
+                        result))
+                    (empty-layered-object) slot-keys)]
+               [(message out-id result)]))
+           (into [result-bank-id] parents)
+           [out-id])
+          [id after] (copy-layers n)]
+      [[id] after])))
 
 (defn select-one-policy
   "Reducer combinator for generic-procedure prototypes.

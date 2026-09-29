@@ -20,6 +20,10 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 
 ## Map
 
+- [TTMS — Temporary Truth Maintenance System](ttms.md) defines the opt-in
+  timestamp-aware support/evidence structure, source-cell identity, specs,
+  ordering laws, contradiction dependencies, and retraction semantics.
+
 - [Flat GUR and Compiler 2 Application](flat-gur-compiler-2-application.md)
   defines the current application protocol, same-network flat GUR topology,
   live compound environments, recursive lexical access, and inspection path.

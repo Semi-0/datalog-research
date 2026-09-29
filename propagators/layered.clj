@@ -5,6 +5,7 @@
             [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.layered-value]
             [propagators.datastructures.named-network :as named]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.dispatch :as dispatch]
@@ -197,19 +198,13 @@
 
 (defn- object-layer-values
   [v]
-  (->> (obj/public-slot-keys v)
-       (keep (fn [layer-name]
-               (let [layer-value (obj/slot-value v layer-name)]
-                 (when (and (some? layer-value)
-                            (not (value/unusable? layer-value)))
-                   [layer-name layer-value]))))
-       (into {})))
+  (into {}
+        (map (fn [layer-name] [layer-name (obj/slot-value v layer-name)]))
+        (obj/public-slot-keys v)))
 
 (defn- add-provenance
   [layered-value provenance]
-  (if (value/contradiction? layered-value)
-    (value/add-contradiction-provenance layered-value provenance)
-    (if (empty? provenance)
+  (if (empty? provenance)
     layered-value
     (let [layers (object-layer-values layered-value)]
       (layer-object-net
@@ -218,40 +213,7 @@
               (set/union (if (set? (:provenance layers))
                            (:provenance layers)
                            #{})
-                         provenance)))))))
-
-(defn- layered-base-value
-  [v]
-  (cond
-    (scope-source/scope-value? v)
-    (layered-base-value (scope-source/base-value v))
-
-    (named/named-network? v)
-    (obj/slot-value v :base)
-
-    :else v))
-
-(defn- layered-contradiction?
-  [v]
-  (value/contradiction? (layered-base-value v)))
-
-(defn- value-provenance
-  [v]
-  (cond
-    (scope-source/scope-value? v)
-    (set/union (scope-source/dependencies v)
-               (value-provenance (scope-source/base-value v)))
-
-    (value/contradiction? v)
-    (value/contradiction-provenance v)
-
-    (named/named-network? v)
-    (let [provenance (obj/slot-value v :provenance)
-          base (obj/slot-value v :base)]
-      (set/union (if (set? provenance) provenance #{})
-                 (value/contradiction-provenance base)))
-
-    :else #{}))
+                         provenance))))))
 
 (defn- normalize-layered-value
   [v]
@@ -265,11 +227,6 @@
     (if scoped?
       (add-provenance layered-value (scope-source/dependencies v))
       layered-value)))
-
-(defn- usable-layer-value?
-  [v]
-  (and (some? v)
-       (not (value/unusable? v))))
 
 (defn- layer-values-from-object
   [v]
@@ -313,10 +270,18 @@
         (install-layer-closure-cell n proc-id :base layer-values)
         arg-base-ids (vec (repeatedly (count arg-ids) ids/new-node-id))
         out-base-id (ids/new-node-id)
+        ;; These arguments are already activation-local materialized datums.
+        ;; Explicitly project every base, including unusable/default values;
+        ;; a computation handler, not the slot transport, interprets the base.
         n1 (reduce
-            (fn [acc id] (if (contains? (net/net-env acc) id) acc (nb/install-cell acc id)))
-            network
-            (into [out-base-id] arg-base-ids))
+            (fn [acc [arg-id base-id]]
+              (let [argument (net/network-cell-strongest network arg-id)
+                    base (if (obj/slot-cell-id argument :base)
+                           (obj/slot-value argument :base)
+                           value/nothing)]
+                (nb/install-cell acc base-id base base)))
+            (nb/install-cell network out-base-id)
+            (map vector arg-ids arg-base-ids))
         [arg-slot-prop-ids n2]
         (reduce
          (fn [[prop-ids acc] [arg-id arg-base-id]]
@@ -482,14 +447,9 @@
 (defn- add-result-provenance
   [n result-id provenance]
   (let [result (strongest-or-nothing n result-id)]
-    (if (and (empty? provenance)
-             (not (layered-contradiction? result)))
+    (if (empty? provenance)
       n
-      (let [result' (if (layered-contradiction? result)
-                      (value/contradiction-with-provenance
-                       (set/union provenance (value-provenance result)))
-                      (add-provenance (normalize-layered-value result)
-                                      provenance))]
+      (let [result' (add-provenance (normalize-layered-value result) provenance)]
         (net/assoc-net-cell n result-id (cell/cell result' result'))))))
 
 (defn- build-layered-application
@@ -538,10 +498,8 @@
 (defn- layered-apply-activate
   [proc-id arg-ids out-id]
   (fn [_input-ids _output-ids outer-net]
-    (let [raw-arg-values (application/cell-values outer-net arg-ids)
-          raw-proc-value (strongest-or-nothing outer-net proc-id)]
-      (if (or (value/nothing? raw-proc-value)
-              (some value/nothing? raw-arg-values))
+    (let [raw-proc-value (strongest-or-nothing outer-net proc-id)]
+      (if (value/nothing? raw-proc-value)
         []
         (let [arg-values (mapv #(materialize-layered-cell-value outer-net %)
                                arg-ids)
@@ -558,18 +516,8 @@
                                 (scope-source/dependencies v)
                                 #{})))
                           arg-ids))
-              contradiction-provenance
-              (apply set/union
-                     lexical-provenance
-                     (map value-provenance
-                          (into [proc-value] arg-values)))
               layers (sort-by pr-str (keys layer-values))]
-          (if (some layered-contradiction?
-                    (into [proc-value] arg-values))
-            [(message out-id
-                      (value/contradiction-with-provenance
-                       contradiction-provenance))]
-            (if (empty? layers)
+          (if (empty? layers)
             []
             (let [{:keys [reduced-out-id] :as app}
                   (build-layered-application outer-net
@@ -583,7 +531,7 @@
                   after (-> (application/run-reduced-application app)
                             (add-result-provenance reduced-out-id
                                                    lexical-provenance))]
-              (application/diff-reduced-output outer-net after reduced-out-id out-id)))))))))
+              (application/diff-reduced-output outer-net after reduced-out-id out-id))))))))
 
 (defn p:apply-layered
   ([proc-id arg-ids out-id]

@@ -24,8 +24,19 @@
 
 (def nothing? bool4/nothing?)
 (def contradiction? bool4/contradiction?)
-(defn unusable? [x] (bool4/unusable? x))
-(defn any-unusable-values? [& values] (boolean (some unusable? values)))
+(defmulti unusable?
+  "Whether a datum is unusable for computation, not whether to transport it."
+  class)
+
+(defmethod unusable? :default [x] (bool4/unusable? x))
+
+(defmulti any-unusable-values?
+  "Tuple readiness. Layered implementations additionally check shared sources."
+  (fn [& values]
+    (if (some map? values) :compound :plain)))
+
+(defmethod any-unusable-values? :default [& values]
+  (boolean (some unusable? values)))
 (defn value-payload [x] (when-not (unusable? x) x))
 (defn cell-value-equal? [a b] (= a b))
 

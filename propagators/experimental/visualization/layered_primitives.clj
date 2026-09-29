@@ -60,6 +60,20 @@
         update (tms/distributed-result-update [::result output] payload contents)]
     [(message output (if (some? update) update payload))]))
 
+(defn- concrete-layered-call
+  "Scalar observations wait for arguments; generic layered procedures need not."
+  [procedure arguments result]
+  (fn [network]
+    (let [[id installed]
+          ((layered/p:apply-layered ::apply procedure arguments result) network)
+          application (net/network-env-lookup installed id)
+          activate (prop/concrete-propagator (prop/prop-f application))]
+      [id (net/assoc-net-prop
+           installed id
+           (assoc application :activate
+                  (fn [_inputs _outputs current]
+                    (activate arguments [result] current))))])))
+
 (defn install-call
   "Declare input adapters -> layered application -> support-preserving output.
   Argument adapters are one-way. All persistent state lives in ordinary cells."
@@ -76,7 +90,7 @@
                       (map (fn [source target]
                              ((prop/primitive-propagator ::input input-value) source target))
                            arguments adapted)
-                      [(layered/p:apply-layered ::apply procedure adapted result)
+                      [(concrete-layered-call procedure adapted result)
                        (prop/construct-propagator
                         ::output
                         (prop/concrete-propagator
