@@ -1,5 +1,8 @@
 # Supported struct data and persistent slot topology
 
+Current follow-up: [slice checkpoint, publication integration, benchmark, and
+remaining migration boundary](TTMS_SLICE_PROGRESS.md).
+
 ## Main promotion verification — 2026-09-30
 
 The source and test were verified in an isolated export of `f986aca`, without
