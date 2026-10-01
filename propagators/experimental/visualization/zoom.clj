@@ -3,7 +3,6 @@
   (:require [clojure.set :as set]
             [propagators.compiler-2.model.operator-value :as operator]
             [propagators.datastructures.dependency :as dependency]
-            [propagators.datastructures.tms.core :as tms]
             [propagators.experimental.visualization.collections :as collections]
             [propagators.experimental.visualization.data :as data]
             [propagators.message :refer [message]]
@@ -36,7 +35,7 @@
 (defn- source-patches [network output entry]
   (let [current (net/network-cell-strongest network (:value entry))
         refs (set/union (:sources entry)
-                        (dependency/sources (tms/distributed-base-value current)))]
+                        (dependency/sources (data/evidence-value current)))]
     (into []
           (mapcat
            (fn [ref]

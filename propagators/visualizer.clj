@@ -4,6 +4,7 @@
             [propagators.cells.value :as value]
             [propagators.datastructures.event :as event]
             [propagators.experimental.visualization.data :as collection-data]
+            [propagators.experimental.visualization.ttms :as ttms]
             [propagators.graph :as graph]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -220,12 +221,16 @@
   (when (contains? visited cell-id)
     (throw (ex-info "cyclic declarative view"
                     {:cell-id cell-id :visited visited})))
-  (let [declaration (net/network-cell-strongest network cell-id)]
-    (when (value/unusable? declaration)
+  (let [current (net/network-cell-strongest network cell-id)
+        declaration (collection-data/payload current)]
+    (when (and (value/unusable? declaration) (not (ttms/supported? current)))
       (throw (ex-info "view declaration cell is not ready"
                       {:cell-id cell-id})))
     (resolve-view* network
                    (cond
+                     (and (ttms/supported? current) (value/unusable? current))
+                     (graph-declaration cell-id cell-id)
+
                      (trace/semantic-trace-graph? declaration)
                      (graph-declaration cell-id cell-id)
 
@@ -241,10 +246,15 @@
     (throw (ex-info "not a declarative view" {:declaration declaration})))
   (case (:view/type declaration)
     :graph
-    (let [source (net/network-cell-strongest network (:view/source-cell declaration))]
-      (when-not (trace/semantic-trace-graph? source)
+    (let [current (net/network-cell-strongest network (:view/source-cell declaration))
+          source (collection-data/payload current)
+          blocked? (and (ttms/supported? current) (value/unusable? current))]
+      (when-not (or blocked? (trace/semantic-trace-graph? source))
         (throw (ex-info "Graph view source is not a trace graph" {:declaration declaration})))
-      (assoc declaration :view/graph source))
+      (cond-> (assoc declaration :view/graph (if blocked? (trace/graph-union {}) source))
+        (ttms/supported? current)
+        (assoc :view/status (ttms/status current)
+               :view/reasons (value/contradiction-provenance source))))
 
     :collection
     (let [collection (net/network-cell-strongest network (:view/source-cell declaration))

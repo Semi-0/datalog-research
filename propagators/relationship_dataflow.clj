@@ -1,7 +1,9 @@
 (ns propagators.relationship-dataflow
   "Experimental Compiler 2 application projection, independent of rendering."
   (:require [propagators.cells.value :as value]
+            [propagators.combinator :as combinator]
             [propagators.compiler-2.runtime.application :as application]
+            [propagators.compiler-2.runtime.application-ports :as ports]
             [propagators.gur.flat :as gur]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -21,36 +23,61 @@
      (let [owner (observer/network-at-path network path)]
        (for [app (application/application-topologies owner)
              :let [id [path (gur/stable-node-id [(:application-id app) :apply-prop])]]
-             :when (contains? (:nodes operational) id)]
-         {:id id
+             :when (contains? (:nodes operational) id)
+             :let [interface (ports/application-ports owner app)]
+             :when (not (value/nothing? interface))]
+         {:id id :routing (:routing interface)
           :label (get (:nodes operational) id)
+          :inputs (mapv #(vector path %) (:inputs interface))
+          :outputs (mapv #(vector path %) (:outputs interface))
           :arguments (mapv #(vector path %) (:argument-ids app))
           :result [path (:result-id app)]})))
    (distinct (map first (keys (:nodes operational))))))
 
-(defn- application-edges [{:keys [id label arguments result]}]
-  (cond
-    (= '-> label)
-    (if (= 2 (count arguments))
-      [[(first arguments) (second arguments)]]
-      (throw (ex-info "Invalid routing application" {:id id})))
+(defn port-edges [{:keys [id inputs outputs]}]
+  (vec (distinct (concat (map #(vector % id) inputs)
+                         (map #(vector id %) outputs)))))
 
-    (= '<-> label)
-    (if (= 2 (count arguments))
-      [arguments (vec (reverse arguments))]
-      (throw (ex-info "Invalid bidirectional application" {:id id})))
+(defn forward-edges [{:keys [arguments]}]
+  (when (< (count arguments) 2)
+    (throw (ex-info "Routing requires at least two cells" {:arguments arguments})))
+  (mapv vec (partition 2 1 arguments)))
 
-    :else
-    (conj (mapv #(vector % id) arguments) [id result])))
+(defn bidirectional-edges [application]
+  (let [forward (forward-edges application)]
+    (into forward (map #(vec (reverse %)) forward))))
+
+(defn reject-routing [application]
+  (throw (ex-info "Unsupported graph routing"
+                  {:routing (:routing application) :application-id (:id application)})))
+
+(def application-edges
+  (combinator/branch
+   #(= :forward (:routing %)) forward-edges
+   #(= :bidirectional (:routing %)) bidirectional-edges
+   #(= :application (:routing %)) port-edges
+   reject-routing))
+
+(defn- retain-consumed-results [applications]
+  (let [consumers (reduce (fn [index {:keys [id inputs]}]
+                            (reduce #(update %1 %2 (fnil conj #{}) id) index inputs))
+                          {} applications)]
+    (mapv (fn [{:keys [id result outputs routing] :as app}]
+            (if (and (= :application routing)
+                     (seq (disj (get consumers result #{}) id))
+                     (not (some #{result} outputs)))
+              (update app :outputs conj result)
+              app))
+          applications)))
 
 (defn- contractions [operational applications edges]
   (let [outgoing (group-by first edges)
-        results (set (map :result (remove #(contains? #{'-> '<->} (:label %))
+        results (set (map :result (filter #(= :application (:routing %))
                                          applications)))]
     (into {}
-          (keep (fn [{:keys [label arguments]}]
+          (keep (fn [{:keys [routing arguments]}]
                   (let [[source target] arguments]
-                    (when (and (= '-> label)
+                    (when (and (= :forward routing)
                                (contains? results source)
                                (not (named-label? (get (:nodes operational) source)))
                                (named-label? (get (:nodes operational) target))
@@ -66,8 +93,9 @@
   (when-not (trace/semantic-trace-graph? operational)
     (throw (ex-info "relationship:dataflow expects a relationship graph"
                     {:value operational})))
-  (let [applications (remove #(contains? #{'xr:io 'io:xr} (:label %))
-                             (selected-applications network operational))
+  (let [applications (retain-consumed-results
+                      (remove #(contains? #{'xr:io 'io:xr} (:label %))
+                              (selected-applications network operational)))
         edges (vec (distinct (mapcat application-edges applications)))
         aliases (contractions operational applications edges)
         canonical #(get aliases % %)
@@ -77,7 +105,7 @@
                                   edges)))
         selected (set (mapcat identity edges))
         operations (into {} (map (juxt :id :label))
-                         (remove #(contains? #{'-> '<->} (:label %)) applications))
+                         (filter #(= :application (:routing %)) applications))
         cells (remove #(contains? operations %) selected)
         sampled (observer/snapshot network cells)
         labels (into {}
@@ -97,12 +125,29 @@
       :values (select-keys (:values sampled) cells)
       :edges edges})))
 
+(defn project-result
+  [project network graph input-id output-id]
+  (try
+    (project network graph)
+    (catch InterruptedException error
+      (.interrupt (Thread/currentThread))
+      (throw error))
+    (catch java.util.concurrent.CancellationException error
+      (throw error))
+    (catch Exception error
+      (value/contradiction-with-provenance
+       [{:operation :relationship/dataflow
+         :input-cell input-id :output-id output-id
+         :reason (or (ex-message error) (.getName (class error)))
+         :exception-class (.getName (class error))}]))))
+
 (defn p:dataflow [operational-id semantic-id]
   (prop/construct-propagator
    :relationship/dataflow
-   (fn [_inputs _outputs network]
-     (let [operational (net/network-cell-strongest network operational-id)]
-       (if (value/unusable? operational)
-         []
-         [(message semantic-id (dataflow-graph network operational))])))
+   (prop/concrete-propagator
+    (fn [_inputs _outputs network]
+      (let [operational (net/network-cell-strongest network operational-id)
+            result (project-result dataflow-graph network operational
+                                   operational-id semantic-id)]
+        [(message semantic-id result)])))
    [operational-id] [semantic-id]))

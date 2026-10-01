@@ -1,9 +1,11 @@
 (ns propagators.experimental.view-xr-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [clojure.test :refer [deftest is use-fixtures testing]]
             [clojure.string :as str]
             [graph.xr-runtime :as xr]
+            [graph.json :as json]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
             [propagators.experimental.visualization.extension :as extension]
+            [propagators.experimental.ttms-primitives :as ttms]
             [propagators.experimental.visualization.data :as data]
             [propagators.experimental.visualization.interaction :as interaction]
             [propagators.experimental.visualization.layered-primitives :as primitives]
@@ -11,9 +13,18 @@
             [propagators.experimental.visualization-composition-test :as fixture]
             [propagators.network :as net]
             [propagators.propagator :as prop]
+            [propagators.runner :as runner]
             [propagators.relationship-observer :as observer]))
 
 (def options {:extensions [primitives/session-extension extension/extension]})
+(def ttms-options
+  {:extensions [extension/ttms-extension ttms/session-extension primitives/ttms-extension]})
+
+(use-fixtures :each
+  (fn [test]
+    (doseq [[label environment] [[:legacy options] [:ttms ttms-options]]]
+      (testing (name label)
+        (with-redefs [options environment] (test))))))
 (def source
   "(def-cells selection)
    (def raw (list 2 3))
@@ -80,9 +91,21 @@
       (is (seq (get-in views [0 :graph :nodes])))
       (is (seq (get-in views [7 :graph :edges])))
       (xr/handle-command! session (command session 0))
-      (is (seq (:items (collections/result @session 'zoom)))))
-    (let [graph (net/network-cell-strongest (:program/net @session)
-                 (fixture/binding-id @session 'composition-graph))]
+      (is (seq (:items (collections/result @session 'zoom))))
+      (let [steps (atom 0)]
+        (binding [runner/*advance-transform*
+                  (fn [advance]
+                    (fn [state continuations]
+                      (when (> (swap! steps inc) 10000)
+                        (throw (ex-info "Clear selection did not quiesce" {:steps @steps})))
+                      (advance state continuations)))]
+          (let [clear (assoc (dissoc (command session 0) :item-id) :clear? true)
+                wire (json/read-json (json/write-json clear))]
+            (xr/handle-command! session (update wire :op keyword)))))
+      (is (empty? (:items (collections/result @session 'focused))))
+      (is (empty? (:items (collections/result @session 'zoom)))))
+    (let [graph (data/payload (net/network-cell-strongest (:program/net @session)
+                 (fixture/binding-id @session 'composition-graph)))]
       (is (seq (:nodes graph)))
       (is (seq (:edges graph))))
     (let [network (:program/net @session)

@@ -39,7 +39,9 @@
   (let [[id n] (installer network)]
     {:network n :tasks (conj tasks id)}))
 
-(defn- fixture [cycle?]
+(defn- fixture
+  ([cycle?] (fixture cycle? field/p:structural-field))
+  ([cycle? field-installer]
   (let [[data a b c ab bc ca] (repeatedly 7 ids/new-node-id)
         links (if cycle? [[ab a] [ab b] [bc b] [bc c] [ca c] [ca a]]
                   [[ab a] [ab b] [bc b] [bc c]])
@@ -47,9 +49,9 @@
                             (install state (obj/p:network-slot :x participant owner)))
                           {:network (nb/install-cells [data a b c ab bc ca]) :tasks []}
                           links)
-        installed (install installed (field/p:structural-field data :x b))]
+        installed (install installed (field-installer data :x b))]
     (assoc installed :network (:network (execute (:network installed) (:tasks installed)))
-           :data data :peers [a b c] :owner ab)))
+           :data data :peers [a b c] :owner ab))))
 
 (defn- view [n id]
   (let [v (net/network-cell-strongest n id)]
@@ -204,6 +206,149 @@
                    (message/message writer (observation 20 pb))]
           n (apply publish network (if reverse? (reverse patches) patches))]
       (check-peers n peers value/contradiction #{pa pb} true))))
+
+(defn- state-update [& premises]
+  (collection/content {:premise-state (set premises)}))
+
+(deftest stateful-struct-lifecycle-keeps-real-slot-topology
+  (doseq [cycle? [false true]
+          installer [field/p:structural-field field/p:structural-data-field]]
+    (let [{:keys [network data peers tasks]} (fixture cycle? installer)
+          ready (publish network (message/message data
+                                 (collection/merge-content
+                                  (observation {:x 10} (premise data 1 :active))
+                                  (state-update))))
+          withdrawn (publish ready (message/message data (state-update (premise data 2 :retracted))))
+          active (publish withdrawn (message/message data (state-update (premise data 3 :active))))
+          recovered (publish active (message/message data (observation {:x 20} (premise data 3 :active))))
+          absent (publish recovered (message/message data (observation {} (premise data 4 :active))))
+          final (publish absent (message/message data (observation {:x 30} (premise data 5 :active))))]
+      (doseq [id peers]
+        (is (= 10 (:base (view ready id))))
+        (doseq [[n epoch status] [[withdrawn 2 :retracted] [active 3 :active] [absent 4 :active]]]
+          (let [v (net/network-cell-strongest n id)]
+            (is (value/nothing? (datum/layer-value v :base)))
+            (is (= #{(premise data epoch status)} (datum/layer-value v :premise-state)))
+            (is (every? #(not (value/unusable? (:base %)))
+                        (:support/observations (net/network-cell-content n id))))))
+        (is (= 20 (:base (view recovered id))))
+        (is (= 30 (:base (view final id)))))
+      (is (= (net/net-graph network) (net/net-graph final)))
+      (is (= final (:network (execute final tasks))))
+      (is (= final (publish final (message/message data (state-update (premise data 2 :retracted)))))))))
+
+(deftest stateful-nested-fields-transport-both-struct-and-field-premises
+  (let [{:keys [network data peers]} (fixture true)
+        [owner left right field-source] (repeatedly 4 ids/new-node-id)
+        installed (-> {:network (reduce nb/ensure-cell network [owner left right field-source]) :tasks []}
+                      (install (obj/p:network-slot :y left owner))
+                      (install (obj/p:network-slot :y right owner))
+                      (install (field/p:structural-field (last peers) :y left)))
+        n (:network (execute (:network installed) (:tasks installed)))
+        pb (premise field-source 1 :active)
+        ready (publish n (message/message data
+                          (collection/merge-content
+                           (observation {:x {:y (observation 42 pb)}} (premise data 1 :active))
+                           (state-update))))
+        withdrawn (publish ready (message/message data (state-update (premise field-source 2 :retracted))))
+        restored (publish withdrawn (message/message data
+                                     (observation {:x {:y (observation 43 (premise field-source 3 :active))}}
+                                                  (premise data 2 :active))))]
+    (check-peers ready [left right] 42 #{pb (premise data 1 :active)} false)
+    (doseq [id [left right]]
+      (is (value/nothing? (:base (view withdrawn id))))
+      (is (contains? (datum/layer-value (net/network-cell-strongest withdrawn id) :premise-state)
+                     (premise field-source 2 :retracted))))
+    (check-peers restored [left right] 43 #{(premise field-source 3 :active) (premise data 2 :active)} false)))
+
+(deftest stateful-conflicting-writes-repair-with-fresh-information
+  (doseq [reverse? [false true]]
+    (let [{:keys [network data peers]} (fixture true)
+          writer (last peers)
+          pa (premise data 1 :active) pb (premise writer 1 :active)
+          patches [(message/message data (collection/merge-content (observation {:x 10} pa) (state-update)))
+                   (message/message writer (observation 20 pb))]
+          conflict (apply publish network (if reverse? (reverse patches) patches))
+          fixed (publish conflict (message/message writer (observation 10 (premise writer 2 :active))))]
+      (check-peers conflict peers value/contradiction #{pa pb} true)
+      (check-peers fixed peers 10 #{pa (premise writer 2 :active)} false)
+      (is (= (net/network-cell-content conflict data) (net/network-cell-content fixed data))))))
+
+(deftest stateful-data-before-access-and-late-participants
+  (let [[data owner left right] (repeatedly 4 ids/new-node-id)
+        seeded (publish (nb/install-cells [data owner left right])
+                        (message/message data
+                         (collection/merge-content (observation {:x 10} (premise data 1 :active))
+                                                   (state-update))))
+        installed (-> {:network seeded :tasks []}
+                      (install (field/p:structural-field data :x left))
+                      (install (obj/p:network-slot :x left owner)))
+        n (:network (execute (:network installed) (:tasks installed)))
+        withdrawn (publish n (message/message data (state-update (premise data 2 :retracted))))
+        [id n] ((obj/p:network-slot :x right owner) withdrawn)
+        late (:network (execute n [id]))
+        restored (publish late (message/message data (observation {:x 20} (premise data 3 :active))))]
+    (doseq [id [left right]]
+      (is (value/nothing? (:base (view late id))))
+      (is (= #{(premise data 2 :retracted)}
+             (datum/layer-value (net/network-cell-strongest late id) :premise-state))))
+    (check-peers restored [left right] 20 #{(premise data 3 :active)} false)))
+
+(deftest ordinary-struct-field-names-are-not-ttms-metadata
+  (doseq [payload [{:x 10 :support :domain-support}
+                   {:x 10 :base :domain-base :support :domain-support}]]
+    (let [{:keys [network data peers]} (fixture false field/p:structural-data-field)
+          [tasks seeded] (core/eval-cells
+                          [(message/message data
+                            (collection/merge-content (observation payload (premise data 1 :active))
+                                                      (state-update)))] network)
+          result (runner/run-network tasks seeded)]
+      (is (= :completed (:status result)) (some-> (:error result) ex-message))
+      (if (= :completed (:status result))
+        (check-peers (:network result) peers 10 #{(premise data 1 :active)} false)
+        (is (some? (:error result)) "Keep the boundary failure inspectable")))))
+
+(deftest structural-data-extension-preserves-nested-domain-keys-and-outer-control
+  (doseq [stateful? [false true]]
+    (let [{:keys [network data peers]} (fixture true field/p:structural-data-field)
+          [owner left right] (repeatedly 3 ids/new-node-id)
+          installed (-> {:network (reduce nb/ensure-cell network [owner left right]) :tasks []}
+                        (install (obj/p:network-slot :support left owner))
+                        (install (obj/p:network-slot :support right owner))
+                        (install (field/p:structural-data-field (last peers) :support left)))
+          n (:network (execute (:network installed) (:tasks installed)))
+          payload {:base value/nothing :support :domain-support
+                   :x {:base value/contradiction :support 42}}
+          initial (observation payload (premise data 1 :active))
+          initial (if stateful? (collection/merge-content initial (state-update)) initial)
+          ready (publish n (message/message data initial))
+          withdrawal (if stateful?
+                       (state-update (premise data 2 :retracted))
+                       (observation value/nothing (premise data 2 :retracted)))
+          withdrawn (publish ready (message/message data withdrawal))
+          restored (publish withdrawn (message/message data
+                                       (observation (assoc-in payload [:x :support] 43)
+                                                    (premise data 3 :active))))]
+      (check-peers ready [left right] 42 #{(premise data 1 :active)} false)
+      (doseq [id [left right]]
+        (is (value/nothing? (:base (view withdrawn id)))))
+      (check-peers restored [left right] 43 #{(premise data 3 :active)} false)
+      (is (= (net/net-graph ready) (net/net-graph restored)))
+      (is (= (net/network-cell-content ready data)
+             (net/network-cell-content (nb/run-propagators ready (:tasks installed)) data))))))
+
+(deftest structural-data-extension-still-blocks-unusable-outer-envelopes
+  (doseq [base [value/nothing value/contradiction]
+          status [:active :retracted]]
+    (let [{:keys [network data peers]} (fixture false field/p:structural-data-field)
+          n (publish network (message/message data
+                              (collection/merge-content
+                               (observation base (premise data 1 status)) (state-update))))]
+      (doseq [id peers]
+        (is (value/nothing? (:base (view n id))))
+        (is (= #{} (:support/observations (net/network-cell-content n id))))
+        (is (= #{(premise data 1 status)}
+               (datum/layer-value (net/network-cell-strongest n id) :premise-state)))))))
 
 (defn diagnostic
   "Bounded sample, not a performance benchmark. Counts real runner transitions."

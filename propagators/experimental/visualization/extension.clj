@@ -6,6 +6,7 @@
             [propagators.experimental.visualization.collections :as collections]
             [propagators.experimental.visualization.observation :as observation]
             [propagators.experimental.visualization.presentation :as presentation]
+            [propagators.experimental.visualization.trace :as trace]
             [propagators.experimental.visualization.zoom :as zoom]))
 
 (def extension
@@ -26,4 +27,13 @@
                ['relationship:dataflow (relationship/dataflow-operator)]
                ['relationship:roots (relationship/roots-operator)]
                ['xr:io (xr/xr-io-operator (runtime-ids/boundary-outbox-id))]]
+    :effects []}))
+
+(def ttms-extension
+  (session/extension-bundle
+   {:id ::ttms-collections
+    :bindings (into (vec (remove #(contains? #{'relationship:roots 'relationship:dataflow} (first %))
+                                (session/extension-bindings extension)))
+                    [['relationship:roots (trace/roots-operator)]
+                     ['relationship:dataflow (trace/dataflow-operator)]])
     :effects []}))

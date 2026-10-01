@@ -24,6 +24,12 @@ assert.deepEqual(sent, [{
   epoch: 1, revision: "revision", generation: "environment",
 }]);
 assert.deepEqual(view, original);
+const [, clearEffects] = update(model, Msg.ViewClear(view));
+clearEffects[0].run(() => {}, { socket: { readyState: 1, send: (text) => sent.push(JSON.parse(text)) } });
+assert.deepEqual(sent[1], {
+  op: "xr/view-select", "view-id": "view", "clear?": true,
+  epoch: 1, revision: "revision", generation: "environment",
+});
 const graph = {
   type: "graph", id: "raw-trace",
   graph: { nodes: [{ id: "a" }, { id: "b" }], edges: [{ from: "a", to: "b" }] },
@@ -32,6 +38,10 @@ assert.deepEqual(flattenViewPlanes([
   { type: "juxtapose", children: [graph, { type: "juxtapose", children: [view] }] },
 ]), [graph, view]);
 assert.deepEqual(viewLines(graph), ["2 nodes", "1 relationships"]);
+assert.deepEqual(viewLines({ ...graph, status: "withdrawn", graph: { nodes: [], edges: [] } }),
+  ["withdrawn · 0 nodes"]);
+assert.deepEqual(viewLines({ ...graph, status: "contradiction", reasons: [{ kind: "value", value: "bad graph" }] }),
+  ["contradiction · 0 nodes", "bad graph"]);
 const positions = forceCardPositions(graph.graph);
 assert.deepEqual(positions, forceCardPositions(graph.graph));
 assert.deepEqual(forceCardPositions({ nodes: [], edges: [] }), {});
@@ -91,4 +101,4 @@ pick(planes[1], 706, 36);
 pick(planes[1], 384 + (100 - 384) * 1.25, 283 + (120 - 283) * 1.25);
 assert.equal(events.length, 2);
 assert.deepEqual(events[1], Msg.ViewSelect(view, "source"));
-console.log("24 browser contract assertions passed");
+console.log("Browser contract assertions passed");

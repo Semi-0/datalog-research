@@ -3,9 +3,11 @@
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
             [propagators.experimental.visualization.extension :as extension]
+            [propagators.experimental.ttms-primitives :as ttms]
             [propagators.experimental.visualization.layered-primitives :as primitives]))
 
-(def options {:extensions [primitives/session-extension extension/extension]})
+(def options
+  {:extensions [extension/ttms-extension ttms/session-extension primitives/ttms-extension]})
 (def example "examples/lain/visualization_combinators/chain.lain")
 
 (defn start!

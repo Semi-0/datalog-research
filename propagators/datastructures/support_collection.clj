@@ -36,16 +36,33 @@
       (throw (ex-info "Supported observations require exactly base and support layers"
                       {:datum x :layers layers})))))
 
+(defn- state-set [entries]
+  (if (support/support? entries)
+    (support/join entries)
+    (throw (ex-info "Invalid premise-state layer" {:premise-state entries}))))
+
 (defn content
-  "Normalize one two-layer datum. Preserve its base without unwrapping it."
+  "Normalize a value datum or explicit premise-state update. Preserve opaque bases."
   [datum]
-  {:support/observations #{(observation datum)}})
+  (if (datum/layer-present? datum :premise-state)
+    (let [layers (if (net/net? datum) (set (obj/public-slot-keys datum)) (set (keys datum)))
+          states (state-set (datum/layer-value datum :premise-state))]
+      (cond
+        (= layers #{:premise-state})
+        {:support/observations #{} :support/states states}
+        (= layers #{:base :support :premise-state})
+        {:support/observations #{(observation {:base (datum/layer-value datum :base)
+                                              :support (datum/support-of datum)})}
+         :support/states states}
+        :else (throw (ex-info "Unsupported TTMS layers" {:layers layers}))))
+    {:support/observations #{(observation datum)}}))
 
 (defn- observations [x]
   (cond
     (value/nothing? x) #{}
     (and (content? x)
-         (= #{:support/observations} (set (keys x)))
+         (or (= #{:support/observations} (set (keys x)))
+             (= #{:support/observations :support/states} (set (keys x))))
          (set? (:support/observations x)))
     (into #{} (map observation) (:support/observations x))
     :else (throw (ex-info "Expected supported collection content" {:content x}))))
@@ -67,8 +84,14 @@
   "Discard dominated observations; retain incomparable and same-version conflicts.
   Retractions can dominate older active values. Nothing is empty."
   [content update]
-  {:support/observations
-   (undominated (set/union (observations content) (observations update)))})
+  (let [result {:support/observations
+                (undominated (set/union (observations content) (observations update)))}]
+    (if (or (and (map? content) (contains? content :support/states))
+            (and (map? update) (contains? update :support/states)))
+      (assoc result :support/states
+             (support/join (state-set (get content :support/states #{}))
+                           (state-set (get update :support/states #{}))))
+      result)))
 
 (defn- source-ranks [entries]
   (into {} (map (fn [{:keys [source timestamp]}]
@@ -87,7 +110,7 @@
     (.getBytes (str "support-collection/projection/" layer)
                StandardCharsets/UTF_8))))
 
-(defn- projection [base support]
+(defn- project-layers [layers]
   (reduce-kv
    (fn [network layer v]
      (let [id (slot-id layer)]
@@ -96,14 +119,35 @@
            (net/assoc-net-node id (graph/blank-node))
            (net/assoc-net-dict-entry layer id))))
    (net/net-with-dict net/empty-net {:slot-index {:base #{} :support #{}}})
-   {:base base :support support}))
+   layers))
+
+(defn- projection [base support]
+  (project-layers {:base base :support support}))
+
+(defn- state-aware-projection [content retained merge-base]
+  (let [states (apply support/join (state-set (:support/states content))
+                      (map :support retained))
+        by-source (group-by :source states)
+        current? (fn [observation]
+                   (and (current-observation? (source-ranks states) observation)
+                        (every? (fn [{:keys [source premises-status] :as premise}]
+                                  (and (= :active premises-status)
+                                       (= [premise] (get by-source source))))
+                                (:support observation))))
+        current (sort-by pr-str (filter current? retained))]
+    (project-layers
+     {:base (reduce merge-base value/nothing (map :base current))
+      :support (apply support/combine (map :support current))
+      :premise-state states})))
 
 (defn strongest-value
   "Project current payloads and support. Base merging is supplied by the caller;
   this collection does not own base-domain rules or computation readiness."
   [content merge-base]
   (let [retained (undominated (observations content))]
-    (if (empty? retained)
+    (if (contains? content :support/states)
+      (state-aware-projection content retained merge-base)
+      (if (empty? retained)
       value/nothing
       (let [frontier (apply support/join (map :support retained))
             ranks (source-ranks frontier)
@@ -116,4 +160,4 @@
             supports (if (seq current)
                        (apply support/combine (map :support current))
                        frontier)]
-        (projection base supports)))))
+        (projection base supports))))))

@@ -14,6 +14,13 @@ export const collectionControls = (root, dispatch) => {
       const title = document.createElement("h2");
       title.textContent = `${view.kind} · ${view.items.length} items`;
       section.appendChild(title);
+      if (view.selectable) {
+        const clear = document.createElement("button");
+        clear.type = "button";
+        clear.textContent = "Clear selection";
+        clear.addEventListener("click", () => dispatch(Msg.ViewClear(view)));
+        section.appendChild(clear);
+      }
       if (view.items.length === 0) {
         const hint = document.createElement("p");
         hint.textContent = "No visible items yet. Select a value in the selectable card.";

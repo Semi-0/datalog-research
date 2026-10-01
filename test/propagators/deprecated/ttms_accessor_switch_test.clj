@@ -1,6 +1,9 @@
-(ns propagators.ttms-accessor-switch-test
-  "Acceptance gates for bidirectional supported accessor routes. Failures are
-  intentionally left visible; this is not a passing characterization of data loss."
+(ns ^{:deprecated "2026-09-30"} propagators.deprecated.ttms-accessor-switch-test
+  "Historical two-switch hypothesis, not a compound-accessor acceptance gate.
+  The pre-seeded independent endpoint does not model actual slot construction.
+  Retention/recovery expectations are unestablished for the real accessor.
+  Assertions are preserved for historical reproduction and still fail.
+  Use propagators.ttms-real-accessor-test for the actual accessor lifecycle."
   (:require [clojure.set :as set]
             [clojure.test :refer [deftest is testing]]
             [propagators.cells.value :as value]

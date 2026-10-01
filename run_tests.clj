@@ -30,12 +30,15 @@
     propagators.debug-test
     propagators.dispatch-test
     propagators.experimental.runner-constructor-test
+    propagators.experimental.ttms-view-test
+    propagators.experimental.view-xr-test
     propagators.install-test
     propagators.layered-procedure-test
     propagators.layered-support-test
     propagators.message-lift-test
     propagators.named-network-test
     propagators.network-patch-test
+    propagators.premise-transport-test
     propagators.reducer-cell-test
     propagators.runner-test
     propagators.structural-records-test
@@ -44,14 +47,14 @@
     propagators.support-transport-test
     propagators.support-glitch-test
     propagators.ttms-branching-test
-    propagators.ttms-accessor-switch-test
     propagators.ttms-compound-boundary-test
     propagators.ttms-primitives-test
     propagators.ttms-publication-test
     propagators.tms-test])
 
 (def graph-test-namespaces
-  '[graph.vijual.math-test
+  '[graph.ttms-view-live-test
+    graph.vijual.math-test
     propagators.compiler-2.runtime.tui.version-history-test
     propagators.compiler-2.runtime.tui.block-compiler-test
     propagators.compiler-2.runtime.tui.versioned-commit-test

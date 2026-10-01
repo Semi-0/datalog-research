@@ -858,6 +858,16 @@ this default registration and were not rerun or fixed in this slice.
 
 ## Bidirectional switch route experiment (2026-09-30): not promoted
 
+**Correction / deprecation (2026-09-30):** The experiment below is historical,
+not an acceptance gate for real compound accessors. Its pre-seeded independent
+endpoint and retention expectation were not grounded in the actual accessor
+lifecycle. The observed two-switch behavior remains reproducible, but does not
+justify diagnosing actual compound access as an evidence-feedback bug. See
+[the real-accessor experiment](REAL_ACCESSOR_TTMS_EXPERIMENT.md) for passing
+participant chains/cycles and the separately reproduced merge/declaration gaps.
+The tests now live in `propagators.deprecated.ttms-accessor-switch-test` and are
+excluded from the default suite. Their original assertions remain unchanged.
+
 The user authorized trying a support-aware bidirectional switch in the accessor,
 continuing migration only if it works, otherwise documenting and committing the
 experiment. `propagators.experimental.ttms-accessor-switch` therefore composes
@@ -876,8 +886,8 @@ invented; there is no private executor, mutable reader state, or support strippi
 
 This is a **route-level acceptance experiment** over explicitly supplied ports,
 not a completed accessor that discovers nested slot addresses or writes a raw
-accessor declaration into a TTMS owner. It tests a necessary condition before
-promoting the route into actual compound-slot installation. Whole-value wrapping
+accessor declaration into a TTMS owner. It was incorrectly treated as a necessary
+condition for actual compound-slot installation. Whole-value wrapping
 and the shared projection/identification defects remain separate gates.
 
 ### Failure mechanism
@@ -901,9 +911,11 @@ The source collection cell itself remains unchanged by route execution, both
 initial directions propagate, and the network reaches quiescence without growing
 its outer topology. These passing properties do not repair evidence loss.
 
-`propagators.ttms-accessor-switch-test` retains ordinary **failing acceptance
-assertions** for original-evidence retention and recovery, in both directions.
-The test is registered in the default runner. This checkpoint is deliberately
+At this historical checkpoint, `propagators.ttms-accessor-switch-test` retained
+**failing acceptance assertions** for original-evidence retention and recovery,
+in both directions, and was registered in the default runner. That acceptance
+interpretation and registration are now deprecated as explained above.
+This checkpoint is deliberately
 not represented as a passing migration or as a supported default accessor.
 
 ### Stop boundary and remaining slices

@@ -250,7 +250,8 @@
      (ex-info "Unsupported closure output declaration"
               {:output output}))))
 
-(defn- closure-call
+(defn closure-call
+  "Interpret fixed closure arguments without installing or executing topology."
   [closure-info argument-ids result-id]
   (let [parameters (closure-value/closure-inputs closure-info)
         output (closure-value/closure-output closure-info)

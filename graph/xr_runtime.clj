@@ -322,7 +322,9 @@
               :id (id-string (:view/id view))}]
     (case (:view/type view)
       :graph
-      (assoc base :graph (graph->json (:view/graph view)))
+      (cond-> (assoc base :graph (graph->json (:view/graph view)))
+        (:view/status view) (assoc :status (name (:view/status view))
+                                  :reasons (mapv value-summary (:view/reasons view))))
 
       :collection
       (let [collection (:view/collection view)]

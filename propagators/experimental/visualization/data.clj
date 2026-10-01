@@ -4,14 +4,15 @@
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.dependency :as dependency]
-            [propagators.datastructures.reducer-cell :as reducer]
             [propagators.datastructures.scope-source :as scope]
             [propagators.datastructures.tms.core :as tms]
+            [propagators.experimental.visualization.ttms :as ttms]
+            [propagators.message :as message]
             [propagators.network :as net]
             [propagators.relationship-observer :as observer]))
 
 (defn evidence-value [v]
-  (let [v (scope/unwrap v)]
+  (let [v (ttms/payload (scope/unwrap v))]
     (tms/distributed-base-value
      (if (tms/distributed-content? v)
        (tms/strongest-distributed-value v)
@@ -74,9 +75,21 @@
   (let [origins (apply set/union (set sources)
                        (map #(dependency/sources (evidence-value %))
                             contents))
-        layered (dependency/dependency-value result origins)
-        update (tms/distributed-result-update claim layered contents)]
-    (if (some? update) update layered)))
+        ttms? (some ttms/supported? contents)
+        layered (if ttms?
+                  (ttms/dependency-datum claim result origins)
+                  (dependency/dependency-value result origins))]
+    (if ttms?
+      (ttms/publication (if (value/unusable? result) result layered) contents)
+      (let [update (tms/distributed-result-update claim layered contents)]
+        (if (some? update) update layered)))))
+
+(defn state-messages
+  "Blocked computation still transports explicit TTMS source state."
+  [target contents]
+  (if (some ttms/supported? contents)
+    [(message/message target (ttms/state-update contents))]
+    []))
 
 (defn collection? [v]
   (contains? #{:list :graph} (obj/accessor-source-slot-value (payload v) :collection/type)))
@@ -97,9 +110,7 @@
         selections
         (map (fn [{:keys [control candidate sources]}]
                (let [control-value (net/network-cell-strongest network control)
-                     selected (if (reducer/reduced-value? control-value)
-                                (reducer/reduced-result control-value)
-                                (payload control-value))]
+                     selected (payload control-value)]
                  (if (value/unusable? selected)
                    selected
                    (or (= selected candidate) (contains? sources selected)))))

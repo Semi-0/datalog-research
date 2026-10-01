@@ -35,7 +35,8 @@
 (defn stamp-source
   "Activation transform for at most one message to a dedicated source cell.
   Other patches are unchanged. Message lift separately packages the datum."
-  [source status]
+  ([source status] (stamp-source source status next-source-datum))
+  ([source status next-datum]
   (fn [patches _inputs _outputs network]
     (let [target? #(and (message/message? %) (= source (message/message-id %)))]
       (when (> (count (filter target? patches)) 1)
@@ -44,9 +45,9 @@
       (mapv (fn [patch]
               (if (target? patch)
                 (update patch :value
-                        #(next-source-datum source (net/network-cell-strongest network source)
+                        #(next-datum source (net/network-cell-strongest network source)
                                             % status))
-                patch)) patches))))
+                patch)) patches)))))
 
 (defn p:observe
   "Compose a pure complete sampler with source stamping and message lift.

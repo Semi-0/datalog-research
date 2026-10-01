@@ -2,6 +2,45 @@
 
 Implementation and verification: 2026-09-26. Experimental and opt-in.
 
+2026-09-29 follow-up: see [README.md](README.md) for the exact server launch
+and a diagnosed first-panel topology defect: explicit compound output ports
+are projected as inputs, and connected observation applications are included.
+The earlier composition checks below do not establish correctness of those
+particular edges.
+
+### Projection migration: stopped at the approved boundary
+
+The working tree now contains shared read-only application-port inspection,
+branch-based edge projection, interface-observation reuse, and concrete
+`p:dataflow` activation with reason-bearing projection failures. This work is
+partial and has not been committed, deployed, or fully verified.
+
+Verification on 2026-09-29:
+
+- Existing dataflow, visualization composition, and rest-parameter suites:
+  105 assertions passed.
+- Expanded dataflow suite: 9 tests, 36 assertions passed, 2 failed, 0 errors.
+  Both failures concern diagnostic preservation after an existing graph.
+- Input guards, invalid concrete input (including false), nested
+  `application-edges` failure conversion, independent healthy execution, and
+  exceptional cancellation/interruption/JVM errors passed their checks.
+- `git diff --check` passed.
+
+The existing `built-in-cell-merge :semantic-trace-graph` method directly calls
+`graph-union`. Merging a diagnostic contradiction into a cell already holding
+a graph keeps the graph and discards the contradiction and its reason. The
+same diagnostic survives when the output starts at nothing. This violates the
+planned diagnostic-preservation assertion, and fixing it crosses the explicitly
+fixed merge boundary. No merge/TMS change was made.
+
+Implementation stopped as instructed. Remaining port regression coverage,
+default-suite registration, full-suite verification, demo restart, and watched
+file reload verification are not complete. The focused failing regression is
+retained. A proposed separately approved next step is to reuse the existing
+`preserve-contradiction` helper in the graph merge method, with direct tests for
+both operand orders and diagnostic union; ordinary graph union would remain
+unchanged.
+
 ## Result
 
 The headless composition and XR example work without compiler, runner, cell

@@ -32,6 +32,9 @@ export const viewLines = (view) => {
       );
     case "graph":
     case "hierarchy":
+      if (view.status && view.status !== "ready") {
+        return [`${view.status} · 0 nodes`, ...(view.reasons || []).map(summaryText)];
+      }
       return [`${view.graph?.nodes?.length || 0} nodes`, `${view.graph?.edges?.length || 0} relationships`];
     default:
       return [`unsupported view: ${view.type || "unknown"}`];

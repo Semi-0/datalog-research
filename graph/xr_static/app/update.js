@@ -204,6 +204,15 @@ export const update = (model, msg) => {
         [runtimeCommand("xr/extend-graph", { source: msg.source })],
       ];
 
+    case "view/clear":
+      return [model, [runtimeCommand("xr/view-select", {
+        "view-id": msg.view.id,
+        "clear?": true,
+        epoch: msg.view.epoch,
+        revision: msg.view.revision,
+        generation: msg.view.generation,
+      })]];
+
     case "view/select":
       return [model, [runtimeCommand("xr/view-select", {
         "view-id": msg.view.id,

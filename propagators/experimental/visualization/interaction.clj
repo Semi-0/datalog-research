@@ -1,7 +1,6 @@
 (ns propagators.experimental.visualization.interaction
   "Validate selection against published declarations, not client-supplied cell IDs."
-  (:require [propagators.datastructures.reducer-cell :as reducer]
-            [propagators.experimental.visualization.selection :as selection]
+  (:require [propagators.experimental.visualization.selection :as selection]
             [propagators.network :as net]
             [propagators.visualizer :as visualizer]))
 
@@ -24,21 +23,18 @@
               []))
           (get-in state [:xr :effects])))
 
-(defn selection-input [state {:keys [view-id item-id epoch revision generation] :as command}]
+(defn selection-input [state {:keys [view-id item-id epoch revision generation clear?] :as command}]
   (let [view (last (filter #(= view-id (pr-str (:view/id %))) (published-views state)))
         row (first (filter #(= item-id (pr-str (:identity %)))
                            (get-in view [:view/collection :items])))
         control (:view/selection-cell view)]
-    (when-not (and view control row (= epoch (:view/epoch view))
+    (when-not (and view control (or (= true clear?) row) (= epoch (:view/epoch view))
                    (some? generation) (= generation (:view/generation view))
                    (= revision (:view/revision view)))
       (throw (ex-info "Stale or unpublished view selection" {:command command})))
-    (let [content (net/network-cell-content (:program/net state) control)]
-      (when-not (and (reducer/reducer-cell? content)
-                     (= (selection/initial control)
-                        (assoc content :reducer/slots {})))
-        (throw (ex-info "View control is not a selection reducer" {:view-id view-id})))
+    (let [content (net/network-cell-content (:program/net state) control)
+          sequence (selection/next-sequence control content)]
       {:runtime/input :xr/message :cell-id control :command command
-       :update (selection/selection-update control
-                  (inc (reduce max 0 (keys (reducer/reducer-slots content))))
-                  (:identity row))})))
+       :update (if (= true clear?)
+                 (selection/clear-update control sequence)
+                 (selection/selection-update control sequence (:identity row)))})))

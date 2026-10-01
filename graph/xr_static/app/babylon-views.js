@@ -138,8 +138,9 @@ const paint = (texture, view, zoom, positions) => {
     }
   }
   ctx.restore();
-  if (view.type === "graph" || view.type === "hierarchy" ||
-      (view.type === "collection" && view.kind === "graph")) {
+  if ((!view.status || view.status === "ready") &&
+      (view.type === "graph" || view.type === "hierarchy" ||
+      (view.type === "collection" && view.kind === "graph"))) {
     ctx.fillStyle = "#07090c";
     ctx.fillRect(18, 70, 730, 64);
     ctx.font = "18px sans-serif";

@@ -7,13 +7,15 @@
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support-collection :as collection]
+            [propagators.experimental.premise-publication :as publication]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.stdlib.support :as support]))
+            [propagators.stdlib.support :as support]
+            [propagators.stdlib.premise-state :as state]))
 
 (defn- base-of [x]
   (if (datum/layer-present? x :base) (datum/layer-value x :base) x))
@@ -26,21 +28,25 @@
                         (concat inputs outputs)) network)))})
 
 (defn- install-procedure [network]
-  (let [[procedure base-id support-id] (repeatedly 3 ids/new-node-id)
+  (let [[procedure base-id support-id state-id] (repeatedly 4 ids/new-node-id)
         prepared (-> network
                      (nb/install-cell base-id last-base-procedure last-base-procedure)
-                     (nb/install-cell support-id support/procedure support/procedure))
+                     (nb/install-cell support-id support/procedure support/procedure)
+                     (nb/install-cell state-id state/procedure state/procedure))
         base (layered/install-layered-procedure! prepared procedure :base base-id)
-        supported (layered/install-layered-procedure! (:net base) procedure :support support-id)]
-    [(:net supported) procedure]))
+        supported (layered/install-layered-procedure! (:net base) procedure :support support-id)
+        stateful (layered/install-layered-procedure! (:net supported) procedure :premise-state state-id)]
+    [(:net stateful) procedure]))
 
 (defn- publish [result]
   ;; With only plain arguments the runtime runs only the base layer. Its support
   ;; is explicitly empty, not a freshly invented source. Extra layers still fail.
-  (collection/content
+  (if (datum/layer-present? result :premise-state)
+    (publication/content result)
+    (collection/content
    (if (datum/layer-present? result :support)
      result
-     {:base (base-of result) :support #{}})))
+     {:base (base-of result) :support #{}}))))
 
 (defn- application-activation [procedure arguments output]
   ;; Use the public installer to obtain its activation once. This scratch graph
@@ -78,8 +84,10 @@
                                 [condition nothing-id else-input else-output]])
                      (throw (ex-info "Unknown branching primitive" {:kind kind})))
         activations (mapv #(apply output-activation procedure %) selections)
-        activate (fn [inputs outputs current]
-                   (into [] (mapcat #(% inputs outputs current)) activations))
+        activate (prop/compose-activation
+                  (fn [inputs outputs current]
+                    (into [] (mapcat #(% inputs outputs current)) activations))
+                  publication/transport-states)
         [id installed] ((prop/construct-propagator
                          [::branching kind] activate
                          (into [procedure nothing-id] inputs) outputs) prepared)]

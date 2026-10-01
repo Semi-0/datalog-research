@@ -1,5 +1,33 @@
 # TTMS continuation checkpoint — 2026-09-30
 
+## Current plan — 2026-10-01
+
+Latest consumer checkpoint: [TTMS consumer migration](TTMS_CONSUMER_MIGRATION.md).
+The opt-in map/filter/dataflow/view path and TTMS selection/clear are implemented;
+the example now enables them. Dual-environment XR/reload tests pass, including
+full-chain clear. Remaining acceptance work is recorded there; the older
+"unimplemented" and review-stop statements below are historical, not current.
+
+Update: [current slice results](TTMS_PREMISE_TRANSPORT_RESULTS.md): the user
+rejected the extra immediate-invalidation expectation for same-epoch conflicts.
+It was removed; contradiction/fresh-version recovery and explicit kick-out/
+bring-in tests pass (80 assertions). No observation-invalidation contract is
+requested. Structural-field publication now transports separate premise states
+through existing bidirectional slots. Following the user's direction, a local
+`p:structural-data-field` extension treats the base as opaque map data, fixing
+the six domain-key assertions without patching shared layered readiness.
+The expanded structural suite now has 551 passing assertions; transport,
+structural publication, and existing compound-slot checks bring the focused run
+to 740 passes. Consumer migration remains unimplemented.
+
+The next priority is [independent layered premise-state transport and the
+corrected remaining slices](TTMS_PREMISE_TRANSPORT_PLAN.md). Kick-out/bring-in
+updates must propagate independently of payload computation through nothing or
+contradiction. State-enabled structural fields now emit payload-free state patches;
+legacy two-layer inputs retain their earlier behavior. This uses layered
+datum/procedure composition, not a new accessor mechanism. The chronological
+checkpoint below remains historical evidence.
+
 ## Published and verified
 
 `32b91e2` was committed and pushed to `origin/main` in
@@ -99,7 +127,7 @@ existing distributed-TMS consumer path unchanged until parity is proven. Do not
 introduce latest-wins graph merging, hidden payload history, or a one-way accessor
 as a workaround.
 
-## Remaining slices, reconciled with recent history
+## September 30 remaining-slice checkpoint (historical)
 
 Source history: `f986aca` and `dee4cf7`, plus the chronological
 `SUPPORT_RETRACTION_REPORT.md`. Later statuses supersede earlier historical claims.

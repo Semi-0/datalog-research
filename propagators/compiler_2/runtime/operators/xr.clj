@@ -9,6 +9,7 @@
             [propagators.datastructures.event :as event]
             [propagators.datastructures.tms :as tms]
             [propagators.experimental.visualization.data :as collection-data]
+            [propagators.experimental.visualization.ttms :as ttms]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.semantic-trace :as semantic-trace]
@@ -74,10 +75,16 @@
   [network outbox-id trace-id receipt-id]
   (let [source-value (when trace-id
                        (net/network-cell-strongest network trace-id))
-        trace-graph (trace-graph-value source-value)
-        view (if (collection-data/collection? source-value)
+        ttms? (ttms/supported? source-value)
+        payload (collection-data/payload source-value)
+        trace-graph (when-not ttms? (trace-graph-value source-value))
+        view (cond
+               (collection-data/collection? source-value)
                (visualizer/collection-declaration trace-id trace-id)
-               (view-declaration-value source-value))
+               (and ttms? (or (semantic-trace/semantic-trace-graph? payload)
+                              (value/unusable? source-value)))
+               (visualizer/graph-declaration trace-id trace-id)
+               :else (view-declaration-value payload))
         epoch (program-epoch network)
         trace-effect-id [:xr/launch-trace trace-id receipt-id epoch (hash trace-graph)]
         view-effect-id [:xr/present-view trace-id receipt-id epoch (hash view)]]

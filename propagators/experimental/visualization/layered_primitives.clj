@@ -7,6 +7,7 @@
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.scope-source :as scope]
             [propagators.datastructures.tms.core :as tms]
+            [propagators.experimental.ttms-primitives :as ttms]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
             [propagators.message :refer [message]]
@@ -121,4 +122,19 @@
   (extension/extension-bundle
    {:id ::primitives
     :bindings [['tracked+ tracked-plus] ['tracked-or tracked-or]]
+    :effects []}))
+
+(defn- ttms-operator [name base-closure]
+  (ttms/procedure-operator
+   name
+   {:net net/empty-net
+    :f (fn [_ inputs outputs network]
+         (first (install-call network inputs (first outputs) base-closure)))}))
+
+(def ttms-extension
+  (extension/extension-bundle
+   {:id ::ttms-primitives
+    :bindings (let [plus (ttms-operator ::ttms-plus base/plus-closure)
+                    either (ttms-operator ::ttms-or (base/arithmetic-base-closure standard/or))]
+                [['+ plus] ['tracked+ plus] ['or either] ['tracked-or either]])
     :effects []}))

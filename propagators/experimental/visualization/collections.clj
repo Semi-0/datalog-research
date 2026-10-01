@@ -26,7 +26,7 @@
     (let [v (data/read-source network ref)
           base (data/payload (data/read-strongest network ref))]
       (if (value/unusable? base)
-        []
+        (data/state-messages target [v])
         [(message target (data/supported [::source target] base #{ref} [v]))]))))
 
 (defn- reader-patch [network target ref]
@@ -56,6 +56,16 @@
                          {[:element identity] {:identity identity :order index
                                                :value item :sources #{head} :gates []}}))])))))
 
+(defn- graph-member [source identity gate]
+  (fn [_ _ network]
+    (let [content (net/network-cell-content network source)
+          graph (data/payload (net/network-cell-strongest network source))]
+      (if (value/unusable? graph)
+        (data/state-messages gate [content])
+        [(message gate (data/supported [::member gate]
+                                       (contains? (:nodes graph) identity)
+                                       #{(data/reference source)} [content]))]))))
+
 (defn- discover [source out network]
   (let [ref (data/reference source)
         v (data/payload (net/network-cell-strongest network source))]
@@ -67,12 +77,15 @@
              (fn [identity]
                (let [[path id] identity
                      source-ref (data/reference path id [])
-                     item (stable-id out identity :value)]
+                     item (stable-id out identity :value)
+                     gate (stable-id out identity :present)]
                  [(patch/declare-cell item)
+                  (patch/declare-propagator (stable-id out identity :membership) ::membership
+                                           [source] [gate] (graph-member source identity gate))
                   (message item (data/supported [::node item] source-ref #{source-ref} []))
                   (message out (data/fragment
                                 {[:element identity] {:identity identity :order (pr-str identity) :value item
-                                                      :sources #{source-ref} :gates []}}))]))
+                                                      :sources #{source-ref} :gates [gate]}}))]))
              (sort-by pr-str (keys (:nodes v)))))
       :else
       [(header out :list ref nil)
@@ -80,15 +93,22 @@
                                  [source] [out] (list-step source out ref 0))])))
 
 (defn- gate-reader [entry argument]
-  (prop/concrete-propagator
-   (fn [_ _ network]
-     (if (= :included (data/decision network entry))
-       (let [content (net/network-cell-content network (:value entry))
-             gate-contents (mapv #(net/network-cell-content network %) (:gates entry))]
-         [(message argument (data/supported [::argument argument]
-                                            (data/payload (net/network-cell-strongest network (:value entry)))
-                                            (:sources entry) (into [content] gate-contents)))])
-       []))))
+  (fn [_ _ network]
+    (let [ids (data/entry-inputs entry)
+          contents (mapv #(net/network-cell-content network %) ids)
+          base (data/payload (net/network-cell-strongest network (:value entry)))]
+      (if (and (= :included (data/decision network entry))
+               (not (value/unusable? base)))
+        [(message argument (data/supported [::argument argument] base (:sources entry) contents))]
+        (data/state-messages argument contents)))))
+
+(defn- retain-result [argument result mapped sources]
+  (fn [_ _ network]
+    (let [contents (mapv #(net/network-cell-content network %) [argument result])
+          base (data/payload (net/network-cell-strongest network result))]
+      (if (prop/concrete-inputs? network [argument result])
+        [(message mapped (data/supported [::mapped mapped] base sources contents))]
+        (data/state-messages mapped contents)))))
 
 (defn- callback-arguments [declaration context argument result]
   (if (closure/implicit-return-output? (closure/closure-output declaration))
@@ -109,13 +129,7 @@
      (gur/apply-closure-effect callback (callback-arguments declaration context argument result) result)
      (patch/declare-propagator
       (stable-id output identity :retain-sources) ::result [argument result] [mapped]
-      (prop/concrete-propagator
-       (fn [_ _ network]
-         [(message mapped
-                   (data/supported [::mapped mapped]
-                                   (data/payload (net/network-cell-strongest network result))
-                                   (:sources entry)
-                                   (mapv #(net/network-cell-content network %) [argument result])))])))
+      (retain-result argument result mapped (:sources entry)))
      (message output (data/fragment {[:element identity] descriptor}))]))
 
 (defn- transform [mode callback source context output]
