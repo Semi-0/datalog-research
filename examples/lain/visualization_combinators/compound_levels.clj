@@ -1,18 +1,34 @@
 (ns examples.lain.visualization-combinators.compound-levels
-  "Example-only snapshot adapter. File reload rebuilds all three views."
+  "Example-only observation adapters. File reload rebuilds the published views."
   (:require [graph.xr-server :as server]
+            [propagators.cells.cell :as cell]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.session.extension :as session]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
             [propagators.experimental.visualization.extension :as visualization]
+            [propagators.experimental.visualization.data :as data]
             [propagators.experimental.visualization.observation :as observation]
-            [propagators.relationship-dataflow :as dataflow]))
+            [propagators.relationship-dataflow :as dataflow]
+            [propagators.relationship-observer :as observer]))
+
+(def cell-reference?
+  (observation/value-operator
+   ::cell-reference? 1
+   (fn [network [reference]]
+     (when-not (data/reference? reference)
+       (throw (ex-info "cell-ref? expects a source reference" {:value reference})))
+     (let [entry (observer/node-entry network
+                                     [(:source/path reference) (:source/cell reference)])]
+       (when-not entry
+         (throw (ex-info "cell-ref? source does not exist" {:reference reference})))
+       (cell/cell? entry)))))
 
 (def snapshot-extension
   (session/extension-bundle
    {:id ::snapshots
     :bindings
-    [['body-snapshot
+    [['cell-ref? cell-reference?]
+     ['body-snapshot
       (observation/value-operator
        ::body-snapshot 2
        (fn [network [reference _completed-result]]

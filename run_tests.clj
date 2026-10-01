@@ -33,6 +33,7 @@
     propagators.experimental.ttms-view-test
     propagators.experimental.tracer-topology-test
     propagators.experimental.compound-tracer-test
+    propagators.experimental.compound-levels-demo-test
     propagators.dataflow-projection-test
     propagators.experimental.view-xr-test
     propagators.install-test

@@ -24,5 +24,15 @@
 (def pipeline-body
   (body-snapshot (occurrence-of pipeline prepared result) result))
 
-;; Left: outer chain; middle: pipeline's two stages; right: stage's functions.
-(xr:io (juxtapose whole-chain pipeline-body stage-body))
+;; Generic higher-order transformations: references remain attached to their cells.
+(def child-cells (filter (:: [item] (cell-ref? item)) stage-body))
+(def child-list (transpose child-cells :list))
+(def child-values (map (:: [item] (strongest-of item)) child-list))
+
+;; Existing retained-syntax tracer. "potential" means declared in the body;
+;; "call" means realized application. These are not runtime dataflow edges.
+(def compiled-calls (call-graph stage))
+
+;; Outer chain, pipeline body, stage body, cell references, cell values, call IR.
+(xr:io (juxtapose whole-chain pipeline-body stage-body
+                  child-list child-values compiled-calls))
