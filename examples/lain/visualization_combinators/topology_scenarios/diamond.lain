@@ -1,0 +1,6 @@
+(def-cells a b left right result raw semantic)
+(-> (+ a b) left)
+(-> (* a b) right)
+(-> (+ left right) result)
+(relationship:roots a raw)
+(relationship:dataflow raw semantic)

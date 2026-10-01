@@ -9,6 +9,13 @@
             [propagators.propagator :as prop]))
 
 (def declaration-scope :compiler-2/runtime-declarations)
+(def topology-result-scope [:compiler-2 :topology-results])
+
+(defn topology-result-ids
+  "Explicit non-value result declarations, not readiness inferred from content."
+  [network]
+  (set (vals (get (net/network-dict-entry network fvm/name-bindings-key)
+                  topology-result-scope {}))))
 
 (defn declared?
   "True when one delayed topology declaration has already been committed."
@@ -62,11 +69,20 @@
                    (declare-prop-effect compiled prop-id entry)))))
        vec))
 
+(defn- topology-result-effects
+  "Export observation records only; execution markers remain runtime-owned."
+  [base compiled]
+  (let [before (get (net/network-dict-entry base fvm/name-bindings-key) topology-result-scope)]
+    (vec (for [[key id] (get (net/network-dict-entry compiled fvm/name-bindings-key) topology-result-scope)
+               :when (not= id (get before key))]
+           (fvm/bind-name topology-result-scope key id)))))
+
 (defn network-diff
   [base compiled prop-ids]
   {:effects (into (env/lexical-topology-effects compiled)
                   (concat (new-cell-effects base compiled)
-                          (prop-effects base compiled prop-ids)))
+                          (prop-effects base compiled prop-ids)
+                          (topology-result-effects base compiled)))
    :messages (changed-cell-messages base compiled)})
 
 (defn declare-once

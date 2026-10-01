@@ -31,6 +31,9 @@
     propagators.dispatch-test
     propagators.experimental.runner-constructor-test
     propagators.experimental.ttms-view-test
+    propagators.experimental.tracer-topology-test
+    propagators.experimental.compound-tracer-test
+    propagators.dataflow-projection-test
     propagators.experimental.view-xr-test
     propagators.install-test
     propagators.layered-procedure-test

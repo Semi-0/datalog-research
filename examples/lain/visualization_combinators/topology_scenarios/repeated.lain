@@ -1,0 +1,6 @@
+(def-cells a middle result raw semantic)
+(def-net step [x] [out] (-> (+ x 1) out))
+(step a middle)
+(step middle result)
+(relationship:roots a raw)
+(relationship:dataflow raw semantic)

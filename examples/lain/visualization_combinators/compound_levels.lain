@@ -1,0 +1,28 @@
+;; Outer chain: 2 -> stage -> 9 -> pipeline -> 10201.
+;; A stage is shift followed by square; a pipeline contains two stages.
+(def shift (:: [x] (+ x 1)))
+(def square (:: [x] (* x x)))
+(def-net stage [x] [out]
+  (-> (square (shift x)) out))
+(def-net pipeline [x] [out]
+  (let-cell [middle]
+    (stage x middle)
+    (stage middle out)))
+
+(def-cells source prepared result relationships whole-chain)
+(stage source prepared)
+(pipeline prepared result)
+(-> 2 source)
+
+(relationship:roots source relationships)
+(relationship:dataflow relationships whole-chain)
+
+;; Explicit occurrence identity, not a definition shared by all calls.
+;; The second argument gates these snapshots on completed computation.
+(def stage-body
+  (body-snapshot (occurrence-of stage source prepared) result))
+(def pipeline-body
+  (body-snapshot (occurrence-of pipeline prepared result) result))
+
+;; Left: outer chain; middle: pipeline's two stages; right: stage's functions.
+(xr:io (juxtapose whole-chain pipeline-body stage-body))

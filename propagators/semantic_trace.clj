@@ -90,7 +90,7 @@
 (defn graph-union
   [& graphs]
   (let [graphs (remove value/unusable? graphs)]
-    {:semantic-trace/graph true
+    (cond-> {:semantic-trace/graph true
      :nodes (apply merge (map :nodes graphs))
      :node-kinds (apply merge (map :node-kinds graphs))
      :node-aliases (merge-node-aliases graphs)
@@ -98,7 +98,9 @@
      :node-ui (apply merge (map :node-ui graphs))
      :expansions (apply merge (map :expansions graphs))
      :edges (vec (distinct (filter #(and (vector? %) (= 2 (count %)))
-                                   (mapcat :edges graphs))))}))
+                                   (mapcat :edges graphs))))}
+      (some #(contains? % :dataflow/seeds) graphs)
+      (assoc :dataflow/seeds (set (mapcat :dataflow/seeds graphs))))))
 
 (defn trace-graph
   "Return the semantic subgraph reachable from `:node` or `:label`.

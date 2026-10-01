@@ -1,0 +1,8 @@
+(def-net down [a] [out]
+  (when (switch true (<= a 1)) (-> a out))
+  (when (switch true (> a 1)) (down (- a 1) out)))
+(def-cells input result other unused raw semantic)
+(down input result)
+(down other unused)
+(relationship:roots input raw)
+(relationship:dataflow raw semantic)

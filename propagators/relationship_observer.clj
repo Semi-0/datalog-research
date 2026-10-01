@@ -1,6 +1,7 @@
 (ns propagators.relationship-observer
   "Composable propagators that sample structural relationships from a Net."
   (:require [propagators.cells.cell :as cell]
+            [propagators.compiler-2.model.env.index :as lexical-index]
             [propagators.datastructures.compound-object.patch :as compound-patch]
             [propagators.graph :as graph]
             [propagators.gur.flat :as gur]
@@ -101,7 +102,7 @@
     (conj (relationship/children (net/net-relationship network) parent)
           parent)))
 
-(defn- lexical-binding-names
+(defn- compiled-binding-names
   [network]
   (let [frames (:frames (net/network-dict-entry network lexical-topology-key))]
     (reduce-kv
@@ -121,6 +122,15 @@
           (or current-bindings {}))))
      {}
      (or frames {}))))
+
+(defn- lexical-binding-names [network]
+  (reduce-kv
+   (fn [names key id]
+     (if (contains? #{:binding :current-binding} (first key))
+       (update names id (fnil conj #{}) (nth key 2))
+       names))
+   (compiled-binding-names network)
+   (lexical-index/runtime-topology network)))
 
 (defn- unique-binding-name
   [names-by-id id]
@@ -282,7 +292,12 @@
           select (if (seq observed-cell-ids)
                    (connected-root-node-keys observed-cell-ids)
                    #(root-node-keys % #{output-id}))
-          sample (snapshot-of select)
+          sample (fn [current]
+                   (let [result (snapshot current (select current))]
+                     (if (seq observed-cell-ids)
+                       (assoc result :dataflow/seeds
+                              (set (map #(relationship/node-key [:outer] %) observed-cell-ids)))
+                       result)))
           roots (cell-node-keys prepared (select prepared))
           [_ watched]
           (reduce (fn [[ids current] [_path cell-id]]

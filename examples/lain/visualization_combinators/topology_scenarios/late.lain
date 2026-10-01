@@ -1,0 +1,5 @@
+(def-cells later a result raw semantic)
+(def-net identity [x] [out] (-> x out))
+(later a result)
+(relationship:roots a raw)
+(relationship:dataflow raw semantic)

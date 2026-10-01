@@ -1,0 +1,5 @@
+(def-cells a b middle result raw semantic)
+(-> (+ a b) middle)
+(-> (* middle b) result)
+(relationship:roots a raw)
+(relationship:dataflow raw semantic)

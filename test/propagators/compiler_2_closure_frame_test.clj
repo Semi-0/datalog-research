@@ -3,6 +3,7 @@
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.main :as compiler]
             [propagators.compiler-2.model.env :as env]
+            [propagators.compiler-2.runtime.topology-effects :as topology]
             [propagators.core :as core]
             [propagators.gur :as gur]
             [propagators.ids :as ids]
@@ -95,3 +96,16 @@
         twice (nb/run-propagators once (:props compiled))]
     (is (= 1 (strongest once (:cell compiled))))
     (is (= (prop-count once) (prop-count twice)))))
+
+(deftest topology-result-metadata-preserves-delayed-activation
+  (let [gate (ids/new-node-id)
+        root (live-root (nb/install-cell net/empty-net gate) [['gate (env/cell-binding gate)]])
+        compiled (compiler/compile-source
+                  "(let-cell [out] (when gate (-> 9 out)) out)"
+                  (:env root) {:net (:net root) :environment-props (:props root)})
+        waiting (run-compiled compiled)
+        complete (seed-and-run waiting gate true)]
+    (is (= 1 (count (topology/topology-result-ids waiting))))
+    (is (= :bool4/nothing (strongest waiting (:cell compiled))))
+    (is (= 9 (strongest complete (:cell compiled))))
+    (is (= (topology/topology-result-ids waiting) (topology/topology-result-ids complete)))))

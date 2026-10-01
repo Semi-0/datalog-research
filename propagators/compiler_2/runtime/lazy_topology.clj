@@ -51,7 +51,9 @@
                          prepared
                          body)))
         [_ installed]
-        (core/eval-activation-result effect base-network)]
+        (core/eval-activation-result
+         {:effects [effect (gur/bind-name topology-effects/topology-result-scope when-key result-id)]}
+         base-network)]
     [(-> prepared
          (assoc :net installed)
          (h/add-props [(:id effect)]))

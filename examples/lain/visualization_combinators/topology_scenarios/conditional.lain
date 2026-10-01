@@ -1,0 +1,4 @@
+(def-cells condition a b result raw semantic)
+(-> (if condition a b) result)
+(relationship:roots condition raw)
+(relationship:dataflow raw semantic)
