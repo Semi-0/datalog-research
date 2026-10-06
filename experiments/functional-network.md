@@ -4,6 +4,10 @@ This experiment reuses Compiler 2 CPS traversal, canonical flat-GUR closures,
 compound slots, and the existing effect boundary. Its source and tests are local
 to `experiments.functional-network`; production modules are unchanged.
 
+The [syntax design for this iteration](lain-syntax-functional-network.md)
+defines the source forms, cell and receipt returns, application timing,
+linked-list output ports, recursive topology, and effect execution contract.
+
 ## Module boundary
 
 ```clojure
@@ -97,6 +101,12 @@ contracts, first-class primitives, lexical capture and shadowing, delayed
 availability, deterministic identities, recursive linked-list application,
 and effect request/execution separation. Production source and fixed kernels
 have no diff; the unrelated production test change remains untouched.
+
+The subsequent [contract audit](functional-network-contracts.md) adds explicit
+graph checks, direct-call versus `apply` checks, and late lexical-capture cases.
+It distinguishes connected member output ports from the canonical application
+node's original output set and separates bounded test evidence from a compiler
+correctness proof.
 
 ## Declaration and application
 
@@ -205,6 +215,61 @@ runtime formal-input descriptions instead of declaring one parameter. The
 diagnostic test remains, but that extra capability is unnecessary for this
 constructor. Broader equivalence to every production constraint feature remains
 unverified.
+
+## Language-level flat GUR programs
+
+`test/experiments/functional_network_gur_test.clj` exercises ordinary Lain source
+through the experimental compiler. No host implementation of Fibonacci, map,
+filter, or zip is added to the compiler or GUR kernel.
+
+```clojure
+(define fib
+  (network (n)
+    ((if (< n 2)
+       (network () n)
+       (network () (+ (fib (- n 1)) (fib (- n 2))))))))
+
+(fib 6) ; result cell receives 8
+```
+
+`if` selects a callable cell; application then declares only that branch's body.
+Both branch networks are declared as values. The test does not rely on `if`
+lazily compiling ordinary expression operands. A second version uses `when`
+availability guards and verifies base cases, recursive results, and a late input.
+
+The tested higher-order pipelines pass callable cells to recursively declared
+`map-list`, `filter-list`, and `zip-with` networks:
+
+```clojure
+(map-list decrement
+  (map-list double
+    (map-list increment (list 1 2 3)))) ; [3 5 7]
+
+(map-list increment
+  (filter-list (network (x) (>= x 4))
+    (map-list double (list 1 2 3)))) ; [5 7]
+
+(map-list increment
+  (zip-with (network (a b) (+ a b))
+    (list 1 2) (list 10 20))) ; [12 23]
+```
+
+These results remain compound linked lists. The test observations follow slot
+cell identities to read values. The late-tail case starts a three-stage map
+pipeline on an open list, observes its first result, attaches another cons,
+and observes `[3 5]`. It checks that flat-GUR frames are present in the active
+Net, topology grows, existing output port IDs remain stable, and repeated
+activation preserves graph and cell counts.
+
+The focused GUR suite passed eight tests and 16 assertions. Maximum individual
+duration was 1961.683375 ms, below three seconds. The tested examples are small;
+no large Fibonacci-input or arbitrarily long pipeline performance claim follows.
+
+The combined experiment, compiler, contract, GUR, and effect run passed 73 tests
+and 193 assertions. Its maximum individual duration was 1974.576584 ms;
+namespace/fixture startup was 6161.519167 ms, reported separately. The additional
+contract and GUR checks are uncommitted work on the published experiment base;
+they change tests and documentation only.
 
 ## Verification and architecture evidence
 

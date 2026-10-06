@@ -6,6 +6,8 @@
     '[experiments.functional-network-test
       experiments.functional-network-effects-test
       experiments.functional-network-compiler-test
+      experiments.functional-network-contract-test
+      experiments.functional-network-gur-test
       experiments.functional-network-expressiveness-test]))
 (def startup-start (System/nanoTime))
 (doseq [namespace namespaces] (require namespace))
