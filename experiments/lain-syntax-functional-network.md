@@ -258,9 +258,16 @@ Independent requests have no newly guaranteed execution ordering.
 
 ## Verification and remaining limits
 
-The latest combined experiment run passed **73 tests, 193 assertions**. Each
-test var completed within three seconds; the maximum was approximately
-1.975 seconds. Namespace/fixture startup was measured separately.
+The combined experiment run on current `main` passed **73 tests, 193
+assertions**. Each test var completed within three seconds; the maximum was
+approximately 0.781 seconds. Namespace/fixture startup took approximately
+4.460 seconds and was measured separately.
+
+Default compilation declares a live root from `default-bindings`. Explicit
+environment arguments must be live environment IDs and use the supplied
+network. The experiment schedules declaration effects using the current
+`:op :network/declare-propagator` format. These integrations reuse current
+production APIs without modifying their implementation.
 
 | Contract | Test namespace |
 |---|---|

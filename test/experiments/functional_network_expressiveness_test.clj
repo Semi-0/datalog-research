@@ -10,9 +10,9 @@
             [propagators.network :as net]))
 
 (defn baseline [source]
-  (compiler/compile-expr
+  (compiler/compile-expr-with-bindings
    (parser/parse-form (parser/read-form source))
-   (basis/default-env)
+   (basis/default-bindings)
    {:seed [:experiment/expressiveness-baseline source]}))
 
 (defn result-value [compiled]

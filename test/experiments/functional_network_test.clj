@@ -100,9 +100,9 @@
         (is (= 3 (count (experiment/outputs result))))))))
 
 (deftest ordinary-network-does-not-expose-returned-parameters
-  (let [compiled (compiler/compile-expr
+  (let [compiled (compiler/compile-expr-with-bindings
                   (experiment/parse-source (source "(-> 3 b) (-> 5 c)"))
-                  (basis/default-env) {:seed :experiment/baseline})
+                  (basis/default-bindings) {:seed :experiment/baseline})
         result (run compiled)
         [a b c] (values result (:cell compiled))]
     (is (value/nothing? a))
@@ -236,7 +236,7 @@
 
 (defn install-effects [network result]
   (let [[_ installed] (core/eval-activation-result result network)
-        props (mapv :id (filter #(= :declare-prop (:network-vm/op %)) (:effects result)))]
+        props (mapv :id (filter #(= :network/declare-propagator (:op %)) (:effects result)))]
     {:net installed :props props}))
 
 (defn output-fixture []

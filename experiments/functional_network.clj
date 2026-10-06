@@ -196,7 +196,7 @@
   ;; A definition targeting an input cell is a visible connection back to its
   ;; caller. Inspect declaration names, never the value stored in that cell.
   (->> effects
-       (filter #(= :declare-prop (:network-vm/op %)))
+       (filter #(= :network/declare-propagator (:op %)))
        (mapcat (fn [{:keys [name outputs]}]
                  (if (and (vector? name)
                           (= :experiment/boundary (first name))
@@ -263,7 +263,7 @@
       (throw (ex-info "Definition operands must compile to cells" {:name name})))
     (let [result (binding-declaration receipt-id source-id target-id receipt-id)
           [_ network] (core/eval-activation-result result (:net state))
-          prop-ids (mapv :id (filter #(= :declare-prop (:network-vm/op %))
+          prop-ids (mapv :id (filter #(= :network/declare-propagator (:op %))
                                     (:effects result)))]
       (cps/continue continuation
                     (-> state (assoc :net network) (basis/add-props prop-ids))

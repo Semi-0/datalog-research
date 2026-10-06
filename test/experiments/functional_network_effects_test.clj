@@ -49,6 +49,7 @@
   (let [compiled (language/compile-source
                   source (:program/env base-session)
                   {:net (:program/net base-session)
+                   :environment-props (:program/props base-session)
                    :seed [:experiment/effect source]})]
     {:compiled compiled
      :session (assoc base-session :program/net

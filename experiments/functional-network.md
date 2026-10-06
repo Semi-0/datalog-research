@@ -87,6 +87,14 @@ An existing live session environment can be used directly; the effect fixture
 supplies its session extension's bindings, including `apply` and `emit`.
 Compilation never runs propagation or drains effects.
 
+Integration with current `main` uses `default-bindings` and
+`compile-expr-with-bindings` to declare a live root; explicit environment
+arguments are live environment IDs. Declaration scheduling uses current
+`:op :network/declare-propagator` effects, and the effect fixture includes its
+session's environment propagators. The integrated experiment passed all 73
+tests and 193 assertions, with a maximum individual duration of 780.4995 ms
+and namespace/fixture startup of 4459.727542 ms measured separately.
+
 All experiment language and effect tests now use this public compiler entry
 point. The production baseline in the expressiveness tests intentionally keeps
 using production Compiler 2. KIROSHI selection was refreshed at revision 390:

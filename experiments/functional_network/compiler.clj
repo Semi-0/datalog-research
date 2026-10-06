@@ -5,14 +5,13 @@
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.cps-core :as cps]
             [propagators.compiler-2.language.ast :as ast]
-            [propagators.compiler-2.model.env :as env]
             [propagators.ids :as ids]))
 
 (def parse-form language/parse-form)
 (def parse-source language/parse-source)
 
-(defn default-env []
-  (env/bind-local (basis/default-env) 'apply language/apply-operator))
+(defn default-bindings []
+  (conj (vec (basis/default-bindings)) ['apply language/apply-operator]))
 
 (defn- children [expression]
   (case (ast/type expression)
@@ -54,14 +53,12 @@
         (recur (into (pop pending) nested) (conj syntax fields)))
       syntax)))
 
-(defn compile-expr
-  ([expression] (compile-expr expression (default-env) {}))
-  ([expression compiler-env] (compile-expr expression compiler-env {}))
-  ([expression compiler-env options]
+(defn- compile-with
+  [compile* expression options]
    (let [expression (validate-expression (ast/ast expression))
          compiled
-         (cps/compile-expr
-          expression compiler-env
+         (compile*
+          expression
           (assoc (merge {:seed [:experiment/functional-network
                                (declaration-key expression)]}
                         options)
@@ -69,7 +66,20 @@
      (if (ids/node-id? (:cell compiled))
        compiled
        (throw (ex-info "Every expression must compile to a result cell"
-                       {:type (ast/type expression) :cell (:cell compiled)}))))))
+                       {:type (ast/type expression) :cell (:cell compiled)})))))
+
+(defn compile-expr
+  ([expression]
+   (compile-with
+    (fn [expression options]
+      (cps/compile-expr-with-bindings expression (default-bindings) options))
+    expression {}))
+  ([expression compiler-env] (compile-expr expression compiler-env {}))
+  ([expression compiler-env options]
+   (compile-with
+    (fn [expression options]
+      (cps/compile-expr expression compiler-env options))
+    expression options)))
 
 (defn compile-form
   ([form] (compile-expr (parse-form form)))
@@ -85,7 +95,10 @@
 
 (defn compile-program
   "Compile ordered reader forms as one sequence; source reading remains parser-owned."
-  ([forms] (compile-program forms (default-env) {}))
+  ([forms]
+   (if (seq forms)
+     (compile-expr (apply ast/sequence* (map parse-form forms)))
+     (throw (ex-info "A program requires at least one expression" {:forms forms}))))
   ([forms compiler-env] (compile-program forms compiler-env {}))
   ([forms compiler-env options]
    (if (seq forms)
