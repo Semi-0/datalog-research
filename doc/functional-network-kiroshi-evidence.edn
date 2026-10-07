@@ -1,0 +1,52 @@
+{:status :prepared
+ :persisted false
+ :approved false
+ :validated-in-this-run false
+ :model-mutation :none
+ :hierarchy {:new-components []
+             :new-boundary-assignments []
+             :changed-parentage []}
+ :git-snapshots
+ {:compiler "b9806338dfeea418210733b748ebce38f23c561b"
+  :runtime "473876b1433d312a3f58b3d9ab13c1afe6d91edf"
+  :wired "e82ea1668eca61cf74b194293cf566cd643daa28"
+  :fixed-infrastructure "6b031cf71df7a27a71e52c14cf1227904f637a13"}
+ :verification
+ {:compiler {:tests 147 :assertions 464 :failures 0 :errors 0}
+  :runtime-published-pins {:tests 158 :assertions 572 :failures 0 :errors 0}
+  :web-published-pins {:tests 32 :assertions 163 :failures 0 :errors 0}
+  :shared-session-regressions {:tests 4 :assertions 14 :failures 0 :errors 0}
+  :mirrored-compiler {:tests 187 :assertions 622 :failures 0 :errors 0}
+  :mirrored-web-assembly {:tests 13 :assertions 53 :failures 0 :errors 0}
+  :browser-tests {:tests 14 :failures 0}
+  :individual-test-limit-ms 3000
+  :fixed-dependency-diff []}
+ :candidates
+ [{:id :decision/lain-functional-network-syntax-is-canonical
+   :type :decision
+   :evidence-state :needs-verification
+   :content "Production Lain composes define, network, and linked-list apply through the shared parser and named CPS compiler."
+   :implemented-in ["src/propagators/compiler/language/parser.clj"
+                    "src/propagators/compiler/compiler/handlers.clj"]
+   :owner :compiler}
+  {:id :constraint/compiler-expressions-return-cells
+   :type :constraint
+   :evidence-state :needs-verification
+   :content "Every compiled expression returns a cell binding; a definition returns an explicit binding receipt cell."
+   :implemented-in ["src/propagators/compiler/compiler/declarations.clj"]
+   :owner :compiler}
+  {:id :constraint/compiler-definitions-refine-named-cells
+   :type :constraint
+   :evidence-state :needs-verification
+   :content "Definition topology refines a reserved lexical target without strongest-value operator classification."
+   :implemented-in ["src/propagators/compiler/compiler/declarations.clj"]
+   :owner :compiler}
+  {:id :constraint/compiler-network-outputs-follow-body-return
+   :type :constraint
+   :evidence-state :needs-verification
+   :content "Network application compiles its body through flat GUR in the active Net; usable live-list members declare stable positional output ports, including late tails."
+   :implemented-in ["src/propagators/compiler/lowering/application.clj"
+                    "src/propagators/compiler/lowering/returned_outputs.clj"
+                    "src/propagators/compiler/lowering/linked_application.clj"]
+   :owner :compiler}]
+ :review-required "Reconcile this prepared evidence with the current KIROSHI model and present the complete model diff before separate persistence, approval, or supersession authorization."}

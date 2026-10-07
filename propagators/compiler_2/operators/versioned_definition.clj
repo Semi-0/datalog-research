@@ -8,6 +8,7 @@
             [propagators.compiler-2.model.context :as context]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.model.operator-value :as operator-value]
+            [propagators.compiler-2.runtime.application :as application]
             [propagators.compiler-2.operators.block-premise :as premise]
             [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.datastructures.tms.distributed :as tms]
@@ -302,6 +303,80 @@
    state
    (map vector (range) private-outputs caller-outputs)))
 
+(defn- premise-output-boundary
+  [contexts caller-targets context scope source local-target]
+  (let [target (get caller-targets local-target local-target)
+        base (:network context)
+        prepared (reduce nb/ensure-cell base [source target])
+        [prop-id installed]
+        ((premise/p:block-premise [:returned-member scope] source contexts target)
+         prepared)]
+    (into (topology-effects/new-cell-effects base installed)
+          (topology-effects/prop-effects base installed [prop-id]))))
+
+(defn- definition-support? [definition-id premise-id]
+  (and (vector? premise-id)
+       (= :compiler-2/definition (first premise-id))
+       (= definition-id (second premise-id))))
+
+(defn- candidate-input-content
+  "Project caller evidence; candidate feedback remains in the outer cell."
+  [definition-id content]
+  (if (tms/distributed-value? content)
+    (let [slots (into {}
+                      (remove (fn [[_ entry]]
+                                (if (tms/claim? entry)
+                                  (some (partial definition-support? definition-id)
+                                        (tms/supports entry))
+                                  (and (tms/premise-state? entry)
+                                       (definition-support? definition-id (tms/premise entry))))))
+                      (tms/distributed-slots content))]
+      (if (some tms/claim? (vals slots))
+        (tms/indexed-distributed-content slots)
+        value/nothing))
+    content))
+
+(defn- candidate-input-topology [state call-id candidate argument-ids]
+  (let [locals (mapv #(h/stable-node-id :compiler-2 :candidate-input
+                                      call-id (:candidate/id candidate) %)
+                     (range (count argument-ids)))]
+    {:arguments locals
+     :caller-targets (zipmap locals argument-ids)
+     :state
+     (reduce
+      (fn [current [position source target]]
+        (let [prepared (reduce nb/ensure-cell (:net current) [source target])
+              [id installed]
+              ((prop/construct-propagator
+                [:compiler-2/candidate-input call-id (:candidate/id candidate) position]
+                (fn [_ _ network]
+                  (let [content (candidate-input-content
+                                 (:candidate/definition-id candidate)
+                                 (net/network-cell-content network source))]
+                    (if (value/unusable? content) [] [(message target content)])))
+                [source] [target]) prepared)]
+          (-> current (assoc :net installed) (h/add-props [id]))))
+      state (map vector (range) argument-ids locals))}))
+
+(defn- candidate-callable-cell
+  "Compose candidate support at returned-member crossings, not at inputs."
+  [compile* state call-id candidate caller-contexts caller-targets]
+  (let [original-id (:candidate/callable-cell candidate)
+        callable (h/strongest-or-nothing (:net state) original-id)
+        declaration (application/callable-declaration callable)]
+    (if (closure-value/closure-info? declaration)
+      (let [id (h/stable-node-id :compiler-2 :versioned-callable
+                                 call-id (:candidate/id candidate))
+            contexts (into (set caller-contexts) (:candidate/contexts candidate))
+            projected
+            (application/closure-callable
+             compile* [:versioned-callable call-id (:candidate/id candidate)]
+             (get callable application/declaration-id-key)
+             (get callable application/captured-environment-key)
+             declaration (partial premise-output-boundary contexts caller-targets))]
+        [(update state :net #(-> % (nb/ensure-cell id) (h/seed-cell id projected))) id])
+      [state original-id])))
+
 (defn- candidate-topology
   [compile* definition-id call-id arg-ids out-id candidate caller-contexts
    network]
@@ -346,12 +421,17 @@
           state (update state :net
                         #(reduce nb/ensure-cell %
                                  (concat private-outputs placeholder-ids)))
+          input-topology (candidate-input-topology state call-id candidate application-args)
+          state (:state input-topology)
+          application-args (:arguments input-topology)
+          [state callable-id]
+          (candidate-callable-cell compile* state call-id candidate caller-contexts
+                                   (:caller-targets input-topology))
           [called _binding]
-          (declarations/declare-runtime-cell-application-bindings
-           compile*
+          (declarations/declare-application-topology
+           state
            (env/cell-binding callable-id)
            (mapv env/cell-binding application-args)
-           state
            (peek private-outputs))
           gated (install-output-gates called candidate caller-contexts
                                       private-outputs caller-outputs)
@@ -503,3 +583,19 @@
   (boolean
    (some #(= cell-id (:candidate/public-cell %))
          (vals (net/network-dict-entry network candidates-key)))))
+
+(defn active-call-topologies
+  "Inspect declared calls of active candidates without activating or selecting versions."
+  [network public-id argument-ids result-id]
+  (let [candidates (->> (vals (net/network-dict-entry network candidates-key))
+                        (filter #(and (= public-id (:candidate/public-cell %))
+                                      (candidate-active? network %)))
+                        (map :candidate/id)
+                        set)]
+    (->> (vals (net/network-dict-entry network calls-key))
+         (filter (fn [{:keys [candidate-id call-id]}]
+                   (and (contains? candidates candidate-id)
+                        (= result-id (peek call-id))
+                        (= (vec argument-ids) (nth call-id (- (count call-id) 2))))))
+         (keep #(application/application-topology network (:application-id %)))
+         vec)))

@@ -1,5 +1,5 @@
-(ns propagators.compiler-behavior.main
-  "Compatibility facade for the behavior compiler."
+(ns ^:deprecated propagators.compiler-behavior.main
+  "Deprecated temporal behavior compiler. Active sessions use TMS/TTMS."
   (:require [propagators.compiler-behavior.application :as application]
             [propagators.compiler-behavior.core :as core]))
 

@@ -7,6 +7,7 @@
             [propagators.compiler-2.compiler.rewrite :as rewrite]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.language.parser :as parser]
+            [propagators.compiler-2.language.contract :as contract]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-common.cps :as cps]
             [propagators.compiler-common.core :as common]
@@ -20,6 +21,9 @@
 (def compiler-props-key common/compiler-props-key)
 (def compiler-applications-key common/compiler-applications-key)
 
+(def parse-form parser/parse-form)
+(def parse-source parser/parse-string)
+
 (def compiler-dispatch
   (cps/compose-rules
    (cps/on predicates/literal? handlers/compile-literal)
@@ -30,18 +34,15 @@
    (cps/on predicates/let? handlers/compile-let)
    (cps/on predicates/when-topology? handlers/compile-when-topology)
    (cps/on predicates/network? handlers/compile-network)
-   (cps/on predicates/compound?
-           (cps/transform-expr rewrite/compound->network
-                               handlers/compile-network))
-   (cps/on predicates/def-net?
-           (cps/transform-expr rewrite/def-net->def handlers/compile-def))
-   (cps/on predicates/def-constraint?
-           handlers/compile-def-constraint)
    (cps/on predicates/definition? handlers/compile-def)
    handlers/compile-application))
 
+(defn compile-cell-expression [compile-k state expression continuation]
+  (compiler-dispatch compile-k state expression
+                     (partial handlers/continue-with-cell continuation)))
+
 (def compile* (dispatch/install-default-compiler!
-               (cps/make-compiler compiler-dispatch)))
+               (cps/make-compiler compile-cell-expression)))
 (def default-compiler compile*)
 
 (declare compile-expr)
@@ -63,7 +64,7 @@
   ([expr bindings]
    (compile-expr-with-bindings expr bindings {}))
   ([expr bindings {:keys [net seed] :or {net net/empty-net} :as opts}]
-   (let [seed (or seed (ids/new-node-id))
+   (let [seed (or seed [:compiler-2/program (contract/declaration-key expr)])
          env-id (h/stable-node-id :compiler-2 :root-env seed)
          declared (env/declare-root net env-id bindings)]
      (compile-expr expr
@@ -79,7 +80,8 @@
   ([expr compiler-env {:keys [net seed path compiler environment-props]
                        :or {net net/empty-net path []}
                        :as opts}]
-   (let [seed (or seed (ids/new-node-id))
+   (let [syntax (contract/declaration-key expr)
+         seed (or seed [:compiler-2/program syntax])
          compile* (or compiler default-compiler)
          {:keys [net env-id prop-ids]}
          (prepare-environment net compiler-env environment-props)
@@ -104,6 +106,24 @@
    (compile-expr (parser/parse-string source) compiler-env))
   ([source compiler-env opts]
    (compile-expr (parser/parse-string source) compiler-env opts)))
+
+(defn compile-form
+  ([form] (compile-expr (parser/parse-form form)))
+  ([form environment] (compile-expr (parser/parse-form form) environment))
+  ([form environment options]
+   (compile-expr (parser/parse-form form) environment options)))
+
+(defn compile-program
+  ([forms] (compile-program forms nil {}))
+  ([forms environment] (compile-program forms environment {}))
+  ([forms environment options]
+   (when-not (seq forms)
+     (throw (ex-info "A program requires at least one expression" {:forms forms})))
+   (let [expression (apply (requiring-resolve 'propagators.compiler-2.language.ast/sequence*)
+                           (map parser/parse-form forms))]
+     (if environment
+       (compile-expr expression environment options)
+       (compile-expr-with-bindings expression (h/default-bindings) options)))))
 
 (defn compiled-result [compiled-net]
   (net/network-dict-entry compiled-net compiler-result-key))

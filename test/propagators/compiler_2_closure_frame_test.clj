@@ -1,9 +1,9 @@
 (ns propagators.compiler-2-closure-frame-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [propagators.runner :as runner]
+            [clojure.test :refer [deftest is]]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.main :as compiler]
             [propagators.compiler-2.model.env :as env]
-            [propagators.compiler-2.runtime.topology-effects :as topology]
             [propagators.core :as core]
             [propagators.gur :as gur]
             [propagators.ids :as ids]
@@ -28,7 +28,7 @@
   [network id candidate]
   (let [[tasks seeded]
         (core/eval-cell id (message id candidate) network)]
-    (nb/run-propagators seeded tasks)))
+    (runner/completed-network (runner/run-network tasks seeded))))
 
 (defn- live-root
   [network bindings]
@@ -37,7 +37,7 @@
                     (into (vec (basis/default-bindings)) bindings)))
 
 (deftest closure-builds-flat-frame-in-active-network
-  (let [compiled (compiler/compile-source "((:: [x] (+ x 1)) 4)")
+  (let [compiled (compiler/compile-source "((network [x] (+ x 1)) 4)")
         result (run-compiled compiled)
         names (net/network-dict-entry result gur/name-bindings-key)
         frames (get names [:gur.flat :frames])]
@@ -48,7 +48,7 @@
   (let [bias-id (ids/new-node-id)
         initial (nb/install-cell net/empty-net bias-id)
         root (live-root initial [['bias (env/cell-binding bias-id)]])
-        compiled (compiler/compile-source "((:: [x] (+ x bias)) 5)"
+        compiled (compiler/compile-source "((network [x] (+ x bias)) 5)"
                                           (:env root)
                                           {:net (:net root)
                                            :environment-props (:props root)})
@@ -66,7 +66,7 @@
         root (live-root initial
                         [['x (env/cell-binding outer-x-id)]
                          ['input (env/cell-binding input-id)]])
-        compiled (compiler/compile-source "((:: [x] (+ x 1)) input)"
+        compiled (compiler/compile-source "((network [x] (+ x 1)) input)"
                                           (:env root)
                                           {:net (:net root)
                                            :environment-props (:props root)})
@@ -78,34 +78,16 @@
 
 (deftest returned-closure-composes-as-produced-operator
   (let [compiled
-        (compiler/compile-source "(((:: [x] (:: [y] (+ x y))) 4) 5)")
+        (compiler/compile-source "(((network [x] (network [y] (+ x y))) 4) 5)")
         result
         (run-compiled compiled)]
     (is (= 9 (strongest result (:cell compiled))))))
 
 (deftest recursive-frame-growth-is-stable
   (let [source
-        "(let-cell [out]
-           (def-net down [a] [out]
-             (when (switch true (<= a 1)) (-> a out))
-             (when (switch true (> a 1)) (down (- a 1) out)))
-           (down 4 out)
-           out)"
+        "(let-cell [out] (define down (network [a out] (when (switch true (<= a 1)) (-> a out)) (-> (when (switch true (> a 1)) (down (- a 1) out)) out) (list out))) (down 4 out) out)"
         compiled (compiler/compile-source source)
         once (run-compiled compiled)
         twice (nb/run-propagators once (:props compiled))]
     (is (= 1 (strongest once (:cell compiled))))
     (is (= (prop-count once) (prop-count twice)))))
-
-(deftest topology-result-metadata-preserves-delayed-activation
-  (let [gate (ids/new-node-id)
-        root (live-root (nb/install-cell net/empty-net gate) [['gate (env/cell-binding gate)]])
-        compiled (compiler/compile-source
-                  "(let-cell [out] (when gate (-> 9 out)) out)"
-                  (:env root) {:net (:net root) :environment-props (:props root)})
-        waiting (run-compiled compiled)
-        complete (seed-and-run waiting gate true)]
-    (is (= 1 (count (topology/topology-result-ids waiting))))
-    (is (= :bool4/nothing (strongest waiting (:cell compiled))))
-    (is (= 9 (strongest complete (:cell compiled))))
-    (is (= (topology/topology-result-ids waiting) (topology/topology-result-ids complete)))))

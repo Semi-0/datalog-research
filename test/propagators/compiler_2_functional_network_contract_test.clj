@@ -1,12 +1,12 @@
-(ns experiments.functional-network-contract-test
+(ns propagators.compiler-2-functional-network-contract-test
   "Executable contract checks; these are not an all-context equivalence proof."
   (:require [clojure.test :refer [deftest is]]
-            [experiments.functional-network :as experiment]
-            [experiments.functional-network.compiler :as compiler]
-            [experiments.functional-network-test :as fixture]
-            [experiments.functional-network-effects-test :as effect-fixture]
+            [propagators.compiler-2.runtime.returned-outputs :as experiment]
+            [propagators.compiler-2.language.parser :as parser]
+            [propagators.compiler-2.runtime.linked-application :as linked]
+            [propagators.compiler-2.cps-core :as compiler]
+            [propagators.compiler-2-functional-network-test :as fixture]
             [propagators.cells.value :as value]
-            [propagators.compiler-2.runtime.boundary.effects :as effects]
             [propagators.gur :as gur]
             [propagators.gur.flat :as flat]
             [propagators.network :as net]
@@ -105,17 +105,3 @@
     (is (contains? declared-outputs (:cell compiled)))
     (is (= 1 (count ports)))
     (is (not-any? declared-outputs ports))))
-
-(deftest both-call-shapes-preserve-effect-boundary-behavior
-  (doseq [call ["(send 42)" "(apply send (list 42))"]]
-    (let [before (count @effect-fixture/executions)
-          {:keys [session]}
-          (effect-fixture/compile-session
-           (str "(let [] (define send (network (x) (emit x))) " call ")"))
-          requests (effects/outbox-effects (:program/net session))]
-      (is (= 1 (count requests)))
-      (is (= 42 (get-in (first requests) [:boundary/payload :value])))
-      (is (= before (count @effect-fixture/executions)))
-      (let [drained (effects/drain-environment-effects session)]
-        (is (= [42] (vec (drop before @effect-fixture/executions))))
-        (is (= [:handled] (mapv :status (vals (:environment/effects drained)))))))))

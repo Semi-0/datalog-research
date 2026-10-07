@@ -1,9 +1,11 @@
-(ns experiments.functional-network-gur-test
+(ns propagators.compiler-2-functional-network-gur-test
   "Language-level GUR programs, without Fibonacci or HOP host specializations."
   (:require [clojure.test :refer [deftest is]]
-            [experiments.functional-network :as experiment]
-            [experiments.functional-network.compiler :as compiler]
-            [experiments.functional-network-test :as fixture]
+            [propagators.compiler-2.runtime.returned-outputs :as experiment]
+            [propagators.compiler-2.language.parser :as parser]
+            [propagators.compiler-2.runtime.linked-application :as linked]
+            [propagators.compiler-2.cps-core :as compiler]
+            [propagators.compiler-2-functional-network-test :as fixture]
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.datastructures.compound-object :as obj]

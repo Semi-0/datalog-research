@@ -1,5 +1,6 @@
 (ns graph.xr-runtime-test
-  (:require [clojure.set :as set]
+  (:require [graph.compiler-2-assembly :as assembly]
+            [clojure.set :as set]
             [clojure.string :as str]
             [clojure.test :refer [deftest is]]
             [propagators.compiler-2.runtime :as runtime]
@@ -27,7 +28,7 @@
                            (symbol label)))
 
 (def behavior-declaration-forms
-  ["(def-cells a-events a b-events b c-events c)"
+  ["(define a-events)\n(define a)\n(define b-events)\n(define b)\n(define c-events)\n(define c)"
    "(be:latest a-events a)"
    "(be:latest b-events b)"
    "(be:latest c-events c)"])
@@ -86,7 +87,7 @@
 
 (defn- xr-effects
   [session]
-  (runtime/read-xr-effects @session))
+  (assembly/read-xr-effects @session))
 
 (defn- wait-for-xr-launch
   [session]
@@ -102,13 +103,7 @@
   (wait-until #(pos? (.size bytes))))
 
 (def behavior-widget-source
-  "(def events)
-   (def out)
-   (def widget)
-   (def-net retain-event [acc update] [out]
-     (behavior-add-event acc update out))
-   (behavior events retain-event (behavior-empty-state) out)
-   (slider-io \"gain\" out events widget)")
+  "(define events)\n(define out)\n(define widget)\n(define retain-event (network [acc update out] (behavior-add-event acc update out) (list out)))\n(behavior events retain-event (behavior-empty-state) out)\n(slider-io \"gain\" out events widget)")
 
 (deftest xr-json-round-trips-runtime-command-shape
   (let [command {:op "xr/send-message"
@@ -149,18 +144,18 @@
     (is (= [(pr-str :runtime-out)] (:aliases (first out-nodes))))))
 
 (deftest xr-extend-graph-routes-through-runtime-compiler
-  (let [session (runtime/new-session)
+  (let [session (assembly/new-session)
         result (xr/handle-command! session
                                    {:op :xr/extend-graph
-                                    :source "(def a)"})]
+                                    :source "(define a)"})]
     (is (true? (get-in result [:graph :graph])))
     (is (some? (cell-id session "a")))))
 
 (deftest xr-extend-graph-accepts-textarea-with-multiple-forms
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
-                         :source "(def out)\n(-> 42 out)"})
+                         :source "(define out)\n(-> 42 out)"})
     (let [installed (xr/handle-command! session
                                         {:op :xr/trace/install
                                          :label "out"
@@ -172,8 +167,8 @@
                     (get-in installed [:graph :nodes]))))))
 
 (deftest xr-send-message-injects-scalar-value-into-cell
-  (let [session (runtime/new-session)]
-    (xr/handle-command! session {:op :xr/extend-graph :source "(def a)"})
+  (let [session (assembly/new-session)]
+    (xr/handle-command! session {:op :xr/extend-graph :source "(define a)"})
     (xr/handle-command! session
                         {:op :xr/send-message
                          :target {:label "a"}
@@ -183,8 +178,8 @@
                              {:cell-id (pr-str (cell-id session "a"))}))))))
 
 (deftest xr-send-message-enters-runtime-commit-stage
-  (let [session (runtime/new-session)]
-    (xr/handle-command! session {:op :xr/extend-graph :source "(def a)"})
+  (let [session (assembly/new-session)]
+    (xr/handle-command! session {:op :xr/extend-graph :source "(define a)"})
     (xr/handle-command! session
                         {:op :xr/send-message
                          :target {:label "a"}
@@ -195,7 +190,7 @@
            (-> @session :runtime/inputs peek :cell-id)))))
 
 (deftest tui-view-projection-is-pure
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A" :text "(+ 1 2)"})
     (let [state @session
@@ -204,8 +199,8 @@
       (is (= state @session)))))
 
 (deftest xr-send-message-injects-behavior-event-content
-  (let [session (runtime/new-session)]
-    (xr/handle-command! session {:op :xr/extend-graph :source "(def events)"})
+  (let [session (assembly/new-session)]
+    (xr/handle-command! session {:op :xr/extend-graph :source "(define events)"})
     (let [id (cell-id session "events")]
       (xr/handle-command! session
                           {:op :xr/send-message
@@ -218,8 +213,8 @@
                 6))))))
 
 (deftest xr-send-message-can-inject-latest-behavior-value
-  (let [session (runtime/new-session)]
-    (xr/handle-command! session {:op :xr/extend-graph :source "(def behavior)"})
+  (let [session (assembly/new-session)]
+    (xr/handle-command! session {:op :xr/extend-graph :source "(define behavior)"})
     (let [id (cell-id session "behavior")]
       (xr/handle-command! session
                           {:op :xr/send-message
@@ -239,8 +234,8 @@
         (is (= 2 (count (behavior/history-records content))))))))
 
 (deftest xr-send-message-injects-distributed-tms-premise-fact
-  (let [session (runtime/new-session)]
-    (xr/handle-command! session {:op :xr/extend-graph :source "(def fact)"})
+  (let [session (assembly/new-session)]
+    (xr/handle-command! session {:op :xr/extend-graph :source "(define fact)"})
     (let [id (cell-id session "fact")]
       (xr/handle-command! session
                           {:op :xr/send-message
@@ -254,7 +249,7 @@
                      (tms/premise-slot-key "p/a" 1))))))
 
 (deftest slider-io-registers-widget-through-boundary-effect
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source behavior-widget-source})
@@ -267,11 +262,10 @@
                 (get-in @session [:xr :effects]))))))
 
 (deftest io-slider-registers-single-io-cell-with-symbol-default-name
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
-                         :source "(def gain)
-                                  (io:slider gain)"})
+                         :source "(define gain)\n(io:slider gain)"})
     (let [gain-id (cell-id session "gain")
           widget (get-in @session [:xr :widgets "gain"])
           channel (get-in widget [:channels "value"])]
@@ -288,13 +282,10 @@
                 1))))))
 
 (deftest io-slider-panel-registers-channel-names-from-cell-symbols
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
-                         :source "(def a)
-                                  (def b)
-                                  (def c)
-                                  (io:slider-panel-name \"mix\" a b c)"})
+                         :source "(define a)\n(define b)\n(define c)\n(io:slider-panel-name \"mix\" a b c)"})
     (let [widget (get-in @session [:xr :widgets "mix"])]
       (is (= "slider-panel" (:type widget)))
       (is (= #{"a" "b" "c"} (set (keys (:channels widget)))))
@@ -305,25 +296,20 @@
           (is (= id (:event-cell channel))))))))
 
 (deftest io-slider-panel-defaults-panel-id-with-varargs
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
-                         :source "(def a)
-                                  (def b)
-                                  (def c)
-                                  (io:slider-panel a b c)"})
+                         :source "(define a)\n(define b)\n(define c)\n(io:slider-panel a b c)"})
     (let [widget (get-in @session [:xr :widgets "slider-panel-0"])]
       (is (= "slider-panel" (:type widget)))
       (is (= #{"a" "b" "c"} (set (keys (:channels widget))))))))
 
 (deftest io-slider-panel-routes-behavior-views-to-sibling-event-sources
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source (str behavior-declarations-source
-                                      "\n(def out)
-                                       (io:slider-panel a b c)
-                                       (<-> (be:- (be:+ a b) c) out)")})
+                                      "(define out)\n(io:slider-panel a b c)\n(<-> (be:- (be:+ a b) c) out)")})
     (let [widget (get-in @session [:xr :widgets "slider-panel-0"])]
       (is (= "slider-panel" (:type widget)))
       (doseq [label ["a" "b" "c"]]
@@ -346,7 +332,7 @@
     (is (= 11 (behavior-current session "out")))))
 
 (deftest xr-widget-event-rejects-unknown-widget-without-mutating
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source behavior-widget-source})
@@ -362,7 +348,7 @@
       (is (= before (:program/net @session))))))
 
 (deftest slider-widget-events-inject-behavior-source-epochs
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source behavior-widget-source})
@@ -386,10 +372,10 @@
       (is (= 11 (behavior-current session "out"))))))
 
 (deftest xr-widget-event-response-does-not-replace-traced-graph
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (doseq [source (concat behavior-declaration-forms
-                           ["(def out)"
+                           ["(define out)"
                             "(<-> (be:- (be:+ a b) c) out)"
                             "(let-cell [g]
                                (trace out g)
@@ -404,7 +390,7 @@
       (is (not (contains? response :graph))))))
 
 (deftest xr-widget-projection-uses-strongest-not-behavior-content
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source behavior-widget-source})
@@ -434,12 +420,8 @@
              (:value projected-node))))))
 
 (deftest slider-panel-routes-multiple-channels
-  (let [session (runtime/new-session)
-        source "(def ea)
-                (def eb)
-                (def ec)
-                (def widget)
-                (slider-panel-io \"panel\" \"a\" ea ea \"b\" eb eb \"c\" ec ec widget)"]
+  (let [session (assembly/new-session)
+        source "(define ea)\n(define eb)\n(define ec)\n(define widget)\n(slider-panel-io \"panel\" \"a\" ea ea \"b\" eb eb \"c\" ec ec widget)"]
     (xr/handle-command! session {:op :xr/extend-graph :source source})
     (xr/handle-command! session {:op :xr/widget-event
                                  :widget-id "panel"
@@ -468,32 +450,13 @@
 
 (def complex-widget-behavior-source
   (str behavior-declarations-source
-       "\n(def out)
-        (io:slider-panel-name \"mix\" a b c)
-        (<-> (be:- (be:+ a b) c) out)"))
+       "(define out)\n(io:slider-panel-name \"mix\" a b c)\n(<-> (be:- (be:+ a b) c) out)"))
 
 (def user-route-widget-behavior-extension
-  "(def a-events)
-   (def b-events)
-   (def c-events)
-   (def a)
-   (def b)
-   (def c)
-   (def widget)
-   (def-net retain-event [acc update] [out]
-     (behavior-add-event acc update out))
-   (behavior a-events retain-event (behavior-empty-state) a)
-   (behavior b-events retain-event (behavior-empty-state) b)
-   (behavior c-events retain-event (behavior-empty-state) c)
-   (slider-panel-io \"mix\"
-     \"a\" a a-events
-     \"b\" b b-events
-     \"c\" c c-events
-     widget)
-   (<-> (be:- (be:+ a b) c) out)")
+  "(define a-events)\n(define b-events)\n(define c-events)\n(define a)\n(define b)\n(define c)\n(define widget)\n(define retain-event (network [acc update out] (behavior-add-event acc update out) (list out)))\n(behavior a-events retain-event (behavior-empty-state) a)\n(behavior b-events retain-event (behavior-empty-state) b)\n(behavior c-events retain-event (behavior-empty-state) c)\n(slider-panel-io \"mix\" \"a\" a a-events \"b\" b b-events \"c\" c c-events widget)\n(<-> (be:- (be:+ a b) c) out)")
 
 (deftest widget-events-drive-complex-behavior-arithmetic-chain
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source complex-widget-behavior-source})
@@ -516,10 +479,10 @@
     (is (= 17 (behavior-current session "out")))))
 
 (deftest xr-extend-graph-preserves-tui-env-for-user-route-be-block-at
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "taro"})
     (runtime/submit-tui-block! session {:client-id "taro"
-                                        :text "(def out)"})
+                                        :text "(define out)"})
     (runtime/submit-tui-block! session {:client-id "taro"
                                         :text "(let-cell [g r]
                                                 (trace out g)
@@ -566,13 +529,13 @@
       (is (= 17 (:value block-2))))
     (xr/handle-command! session
                         {:op :xr/extend-graph
-                         :source "(def replay-check)"})
+                         :source "(define replay-check)"})
     (let [view (runtime/read-tui-view @session {:client-id "taro"})
           block-2 (some #(when (= 2 (:index %)) %) (:blocks view))]
       (is (= 17 (:value block-2))))))
 
 (deftest widget-event-transaction-marks-downstream-output-node
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source complex-widget-behavior-source})
@@ -595,14 +558,13 @@
       (is (< 1 (count changed-cells))))))
 
 (deftest tui-submit-after-xr-traced-behavior-update-returns
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(def a-events)"
-                    "(def out)"
-                    "(def widget)"
-                    "(def r)"
-                    "(def-net retain-event [acc update] [out]
-                       (behavior-add-event acc update out))"
+    (doseq [source ["(define a-events)"
+                    "(define out)"
+                    "(define widget)"
+                    "(define r)"
+                    "(define retain-event (network [acc update out] (behavior-add-event acc update out) (list out)))"
                     "(behavior a-events retain-event (behavior-empty-state) out)"
                     "(slider-io \"gain\" out a-events widget)"
                     "(let-cell [g]
@@ -630,7 +592,7 @@
         (is (some #(= 9 (:value %)) (:blocks view)))))))
 
 (deftest xr-trace-projects-widget-nodes-and-metadata
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source complex-widget-behavior-source})
@@ -649,8 +611,8 @@
       (is (= 1 (get labels "out"))))))
 
 (deftest xr-trace-install-and-read-projects-semantic-graph-json
-  (let [session (runtime/new-session)]
-    (xr/handle-command! session {:op :xr/extend-graph :source "(def a)"})
+  (let [session (assembly/new-session)]
+    (xr/handle-command! session {:op :xr/extend-graph :source "(define a)"})
     (xr/handle-command! session {:op :xr/extend-graph :source "(-> 42 a)"})
     (let [installed (xr/handle-command! session
                                         {:op :xr/trace/install
@@ -664,10 +626,10 @@
       (is (seq (get-in read-back [:graph :edges]))))))
 
 (deftest xr-trace-collapses-compound-application-and-expands-on-request
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
-                         :source "(def-net inc [x] [out] (<-> (+ x 1) out))"})
+                         :source "(define inc (network [x out] (<-> (+ x 1) out) (list out)))"})
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source "(let-cell [out] (inc 4 out) out)"})
@@ -689,13 +651,8 @@
       (is (contains? expansion-labels "+")))))
 
 (deftest xr-trace-keeps-forward-sync-output-cell-canonical
-  (let [session (runtime/new-session)
-        source "(def out)
-                (-> 42 out)
-
-                (def inc (network [a] [b] (-> (+ a 1) b)))
-                (def out3)
-                (inc out out3)"]
+  (let [session (assembly/new-session)
+        source "(define out)\n(-> 42 out)\n(define inc (network [a b] (-> (+ a 1) b) (list b)))\n(define out3)\n(inc out out3)"]
     (xr/handle-command! session
                         {:op :xr/extend-graph
                          :source source})
@@ -717,11 +674,11 @@
       (is (contains? edges ["call inc" "out3"])))))
 
 (deftest compiler-runtime-xr-io-launches-effect-and-writes-receipt
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(def a)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define a)"})
     (runtime/append-tui-block! session {:client-id "A" :text "(<-> 42 a)"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(def receipt)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define receipt)"})
     (runtime/append-tui-block!
      session
      {:client-id "A"
@@ -742,9 +699,9 @@
       (is (= :xr (:boundary/port receipt))))))
 
 (deftest compiler-runtime-io-xr-returns-receipt-cell
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(def a)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define a)"})
     (runtime/append-tui-block! session {:client-id "A" :text "(<-> 42 a)"})
     (runtime/append-tui-block!
      session
@@ -762,11 +719,11 @@
       (is (net/network? (:receipt delivered))))))
 
 (deftest compiler-runtime-io-xr-rejects-explicit-receipt-argument
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(def a)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define a)"})
     (runtime/append-tui-block! session {:client-id "A" :text "(<-> 42 a)"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(def receipt)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define receipt)"})
     (runtime/append-tui-block!
      session
      {:client-id "A"
@@ -778,13 +735,13 @@
                          [:program/results ["A" 3] :error])))))
 
 (deftest compiler-runtime-trace-registers-distinct-subscriptions
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/handle-command! session {:op :tui/register :client-id "A"})
-    (doseq [source ["(def x0)"
-                    "(def x1)"
-                    "(def x2)"
-                    "(def x3)"
-                    "(def x4)"
+    (doseq [source ["(define x0)"
+                    "(define x1)"
+                    "(define x2)"
+                    "(define x3)"
+                    "(define x4)"
                     "(let-cell [g] (trace x0 g))"
                     "(let-cell [g] (trace x1 g))"
                     "(let-cell [g] (trace x2 g))"
@@ -799,9 +756,9 @@
                               (vals (:trace/subscriptions @session)))))))))
 
 (deftest effectful-trace-updates-io-xr-after-additive-topology-append
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/handle-command! session {:op :tui/register :client-id "A"})
-    (doseq [source ["(def x0)"
+    (doseq [source ["(define x0)"
                     "(let-cell [g] (trace x0 g) (io:xr g))"]]
       (runtime/handle-command! session {:op :tui/append-block
                                         :client-id "A"
@@ -830,9 +787,9 @@
         (is (pos? (get labels "->" 0)))))))
 
 (deftest effectful-trace-updates-when-upstream-chain-grows
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/handle-command! session {:op :tui/register :client-id "A"})
-    (doseq [source ["(def-cells a b c out g)"
+    (doseq [source ["(define a)\n(define b)\n(define c)\n(define out)\n(define g)"
                     "(-> (+ a b) out)"
                     "(trace out g)"]]
       (runtime/handle-command! session {:op :tui/append-block
@@ -857,7 +814,7 @@
       (is (<= 2 (get labels "->" 0))))))
 
 (deftest effectful-trace-auto-output-block-stays-live
-  (let [session (runtime/new-session)
+  (let [session (assembly/new-session)
         submit! #(do
                    (runtime/handle-command! session {:op :tui/submit-block
                                                      :client-id "A"
@@ -874,7 +831,7 @@
                            vals
                            frequencies)]
     (runtime/handle-command! session {:op :tui/register :client-id "A"})
-    (submit! "(def-cells a b c out g)")
+    (submit! "(define a)\n(define b)\n(define c)\n(define out)\n(define g)")
     (submit! "(trace out g)")
     (is (wait-until #(pos? (get (block-labels) "out" 0))))
     (submit! "(-> (+ a b) out)")
@@ -885,13 +842,13 @@
                             (pos? (get labels "->" 0))))))))
 
 (deftest io-xr-launches-existing-effectful-trace-result
-  (let [session (runtime/new-session)
+  (let [session (assembly/new-session)
         submit! #(do
                    (runtime/handle-command! session {:op :tui/submit-block
                                                      :client-id "A"
                                                      :text %})
                    (Thread/sleep 50))
-        latest-labels #(->> (:effects (runtime/read-xr-effects @session))
+        latest-labels #(->> (:effects (assembly/read-xr-effects @session))
                             last
                             :boundary/payload
                             :graph
@@ -899,15 +856,15 @@
                             vals
                             frequencies)]
     (runtime/handle-command! session {:op :tui/register :client-id "A"})
-    (submit! "(def-cells out g)")
+    (submit! "(define out)\n(define g)")
     (submit! "(trace out g)")
     (is (wait-until #(= 1 (:trace/published-results @session))))
     (submit! "(io:xr g)")
     (is (wait-until #(pos? (get (latest-labels) "out" 0))))))
 
 (deftest xr-effects-preserve-trace-delivery-order
-  (let [session (runtime/new-session)
-        latest-labels #(->> (:effects (runtime/read-xr-effects @session))
+  (let [session (assembly/new-session)
+        latest-labels #(->> (:effects (assembly/read-xr-effects @session))
                             last
                             :boundary/payload
                             :graph
@@ -915,9 +872,9 @@
                             vals
                             frequencies)]
     (runtime/handle-command! session {:op :tui/register :client-id "A"})
-    (doseq [source ["(def-cells a b c)"
-                    "(def out)"
-                    "(def g)"
+    (doseq [source ["(define a)\n(define b)\n(define c)"
+                    "(define out)"
+                    "(define g)"
                     "(trace out g)"
                     "(io:xr g)"
                     "(-> (+ (- a b) c) out)"
@@ -940,11 +897,11 @@
       (is (pos? (get labels "->" 0))))))
 
 (deftest xr-effectful-trace-publishes-first-expanded-topology
-  (let [session (runtime/new-session)
+  (let [session (assembly/new-session)
         append! #(runtime/handle-command! session {:op :tui/append-block
                                                    :client-id "A"
                                                    :text %})
-        latest-labels #(->> (:effects (runtime/read-xr-effects @session))
+        latest-labels #(->> (:effects (assembly/read-xr-effects @session))
                             last
                             :boundary/payload
                             :graph
@@ -952,9 +909,9 @@
                             vals
                             frequencies)]
     (runtime/handle-command! session {:op :tui/register :client-id "A"})
-    (doseq [source ["(def-cells a b c)"
-                    "(def out)"
-                    "(def g)"
+    (doseq [source ["(define a)\n(define b)\n(define c)"
+                    "(define out)"
+                    "(define g)"
                     "(trace out g)"
                     "(io:xr g)"]]
       (append! source)
@@ -969,9 +926,9 @@
                             (pos? (get labels "->" 0))))))))
 
 (deftest trace-subscription-drops-stale-worker-result
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/handle-command! session {:op :tui/register :client-id "A"})
-    (doseq [source ["(def x0)"
+    (doseq [source ["(define x0)"
                     "(let-cell [g] (trace x0 g))"]]
       (runtime/handle-command! session {:op :tui/append-block
                                         :client-id "A"
@@ -997,11 +954,11 @@
              (:trace/stale-results state'))))))
 
 (deftest tui-submit-xr-io-records-runtime-transaction
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime/submit-tui-block! session {:client-id "A" :text "(def a)"})
+    (runtime/submit-tui-block! session {:client-id "A" :text "(define a)"})
     (runtime/submit-tui-block! session {:client-id "A" :text "(<-> 42 a)"})
-    (runtime/submit-tui-block! session {:client-id "A" :text "(def receipt)"})
+    (runtime/submit-tui-block! session {:client-id "A" :text "(define receipt)"})
     (let [view (runtime/submit-tui-block!
                 session
                 {:client-id "A"
@@ -1039,9 +996,9 @@
     (try
       (is (nil? (:server @(:xr-state server))))
       (request {:op :tui/register :client-id "A"})
-      (request {:op :tui/append-block :client-id "A" :text "(def a)"})
+      (request {:op :tui/append-block :client-id "A" :text "(define a)"})
       (request {:op :tui/append-block :client-id "A" :text "(<-> 42 a)"})
-      (request {:op :tui/append-block :client-id "A" :text "(def receipt)"})
+      (request {:op :tui/append-block :client-id "A" :text "(define receipt)"})
       (request {:op :tui/append-block
                 :client-id "A"
 	                :text "(let-cell [g]
@@ -1078,12 +1035,12 @@
     (is (= text (:text frame)))))
 
 (deftest websocket-effect-push-sends-xr-io-launch-graph
-  (let [session (runtime/new-session)
+  (let [session (assembly/new-session)
         bytes (ByteArrayOutputStream.)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(def out)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define out)"})
     (runtime/append-tui-block! session {:client-id "A" :text "(-> (+ 1 2) out)"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(def receipt)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define receipt)"})
     (runtime/append-tui-block!
      session
      {:client-id "A"
@@ -1108,10 +1065,10 @@
           (stop))))))
 
 (deftest xr-effect-payload-includes-widgets-registered-after-io-xr
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (doseq [source (concat behavior-declaration-forms
-                           ["(def out)"
+                           ["(define out)"
                             "(<-> (be:- (be:+ a b) c) out)"
                             "(let-cell [g]
 		                       (trace out g)
@@ -1132,11 +1089,11 @@
 	                  set))))))
 
 (deftest io-xr-tracks-default-event-arithmetic-from-slider-panel-alias
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(def-cells a b c d)"
+    (doseq [source ["(define a)\n(define b)\n(define c)\n(define d)"
                     "(-> (- (+ a c) b) d)"
-                    "(def-cell g)"
+                    "(define g)"
                     "(trace d g)"
                     "(io:xr g)"
                     "(io:slider-panels a b c)"]]
@@ -1214,11 +1171,11 @@
       (is d-node-changed?))))
 
 (deftest xr-effect-payload-change-token-retriggers-repeated-event-pulses
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(def-cells a b c d)"
+    (doseq [source ["(define a)\n(define b)\n(define c)\n(define d)"
                     "(-> (- (+ a c) b) d)"
-                    "(def-cell g)"
+                    "(define g)"
                     "(trace d g)"
                     "(io:xr g)"
                     "(io:slider-panels a b c)"]]
@@ -1252,11 +1209,11 @@
                  (long (get-in third-payload [:graph :change-token])))))))))
 
 (deftest repeated-slider-events-do-not-duplicate-widget-graph-edges
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(def-cells a b c d)"
+    (doseq [source ["(define a)\n(define b)\n(define c)\n(define d)"
                     "(-> (- (+ a c) b) d)"
-                    "(def-cell g)"
+                    "(define g)"
                     "(trace d g)"
                     "(io:xr g)"
                     "(io:slider-panels a b c)"]]
@@ -1272,9 +1229,9 @@
       (is (= before (count (get-in @session [:graph :edges])))))))
 
 (deftest trace-installed-after-event-projection-traces-cell-not-projection
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(def-cells a b c d)"
+    (doseq [source ["(define a)\n(define b)\n(define c)\n(define d)"
                     "(-> (- (+ a c) b) d)"
                     "(io:slider-panels a b c)"]]
       (runtime/append-tui-block! session {:client-id "A" :text source}))
@@ -1284,7 +1241,7 @@
                                       :widget-id "slider-panel-0"
                                       :channel channel
                                       :value value}))
-    (doseq [source ["(def-cell g)"
+    (doseq [source ["(define g)"
                     "(trace d g)"
                     "(io:xr g)"]]
       (runtime/append-tui-block! session {:client-id "A" :text source}))
@@ -1299,10 +1256,10 @@
       (is (every? labels ["d" "a" "b" "c" "+" "-"])))))
 
 (deftest io-xr-relaunches-on-widget-update-after-be-block-rebuild
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (doseq [source (concat behavior-declaration-forms
-                           ["(def out)"
+                           ["(define out)"
                             "(<-> (be:- (be:+ a b) c) out)"
                             "(let-cell [g]
                                (trace out g)
@@ -1350,12 +1307,12 @@
         (is (= 77 (get-in view [:blocks 9 :value])))))))
 
 (deftest installed-trace-ticks-do-not-stall-large-be-block-append
-  (let [session (runtime/new-session)
+  (let [session (assembly/new-session)
         trace-id (atom nil)]
     (try
       (runtime/register-tui! session {:client-id "A"})
       (runtime/append-tui-block! session {:client-id "A"
-                                          :text "(def x0)"
+                                          :text "(define x0)"
                                           :rebuild? false})
       (runtime/append-tui-block! session {:client-id "A"
                                           :text "(<-> 0 x0)"
@@ -1389,9 +1346,9 @@
           (runtime/stop-installed-trace! session {:trace-id @trace-id}))))))
 
 (deftest xr-io-supports-local-let-cell-receipt-target
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(def out)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define out)"})
     (runtime/append-tui-block! session {:client-id "A" :text "(-> (+ 1 2) out)"})
     (runtime/append-tui-block!
      session
@@ -1415,12 +1372,12 @@
       (is (= :xr/launch-trace (get-in effects [0 :boundary/kind]))))))
 
 (deftest xr-io-trace-updates-when-later-block-adds-upstream-producer
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(def out2)"
-                    "(def a)"
+    (doseq [source ["(define out2)"
+                    "(define a)"
                     "(-> (+ a 2) out2)"
-                    "(def r)"
+                    "(define r)"
 	                    "(let-cell [g]
 	                       (trace out2 g)
 	                       (xr-io g r)
@@ -1444,10 +1401,10 @@
       (is (pos? (get labels "out2" 0))))))
 
 (deftest xr-io-trace-renders-topology-before-upstream-value-arrives
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(def out)"
-                    "(def a)"
+    (doseq [source ["(define out)"
+                    "(define a)"
                     "(-> (+ 1 a) out)"
 	                    "(let-cell [g r]
 	                       (trace out g)

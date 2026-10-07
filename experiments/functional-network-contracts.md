@@ -1,5 +1,9 @@
 # Functional-network contracts and proof boundary
 
+Historical experiment audit. Production migration uses relocated tests and the
+shared compiler. See [current migration evidence and blockers](../doc/functional-network-migration.md).
+The evidence below remains specific to its recorded experiment snapshot.
+
 This audit concerns the functional-network experiment at base commit
 `755a305c79d5c4c380e9e119f147e69c9e35177c`. Production Compiler 2, the parser,
 CPS engine, flat GUR, compound objects, cells, and effect boundary are unchanged.

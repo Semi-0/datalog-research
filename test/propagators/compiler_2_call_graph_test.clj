@@ -44,7 +44,7 @@
   (is (operator-value/operator-closure?
        (default-operator 'p:call-graph)))
   (let [compiled (compiler/compile-source
-                  "(call-graph (:: [x] (+ x 1)))")
+                  "(call-graph (network [x] (+ x 1)))")
         network (run-compiled compiled)
         graph (strongest network (:cell compiled))
         prop-names (set (keep (fn [[_ entry]]
@@ -57,11 +57,7 @@
 
 (deftest potential-call-graph-represents-recursion-as-a-cycle
   (let [compiled (compiler/compile-source
-                  "(let-cell [self graph]
-                     (def-net self [x] [out]
-                       (self x out))
-                     (call-graph self graph)
-                     graph)")
+                  "(let-cell [self graph] (define self (network [x out] (-> (self x out) out) (list out))) (call-graph self graph) graph)")
         network (run-compiled compiled)
         graph (strongest network (:cell compiled))
         self-id (binding-id network 'self)
@@ -76,7 +72,7 @@
 (deftest realized-recursion-also-remains-a-finite-cycle
   (let [closure-id (ids/new-node-id)
         application-id (ids/new-node-id)
-        compiled (compiler/compile-source "(:: [x] x)")
+        compiled (compiler/compile-source "(network [x] x)")
         closure (strongest (:net compiled) (:cell compiled))
         graph (call-graph/realized-call-graph closure-id
                                               application-id
@@ -87,12 +83,7 @@
 
 (deftest connected-closure-applications-publish-realized-call-facts
   (let [compiled (compiler/compile-source
-                  "(let-cell [f out graph]
-                     (def-net f [x] [out]
-                       (+ x 1))
-                     (f 2 out)
-                     (call-graph f graph)
-                     graph)")
+                  "(let-cell [f out graph] (define f (network [x out] (-> (+ x 1) out) (list out))) (f 2 out) (call-graph f graph) graph)")
         network (run-compiled compiled)
         graph (strongest network (:cell compiled))]
     (is (contains? (graph-statuses graph) :potential))
@@ -105,18 +96,13 @@
 
 (deftest late-operator-arrival-refines-the-call-graph
   (let [compiled (compiler/compile-source
-                  "(let-cell [g outer out graph]
-                     (def-net outer [x] [out]
-                       (g x out))
-                     (outer 2 out)
-                     (call-graph outer graph)
-                     graph)")
+                  "(let-cell [g outer out graph] (define outer (network [x out] (-> (g x out) out) (list out))) (outer 2 out) (call-graph outer graph) graph)")
         waiting (run-compiled compiled)
         graph-id (:cell compiled)
         waiting-graph (strongest waiting graph-id)
         g-id (binding-id waiting 'g)
         callee-compiled (compiler/compile-source
-                         "(network [x] [out] (+ x 1))")
+                         "(network [x out] (-> (+ x 1) out) (list out))")
         callee (strongest (:net callee-compiled) (:cell callee-compiled))
         with-callee (nb/seed-cell waiting g-id callee)
         settled (nb/run-propagators
@@ -131,7 +117,7 @@
 
 (deftest pure-call-site-extraction-is-independent-of-runtime-state
   (let [compiled (compiler/compile-source
-                  "(:: [x] (+ (* x 2) 1))")
+                  "(network [x] (+ (* x 2) 1))")
         closure (strongest (:net compiled) (:cell compiled))
         labels (mapv :operator-label
                      (call-graph/call-sites

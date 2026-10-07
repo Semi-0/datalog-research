@@ -1,17 +1,49 @@
 ;; Functions, compounds, repeated nested calls, and an unrelated sibling chain.
-(def shift (:: [x] (+ x 1)))
-(def square (:: [x] (* x x)))
-(def-net stage [x] [out]
-  (-> (square (shift x)) out))
-(def-net pipeline [x] [out]
-  (let-cell [middle]
-    (stage x middle)
-    (stage middle out)))
 
-(def-cells source prepared left result other unused raw semantic)
+(define shift
+  (network [x]
+    (+ x 1)))
+
+(define square
+  (network [x]
+    (* x x)))
+
+(define stage
+  (network [x out]
+    (-> (square (shift x)) out)
+    (list out)))
+
+(define pipeline
+  (network [x out]
+    (let-cell [middle]
+      (stage x middle)
+      (stage middle out))
+    (list out)))
+
+(define source)
+
+(define prepared)
+
+(define left)
+
+(define result)
+
+(define other)
+
+(define unused)
+
+(define raw)
+
+(define semantic)
+
 (-> (shift source) prepared)
+
 (stage prepared left)
+
 (pipeline left result)
+
 (stage other unused)
+
 (relationship:roots source raw)
+
 (relationship:dataflow raw semantic)

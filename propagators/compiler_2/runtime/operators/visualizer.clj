@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.runtime.operators.visualizer
   "Compiler-2 direct installers for port-neutral visualizer propagators."
-  (:require [clojure.set :as set]
+  (:require [propagators.compiler-common.cps :as cps]
+            [clojure.set :as set]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
             [propagators.compiler-2.language.ast :as ast]
@@ -50,14 +51,17 @@
   [name arity installer]
   (operator-value/operator-closure
    {:name name
-    :direct-installer
-    (fn [state operand-forms _out-id]
+    :compiler-operands
+    (fn [_compile-k state operand-forms _out-id k]
+      (let [[next-state binding]
+            (do
       (when-not (= arity (count operand-forms))
         (throw (ex-info (str name " expects " arity " cell operands")
                         {:operator name :operand-forms operand-forms})))
       (let [[state' ids] (compile-cell-forms state operand-forms name)
             result-id (last ids)]
-        (install state' (apply installer ids) result-id)))}))
+        (install state' (apply installer ids) result-id)))]
+        (cps/continue k next-state binding)))}))
 
 (defn cell-window-operator
   []
@@ -75,8 +79,10 @@
   []
   (operator-value/operator-closure
    {:name 'propagator-references
-    :direct-installer
-    (fn [state operand-forms _out-id]
+    :compiler-operands
+    (fn [_compile-k state operand-forms _out-id k]
+      (let [[next-state binding]
+            (do
       (when-not (= 3 (count operand-forms))
         (throw (ex-info "propagator-references expects cell, direction, and output cell"
                         {:operand-forms operand-forms})))
@@ -91,14 +97,17 @@
                                   'propagator-references)]
           (install state'
                    (visualizer/p:propagator-references cell-id direction output-id)
-                   output-id))))}))
+                   output-id))))]
+        (cps/continue k next-state binding)))}))
 
 (defn juxtapose-operator
   []
   (operator-value/operator-closure
    {:name 'juxtapose
-    :direct-installer
-    (fn [state operand-forms _out-id]
+    :compiler-operands
+    (fn [_compile-k state operand-forms _out-id k]
+      (let [[next-state binding]
+            (do
       (when-not (<= 3 (count operand-forms))
         (throw (ex-info "juxtapose expects at least two view cells and one output cell"
                         {:operand-forms operand-forms})))
@@ -106,4 +115,5 @@
             output-id (last ids)]
         (install state'
                  (visualizer/p:juxtapose (butlast ids) output-id)
-                 output-id)))}))
+                 output-id)))]
+        (cps/continue k next-state binding)))}))

@@ -1,5 +1,9 @@
 # Lain syntax: functional-network iteration
 
+Historical syntax snapshot. The production WIP contract is now documented in
+[syntax-design.md](../doc/syntax-design.md), with incomplete delivery tracked in
+[the migration report](../doc/functional-network-migration.md).
+
 This document describes the implemented experimental compiler in
 `experiments.functional-network.compiler`. It is a design contract for this
 iteration, not a replacement for production Lain syntax. Examples of recursive

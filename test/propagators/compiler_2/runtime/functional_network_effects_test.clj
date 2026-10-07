@@ -1,13 +1,28 @@
-(ns experiments.functional-network-effects-test
+(ns propagators.compiler-2.runtime.functional-network-effects-test
   (:require [clojure.test :refer [deftest is]]
-            [experiments.functional-network :as experiment]
-            [experiments.functional-network.compiler :as language]
+            [propagators.compiler-2.runtime :as runtime]
+            [propagators.compiler-2.model.env :as env]
+            [propagators.compiler-2.runtime.linked-application :as experiment]
+            [propagators.compiler-2.cps-core :as language]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.boundary.effects :as effects]
             [propagators.datastructures.compound-object :as obj]
             [propagators.network-builder :as nb]
             [propagators.network :as net]))
+
+(deftest display-target-observes-a-late-application-result
+  (let [session (runtime/new-session)]
+    (runtime/register-tui! session {:client-id "display"})
+    (doseq [source ["(define x)" "(-> (+ x 1) y)" "(-> y (be:block 4))"]]
+      (runtime/append-tui-block! session {:client-id "display" :text source}))
+    (let [input (env/resolve-binding-id (:program/net @session) (:program/env @session) 'x)]
+      (runtime/commit-runtime-input! session
+                                    {:runtime/input :cell-message
+                                     :cell-id input :update 1}))
+    (is (= 2 (get-in (runtime/read-tui-view @session {:client-id "display"})
+                      [:blocks 4 :value])))
+    (is (empty? (:runtime/errors @session)))))
 
 ;; Only the boundary handler performs this controlled external action.
 (def executions (atom []))
@@ -33,7 +48,7 @@
                 :effect/normalize (fn [_ [value]] {:status :ready :payload {:value value}})
                 :effect/identity-parts (juxt :value)
                 :effect/handler-symbol
-                'experiments.functional-network-effects-test/handle-emission}]})
+                'propagators.compiler-2.runtime.functional-network-effects-test/handle-emission}]})
    {:outbox-id (state/boundary-outbox-id)}))
 
 (def visitor
@@ -122,3 +137,17 @@
     (let [drained (effects/drain-environment-effects session)]
       (is (= [1 2 3] (sort (drop before @executions))))
       (is (every? #(= :handled (:status %)) (vals (:environment/effects drained)))))))
+
+(deftest both-call-shapes-preserve-effect-boundary-behavior
+  (doseq [call ["(send 42)" "(apply send (list 42))"]]
+    (let [before (count @executions)
+          {:keys [session]}
+          (compile-session
+           (str "(let [] (define send (network (x) (emit x))) " call ")"))
+          requests (effects/outbox-effects (:program/net session))]
+      (is (= 1 (count requests)))
+      (is (= 42 (get-in (first requests) [:boundary/payload :value])))
+      (is (= before (count @executions)))
+      (let [drained (effects/drain-environment-effects session)]
+        (is (= [42] (vec (drop before @executions))))
+        (is (= [:handled] (mapv :status (vals (:environment/effects drained)))))))))

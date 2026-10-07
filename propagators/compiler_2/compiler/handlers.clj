@@ -17,15 +17,8 @@
 (defn compile-literal
   [_compile-k state expr k]
   (let [candidate (ast/value expr)]
-    (cond
-      (fn? (operator-value/operator-direct-compiler candidate))
-      (cps/continue k state candidate)
-
-      (fn? (operator-value/operator-direct-installer candidate))
-      (cps/continue k state candidate)
-
-      :else
-      (finish k (h/new-cell state :literal candidate)))))
+    (let [[declared binding] (h/new-cell state :literal candidate)]
+      (finish k (declarations/declare-operator-description declared binding candidate)))))
 
 (defn- compile-accessed-symbol
   [state sym k]
@@ -55,15 +48,8 @@
 (defn- compile-found-symbol
   [state binding-id k]
   (let [candidate (h/strongest-or-nothing (:net state) binding-id)]
-    (cond
-      (fn? (operator-value/operator-direct-compiler candidate))
-      (cps/continue k state candidate)
-
-      (fn? (operator-value/operator-direct-installer candidate))
-      (cps/continue k state candidate)
-
-      :else
-      (cps/continue k state (env/cell-binding binding-id)))))
+    (finish k (declarations/declare-operator-description
+               state (env/cell-binding binding-id) candidate))))
 
 (defn compile-symbol
   [_compile-k state expr k]
@@ -130,81 +116,78 @@
 (defn compile-def
   [compile-k state expr k]
   (let [body (ast/body expr)
-        name (ast/name expr)]
-    (cond
-      (nil? body)
-      (let [[state' binding] (h/new-cell state [:def name])]
-        (finish k (declarations/define-binding state' name binding)))
+        name (ast/name expr)
+        path (:path state)]
+    (cps/call
+     compile-k (h/child state :definition-target) (ast/sym name)
+     (fn [target-state target]
+       (let [value-state (h/child (assoc target-state :path path) :definition-value)]
+         (if body
+           (cps/call compile-k value-state body
+                     (fn [compiled source]
+                       (finish k (declarations/declare-definition
+                                  (assoc compiled :path path) name target source))))
+           (let [[declared source] (h/new-cell value-state :unfilled)]
+             (finish k (declarations/declare-definition
+                        (assoc declared :path path) name target source)))))))))
 
-      (= :network (ast/type body))
-      (let [[state' binding]
-            (declarations/declare-closure state name
-                                          (ast/inputs body)
-                                          (ast/output body)
-                                          (ast/body body))]
-        (finish k (declarations/define-binding state' name binding)))
+(defn compile-operator
+  [compile-k state expression continuation]
+  (let [base-path (:path state)]
+    (cps/call
+     compile-k
+     (h/child (common/with-path state base-path) :operator)
+     (ast/operator expression)
+     (fn [compiled-state operator-binding]
+       (continuation
+        (common/with-path compiled-state base-path)
+        operator-binding)))))
 
-      :else
-      (cps/call
-       compile-k (h/child state :body) body
-       (fn [state' body-binding]
-         (finish k (declarations/define-binding state' name body-binding)))))))
+(defn compile-argument-cells
+  [compile-k state operand-forms continuation]
+  (cps/compile-args compile-k state operand-forms continuation))
 
-(defn compile-def-constraint
-  [compile-k state expr k]
-  (finish k (declarations/declare-constraint compile-k state expr)))
+(defn- continue-with-application-topology
+  [continuation application-context operator-binding fallback-result-id
+   state argument-bindings]
+  (let [[declared result-binding]
+        (declarations/declare-application-topology
+         (merge state application-context)
+         operator-binding argument-bindings fallback-result-id)]
+    (cps/continue continuation declared result-binding)))
 
-(defn- declare-compiled-application
-  [compile* operator-binding arg-bindings state out-id]
-  (cond
-    (or (operator-value/operator-closure? operator-binding)
-        (fn? operator-binding))
-    (declarations/declare-operator-application-bindings
-     compile* operator-binding arg-bindings state out-id)
-
-    (env/binding-id operator-binding)
-    (declarations/declare-runtime-cell-application-bindings
-     compile* operator-binding arg-bindings state out-id)
-
-    :else
-    (throw (ex-info "application operator is not callable"
-                    {:operator operator-binding}))))
+(defn dispatch-application
+  [compile-k continuation state operator-binding
+   operand-forms fallback-result-id]
+  (let [compiler-operands
+        (operator-value/operator-compiler-operands
+         (declarations/known-operator-declaration state operator-binding))
+        application-context
+        (select-keys state
+                     [:context-id
+                      :application/app-id
+                      :application/operator-ast])]
+    (if (fn? compiler-operands)
+      (compiler-operands
+       compile-k state operand-forms fallback-result-id continuation)
+      (compile-argument-cells
+       compile-k state operand-forms
+       (partial continue-with-application-topology
+                continuation application-context
+                operator-binding fallback-result-id)))))
 
 (defn compile-application
   [compile-k state expr k]
-  (let [base-path (:path state)
-        op (ast/operator expr)
-        operand-forms (ast/args expr)]
-    (cps/call
-     compile-k (h/child (common/with-path state base-path) :operator) op
-     (fn [state' op-binding]
-       (let [state' (common/with-path state' base-path)
-             [state'' operator-binding out-id]
-             (common/prepare-application (fn [binding _state] binding)
-                                         state' op op-binding)
-             compile* (:compiler state'')
-             direct-compiler
-             (operator-value/operator-direct-compiler operator-binding)
-             direct-installer
-             (operator-value/operator-direct-installer operator-binding)]
-         (cond
-           (fn? direct-compiler)
-           (direct-compiler compile-k state'' operand-forms out-id k)
+  (compile-operator
+   compile-k state expr
+   (fn [operator-state operator-binding]
+     (let [[application-state fallback-result-id]
+           (declarations/declare-application-context operator-state expr)]
+       (dispatch-application
+        compile-k k application-state operator-binding
+        (ast/args expr) fallback-result-id)))))
 
-           (fn? direct-installer)
-           (finish k
-                   (declarations/declare-direct-operator-application
-                    compile* operator-binding operand-forms state'' out-id))
-
-           :else
-           (cps/compile-args
-            compile-k state'' operand-forms
-            (fn [state''' arg-bindings]
-              (finish k (declare-compiled-application
-                         compile* operator-binding arg-bindings
-                         (merge state'''
-                                (select-keys state''
-                                             [:context-id
-                                              :application/app-id
-                                              :application/operator-ast]))
-                         out-id))))))))))
+(defn continue-with-cell [continuation state binding]
+  (if (env/binding-id binding)
+    (cps/continue continuation state binding)
+    (throw (ex-info "Compiler handler did not return a cell" {:binding binding}))))

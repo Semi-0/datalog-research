@@ -114,6 +114,13 @@
         outputs (closure-output-symbols (closure-value/closure-output closure-info))
         arg-ids (vec arg-ids)]
     (cond
+      (closure-value/implicit-return-output? (closure-value/closure-output closure-info))
+      (when (= (count arg-ids) input-count)
+        {:input-ids arg-ids
+         :real-output-id out-id
+         :hidden-output-id (h/stable-node-id tag closure-id out-id arg-ids)
+         :inner-arg-ids arg-ids})
+
       (= 1 (count outputs))
       (when (= (count arg-ids) (inc input-count))
         (let [real-output-id (peek arg-ids)

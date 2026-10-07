@@ -1,8 +1,10 @@
-(ns experiments.functional-network-compiler-test
+(ns propagators.compiler-2-functional-network-compiler-test
   (:require [clojure.test :refer [deftest is]]
-            [experiments.functional-network :as experiment]
-            [experiments.functional-network.compiler :as compiler]
-            [experiments.functional-network-test :as fixture]
+            [propagators.compiler-2.runtime.returned-outputs :as experiment]
+            [propagators.compiler-2.language.parser :as parser]
+            [propagators.compiler-2.runtime.linked-application :as linked]
+            [propagators.compiler-2.cps-core :as compiler]
+            [propagators.compiler-2-functional-network-test :as fixture]
             [propagators.cells.value :as value]
             [propagators.compiler-2.language.ast :as ast]
             [propagators.gur :as gur]
@@ -55,7 +57,7 @@
   (let [compiled (compiler/compile-source "(network (x) (+ x 1))")
         receipt (result compiled)]
     (is (gur/recursive-closure? receipt))
-    (is (= :body-return (:experiment/output-interface receipt)))
+    (is (= :body-return (:compiler-2/output-interface receipt)))
     (is (empty? (experiment/outputs (run compiled))))))
 
 (deftest lexical-capture-and-shadowing-use-shared-compiler
@@ -109,7 +111,7 @@
     (is (= (set (:props a)) (set (:props b))))))
 
 (deftest explicit-output-and-constraint-special-forms-are-not-core
-  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"outside the functional-network core"
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"was removed"
                        (compiler/compile-form '(def-constraint add [a b c] (-> (+ a b) c)))))
   (is (thrown-with-msg? clojure.lang.ExceptionInfo #"derive outputs"
                        (compiler/compile-expr

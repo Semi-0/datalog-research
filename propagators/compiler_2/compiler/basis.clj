@@ -22,7 +22,6 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.stdlib.prop :as stdlib-prop]
             [propagators.datastructures.behavior.core :as behavior]
             [propagators.datastructures.behavior.arithmetic :as behavior-arithmetic])
   (:import [java.nio.charset StandardCharsets]
@@ -112,12 +111,6 @@
 
 (def list-empty-marker :compiler-2/list-empty)
 
-(defn- compile-direct-form
-  [state form role]
-  (let [compile* (compiler-dispatch/state-compiler state)
-        [state' binding] (compile* (child state role) form)]
-    [(assoc state' :path (:path state)) binding]))
-
 (defn declare-list
   [state element-bindings out-id]
   (let [element-ids (mapv env/binding-id element-bindings)]
@@ -175,7 +168,7 @@
    out-id
    #(list-topology % element-ids out-id)))
 
-(defn- compile-list-k
+(defn list-compiler-operands
   [compile-k state operand-forms out-id k]
   (let [base-path (:path state)
         forms (vec operand-forms)]
@@ -200,19 +193,82 @@
     :compiler-activate
     (fn [_compile* network _context-id arg-ids out-id]
       (list-application-effects network arg-ids out-id))
-    :direct-compiler compile-list-k
-    :direct-installer
-    (fn [state operand-forms out-id]
-      (let [[state' element-bindings]
-            (reduce
-             (fn [[state acc] [idx form]]
-               (let [[state' binding] (compile-direct-form state
-                                                           form
-                                                           [:list-element idx])]
-                 [state' (conj acc binding)]))
-             [state []]
-             (map-indexed vector operand-forms))]
-        (declare-list state' element-bindings out-id)))}))
+    :compiler-operands list-compiler-operands}))
+
+(defn- concrete-copy-activation
+  [[source-id] [target-id] network]
+  [(message target-id (net/network-cell-content network source-id))])
+
+(defn- live-accessor-link-effects
+  [network slot-key value-id collection]
+  (vec
+   (mapcat
+    (fn [parent-id]
+      (cond
+        (= parent-id value-id)
+        []
+
+        (not (ids/node-id? parent-id))
+        []
+
+        (not (contains? (net/net-env network) parent-id))
+        []
+
+        :else
+        [(gur/declare-prop
+          (stable-node-id :compiler-2 :live-accessor-link
+                          slot-key parent-id value-id :inbound)
+          [parent-id]
+          [value-id]
+          (prop/concrete-propagator concrete-copy-activation))]))
+    (obj/accessor-parent-ids collection slot-key))))
+
+(defn- live-accessor-activation
+  [slot-key value-id collection-id]
+  (prop/concrete-propagator
+   (fn [_inputs _outputs network]
+     (let [collection
+           (-> network
+               (net/network-cell-strongest collection-id)
+               obj/as-accessor-network)]
+       (cond
+         (value/contradiction? collection)
+         []
+
+         :else
+         {:effects
+          (live-accessor-link-effects network slot-key value-id collection)})))))
+
+(defn- install-live-accessor
+  [network slot-key installer value-id collection-id result-id]
+  (let [[slot-prop with-slot]
+        ((installer value-id collection-id) network)
+        watcher-id
+        (stable-node-id :compiler-2 :live-accessor
+                        slot-key value-id collection-id)
+        [watcher-prop installed]
+        ((prop/construct-propagator
+          watcher-id
+          [:compiler-2/live-accessor slot-key]
+          (live-accessor-activation slot-key value-id collection-id)
+          [collection-id]
+          [])
+         with-slot)]
+    [installed [slot-prop watcher-prop] result-id]))
+
+(defn- accessor-plan
+  [name arg-ids out-id]
+  (let [arguments (vec arg-ids)]
+    (case (count arguments)
+      1 {:value-id out-id
+         :collection-id (first arguments)
+         :result-id out-id}
+      2 {:value-id (first arguments)
+         :collection-id (second arguments)
+         :result-id (second arguments)}
+      (throw
+       (ex-info (str name " expects collection or value+collection")
+                {:arg-ids arguments})))))
 
 (defn- concrete-copy-activation
   [[source-id] [target-id] network]
@@ -595,8 +651,7 @@
 (defn- sync-update
   [network id]
   (let [content (net/network-cell-content network id)
-        update (stdlib-prop/forward-value
-                content (net/network-cell-strongest network id))]
+        strongest (net/network-cell-strongest network id)]
     (cond
       (tms/distributed-value? content)
       (tms/distributed-forward-update content)
@@ -605,8 +660,8 @@
        content)
       content
 
-      (not (value/unusable? update))
-      update
+      (not (value/unusable? strongest))
+      strongest
 
       :else nil)))
 
@@ -873,14 +928,23 @@
     ['<-> (bi-sync-operator)]]))
 
 (defn default-bindings []
-  (operator-bindings primitive-operator))
+  (conj (vec (operator-bindings primitive-operator))
+        ['apply (var-get (requiring-resolve
+                         'propagators.compiler-2.runtime.linked-application/apply-operator))]))
 
 (defn dependency-bindings []
   (operator-bindings contextual-primitive-operator))
 
-(defn behavior-bindings []
+(defn ^:deprecated behavior-bindings []
   (default-bindings))
 
-(defn behavior-tms-bindings []
+(defn tms-bindings
+  "Primitive and TMS bindings, without deprecated temporal behavior operators."
+  []
+  ((requiring-resolve
+    'propagators.compiler-2.operators.tms/add-distributed-tms-bindings)
+   (default-bindings)))
+
+(defn ^:deprecated behavior-tms-bindings []
   ((requiring-resolve
     'propagators.compiler-2.operators.behavior/behavior-tms-bindings)))

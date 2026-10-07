@@ -1,5 +1,10 @@
 # Functional network experiment
 
+Historical experiment report. The prototype source and tests have been moved
+into the production compiler WIP. See [migration status](../doc/functional-network-migration.md)
+and [current syntax](../doc/syntax-design.md). Publication remains blocked; the
+claims below describe the experiment snapshot, not current delivery.
+
 This experiment reuses Compiler 2 CPS traversal, canonical flat-GUR closures,
 compound slots, and the existing effect boundary. Its source and tests are local
 to `experiments.functional-network`; production modules are unchanged.

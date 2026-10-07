@@ -1,5 +1,6 @@
 (ns graph.compiler-2-versioned-tui.trace-render-test
-  (:require [clojure.string :as str]
+  (:require [graph.compiler-2-assembly :as assembly]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is]]
             [graph.compiler-2-versioned-tui :as tui]
             [propagators.compiler-2.runtime :as runtime]
@@ -33,13 +34,13 @@
               (recur (inc attempt))))))
 
 (deftest versioned-tui-renders-published-trace-as-graph
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/handle-command! session {:op :tui/register
                                       :client-id "B"
                                       :mode :versioned-premise})
-    (doseq [source ["(def a)"
+    (doseq [source ["(define a)"
                     "(<-> (+ 1 2) a)"
-                    "(def g)"
+                    "(define g)"
                     "(trace a :upstream g)"]]
       (is (:ok (commit-next! session source))))
     (is (wait-until #(pos? (long (or (:trace/published-results @session) 0)))))
@@ -64,13 +65,13 @@
       (is (str/includes? rendered "| a |")))))
 
 (deftest versioned-io-xr-launches-published-trace
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/handle-command! session {:op :tui/register
                                       :client-id "B"
                                       :mode :versioned-premise})
-    (doseq [source ["(def a)"
+    (doseq [source ["(define a)"
                     "(<-> (+ 1 2) a)"
-                    "(def g)"
+                    "(define g)"
                     "(trace a :upstream g)"]]
       (is (:ok (commit-next! session source))))
     (is (wait-until #(pos? (long (or (:trace/published-results @session) 0)))))

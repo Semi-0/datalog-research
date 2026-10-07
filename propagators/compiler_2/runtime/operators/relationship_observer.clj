@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.runtime.operators.relationship-observer
   "Compiler-2 direct installers for native relationship observers."
-  (:require [clojure.set :as set]
+  (:require [propagators.compiler-common.cps :as cps]
+            [clojure.set :as set]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
             [propagators.compiler-2.model.env :as cenv]
@@ -45,8 +46,10 @@
   []
   (operator-value/operator-closure
    {:name 'relationship:roots
-    :direct-installer
-    (fn [state operand-forms _out-id]
+    :compiler-operands
+    (fn [_compile-k state operand-forms _out-id k]
+      (let [[next-state binding]
+            (do
       (let [[state' observed-ids output-id]
             (observed-and-output-cells state operand-forms)
             before (propagator-ids (:net state'))
@@ -56,17 +59,21 @@
         [(-> state'
              (assoc :net installed)
              (h/add-props (sort-by pr-str introduced)))
-         (cenv/cell-binding output-id)]))}))
+         (cenv/cell-binding output-id)]))]
+        (cps/continue k next-state binding)))}))
 
 (defn dataflow-operator []
   (operator-value/operator-closure
    {:name 'relationship:dataflow
-    :direct-installer
-    (fn [state forms _out-id]
+    :compiler-operands
+    (fn [_compile-k state forms _out-id k]
+      (let [[next-state binding]
+            (do
       (when-not (= 2 (count forms))
         (throw (ex-info "relationship:dataflow expects input and output cells"
                         {:operand-forms forms})))
       (let [[compiled [input-id] output-id] (observed-and-output-cells state forms)
             [id installed] ((dataflow/p:dataflow input-id output-id) (:net compiled))]
         [(-> compiled (assoc :net installed) (h/add-props [id]))
-         (cenv/cell-binding output-id)]))}))
+         (cenv/cell-binding output-id)]))]
+        (cps/continue k next-state binding)))}))

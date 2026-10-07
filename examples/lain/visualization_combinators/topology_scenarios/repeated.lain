@@ -1,6 +1,22 @@
-(def-cells a middle result raw semantic)
-(def-net step [x] [out] (-> (+ x 1) out))
+(define a)
+
+(define middle)
+
+(define result)
+
+(define raw)
+
+(define semantic)
+
+(define step
+  (network [x out]
+    (-> (+ x 1) out)
+    (list out)))
+
 (step a middle)
+
 (step middle result)
+
 (relationship:roots a raw)
+
 (relationship:dataflow raw semantic)

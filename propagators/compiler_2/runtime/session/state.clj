@@ -2,8 +2,8 @@
   "Shared compiler-2 runtime state primitives."
   (:require [propagators.compiler-2.runtime.boundary :as boundary]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
+            [propagators.compiler-2.runtime.inspection.semantic-support :as demo]
             [propagators.compiler-2.runtime.session.extension :as extension]
-            [graph.vijual-compiler-2-demo :as demo]
             [propagators.cells.cell-protocol :as cell-protocol]
             [propagators.compiler-2.compiler.basis :as compiler-helpers]
             [propagators.compiler-2.model.env :as compiler-env]
@@ -17,8 +17,14 @@
 (defn empty-graph []
   {:nodes {} :edges [] :values {} :expansions {}})
 
-(defn new-session []
-  (atom nil))
+(defn new-session
+  ([]
+   (new-session {}))
+  ([options]
+   (if (map? options)
+     (atom {:runtime/options options})
+     (throw (ex-info "runtime session options must be a map"
+                     {:options options})))))
 
 (def default-xr-client-id runtime-ids/default-xr-client-id)
 
@@ -62,7 +68,7 @@
   [network]
   (let [env-id (stable-node-id :compiler-2 :runtime :root-environment)
         bindings ((requiring-resolve
-                   'propagators.compiler-2.operators.behavior/behavior-tms-bindings))
+                   'propagators.compiler-2.main/tms-bindings))
         declared (compiler-env/declare-root network env-id bindings)]
     (assoc declared
            :net (runner/completed-network
@@ -111,7 +117,9 @@
 
 (defn- repair-partial-state
   [state]
-  (let [base (empty-state)]
+  (let [base (assoc (empty-state)
+                    :runtime/options
+                    (or (:runtime/options state) {}))]
     (cond-> base
       (seq (get-in state [:runtime :temperature :samples]))
       (assoc-in [:runtime :temperature :samples]

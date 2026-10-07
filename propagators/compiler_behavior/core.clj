@@ -1,4 +1,4 @@
-(ns propagators.compiler-behavior.core
+(ns ^:deprecated propagators.compiler-behavior.core
   "Behavior-valued compiler parallel to compiler-2.
 
   Values produced by this compiler are behavior histories. Closure declarations

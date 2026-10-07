@@ -1,7 +1,9 @@
-(ns experiments.functional-network-test
+(ns propagators.compiler-2-functional-network-test
   (:require [clojure.test :refer [deftest is testing]]
-            [experiments.functional-network :as experiment]
-            [experiments.functional-network.compiler :as language]
+            [propagators.compiler-2.runtime.returned-outputs :as experiment]
+            [propagators.compiler-2.language.parser :as parser]
+            [propagators.compiler-2.runtime.linked-application :as linked]
+            [propagators.compiler-2.cps-core :as language]
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.cps-core :as compiler]
@@ -99,13 +101,13 @@
         (is (= [2 3 5] (values result (:cell compiled))))
         (is (= 3 (count (experiment/outputs result))))))))
 
-(deftest ordinary-network-does-not-expose-returned-parameters
+(deftest production-network-exposes-returned-parameters
   (let [compiled (compiler/compile-expr-with-bindings
-                  (experiment/parse-source (source "(-> 3 b) (-> 5 c)"))
+                  (parser/parse-string (source "(-> 3 b) (-> 5 c)"))
                   (basis/default-bindings) {:seed :experiment/baseline})
         result (run compiled)
         [a b c] (values result (:cell compiled))]
-    (is (value/nothing? a))
+    (is (= 2 a))
     (is (= [3 5] [b c]))))
 
 (deftest unavailable-members-still-register-ports-and-wake-later
@@ -162,8 +164,8 @@
   (let [compiled (language/compile-source "(network (a) (+ a 1))")
         receipt (net/network-cell-strongest (:net compiled) (:cell compiled))]
     (is (gur/recursive-closure? receipt))
-    (is (= '[a] (:experiment/input-description receipt)))
-    (is (= :body-return (:experiment/output-interface receipt)))
+    (is (= '[a] (:compiler-2/input-description receipt)))
+    (is (= :body-return (:compiler-2/output-interface receipt)))
     (is (empty? (experiment/outputs (:net compiled))))))
 
 (deftest definition-returns-a-binding-receipt
@@ -326,7 +328,7 @@
                    (nb/seed-cell head 2) (nb/seed-cell next-head 3))
         application (install-effects
                      seeded
-                     {:effects (experiment/linked-list-application-effects
+                     {:effects (linked/linked-list-application-effects
                                 (:cell compiled) context root answer)})]
     (assoc application :root root :head head :tail tail
            :next-head next-head :end end :answer answer)))

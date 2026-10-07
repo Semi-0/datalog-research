@@ -1,6 +1,23 @@
-(def-cells a b left right result raw semantic)
+(define a)
+
+(define b)
+
+(define left)
+
+(define right)
+
+(define result)
+
+(define raw)
+
+(define semantic)
+
 (-> (+ a b) left)
+
 (-> (* a b) right)
+
 (-> (+ left right) result)
+
 (relationship:roots a raw)
+
 (relationship:dataflow raw semantic)

@@ -1,6 +1,19 @@
-(def-cells a b c raw semantic)
+(define a)
+
+(define b)
+
+(define c)
+
+(define raw)
+
+(define semantic)
+
 (-> a b)
+
 (-> b c)
+
 (-> c a)
+
 (relationship:roots a raw)
+
 (relationship:dataflow raw semantic)

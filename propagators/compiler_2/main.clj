@@ -1,6 +1,6 @@
 (ns propagators.compiler-2.main
-  "Compatibility facade for compiler-2."
-  (:require [propagators.compiler-2.operators.behavior :as behavior]
+  "Public functional-network compiler entry points."
+  (:require [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.cps-core :as compiler]
             [propagators.compiler-2.language.parser :as parser]))
@@ -20,6 +20,9 @@
 (def compile* compiler/compile*)
 (def default-compiler compiler/default-compiler)
 
+(def compile-form compiler/compile-form)
+(def compile-program compiler/compile-program)
+
 (defn compile-expr
   ([expr] (compiler/compile-expr expr))
   ([expr env] (compiler/compile-expr expr env))
@@ -30,15 +33,30 @@
   ([source env] (compiler/compile-source source env))
   ([source env opts] (compiler/compile-source source env opts)))
 
-(defn behavior-tms-bindings []
-  (behavior/behavior-tms-bindings))
+(defn tms-bindings []
+  (basis/tms-bindings))
 
-(defn compile-expr-with-behavior-tms
+(defn compile-expr-with-tms
+  ([expr] (compile-expr-with-tms expr {}))
+  ([expr opts]
+   (compiler/compile-expr-with-bindings expr (tms-bindings) opts)))
+
+(defn compile-source-with-tms
+  ([source] (compile-source-with-tms source {}))
+  ([source opts]
+   (compile-expr-with-tms (parser/parse-string source) opts)))
+
+(defn ^:deprecated behavior-tms-bindings
+  "Historical opt-in environment. Active sessions use tms-bindings."
+  []
+  (basis/behavior-tms-bindings))
+
+(defn ^:deprecated compile-expr-with-behavior-tms
   ([expr] (compile-expr-with-behavior-tms expr {}))
   ([expr opts]
    (compiler/compile-expr-with-bindings expr (behavior-tms-bindings) opts)))
 
-(defn compile-source-with-behavior-tms
+(defn ^:deprecated compile-source-with-behavior-tms
   ([source] (compile-source-with-behavior-tms source {}))
   ([source opts]
    (compile-expr-with-behavior-tms (parser/parse-string source) opts)))
