@@ -262,6 +262,12 @@ integration tests would not prove the port.
 
 ## Known limitation: dictionary-backed cell protocols
 
+The network-diff mechanism described below is historical and has been
+superseded by [direct compiler declaration effects](../../doc/declaration-effects.md).
+The compiler now records declarations as they are made. Arbitrary dictionary
+mutation remains outside the declaration contract; the clock limitation below
+is not resolved by this change.
+
 Compiler 2 lowers a topology assembled in a temporary `Net` with
 `runtime.topology-effects/network-diff`. The lowering preserves new cells,
 propagators, lexical names, and cell messages. It does not preserve arbitrary

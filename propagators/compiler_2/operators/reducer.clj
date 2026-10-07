@@ -3,7 +3,7 @@
   (:require [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.compiler-2.runtime.declaration-effects :as nb]))
 
 (defn- output-symbols
   [output]

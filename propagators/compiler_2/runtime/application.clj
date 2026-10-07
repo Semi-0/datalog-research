@@ -3,14 +3,13 @@
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
-            [propagators.compiler-2.runtime.topology-effects :as topology]
             [propagators.compiler-2.runtime.returned-outputs :as returned-outputs]
-            [propagators.core :as core]
+            [propagators.compiler-2.runtime.declaration-effects :as core]
             [propagators.gur :as gur]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (def compiler-callable-key :compiler-2/callable?)
@@ -202,7 +201,7 @@
 (defn- install-one
   [{:keys [net prop-ids]} installer]
   (let [[installed next-net] (installer net)]
-    {:net next-net
+    {:net (nb/register-props next-net (installed-prop-ids installed))
      :prop-ids (into prop-ids (installed-prop-ids installed))}))
 
 (defn- install-all
@@ -436,10 +435,10 @@
 
 (defn- declaration-result
   [base application-id compiled relations]
-  (let [diff (topology/network-diff base (:net compiled) (:prop-ids compiled))]
+  (let [declared (nb/result (:net compiled))]
     {:effects (into (application-name-effects application-id relations)
-                    (:effects diff))
-     :messages (:messages diff)}))
+                    (:effects declared))
+     :messages (:messages declared)}))
 
 (defn- declare-closure-effects
   [compile* declaration-id lexical-env-id closure-info
@@ -449,7 +448,7 @@
         {:keys [parameters input-ids outputs]}
         (closure-call closure-info argument-ids result-id)
         frame-id (gur/stable-node-id [application-id :lexical-frame])
-        base (:network gur-context)
+        base (nb/begin (:network gur-context))
         compiled
         (-> (frame-topology base application-id lexical-env-id frame-id
                             parameters input-ids outputs result-id input-mode)
@@ -497,12 +496,12 @@
   [installer _declaration gur-context invocation-ids result-id]
   (let [{:keys [context-id argument-ids]} (invocation invocation-ids)
         application-id (:app-key gur-context)
-        base (:network gur-context)
+        base (nb/begin (:network gur-context))
         inbound (primitive-input-topology base application-id argument-ids)
         [installed primitive-props selected-output]
         (installer (:net inbound) argument-ids result-id context-id)
         primitive
-        {:net installed
+        {:net (nb/register-props installed (installed-prop-ids primitive-props))
          :prop-ids (into (:prop-ids inbound)
                          (installed-prop-ids primitive-props))}
         routed

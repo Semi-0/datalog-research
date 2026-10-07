@@ -4,7 +4,7 @@
             [propagators.compiler-2.runtime.application :as application]
             [propagators.datastructures.compound-object :as obj]
             [propagators.gur.flat :as fvm]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (def operator-kind :compiler-2/operator-closure)

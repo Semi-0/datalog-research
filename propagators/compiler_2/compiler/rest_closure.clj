@@ -4,7 +4,7 @@
             [propagators.compiler-2.model.rest-parameters :as parameters]
             [propagators.compiler-2.runtime.rest-application :as rest-application]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.compiler-2.runtime.declaration-effects :as nb]))
 
 (defn declaration
   [declare-fixed]

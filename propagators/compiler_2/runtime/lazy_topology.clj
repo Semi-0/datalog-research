@@ -4,14 +4,14 @@
             [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.topology-effects :as topology-effects]
-            [propagators.core :as core]
+            [propagators.compiler-2.runtime.declaration-effects :as core]
             [propagators.gur :as gur]))
 
 (defn- compile-body-state
   [compile* base-network captured-state body]
   (let [body-state
         (-> captured-state
-            (assoc :net base-network
+            (assoc :net (core/begin base-network)
                    :path (conj (:path captured-state) :body)
                    :props []
                    :applications []))
@@ -26,10 +26,7 @@
                             base-network
                             captured-state
                             body)]
-    (topology-effects/network-diff
-     base-network
-     (:net compiled-state)
-     (:props compiled-state))))
+    (core/result (:net compiled-state))))
 
 (defn install-when-topology-with
   [compile* state condition-id body]

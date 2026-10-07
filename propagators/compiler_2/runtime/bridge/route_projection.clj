@@ -1,7 +1,6 @@
 (ns propagators.compiler-2.runtime.bridge.route-projection
   "Live route-slot declarations; authorization only observes their cells."
-  (:require [propagators.compiler-2.runtime.topology-effects :as topology]
-            [propagators.cells.value :as value]
+  (:require [propagators.cells.value :as value]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
             [propagators.gur :as gur]
@@ -69,7 +68,9 @@
                            :destinations [(walk-effects root-id :destinations (inc depth) tail seen)]
                            (throw (ex-info "Unknown route projection role" {:role role})))]
             {:effects (into effects
-                            (concat (topology/new-cell-effects network updated)
+                            (concat (map gur/declare-cell
+                                         (remove #(contains? (net/net-env network) %)
+                                                 (vals slots)))
                                     (accessor-effects updated collection-id props)
                                     (mapcat :effects children)))
              :messages (vec (mapcat :messages children))})

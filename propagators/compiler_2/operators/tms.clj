@@ -9,11 +9,11 @@
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms.distributed :as tms]
-            [propagators.core :as core]
+            [propagators.compiler-2.runtime.declaration-effects :as core]
             [propagators.gur :as gur]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (defn- unwrap-compiler-value

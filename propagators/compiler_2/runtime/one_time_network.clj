@@ -8,7 +8,7 @@
             [propagators.gur :as gur]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.network-patch :as patch]
             [propagators.runner :as runner]))
 

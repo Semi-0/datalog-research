@@ -8,7 +8,7 @@
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-common.cps :as cps]
             [propagators.compiler-common.core :as common]
-            [propagators.network-builder :as nb]))
+            [propagators.compiler-2.runtime.declaration-effects :as nb]))
 
 (defn- finish
   [k [state binding]]

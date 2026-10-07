@@ -15,11 +15,11 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
             [propagators.gur :as gur]
-            [propagators.core :as core]
+            [propagators.compiler-2.runtime.declaration-effects :as core]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.stdlib.prop :as stdlib-prop]))
 
 (def declaration-link-key :compiler-2/operator-declaration)

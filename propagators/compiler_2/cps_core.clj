@@ -14,7 +14,7 @@
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (def compiler-result-key common/compiler-result-key)
@@ -66,11 +66,14 @@
   ([expr bindings {:keys [net seed] :or {net net/empty-net} :as opts}]
    (let [seed (or seed [:compiler-2/program (contract/declaration-key expr)])
          env-id (h/stable-node-id :compiler-2 :root-env seed)
-         declared (env/declare-root net env-id bindings)]
+         declared (env/declare-root (nb/begin net) env-id bindings)
+         recorded (-> (:net declared)
+                      (nb/register-props (:props declared))
+                      (nb/register-frame env-id))]
      (compile-expr expr
                    env-id
                    (assoc opts
-                          :net (:net declared)
+                          :net recorded
                           :seed seed
                           :environment-props (:props declared))))))
 
@@ -84,9 +87,11 @@
          seed (or seed [:compiler-2/program syntax])
          compile* (or compiler default-compiler)
          {:keys [net env-id prop-ids]}
-         (prepare-environment net compiler-env environment-props)
+         (prepare-environment
+          (if (net/network-dict-entry net nb/buffer-key) net (nb/begin net))
+          compiler-env environment-props)
          [state result]
-         (compile* {:net net
+         (compile* {:net (nb/register-props net prop-ids)
                     :env env-id
                     :seed seed
                     :path path

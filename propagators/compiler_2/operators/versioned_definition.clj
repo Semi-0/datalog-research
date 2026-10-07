@@ -15,7 +15,7 @@
             [propagators.gur.flat :as fvm]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (def candidates-key :compiler-2/versioned-definition-candidates)
@@ -306,13 +306,12 @@
 (defn- premise-output-boundary
   [contexts caller-targets context scope source local-target]
   (let [target (get caller-targets local-target local-target)
-        base (:network context)
+        base (nb/begin (:network context))
         prepared (reduce nb/ensure-cell base [source target])
         [prop-id installed]
         ((premise/p:block-premise [:returned-member scope] source contexts target)
          prepared)]
-    (into (topology-effects/new-cell-effects base installed)
-          (topology-effects/prop-effects base installed [prop-id]))))
+    (:effects (nb/result (nb/register-props installed [prop-id])))))
 
 (defn- definition-support? [definition-id premise-id]
   (and (vector? premise-id)
@@ -479,7 +478,7 @@
   (let [key [:versioned-definition-call call-id (:candidate/id candidate)]]
     (if-let [topology (candidate-topology compile* definition-id call-id
                                          arg-ids out-id candidate
-                                         caller-contexts network)]
+                                         caller-contexts (nb/begin network))]
       (let [result (topology-effects/declare-once network key out-id
                                                   (constantly topology))
             metadata-key [call-id (:candidate/id candidate)]

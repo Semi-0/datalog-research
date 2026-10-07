@@ -4,12 +4,10 @@
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.compiler.dispatch :as dispatch]
             [propagators.compiler-2.model.env :as env]
-            [propagators.compiler-2.runtime.activation :as activation]
-            [propagators.compiler-2.runtime.topology-effects :as topology-effects]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (def execute-sub-env-props-key :compiler-2/execute-sub-env-props)
@@ -60,8 +58,9 @@
   (let [expr (h/strongest-or-nothing network expr-id)]
     (if (value/unusable? expr)
       []
-      (let [[env-props with-child]
-            (declare-child-environment network parent-env-id child-env-id)
+      (let [[env-props child]
+            (declare-child-environment (nb/begin network) parent-env-id child-env-id)
+            with-child (nb/register-props child env-props)
             [state result]
             (compile-expr compile* expr child-env-id with-child
                           [:compiler-2/execute-sub-env
@@ -79,9 +78,8 @@
                (ex-info "Sub-environment body declared no result cell"
                         {:child-env-id child-env-id
                          :result result})))
-            props (conj (vec (:props state)) boundary-id)
-            after-body (activation/run-network connected [] props)]
-        (topology-effects/network-diff network after-body props)))))
+            declared (nb/register-props connected [boundary-id])]
+        (nb/result declared)))))
 
 (defn execute-sub-env-messages
   [parent-env-id expr-id child-env-id out-id network]

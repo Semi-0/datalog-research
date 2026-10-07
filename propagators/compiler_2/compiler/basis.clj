@@ -20,7 +20,7 @@
             [propagators.layered :as layered]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]
             [propagators.datastructures.behavior.core :as behavior]
             [propagators.datastructures.behavior.arithmetic :as behavior-arithmetic])
@@ -57,7 +57,9 @@
   (update state :path conj segment))
 
 (defn add-props [state prop-ids]
-  (update state :props into prop-ids))
+  (-> state
+      (update :net nb/register-props prop-ids)
+      (update :props into prop-ids)))
 
 (defn installer-operator [installer]
   (fn [network arg-ids out-id]

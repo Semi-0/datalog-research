@@ -4,9 +4,8 @@
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.application :as application]
-            [propagators.compiler-2.runtime.topology-effects :as topology]
             [propagators.gur :as gur]
-            [propagators.network-builder :as nb]))
+            [propagators.compiler-2.runtime.declaration-effects :as nb]))
 
 (def rest-callable-key :compiler-2/rest-callable)
 
@@ -27,8 +26,8 @@
                  (((application/concrete-boundary application-id :inbound [:rest i])
                    source target)
                   (reduce nb/ensure-cell (:net state) [source target]))]
-             (-> state (assoc :net network) (update :props conj id))))
-         {:net network :props [] :seed [:compiler-2/rest application-id] :path []}
+             (-> state (assoc :net (nb/register-props network [id])) (update :props conj id))))
+         {:net (nb/begin network) :props [] :seed [:compiler-2/rest application-id] :path []}
          (map vector (range) arguments locals))
         [declared _] (basis/declare-list inbound (mapv env/cell-binding locals) root)]
     (assoc declared :root root)))
@@ -66,8 +65,7 @@
           adapted (conj (subvec invocation 0 (inc required-count)) (:root packed))
           result (apply-callable callable (assoc context :network (:net packed))
                                  adapted result-id)
-          packing (topology/network-diff (:network context) (:net packed)
-                                         (:props packed))]
+          packing (nb/result (:net packed))]
       {:effects (caller-argument-effects
                  (into (:effects packing) (:effects result))
                  (:app-key context) arguments)
