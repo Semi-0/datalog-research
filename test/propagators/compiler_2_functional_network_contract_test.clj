@@ -104,4 +104,6 @@
     (is (some? application))
     (is (contains? declared-outputs (:cell compiled)))
     (is (= 1 (count ports)))
-    (is (not-any? declared-outputs ports))))
+    (is (every? declared-outputs ports))
+    (is (every? #(contains? (:inputs (get (net/net-graph network) %)) apply-id)
+                ports))))

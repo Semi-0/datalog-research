@@ -181,9 +181,19 @@ member, not a flattened collection of ports. Late tails add only missing ports.
 Unknown compound return structures remain pending; unusable values wait.
 Cyclic lists and non-list tails are unsupported and report precise errors.
 
-Inspection reads named topology and reports the primary return, member ports,
-and pending/completed structure status. It does not rewrite the GUR
-propagator's output set after installation.
+Each discovered member port extends the application propagator's output edges
+in the active immutable Net. The corresponding cell records the reciprocal
+input edge. The primary return and argument write-back connections remain.
+
+Tracing reads graph outputs directly. Names retain member order and labels;
+inspection checks that each named port is actually connected. Pending/completed
+structure status remains explicit because a current output set cannot prove
+that no additional tail will arrive.
+
+Output extension changes graph connectivity, not the positional output arguments
+captured by the activation function. Existing primitive arity and value-routing
+semantics remain unchanged. The extension itself neither activates the target
+nor changes the creation parent of an existing cell.
 
 ## Higher-order construction
 

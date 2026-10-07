@@ -6,6 +6,7 @@
             [propagators.gur :as gur]
             [propagators.message :refer [message]]
             [propagators.network :as net]
+            [propagators.network-patch :as patch]
             [propagators.propagator :as prop]))
 
 (def output-scope :compiler-2/network-outputs)
@@ -36,6 +37,8 @@
 (defn- output-boundary-effects [context project routes application-id position head]
   (let [port-id (gur/stable-node-id [application-id :output-port position])]
     (into [(gur/declare-cell port-id)
+           (patch/extend-propagator-outputs
+            (gur/stable-node-id [application-id :apply-prop]) [port-id])
            (gur/bind-name output-scope [application-id position] port-id)
            (copy-effect [application-id :outbound position] head port-id)]
           (if-let [outer (get routes head)]

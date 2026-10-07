@@ -246,28 +246,34 @@
                               [[:output-fixture :root] [:output-fixture :head]
                                [:output-fixture :tail]])
         network (reduce nb/ensure-cell net/empty-net [root head tail])
+        owner (gur/stable-node-id [:output-fixture :apply-prop])
+        declared (install-effects network
+                   {:effects [(gur/declare-prop owner :test/output-owner [] [root]
+                                (fn [_ _ _] []))]})
         compiled (install-effects
-                  network (experiment/register-returned-outputs
+                  (:net declared) (experiment/register-returned-outputs
                            {:effects []} {} :output-fixture root))]
-    (assoc compiled :root root :head head :tail tail)))
+    (assoc compiled :root root :head head :tail tail :owner owner)))
 
 (defn wake [network cells]
   (nb/run-propagators network
                       (mapcat #(nb/neighbor-propagator-ids network %) cells)))
 
 (deftest output-registration-waits-for-late-list-structure
-  (let [{:keys [root head tail] :as fixture} (output-fixture)
+  (let [{:keys [root head tail owner] :as fixture} (output-fixture)
         initial (run fixture)
         [props declared] ((obj/p:cons head tail root) initial)
         seeded (nb/seed-cell declared tail basis/list-empty-marker)
         result (nb/run-propagators seeded props)]
     (is (empty? (experiment/outputs initial)))
     (is (= 1 (count (experiment/outputs result))))
+    (is (every? #(contains? (:outputs (get (net/net-graph result) owner)) %)
+                (vals (experiment/outputs result))))
     (is (value/nothing? (net/network-cell-strongest result
                                                   (first (vals (experiment/outputs result))))))))
 
 (deftest output-registration-extends-only-the-late-tail
-  (let [{:keys [root head tail] :as fixture} (output-fixture)
+  (let [{:keys [root head tail owner] :as fixture} (output-fixture)
         [props declared] ((obj/p:cons head tail root) (:net fixture))
         initial (nb/run-propagators declared (concat (:props fixture) props))
         [next-head end] (mapv gur/stable-node-id [[:output-fixture :next] [:output-fixture :end]])
@@ -278,6 +284,9 @@
         repeated (wake result [root tail])]
     (is (= 1 (count (experiment/outputs initial))))
     (is (= 2 (count (experiment/outputs result))))
+    (is (every? #(contains? (:outputs (get (net/net-graph result) owner)) %)
+                (vals (experiment/outputs result))))
+    (is (= (net/net-graph result) (net/net-graph repeated)))
     (is (= (experiment/outputs result) (experiment/outputs repeated)))
     (is (= (set (keys (net/net-env result))) (set (keys (net/net-env repeated)))))))
 
