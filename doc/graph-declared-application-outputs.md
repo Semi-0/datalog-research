@@ -49,6 +49,28 @@ unrelated performance work are outside this boundary.
 
 ## Tracer limitation
 
+### Follow-up: redundant lowering fixed
+
+Debugger investigation confirmed finite traversal: each of the two nodes was
+expanded once. The compiler bridge emitted its complete lexical index on every
+diff call, replaying 126,759 identical names. Incremental lexical export and a
+single cell scan reduced this to 2,199 replays. The generated topology remains
+9,769 nodes; no topology-size reduction is claimed.
+
+The cyclic regression now completes within the individual three-second limit:
+2.04 seconds against published owner pins and 2.49 seconds in the research tree.
+Compiler full suite: 156 tests / 532 assertions. Runtime full suite: 160 / 585.
+Research lowering/application/CPS/composition and cyclic tests: 24 / 96.
+Maintained web integration suites: 32 / 163, pinned by web snapshot
+`e14c1ee406d9eedd027da816e7a401fe32aff79d`.
+All passed without failures or errors. See `doc/topology-effect-deltas.md`.
+
+Follow-up owner snapshots are compiler `349c2069dd601d79b52efe98be56cc68f615724d`
+and runtime `da004bf5b40954136a8f2d6feb284ca25558bf38`. GUR, lexical environment,
+runner, scheduler, merge and TMS implementation remain unchanged. Research-only
+topology-result metadata exports are preserved. No KIROSHI model mutation was
+performed. The earlier limitation below records the pre-fix baseline.
+
 An exploratory full Lain tracer traversal of a two-node cyclic graph exceeded
 three seconds. The equivalent constructor-only graph also exceeded the deadline
 with previously published dependencies. Separating bootstrap did not resolve it.

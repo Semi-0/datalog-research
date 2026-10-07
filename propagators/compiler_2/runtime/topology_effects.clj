@@ -24,30 +24,66 @@
    (get-in (net/network-dict-entry network fvm/name-bindings-key)
            [declaration-scope declaration-key])))
 
-(defn- cell-entry? [[_ entry]] (cell/cell? entry))
 (defn- prop-entry? [[_ entry]] (prop/prop? entry))
 
-(defn- existing-content [network id]
-  (let [entry (get (net/net-env network) id)]
-    (when (cell/cell? entry) (cell/cell-content entry))))
+(defn- cell-diff [base compiled]
+  (let [existing (net/net-env base)]
+    (reduce-kv
+     (fn [result id entry]
+       (let [old (get existing id)]
+         (if (or (not (cell/cell? entry)) (identical? entry old))
+           result
+           (let [content (cell/cell-content entry)
+                 old-content (if (cell/cell? old) (cell/cell-content old) nil)
+                 declared (if (contains? existing id)
+                            result
+                            (update result :effects conj (fvm/declare-cell id)))]
+             (if (and (not (value/nothing? content)) (not= content old-content))
+               (update declared :messages conj (message id content))
+               declared)))))
+     {:effects [] :messages []}
+     (net/net-env compiled))))
 
 (defn new-cell-effects [base compiled]
-  (->> (net/net-env compiled)
-       (filter cell-entry?)
-       (keep (fn [[id _]]
-               (when-not (contains? (net/net-env base) id)
-                 (fvm/declare-cell id))))
-       vec))
+  (:effects (cell-diff base compiled)))
 
 (defn changed-cell-messages [base compiled]
-  (->> (net/net-env compiled)
-       (filter cell-entry?)
-       (keep (fn [[id entry]]
-               (let [content (cell/cell-content entry)]
-                 (when (and (not (value/nothing? content))
-                            (not= content (existing-content base id)))
-                   (message id content)))))
-       vec))
+  (:messages (cell-diff base compiled)))
+
+(defn- unpublished-frame [published env-id frame]
+  (let [attributes
+        (reduce
+         (fn [pending attribute]
+           (let [id (get frame attribute)]
+             (if (and id (not= id (get published [:frame env-id attribute])))
+               (assoc pending attribute id)
+               pending)))
+         {}
+         [:scope/source-id :scope/chain-id :parent-id])
+        bindings
+        (into {}
+              (keep (fn [[sym ids]]
+                      (let [missing (filterv #(not= % (get published [:binding env-id sym %])) ids)]
+                        (if (seq missing) [sym missing] nil))))
+              (:bindings frame))
+        current
+        (into {} (remove (fn [[sym id]]
+                           (= id (get published [:current-binding env-id sym]))))
+              (:current-bindings frame))]
+    (let [with-bindings (if (seq bindings) (assoc attributes :bindings bindings) attributes)]
+      (if (seq current) (assoc with-bindings :current-bindings current) with-bindings))))
+
+(defn- lexical-name-effects [base compiled]
+  (let [published (get (net/network-dict-entry base fvm/name-bindings-key)
+                       env/lexical-topology-scope {})
+        frames (:frames (net/network-dict-entry compiled env/lexical-topology-key))
+        pending (into {}
+                      (keep (fn [[id frame]]
+                              (let [missing (unpublished-frame published id frame)]
+                                (if (seq missing) [id missing] nil))))
+                      frames)]
+    (env/lexical-topology-effects
+     (net/assoc-net-dict-entry compiled env/lexical-topology-key {:frames pending}))))
 
 (defn- declare-prop-effect [compiled prop-id entry]
   (if-let [node (get (net/net-graph compiled) prop-id)]
@@ -79,11 +115,11 @@
 
 (defn network-diff
   [base compiled prop-ids]
-  {:effects (into (env/lexical-topology-effects compiled)
-                  (concat (new-cell-effects base compiled)
-                          (prop-effects base compiled prop-ids)
-                          (topology-result-effects base compiled)))
-   :messages (changed-cell-messages base compiled)})
+  (let [{:keys [effects messages]} (cell-diff base compiled)]
+    {:effects (into (lexical-name-effects base compiled)
+                    (concat effects (prop-effects base compiled prop-ids)
+                            (topology-result-effects base compiled)))
+     :messages messages}))
 
 (defn declare-once
   "Return bounded effects for one delayed topology declaration.
