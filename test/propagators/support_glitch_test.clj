@@ -8,6 +8,7 @@
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
+            [propagators.layered.procedure :as layer-procedure]
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -28,9 +29,10 @@
      :usable? (not (value/unusable? v))}))
 
 (defn- addition [network]
-  (let [[procedure base-id support-id] (repeatedly 3 ids/new-node-id)
+  (let [base-procedure (layer-procedure/base base/plus-closure)
+        [procedure base-id support-id] (repeatedly 3 ids/new-node-id)
         prepared (-> network
-                     (nb/install-cell base-id base/plus-closure base/plus-closure)
+                     (nb/install-cell base-id base-procedure base-procedure)
                      (nb/install-cell support-id support/procedure support/procedure))
         base-layer (layered/install-layered-procedure! prepared procedure :base base-id)
         support-layer (layered/install-layered-procedure!

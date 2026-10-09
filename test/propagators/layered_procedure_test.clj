@@ -6,6 +6,8 @@
             [propagators.debugger :as debugger]
             [propagators.ids :refer [new-node-id]]
             [propagators.layered :as layered]
+            [propagators.layered.procedure :as layer-procedure]
+            [propagators.layered.runtime :as layered-runtime]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.named-network :as named]
             [propagators.network :as net]
@@ -53,20 +55,15 @@
     {:net network :prop prop-id}))
 
 (defn- units-closure-value []
-  (closure/closure
-   (fn [_closure-net input-ids output-ids network]
-     (let [[_current _arg-a _arg-b] input-ids
-           [out] output-ids]
-       (second
-        (nb/install-propagator
-         network
-         ((prop/primitive-propagator (fn [& _] :unitless))
-          _current _arg-a _arg-b out)))))
-   net/empty-net))
+  (layer-procedure/argument-layer :units (constantly true)
+                                  (constantly :unitless)))
 
 (defn- install-procedure-layer-value
   [n proc layer-name closure-value]
-  (let [closure-id (new-node-id)
+  (let [closure-value (if (= :base layer-name)
+                        (layer-procedure/base closure-value)
+                        closure-value)
+        closure-id (new-node-id)
         n0 (nb/install-cell n closure-id closure-value closure-value)]
     (layered/install-layered-procedure! n0 proc layer-name closure-id)))
 
@@ -218,7 +215,7 @@
 
 (deftest layered-contradiction-unions-scoped-operator-provenance
   (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
-        proc-value (#'layered/materialize-layered-cell-value net proc)
+        proc-value (layered-runtime/materialize-layered-cell-value net proc)
         scoped-proc-id (new-node-id)
         operator-token {:provenance/type :lexical-access
                         :lookup/key :test/conflicting-operator
@@ -259,7 +256,7 @@
 (deftest apply-layered-carries-scoped-operator-provenance
   (testing "scope metadata on the procedure contributes provenance, not branches"
     (let [{:keys [net proc]} (prov-arith/+ net/empty-net)
-          proc-value (#'layered/materialize-layered-cell-value net proc)
+          proc-value (layered-runtime/materialize-layered-cell-value net proc)
           scoped-proc-id (new-node-id)
           token {:provenance/type :lexical-access
                  :lookup/key :test/operator
@@ -382,8 +379,8 @@
           closure-id (new-node-id)
           n0 (nb/install-cell net/empty-net
                               closure-id
-                              base/plus-closure
-                              base/plus-closure)
+                              (layer-procedure/base base/plus-closure)
+                              (layer-procedure/base base/plus-closure))
           installed (layered/install-layered-procedure! n0 proc :base closure-id)
           result (run-base-only-application (:net installed) proc 4 5)]
       (assert-layer (:out-object result) :base 9))))

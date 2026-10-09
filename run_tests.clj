@@ -38,6 +38,8 @@
     propagators.experimental.view-xr-test
     propagators.install-test
     propagators.layered-procedure-test
+    propagators.layered-dispatcher-test
+    propagators.layered-arity-test
     propagators.layered-support-test
     propagators.message-lift-test
     propagators.named-network-test

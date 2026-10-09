@@ -6,6 +6,7 @@
             [propagators.datastructures.support-collection :as collection]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
+            [propagators.layered.procedure :as layer-procedure]
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -15,9 +16,10 @@
             [propagators.stdlib.support :as support]))
 
 (defn- addition [network]
-  (let [[procedure base-id support-id] (repeatedly 3 ids/new-node-id)
+  (let [base-procedure (layer-procedure/base base/plus-closure)
+        [procedure base-id support-id] (repeatedly 3 ids/new-node-id)
         prepared (-> network
-                     (nb/install-cell base-id base/plus-closure base/plus-closure)
+                     (nb/install-cell base-id base-procedure base-procedure)
                      (nb/install-cell support-id support/procedure support/procedure))
         with-base (layered/install-layered-procedure! prepared procedure :base base-id)
         with-support (layered/install-layered-procedure!

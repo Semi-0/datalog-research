@@ -10,6 +10,7 @@
             [propagators.experimental.premise-publication :as publication]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
+            [propagators.layered.procedure :as layer-procedure]
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -28,9 +29,10 @@
                         (concat inputs outputs)) network)))})
 
 (defn- install-procedure [network]
-  (let [[procedure base-id support-id state-id] (repeatedly 4 ids/new-node-id)
+  (let [base-procedure (layer-procedure/base last-base-procedure)
+        [procedure base-id support-id state-id] (repeatedly 4 ids/new-node-id)
         prepared (-> network
-                     (nb/install-cell base-id last-base-procedure last-base-procedure)
+                     (nb/install-cell base-id base-procedure base-procedure)
                      (nb/install-cell support-id support/procedure support/procedure)
                      (nb/install-cell state-id state/procedure state/procedure))
         base (layered/install-layered-procedure! prepared procedure :base base-id)

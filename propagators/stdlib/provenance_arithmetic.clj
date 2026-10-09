@@ -8,6 +8,7 @@
   (:refer-clojure :exclude [+ - * /])
   (:require [propagators.ids :refer [new-node-id]]
             [propagators.layered :as layered]
+            [propagators.layered.procedure :as procedure]
             [propagators.network-builder :as nb]
             [propagators.stdlib.arithmetic.base :as base]
             [propagators.stdlib.arithmetic.intensity :as intensity]
@@ -17,16 +18,16 @@
 (defn- closures
   [op]
   (case op
-    :+ {:base base/plus-closure
+    :+ {:base (procedure/base base/plus-closure)
         :provenance provenance/+
         :intensity intensity/+}
-    :- {:base base/minus-closure
+    :- {:base (procedure/base base/minus-closure)
         :provenance provenance/-
         :intensity intensity/-}
-    :* {:base base/times-closure
+    :* {:base (procedure/base base/times-closure)
         :provenance provenance/*
         :intensity intensity/*}
-    :/ {:base base/divide-closure
+    :/ {:base (procedure/base base/divide-closure)
         :provenance provenance//
         :intensity intensity//}
     (throw (ex-info "unknown layered arithmetic op" {:op op}))))

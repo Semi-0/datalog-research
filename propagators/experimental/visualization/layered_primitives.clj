@@ -5,11 +5,13 @@
             [propagators.compiler-2.model.operator-value :as operator]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.datastructures.dependency :as dependency]
+            [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.scope-source :as scope]
             [propagators.datastructures.tms.core :as tms]
             [propagators.experimental.ttms-primitives :as ttms]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
+            [propagators.layered.procedure :as layer-procedure]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -30,18 +32,16 @@
                   (if (scope/scope-value? v) (scope/dependencies v) #{}))))))
 
 (def sources-closure
-  {:net net/empty-net
-   :f (fn [_closure-net inputs outputs network]
-        (let [union-sources
-              (prop/primitive-propagator
-               ::union-sources
-               (fn [_current & arguments]
-                 (apply set/union #{} (map dependency/sources arguments))))]
-          (second ((apply union-sources (concat inputs outputs)) network))))})
+  (layer-procedure/argument-layer
+   dependency/sources-layer
+   (fn [arguments]
+     (boolean (some #(datum/layer-present? % dependency/sources-layer) arguments)))
+   (fn [arguments] (apply set/union #{} (map dependency/sources arguments)))))
 
 (defn- install-procedure
   [network base-closure]
-  (let [[procedure base-id sources-id] (repeatedly 3 ids/new-node-id)
+  (let [base-closure (layer-procedure/base base-closure)
+        [procedure base-id sources-id] (repeatedly 3 ids/new-node-id)
         prepared (-> network
                      (nb/install-cell base-id base-closure base-closure)
                      (nb/install-cell sources-id sources-closure sources-closure))

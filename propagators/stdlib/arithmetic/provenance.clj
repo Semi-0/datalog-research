@@ -4,6 +4,8 @@
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object.core :as obj]
             [propagators.ids :refer [new-node-id]]
+            [propagators.layered.procedure :as layer]
+            [propagators.message :as message]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
@@ -18,28 +20,35 @@
         right)
        value/nothing))))
 
-(defn arithmetic-provenance-closure
-  "Closure that propagates arithmetic provenance by unioning argument provenance."
-  []
-  {:f (fn [_closure-net input-ids output-ids network]
-        (let [[current arg-a arg-b] input-ids
-              [out] output-ids
-              a-prov (new-node-id)
-              b-prov (new-node-id)
-              read-provenance
-              (prop/primitive-propagator
-               :stdlib/argument-provenance
-               (fn [argument]
-                 (let [provenance (obj/slot-value argument :provenance)
-                       base (obj/slot-value argument :base)]
-                   (set/union (if (set? provenance) provenance #{})
-                              (value/contradiction-provenance base)))))
-              n1 (reduce net/seed-net-cell network [a-prov b-prov])
-              [_ n2] ((read-provenance arg-a a-prov) n1)
-              [_ n3] ((read-provenance arg-b b-prov) n2)
-              [_ n4] ((p:union current a-prov b-prov out) n3)]
-          n4))
-   :net net/empty-net})
+(defn- argument-provenance [argument]
+  (let [provenance (obj/slot-value argument :provenance)
+        base (obj/slot-value argument :base)]
+    (set/union (if (set? provenance) provenance #{})
+               (value/contradiction-provenance base))))
+
+(defn- result-provenance [network ports]
+  (let [previous (net/network-cell-strongest network (:previous-output-id ports))
+        current (obj/slot-value previous :provenance)]
+    (apply set/union (if (set? current) current #{})
+           (map argument-provenance (layer/read-arguments network ports)))))
+
+(defn arithmetic-provenance-closure []
+  {:net net/empty-net
+   :f (fn [_ inputs outputs network]
+        (let [ports (layer/ports inputs outputs)
+              arguments (layer/read-arguments network ports)]
+          (if (some #(contains? (obj/public-slot-keys %) :provenance) arguments)
+            (let [installer
+                  (prop/construct-propagator
+                   :stdlib/arithmetic-provenance
+                   (fn [_inputs _outputs current]
+                     [(message/message (:layer-result-id ports)
+                                       (result-provenance current ports))])
+                   (conj (:argument-ids ports) (:previous-output-id ports))
+                   [(:layer-result-id ports)])]
+              (layer/publish (second (installer network)) :provenance
+                             (:layer-result-id ports) (:live-result-id ports)))
+            network)))})
 
 (def +
   (arithmetic-provenance-closure))

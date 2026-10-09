@@ -1,5 +1,6 @@
 (ns propagators.stdlib.arithmetic
   (:require [propagators.ids :refer [new-node-id]]
+            [propagators.layered.procedure :as procedure]
             [propagators.network :as net]
             [propagators.stdlib.arithmetic.base :as base]
             [propagators.stdlib.arithmetic.intensity :as intensity]
@@ -15,7 +16,7 @@
 
 (defn base-extension
   [closure-value]
-  (procedure-extension :base closure-value))
+  (procedure-extension :base (procedure/base closure-value)))
 
 (defn provenance-extension
   [closure-value]

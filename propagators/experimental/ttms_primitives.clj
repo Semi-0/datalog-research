@@ -11,6 +11,7 @@
             [propagators.experimental.premise-publication :as publication]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
+            [propagators.layered.procedure :as procedure]
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -47,7 +48,8 @@
      {:base (datum/layer-value v :base) :support #{}}))))
 
 (defn- install-call [base network arguments output]
-  (let [[procedure base-id support-id state-id] (repeatedly 4 ids/new-node-id)
+  (let [base (procedure/base base)
+        [procedure base-id support-id state-id] (repeatedly 4 ids/new-node-id)
         prepared (-> (reduce nb/ensure-cell network (conj (vec arguments) output))
                      (nb/install-cell base-id base base)
                      (nb/install-cell support-id support/procedure support/procedure)

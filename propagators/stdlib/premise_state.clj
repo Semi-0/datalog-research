@@ -2,6 +2,7 @@
   "An ordinary procedure layer for state knowledge, not result dependencies."
   (:require [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support :as support]
+            [propagators.layered.procedure :as layer]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
 
@@ -19,6 +20,8 @@
      (apply support/join (map states-of arguments)))))
 
 (def procedure
-  {:f (fn [_closure-net inputs outputs network]
-        (second ((apply p:join (concat inputs outputs)) network)))
-   :net net/empty-net})
+  (layer/argument-layer
+   :premise-state
+   (fn [arguments]
+     (boolean (some #(datum/layer-present? % :premise-state) arguments)))
+   (fn [arguments] (apply support/join (map states-of arguments)))))

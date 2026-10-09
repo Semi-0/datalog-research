@@ -15,6 +15,7 @@
             [propagators.experimental.ttms-primitives :as primitives]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
+            [propagators.layered.procedure :as layer-procedure]
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -82,7 +83,8 @@
              n (nb/install-cell n id closure closure)]
          [(:net (layered/install-layered-procedure! n proc-id layer id)) proc-id]))
      [network procedure]
-     [[:base base] [:support support/procedure] [:premise-state state/procedure]])))
+     [[:base (layer-procedure/base base)] [:support support/procedure]
+      [:premise-state state/procedure]])))
 
 (defn- install-call [network procedure input output]
   (let [[id n] ((layered/p:apply-layered procedure [input] output) network)
