@@ -1,0 +1,12 @@
+;; Two-element cons-shaped terms use nested, pull-only slot observations.
+(let []
+  (def-net join-path [left right] [out]
+    (-> (unify-path
+          (edge-pair (car left) (car (cdr left)))
+          (edge-pair (car right) (car (cdr right))))
+        out))
+  (let-cell [via-b via-d rejected]
+    (join-path ab bc via-b)
+    (join-path ad dc via-d)
+    (join-path ab dc rejected)
+    (proof-relation via-b via-d rejected)))

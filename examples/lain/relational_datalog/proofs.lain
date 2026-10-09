@@ -1,0 +1,10 @@
+;; Each invocation has its own shared middle-variable cell.
+;; Dependencies are conjunctive within a proof, alternative between proofs.
+(let []
+  (def-net join-path [left right] [out]
+    (-> (unify-path left right) out))
+  (let-cell [via-b via-d rejected]
+    (join-path ab bc via-b)
+    (join-path ad dc via-d)
+    (join-path ab dc rejected)
+    (proof-relation via-b via-d rejected)))

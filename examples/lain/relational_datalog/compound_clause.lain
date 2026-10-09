@@ -1,0 +1,12 @@
+;; Compound fields are read-only observations; each join has private bindings.
+(let []
+  (def-net join-path [left right] [out]
+    (-> (unify-path
+          (edge-pair (from left) (to left))
+          (edge-pair (from right) (to right)))
+        out))
+  (let-cell [via-b via-d rejected]
+    (join-path ab bc via-b)
+    (join-path ad dc via-d)
+    (join-path ab dc rejected)
+    (proof-relation via-b via-d rejected)))
