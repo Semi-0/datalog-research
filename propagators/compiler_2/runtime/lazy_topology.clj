@@ -4,14 +4,15 @@
             [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.topology-effects :as topology-effects]
-            [propagators.core :as core]
-            [propagators.gur :as gur]))
+            [propagators.compiler-2.runtime.declaration-effects :as core]
+            [propagators.gur :as gur]
+            [propagators.propagator :as prop]))
 
 (defn- compile-body-state
   [compile* base-network captured-state body]
   (let [body-state
         (-> captured-state
-            (assoc :net base-network
+            (assoc :net (core/begin base-network)
                    :path (conj (:path captured-state) :body)
                    :props []
                    :applications []))
@@ -26,10 +27,7 @@
                             base-network
                             captured-state
                             body)]
-    (topology-effects/network-diff
-     base-network
-     (:net compiled-state)
-     (:props compiled-state))))
+    (core/result (:net compiled-state))))
 
 (defn install-when-topology-with
   [compile* state condition-id body]
@@ -42,14 +40,16 @@
         base-network
         (:net prepared)
         effect
-        (gur/when-effect
-         when-key
-         condition-id
-         (fn []
-           (body-effects compile*
-                         base-network
-                         prepared
-                         body)))
+        (update
+         (gur/when-effect
+          when-key
+          condition-id
+          (fn []
+            (body-effects compile*
+                          base-network
+                          prepared
+                          body)))
+         :activate prop/concrete-propagator)
         [_ installed]
         (core/eval-activation-result
          {:effects [effect (gur/bind-name topology-effects/topology-result-scope when-key result-id)]}

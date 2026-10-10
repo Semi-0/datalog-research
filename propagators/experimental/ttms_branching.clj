@@ -4,16 +4,17 @@
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.operator-value :as operator]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support-collection :as collection]
-            [propagators.experimental.premise-publication :as publication]
+            [propagators.stdlib.premise-publication :as publication]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
             [propagators.layered.procedure :as layer-procedure]
             [propagators.message :as message]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.network-builder :as builder]
             [propagators.propagator :as prop]
             [propagators.stdlib.support :as support]
             [propagators.stdlib.premise-state :as state]))
@@ -38,7 +39,8 @@
         base (layered/install-layered-procedure! prepared procedure :base base-id)
         supported (layered/install-layered-procedure! (:net base) procedure :support support-id)
         stateful (layered/install-layered-procedure! (:net supported) procedure :premise-state state-id)]
-    [(:net stateful) procedure]))
+    (let [props (mapv :prop [base supported stateful])]
+      [(nb/register-props (:net stateful) props) procedure props])))
 
 (defn- publish [result]
   ;; With only plain arguments the runtime runs only the base layer. Its support
@@ -53,7 +55,7 @@
 (defn- application-activation [procedure arguments output]
   ;; Use the public installer to obtain its activation once. This scratch graph
   ;; is discarded: only the selector is installed into the caller's topology.
-  (let [prepared (nb/install-cells (concat [procedure output] arguments))
+  (let [prepared (builder/install-cells (concat [procedure output] arguments))
         [id scratch] ((layered/p:apply-layered procedure arguments output) prepared)]
     (prop/compose-activation (prop/prop-f (net/network-env-lookup scratch id))
                              (message/lift-message publish))))
@@ -73,7 +75,7 @@
 (defn- install-call [kind original network arguments fallback]
   (let [{:keys [inputs outputs out-id]} (operator/operator-call original arguments fallback nil)
         prepared (reduce nb/ensure-cell network (concat inputs outputs))
-        [prepared procedure] (install-procedure prepared)
+        [prepared procedure layer-props] (install-procedure prepared)
         nothing-id (ids/new-node-id)
         prepared (nb/install-cell prepared nothing-id)
         selections (case kind
@@ -93,7 +95,7 @@
         [id installed] ((prop/construct-propagator
                          [::branching kind] activate
                          (into [procedure nothing-id] inputs) outputs) prepared)]
-    [installed [id] out-id]))
+    [installed (into [id] layer-props) out-id]))
 
 (defn- branching-operator [kind original]
   (operator/operator-closure

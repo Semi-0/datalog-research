@@ -87,8 +87,7 @@
   [& epochs]
   (epoch (apply max 0 (keep :semantic-trace/epoch epochs))))
 
-(defn graph-union
-  [& graphs]
+(defn- union-graphs [graphs]
   (let [graphs (remove value/unusable? graphs)]
     (cond-> {:semantic-trace/graph true
      :nodes (apply merge (map :nodes graphs))
@@ -101,6 +100,15 @@
                                    (mapcat :edges graphs))))}
       (some #(contains? % :dataflow/seeds) graphs)
       (assoc :dataflow/seeds (set (mapcat :dataflow/seeds graphs))))))
+
+(defn graph-union
+  "Union graph declarations, retaining diagnosed projection failures."
+  [& graphs]
+  (let [errors (filter value/contradiction? graphs)]
+    (if (seq errors)
+      (value/contradiction-with-provenance
+       (into #{} (mapcat value/contradiction-provenance) errors))
+      (union-graphs graphs))))
 
 (defn trace-graph
   "Return the semantic subgraph reachable from `:node` or `:label`.

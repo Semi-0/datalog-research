@@ -3,6 +3,7 @@
   (:require [examples.lain.relational-datalog.proof-relation :as relation]
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.operator-value :as operator]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.datastructures.support-collection :as collection]
             [propagators.datastructures.layered-value :as datum]
@@ -13,7 +14,6 @@
             [propagators.layered.procedure :as layer]
             [propagators.message :as message]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
             [propagators.stdlib.premise-state :as state]
             [propagators.stdlib.support :as supported]))
@@ -35,7 +35,7 @@
     (cond
       (some value/nothing? (take 2 bases)) value/nothing
       (not (support/covers? bound required)) value/nothing
-      (some value/contradiction? bases) value/contradiction
+      (some value/contradiction? bases) (relation/diagnostic value/contradiction)
       (or (some value/unusable? [left right binding])
           (not (support/compatible? required bound))) value/nothing
       :else [(nth (first bases) 0) (nth (second bases) 1)])))
@@ -46,13 +46,15 @@
         declarations [[:base base-id base] [:support support-id supported/procedure]
                       [:premise-state state-id state/procedure]]
         prepared (reduce nb/ensure-cell network (conj (vec arguments) output))
-        installed
-        (reduce (fn [current [tag id definition]]
-                  (:net (layered/install-layered-procedure!
-                         (nb/install-cell current id definition definition)
-                         procedure tag id)))
-                prepared declarations)
-        [id applied] ((layered/p:apply-layered procedure arguments output) installed)
+        [installed layer-props]
+        (reduce (fn [[current props] [tag id definition]]
+                  (let [declared (layered/install-layered-procedure!
+                                  (nb/install-cell current id definition definition)
+                                  procedure tag id)]
+                    [(:net declared) (conj props (:prop declared))]))
+                [prepared []] declarations)
+        declared (nb/register-props installed layer-props)
+        [id applied] ((layered/p:apply-layered procedure arguments output) declared)
         application (net/network-env-lookup applied id)
         activation (prop/compose-activation
                     (prop/prop-f application)
@@ -62,7 +64,7 @@
     [(net/assoc-net-prop applied id
                          (assoc application :activate activation
                                 :name [::candidate (last arguments)]))
-     [id] output]))
+     (conj layer-props id) output]))
 
 (def endpoints
   (operator/operator-closure {:name ::endpoints :install install-endpoints}))
@@ -101,7 +103,9 @@
 
 (def session-extension
   (extension/extension-bundle
-   {:id ::proofs :bindings [['unify-path unify-path] ['proof-relation proof-relation]]
+   {:id ::proofs
+    :bindings (into (vec (extension/extension-bindings ttms/session-extension))
+                    [['unify-path unify-path] ['proof-relation proof-relation]])
     :effects []}))
 
 (defn bindings-in [network]

@@ -38,8 +38,16 @@
       (throw (ex-info "Expected experimental proof relations"
                       {:content old :update update})))))
 
+(defn diagnostic [value]
+  {:experiment/proof-value value})
+
+(defn- diagnostic-value [value]
+  (if (and (map? value) (= #{:experiment/proof-value} (set (keys value))))
+    (:experiment/proof-value value)
+    value))
+
 (defn proof-state [projected]
-  (let [base (datum/layer-value projected :base)
+  (let [base (diagnostic-value (datum/layer-value projected :base))
         states (state/states-of projected)
         status (cond
                  (value/contradiction? base) :contradictory

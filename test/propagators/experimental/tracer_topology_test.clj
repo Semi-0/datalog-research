@@ -26,10 +26,10 @@
                                    ['* ['a 'b] ['a 'b] ['right]]
                                    ['+ ['left 'right] ['left 'right] ['result]]]}
    {:file "repeated" :seeds {'a 2} :result ['result 4]
-    :applications [['step ['a 'middle] ['a] ['middle]]
-                                    ['step ['middle 'result] ['middle] ['result]]]}
+    :applications [['step ['a] ['a] ['middle]]
+                                    ['step ['middle] ['middle] ['result]]]}
    {:file "nested" :seeds {'a 2} :result ['result 4]
-    :applications [['pair ['a 'result] ['a] ['result]]]}
+    :applications [['pair ['a] ['a] ['result]]]}
    {:file "cycle" :seeds {'a 2} :result ['c 2] :edges [['a 'b] ['b 'c] ['c 'a]]}
    {:file "bidirectional" :seeds {'c 2} :result ['a 2]
     :edges [['a 'b] ['b 'a] ['b 'c] ['c 'b]]}
@@ -109,7 +109,7 @@
                     options)
             callable (net/network-cell-strongest (:program/net state) (binding-id state 'identity))
             arrived (inject state {'later callable})
-            declaration ['later ['a 'result] ['a] ['result]]
+            declaration ['later ['a] ['a] ['result]]
             expected (set (expected-application-edges arrived declaration))]
         (is (empty? (:edges (graph-value state))) "Pending callable has no invented ports")
         (assert-graph (graph-value arrived) expected [declaration])

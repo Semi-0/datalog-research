@@ -11,7 +11,7 @@
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.datastructures.compound-object :as obj]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.compiler-2.runtime.declaration-effects :as nb]))
 
 (def compiler-result-key :compiler/result)
 (def compiler-props-key :compiler/props)
@@ -253,9 +253,11 @@
                                (:props state)
                                (:env state)
                                (:applications state))]
-    {:net network
+    (merge
+    (if (net/network-dict-entry network nb/buffer-key) (nb/result network) {})
+    {:net (nb/discard network)
      :cell (env/binding-id result)
      :binding result
      :env (:env state)
      :props (:props state)
-     :applications (:applications state)}))
+     :applications (:applications state)})))

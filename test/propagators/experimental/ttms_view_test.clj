@@ -60,7 +60,7 @@
     (is (= (net/net-dict-or-empty first) (net/net-dict-or-empty next)))))
 
 (deftest map-identity-withdraws-and-recovers-without-new-topology
-  (let [initial (session "(def-cells seed) (def result (map (:: [x] x) (list seed)))")
+  (let [initial (session "(define seed) (define result (map (network [x] x) (list seed)))")
         a (publish initial 'seed 10 1)
         b (publish a 'seed 20 2)
         off (withdraw b 'seed 3)
@@ -77,8 +77,8 @@
            (mapv :identity (:candidates (views/result on 'result)))))))
 
 (deftest filter-state-crosses-a-subsequent-constant-map
-  (let [initial (session "(def-cells accepted)
-                         (def result (map (:: [x] 9) (filter (:: [x] accepted) (list 4))))")
+  (let [initial (session "(define accepted)
+                         (define result (map (network [x] 9) (filter (network [x] accepted) (list 4))))")
         yes (publish initial 'accepted true 1)
         no (publish yes 'accepted false 2)
         off (withdraw no 'accepted 3)
@@ -91,8 +91,8 @@
     (is (= [:pending] (mapv :membership (:candidates (views/result off 'result)))))))
 
 (deftest arithmetic-callback-preserves-ttms-and-provenance
-  (let [initial (session "(def-cells seed captured)
-                         (def result (map (:: [x] (+ x captured)) (list seed)))")
+  (let [initial (session "(define seed) (define captured)
+                         (define result (map (network [x] (+ x captured)) (list seed)))")
         a (-> initial (publish 'seed 4 1) (publish 'captured 3 1))
         off (withdraw a 'captured 2)
         on (publish off 'captured 5 3)]
@@ -110,7 +110,7 @@
   (let [[a b] (mapv #(vector [:outer] %) (repeatedly 2 ids/new-node-id))
         graph #(trace/graph-union {:nodes (zipmap % (map pr-str %))
                                   :edges (if (= 2 (count %)) [[a b]] [])})
-        initial (session "(def-cells graph) (def result (filter (:: [x] true) graph))")
+        initial (session "(define graph) (define result (filter (network [x] true) graph))")
         both (publish initial 'graph (graph [a b]) 1)
         removed (publish both 'graph (graph [b]) 2)
         off (withdraw removed 'graph 3)
@@ -130,9 +130,9 @@
      :epoch (:view/epoch v) :revision (:view/revision v) :generation (:view/generation v)}))
 
 (deftest published-selection-and-clear-use-ttms-and-reject-stale-commands
-  (let [initial (session "(def-cells selection)
-                         (def result (selectable (map (:: [x] x) (list 1 2)) selection))
-                         (def zoom (map (:: [x] x) (focus result selection)))
+  (let [initial (session "(define selection)
+                         (define result (selectable (map (network [x] x) (list 1 2)) selection))
+                         (define zoom (map (network [x] x) (focus result selection)))
                          (xr:io result)")
         row (first (:items (views/result initial 'result)))
         cmd (command initial row)
@@ -157,7 +157,7 @@
       (is (value/contradiction? (data/payload (net/network-cell-strongest (:program/net conflict) id)))))))
 
 (deftest ttms-graph-view-clears-and-recovers-without-unioning-snapshots
-  (let [initial (session "(def-cells graph) (xr:io graph)")
+  (let [initial (session "(define graph) (xr:io graph)")
         a [[:outer] (ids/new-node-id)] b [[:outer] (ids/new-node-id)]
         graph #(trace/graph-union {:nodes {% (pr-str %)} :edges []})
         first (publish initial 'graph (graph a) 1)
@@ -173,7 +173,7 @@
     (is (= #{a} (set (keys (:nodes (:view/graph (view on)))))))))
 
 (deftest dataflow-errors-retain-reasons-and-fresh-input-repairs
-  (let [initial (session "(def-cells graph output) (relationship:dataflow graph output)")
+  (let [initial (session "(define graph) (define output) (relationship:dataflow graph output)")
         bad (publish initial 'graph :not-a-graph 1)
         output (fixture/binding-id bad 'output)
         result (net/network-cell-strongest (:program/net bad) output)
@@ -187,8 +187,8 @@
     (is (= #{(premise (fixture/binding-id bad 'graph) 2 :active)} (datum/support-of current)))))
 
 (deftest complete-trace-source-stamping-is-idempotent
-  (let [initial (session "(def-cells a b raw projected)
-                         (def-net f [x] [y] (-> (+ x 1) y)) (f a b) (-> 4 a)
+  (let [initial (session "(define a) (define b) (define raw) (define projected)
+                         (define f (network [x] (+ x 1))) (-> (f a) b) (-> 4 a)
                          (relationship:roots a b raw) (relationship:dataflow raw projected)")
         n (:program/net initial)
         source (fixture/binding-id initial 'raw)

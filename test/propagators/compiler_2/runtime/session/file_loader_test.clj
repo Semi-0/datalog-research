@@ -3,6 +3,7 @@
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
             [propagators.compiler-2.runtime.bridge.web :as bridge]
+            [graph.compiler-2-assembly :as assembly]
             [graph.compiler-2-runtime-server :as server]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.network :as net]))
@@ -41,7 +42,7 @@
 
 (deftest runtime-server-startup-load-option-loads-lain-file
   (let [temporary (java.io.File/createTempFile "compiler2-startup-" ".lain")
-        _ (spit temporary "(def info 1)")
+        _ (spit temporary "(define info 1)")
         startup-file (.getAbsolutePath temporary)
         client-id "printer"
         opts (#'server/parse-server-args
@@ -62,7 +63,7 @@
 (deftest runtime-server-watch-loads-a-fresh-relationship-environment
   (let [temporary (java.io.File/createTempFile "compiler2-watch-server-" ".lain")
         _ (spit temporary
-                "(def-cells a graph) (<-> 1 a) (relationship:roots a graph) (xr:io graph)")
+                "(define a (cell)) (define graph (cell)) (<-> 1 a) (relationship:roots a graph) (xr:io graph)")
         path (.getAbsolutePath temporary)
         opts (#'server/parse-server-args ["--watch" path "--no-dashboard"])
         server-state (binding [server/*temperature-logger-enabled?* false]
@@ -83,13 +84,15 @@
   (is (= ['(def-cell x) '(<-> 1 x)]
          (loader/source-forms "(def-cell x)\n(<-> 1 x)"))))
 
-(deftest lain-loader-preserves-block-by-block-def-net-application
-  (let [session (runtime/new-session)
-        source "(def-cell clients)
+(deftest lain-loader-preserves-form-by-form-network-application
+  (let [session (assembly/new-session)
+        source "(define clients (cell))
                 (runtime:clients clients)
-                (def-net first-client [clients] [out]
-                  (p:car clients))
-                (def-cell f)
+                (define first-client
+                  (network [clients out]
+                    (p:car out clients)
+                    (list out)))
+                (define f (cell))
                 (first-client clients f)"]
     (loader/load-source! session source {:client-id "file-test"})
     (runtime/commit-runtime-input! session
@@ -114,17 +117,17 @@
                               symbol))))
 
 (deftest fresh-replacement-discards-the-previous-environment
-  (let [session (loader/load-session-from-source "(def old-name 1)")]
-    (loader/replace-session-from-source! session "(def new-name 2)")
+  (let [session (loader/load-session-from-source "(define old-name 1)")]
+    (loader/replace-session-from-source! session "(define new-name 2)")
     (is (nil? (cenv/resolve-binding-id
                (:program/net @session) (:program/env @session) 'old-name)))
     (is (= 2 (binding-value session 'new-name)))))
 
 (deftest failed-replacement-retains-the-last-good-environment
-  (let [session (loader/load-session-from-source "(def stable 7)")
+  (let [session (loader/load-session-from-source "(define stable 7)")
         before @session]
     (is (thrown? Throwable
-                 (loader/replace-session-from-source! session "(def stable")))
+                 (loader/replace-session-from-source! session "(define stable")))
     (is (identical? before @session))
     (is (= 7 (binding-value session 'stable)))))
 
@@ -132,7 +135,7 @@
   (let [temporary (java.io.File/createTempFile "compiler2-watch-" ".lain")
         reloaded (promise)
         failed (promise)
-        _ (spit temporary "(def watched 1)")
+        _ (spit temporary "(define watched 1)")
         session (loader/load-session-from-file temporary)
         watcher (loader/watch-file!
                  session temporary
@@ -140,12 +143,33 @@
                   :on-reload #(deliver reloaded %)
                   :on-error #(deliver failed %)})]
     (try
-      (spit temporary "(def watched 2)")
+      (spit temporary "(define watched 2)")
       (is (not= ::timeout (deref reloaded 2000 ::timeout)))
       (is (= 2 (binding-value session 'watched)))
-      (spit temporary "(def watched")
+      (spit temporary "(define watched")
       (is (instance? Throwable (deref failed 2000 ::timeout)))
       (is (= 2 (binding-value session 'watched)))
       (finally
         ((:close watcher))
         (.delete temporary)))))
+
+(deftest watcher-ignores-an-unsettled-truncate-write-read
+  (let [session (loader/load-session-from-source "(define watched 1)")
+        reads (atom ["(define watched 1)" "" "(define watched 2)"])
+        loaded (promise)
+        errors (atom [])]
+    (with-redefs [loader/read-file-source
+                  (fn [_]
+                    (let [current (first @reads)]
+                      (swap! reads #(if (next %) (vec (rest %)) %))
+                      current))]
+      (let [watcher (loader/watch-file!
+                     session "controlled-read.lain"
+                     {:interval-ms 10
+                      :on-reload #(deliver loaded %)
+                      :on-error #(swap! errors conj %)})]
+        (try
+          (is (map? (deref loaded 2000 ::timeout)))
+          (is (= 2 (binding-value session 'watched)))
+          (is (empty? @errors))
+          (finally ((:close watcher))))))))

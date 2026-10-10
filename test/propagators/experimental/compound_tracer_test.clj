@@ -20,8 +20,8 @@
 (def program "examples/lain/visualization_combinators/topology_scenarios/composed.lain")
 (def declarations
   [['shift ['source] ['source] ['prepared]]
-   ['stage ['prepared 'left] ['prepared] ['left]]
-   ['pipeline ['left 'result] ['left] ['result]]])
+   ['stage ['prepared] ['prepared] ['left]]
+   ['pipeline ['left] ['left] ['result]]])
 
 (defn application-key [app]
   [[:outer] (observation/application-propagator app)])
@@ -102,8 +102,8 @@
                                  (= x (first (:argument-ids %)))) children)
         _ (is (= 1 (count first-calls)))
         first-call (first first-calls)
-        middle (second (:argument-ids first-call))
-        second-call (unique-call network children 'stage [middle out])
+        middle (local-port network app 'middle)
+        second-call (unique-call network children 'stage [middle])
         path [(key-of x) (application-key first-call) (key-of middle)
               (application-key second-call) (key-of out)]]
     {:edges (set (map vec (partition 2 1 path))) :calls [first-call second-call]
@@ -128,8 +128,8 @@
     (testing (name mode)
       (let [state (fixture/inject @(loader/load-session-from-file program options) {'source 2})
             network (:program/net state)
-            stage (occurrence state 'stage ['prepared 'left])
-            pipeline (occurrence state 'pipeline ['left 'result])
+            stage (occurrence state 'stage ['prepared])
+            pipeline (occurrence state 'pipeline ['left])
             pipeline-expected (pipeline-oracle network pipeline)
             [first-stage second-stage] (:calls pipeline-expected)]
         (testing "selected stage"
@@ -183,7 +183,7 @@
       (is (= 1 (data/payload (net/network-cell-strongest network (second (:argument-ids comparison)))))))
     (if (> n 1)
       (let [decrement (find-op '-)
-            recursive (unique-call network apps 'down [(:result-id decrement) out])]
+            recursive (unique-call network apps 'down [(:result-id decrement)])]
         {:calls (concat guards [decrement recursive])
          :edges (set (concat (mapcat primitive-edges (concat guards [decrement]))
                              [[(key-of (:result-id decrement)) (application-key recursive)]
@@ -204,7 +204,7 @@
             active (filter #(number? (data/payload (net/network-cell-strongest network
                                                    (first (:argument-ids %))))) calls)
             expected (set (fixture/expected-application-edges state
-                            ['down ['input 'result] ['input] ['result]]))]
+                            ['down ['input] ['input] ['result]]))]
         (is (= 1 (data/payload (net/network-cell-strongest network (fixture/binding-id state 'result)))))
         (is (= 4 (count active)))
         (is (= 4 (count (set (map :frame-id active)))))

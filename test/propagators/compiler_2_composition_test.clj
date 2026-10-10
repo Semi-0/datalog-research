@@ -64,7 +64,7 @@
   (with-redefs [compiler-dispatch/compile-expression
                 (fn [& _]
                   (throw (ex-info "generic compiler was called" {})))]
-    (let [compiled (compiler/compile-source "((:: [x] (+ x 1)) 4)")
+    (let [compiled (compiler/compile-source "((network [x] (+ x 1)) 4)")
           result-net (run-compiled compiled)]
       (is (= 5 (semantic-value result-net (:cell compiled))))))
   (let [source "(let [x 1] (+ x 2))"

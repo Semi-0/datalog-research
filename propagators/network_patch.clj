@@ -35,10 +35,16 @@
    :name name
    :id id})
 
+(defn extend-propagator-outputs [propagator-id output-ids]
+  {:op :network/extend-propagator-outputs
+   :id propagator-id
+   :outputs (vec output-ids)})
+
 (defn network-declaration?
   [patch]
   (contains? #{:network/declare-cell
                :network/declare-propagator
+               :network/extend-propagator-outputs
                :network/bind-name}
              (:op patch)))
 
@@ -60,9 +66,18 @@
      network
      introduced)))
 
+(defn- apply-output-extension [emitter declaration network]
+  (let [outputs (:outputs declaration)
+        introduced (filterv #(not (contains? (net/net-env network) %)) outputs)
+        extended (nb/extend-propagator-outputs network (:id declaration) outputs)]
+    [tq/empty-queue (relate-introduced extended emitter introduced)]))
+
 (defn apply-declaration-patch
   [emitter declaration network]
   (case (:op declaration)
+    :network/extend-propagator-outputs
+    (apply-output-extension emitter declaration network)
+
     :network/declare-cell
     (let [id (:id declaration)
           new? (not (contains? (net/net-env network) id))

@@ -2,23 +2,14 @@
   "Opt-in scalar procedures and branching. Compiler defaults remain unchanged."
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.model.operator-value :as operator]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.evidence-set :as evidence]
-            [propagators.datastructures.layered-value :as datum]
-            [propagators.datastructures.support-collection :as collection]
             [propagators.experimental.ttms-branching :as branching]
-            [propagators.experimental.premise-publication :as publication]
-            [propagators.ids :as ids]
-            [propagators.layered :as layered]
-            [propagators.layered.procedure :as procedure]
-            [propagators.message :as message]
-            [propagators.network :as net]
-            [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
             [propagators.stdlib.prop :as standard]
-            [propagators.stdlib.support :as support]
-            [propagators.stdlib.premise-state :as state]))
+            [propagators.stdlib.supported-procedure :as supported]))
 
 (defn- scalar-primitive [name f]
   (prop/primitive-propagator
@@ -34,47 +25,17 @@
                     (value/contradiction-with-provenance
                      #{{:operation name :reason (.getMessage error)}})))))))
 
-(defn- base-procedure [primitive]
-  {:net net/empty-net
-   :f (fn [_ inputs outputs network]
-        (second ((apply primitive (concat inputs outputs)) network)))})
-
-(defn- publish [v]
-  (if (datum/layer-present? v :premise-state)
-    (publication/content v)
-    (collection/content
-   (if (datum/layer-present? v :support)
-     v
-     {:base (datum/layer-value v :base) :support #{}}))))
-
-(defn- install-call [base network arguments output]
-  (let [base (procedure/base base)
-        [procedure base-id support-id state-id] (repeatedly 4 ids/new-node-id)
-        prepared (-> (reduce nb/ensure-cell network (conj (vec arguments) output))
-                     (nb/install-cell base-id base base)
-                     (nb/install-cell support-id support/procedure support/procedure)
-                     (nb/install-cell state-id state/procedure state/procedure))
-        base-layer (layered/install-layered-procedure! prepared procedure :base base-id)
-        support-layer (layered/install-layered-procedure!
-                       (:net base-layer) procedure :support support-id)
-        state-layer (layered/install-layered-procedure! (:net support-layer) procedure :premise-state state-id)
-        [id installed] ((layered/p:apply-layered procedure arguments output) (:net state-layer))
-        application (net/network-env-lookup installed id)
-        activation (prop/compose-activation (prop/prop-f application)
-                                             (message/lift-message publish)
-                                             publication/transport-states)]
-    [(net/assoc-net-prop installed id (assoc application :activate activation)) [id] output]))
-
 (defn procedure-operator
   "Compose an existing base procedure with the support and premise-state layers."
   [name base]
   (operator/operator-closure
    {:name [::scalar name]
     :install (fn [network arguments output]
-               (install-call base network arguments output))}))
+               (let [[installed props selected] (supported/install base network arguments output)]
+                 [(nb/register-props installed props) props selected]))}))
 
 (defn scalar-operator [name primitive]
-  (procedure-operator name (base-procedure primitive)))
+  (procedure-operator name (supported/from-primitive primitive)))
 
 (defn slot-operator
   "Read a slot from the base compound through an ordinary layered application.
@@ -102,7 +63,7 @@
   (extension/extension-bundle
    {:id ::scalars
     :bindings
-    (into (extension/extension-bindings branching/session-extension)
+    (into (vec (extension/extension-bindings branching/session-extension))
           (map (fn [[name primitive]] [name (scalar-operator name primitive)]))
           [['+ standard/+] ['- standard/-] ['* standard/*] ['/ standard//]
            ['<= (scalar-primitive '<= <=)] ['not (scalar-primitive 'not not)]

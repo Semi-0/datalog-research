@@ -16,6 +16,20 @@
 (def initial (delay (e/initialize)))
 (def active (delay (e/publish @initial e/active-updates)))
 
+(deftest diagnostic-is-explicit-data-not-contradiction-forwarding
+  (let [premise {:source (ids/new-node-id) :timestamp 1 :premises-status :active}
+        retained (collection/content
+                  {:base (relation/diagnostic value/contradiction)
+                   :support #{premise} :premise-state #{premise}})
+        projected (collection/strongest-value
+                   retained #(merge/cell-merge %1 %2 net/empty-net))
+        proof (relation/proof-state projected)]
+    (is (not (value/unusable? projected)))
+    (is (= :contradictory (:status proof)))
+    (is (value/contradiction? (:base proof)))
+    (is (= #{premise} (:support proof)))
+    (is (value/unusable? value/contradiction))))
+
 (defn- topology [state] (set (keys (net/net-env (:network state)))))
 
 (defn- live [state]

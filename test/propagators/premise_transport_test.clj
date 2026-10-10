@@ -11,7 +11,7 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support-collection :as collection]
-            [propagators.experimental.premise-publication :as publication]
+            [propagators.stdlib.premise-publication :as publication]
             [propagators.experimental.ttms-primitives :as primitives]
             [propagators.ids :as ids]
             [propagators.layered :as layered]

@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.operators.behavior
+(ns ^:deprecated propagators.compiler-2.operators.behavior
   "Compiler-2 behavior operators."
   (:refer-clojure :exclude [* + - /])
   (:require [clojure.core :as core]
@@ -459,9 +459,8 @@
           ['be:* (stable-distributed-behavior-operator :* core/*)]
           ['be:divide (stable-distributed-behavior-operator :/ core//)]])))
 
-(defn behavior-tms-bindings []
+(defn ^:deprecated behavior-tms-bindings []
   (-> (h/default-bindings)
       add-behavior-bindings
       compiler-tms/add-distributed-tms-bindings
       (conj ['<-> (h/bi-sync-operator)])))
-

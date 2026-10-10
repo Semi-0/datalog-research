@@ -1,8 +1,10 @@
 (ns graph.compiler-2-web-clients
   "Independent web-client runtime instances coordinated through compiler-2 bridges."
   (:require [propagators.compiler-2.runtime :as runtime]
+            [graph.compiler-2-assembly :as assembly]
             [propagators.compiler-2.runtime.session.file-loader :as file-loader]
             [propagators.compiler-2.runtime.bridge.web :as bridge]
+            [propagators.compiler-2.runtime.bridge.route-projection :as routes]
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.datastructures.compound-object :as obj]
@@ -13,7 +15,7 @@
 (def default-model-file "examples/lain/multi-client-messaging.lain")
 
 (defn new-system []
-  (atom {:coordinator (runtime/new-session)
+  (atom {:coordinator (assembly/new-session)
          :clients {}
          :order []
          :next-client-index 0}))
@@ -71,18 +73,30 @@
                                   :cell-id cell-id
                                   :update update}))
 
+(defn- prepare-routes!
+  [system]
+  (swap! (:coordinator @system)
+         (fn [state]
+           (if-let [root-id (cenv/resolve-binding-id (:program/net state)
+                                                    (:program/env state) 'routes)]
+             (let [projected (routes/install (:program/net state) root-id)]
+               (assoc state :program/net projected :compiled-network projected))
+             state))))
+
 (defn load-model-source!
   [system source]
-  (file-loader/load-source! (:coordinator @system)
-                            source
-                            {:client-id "web-coordinator"}))
+  (let [loaded (file-loader/load-source! (:coordinator @system)
+                                       source {:client-id "web-coordinator"})]
+    (prepare-routes! system)
+    loaded))
 
 (defn load-model-file!
   ([system] (load-model-file! system default-model-file))
   ([system file]
-   (file-loader/load-file! (:coordinator @system)
-                           file
-                           {:client-id "web-coordinator"})))
+   (let [loaded (file-loader/load-file! (:coordinator @system)
+                                      file {:client-id "web-coordinator"})]
+     (prepare-routes! system)
+     loaded)))
 
 (defn- publish-client-list!
   [system]
@@ -94,7 +108,7 @@
   ([system] (register-client! system {}))
   ([system {:keys [client-id]}]
    (let [client-id (ensure-id @system client-id)
-         session (runtime/new-session)]
+         session (assembly/new-session)]
      (swap! system
             (fn [s]
               (let [known? (contains? (:clients s) client-id)]
@@ -108,6 +122,7 @@
                         (update :order conj client-id)
                         (update :next-client-index inc)))))))
      (publish-client-list! system)
+     (prepare-routes! system)
      {:client-id client-id
       :session session})))
 
@@ -148,15 +163,21 @@
   ([system from to pipe]
    (let [from (bridge/normalize-client-id from)
          to (bridge/normalize-client-id to)
-         route-rows (bridge/linked-list-values
-                     (symbol-strongest (:coordinator @system) 'routes))]
+         network (:program/net @(:coordinator @system))
+         root-id (cell-id-for-symbol (:coordinator @system) 'routes)
+         route-rows (if root-id (routes/members network root-id) [])]
      (boolean
       (some (fn [row]
-              (let [row-from (obj/accessor-source-slot-value row :car)
-                    row-outs (obj/accessor-source-slot-value row :cdr)]
-                (and (= from (bridge/normalize-client-id row-from))
-                     (some #(= to (bridge/normalize-client-id %))
-                           (bridge/linked-list-values row-outs)))))
+              (let [row-from (routes/slot-value network row :car)
+                    row-outs (routes/slot-id network row :cdr)]
+                (and (not (value/unusable? row-from))
+                     (= from (bridge/normalize-client-id row-from))
+                     row-outs
+                     (some (fn [destination-id]
+                             (let [destination (net/network-cell-strongest network destination-id)]
+                               (and (not (value/unusable? destination))
+                                    (= to (bridge/normalize-client-id destination)))))
+                           (routes/members network row-outs)))))
             route-rows)))))
 
 (defn- deliver-client-view!

@@ -6,12 +6,23 @@
             [propagators.network :as net]
             [propagators.relationship :as relationship]
             [propagators.relationship-observer :as relationship-observer]
+            [propagators.runner :as runner]
             [propagators.semantic-trace :as semantic-trace]))
+
+(defn- load-observed [source options]
+  (let [steps (atom 0)]
+    (binding [runner/*advance-transform*
+              (fn [advance]
+                (fn [state continuations]
+                  (when (> (swap! steps inc) 5000)
+                    (throw (ex-info "Observer did not reach quiescence" {})))
+                  (advance state continuations)))]
+      (loader/load-session-from-source source options))))
 
 (deftest relationship-extension-compiles-a-composed-root-observer
   (let [session
-        (loader/load-session-from-source
-          "(def-cells a b graph)
+        (load-observed
+          "(define a (cell)) (define b (cell)) (define graph (cell))
           (<-> 1 a)
           (-> (+ a 1) b)
           (relationship:roots a graph)
@@ -30,6 +41,7 @@
     (is (semantic-trace/semantic-trace-graph? traced))
     (is (contains? traced-ids a-id))
     (is (contains? traced-ids b-id))
+    (is (not (contains? traced-ids graph-id)))
     (is (every? #(empty? (relationship/parents
                           (net/net-relationship network) %))
                 (keys (:nodes traced))))

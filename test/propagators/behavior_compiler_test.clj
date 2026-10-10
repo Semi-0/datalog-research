@@ -185,7 +185,7 @@
 
 (deftest behavior-compiler-closure-declaration-is-latest-behavior
   (testing "a closure declaration emits behavior whose base is closure-info"
-    (let [compiled (behavior-compiler/compile-source "(:: [x] (be:+ x 1))"
+    (let [compiled (behavior-compiler/compile-source "(network [x] (be:+ x 1))"
                                                      (behavior-arithmetic-env)
                                                      {:timestamp 4})
           closure-content (content (:net compiled) (:cell compiled))
@@ -203,7 +203,7 @@
     (let [input (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
           [a-id n1] (behavior-cell (behavior-net) input)
           compiled (behavior-compiler/compile-source
-                    "((:: [x] (be:+ x 1)) a)"
+                    "((network [x] (be:+ x 1)) a)"
                     (env-with {'a a-id})
                     {:net n1})
           result-net (run-compiled compiled)]
@@ -249,7 +249,7 @@
           root (live-root n0 (env-with {'f f-id 'a a-id}))
           rooted (nb/run-propagators (:net root) (:props root))
           {n1 :net inc-info :closure-info}
-          (closure-info-fixture rooted "(:: [x] (be:+ x 1))" (:env root))
+          (closure-info-fixture rooted "(network [x] (be:+ x 1))" (:env root))
           initial-closure (closure-view 0 #{0} inc-info)
           repeated-closure (closure-view 1 #{1} inc-info)
           [_tasks n2] (seed-behavior-message n1 f-id initial-closure)
@@ -288,7 +288,7 @@
           {n5 :net small-info :closure-info}
           (closure-info-fixture
            small-net
-           "(:: [x] (be:+ x y))"
+           "(network [x] (be:+ x y))"
            small-env-id)
           large-env-id (ids/new-node-id)
           large-env (env/declare-child
@@ -298,7 +298,7 @@
           {n6 :net large-info :closure-info}
           (closure-info-fixture
            large-net
-           "(:: [x] (be:+ x y))"
+           "(network [x] (be:+ x y))"
            large-env-id)
           initial-closure (closure-view 0 #{0} small-info)
           updated-closure (closure-view 1 #{1} large-info)
@@ -336,10 +336,10 @@
           rooted (nb/run-propagators (:net root) (:props root))
           {n2 :net inc-closure :closure-behavior}
           (closure-behavior-fixture rooted (:env root)
-                                    "(:: [x] (be:+ x 1))" 0)
+                                    "(network [x] (be:+ x 1))" 0)
           {n3 :net double-closure :closure-behavior}
           (closure-behavior-fixture n2 (:env root)
-                                    "(:: [x] (be:* x 2))" 1)
+                                    "(network [x] (be:* x 2))" 1)
           compiled (behavior-compiler/compile-source
                     "(f a)"
                     (:env root)
@@ -374,10 +374,10 @@
           rooted (nb/run-propagators (:net root) (:props root))
           {n2 :net inc-closure :closure-behavior}
           (closure-behavior-fixture rooted (:env root)
-                                    "(:: [x] (be:+ x 1))" 0)
+                                    "(network [x] (be:+ x 1))" 0)
           {n3 :net double-closure :closure-behavior}
           (closure-behavior-fixture n2 (:env root)
-                                    "(:: [x] (be:* x 2))" 1)
+                                    "(network [x] (be:* x 2))" 1)
           compiled (behavior-compiler/compile-source
                     "(f a)"
                     (:env root)
@@ -402,9 +402,9 @@
           root (live-root n1 (env-with {'f f-id 'a a-id}))
           rooted (nb/run-propagators (:net root) (:props root))
           {n2 :net v1-closure :closure-behavior}
-          (closure-behavior-fixture rooted (:env root) "(:: [x] 1)" 0)
+          (closure-behavior-fixture rooted (:env root) "(network [x] 1)" 0)
           {n3 :net v2-closure :closure-behavior}
-          (closure-behavior-fixture n2 (:env root) "(:: [x] 2)" 1)
+          (closure-behavior-fixture n2 (:env root) "(network [x] 2)" 1)
           compiled (behavior-compiler/compile-source
                     "(f a)"
                     (:env root)
@@ -432,7 +432,7 @@
           [outer-x-id n1] (behavior-cell (behavior-net) outer)
           [arg-id n2] (behavior-cell n1 input)
           compiled (behavior-compiler/compile-source
-                    "((:: [x] (be:+ x 1)) a)"
+                    "((network [x] (be:+ x 1)) a)"
                     (env-with {'x outer-x-id 'a arg-id})
                     {:net n2})
           result-net (run-compiled compiled)]

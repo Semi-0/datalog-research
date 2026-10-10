@@ -4,12 +4,11 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.operator-value :as operator-value]
-            [propagators.compiler-2.runtime.topology-effects :as topology]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.graph :as graph]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (defprotocol NetworkSnapshot
@@ -75,7 +74,7 @@
 (defn- install-one
   [{:keys [net props]} installer]
   (let [[prop-id installed] (installer net)]
-    {:net installed
+    {:net (nb/register-props installed [prop-id])
      :props (conj props prop-id)}))
 
 (defn- value-slot
@@ -216,8 +215,8 @@
 
 (defn- observation-effects
   [network out-id build]
-  (let [{compiled :net props :props} (build network)]
-    (topology/network-diff network compiled props)))
+  (let [{compiled :net} (build (nb/begin network))]
+    (nb/result compiled)))
 
 (defn- observed-value
   [network id]

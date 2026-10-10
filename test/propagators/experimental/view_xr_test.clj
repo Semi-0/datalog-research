@@ -26,10 +26,10 @@
       (testing (name label)
         (with-redefs [options environment] (test))))))
 (def source
-  "(def-cells selection)
-   (def raw (list 2 3))
-   (def values (map (:: [x] (tracked+ x 1)) raw))
-   (def zoom (map (:: [ref] (strongest-of ref)) (sources-of (focus values selection))))
+  "(define selection)
+   (define raw (list 2 3))
+   (define values (map (network (x) (tracked+ x 1)) raw))
+   (define zoom (map (network (ref) (strongest-of ref)) (sources-of (focus values selection))))
    (xr:io (juxtapose (selectable values selection) zoom))")
 
 (defn command [session index]

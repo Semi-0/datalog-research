@@ -4,9 +4,10 @@
 
   Runtime implementation now lives under `propagators.compiler-2.runtime`;
   this graph namespace remains only for source compatibility."
-  (:require [propagators.compiler-2.runtime :as runtime]))
+  (:require [propagators.compiler-2.runtime :as runtime]
+            [graph.compiler-2-assembly :as assembly]))
 
-(def new-session runtime/new-session)
+(def new-session assembly/new-session)
 (def ensure-session-state! runtime/ensure-session-state!)
 (def record-runtime-error! runtime/record-runtime-error!)
 (def default-xr-client-id runtime/default-xr-client-id)
@@ -39,6 +40,6 @@
 (def read-agent-block runtime/read-agent-block)
 (def send-agent-block! runtime/send-agent-block!)
 (def unregister-tui! runtime/unregister-tui!)
-(def project-xr-effects runtime/project-xr-effects)
-(def read-xr-effects runtime/read-xr-effects)
+(def project-xr-effects assembly/project-xr-effects)
+(def read-xr-effects assembly/read-xr-effects)
 (def handle-command! runtime/handle-command!)

@@ -3,6 +3,7 @@
   (:require [clojure.set :as set]
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.operator-value :as operator]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.layered-value :as datum]
@@ -14,7 +15,6 @@
             [propagators.layered.procedure :as layer-procedure]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
             [propagators.stdlib.arithmetic.base :as base]
             [propagators.stdlib.prop :as standard]))
@@ -49,7 +49,10 @@
                     prepared procedure :base base-id)
         sources-layer (layered/install-layered-procedure!
                        (:net base-layer) procedure dependency/sources-layer sources-id)]
-    {:net (:net sources-layer) :procedure procedure}))
+    {:net (nb/register-props (:net sources-layer)
+                            (mapv :prop [base-layer sources-layer]))
+     :procedure procedure
+     :props (mapv :prop [base-layer sources-layer])}))
 
 (defn- output-messages
   [network arguments layered-result output]
@@ -83,7 +86,7 @@
     (when-not (= 2 (count arguments))
       (throw (ex-info "Tracked arithmetic expects two arguments"
                       {:arguments arguments})))
-    (let [{:keys [net procedure]} (install-procedure network base-closure)
+    (let [{:keys [net procedure props]} (install-procedure network base-closure)
           adapted (vec (repeatedly 2 ids/new-node-id))
           result (ids/new-node-id)
           prepared (reduce nb/ensure-cell net (concat arguments adapted [output result]))
@@ -102,7 +105,7 @@
           (reduce (fn [[current props] installer]
                     (let [[id next] (installer current)]
                       [next (conj props id)]))
-                  [prepared []] installers)]
+                  [prepared props] installers)]
       [installed props output])))
 
 (def tracked-plus

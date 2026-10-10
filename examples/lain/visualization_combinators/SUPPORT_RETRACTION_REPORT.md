@@ -965,3 +965,113 @@ The exact staged source tree was separately exported and tested without any
 unstaged tracer changes. Its full suite reproduced **3,524 passed, 11 failures,
 2 errors**. Staged whitespace validation passed. This is a reproducible failed
 experiment checkpoint, not an assertion that the full test suite is healthy.
+
+## 2026-10-10: independent premise-state transport checkpoint
+
+Current migration work follows the approved separation of current observation
+publication from premise-state updates. The historical direct same-slot switch
+experiment above remains unsupported; this checkpoint does not revive it.
+
+The generic message lift only transforms message values. Primitive publication
+owns usable-payload selection and state transport. `stdlib/observation` forwards
+a current supported projection without copying source retained history;
+`stdlib/supported-procedure` composes existing layered applications with that
+publication. Compiler adapters only record declarations and wire identities.
+No source epochs are invented by forwarding or computation.
+
+Focused verification: **631 passed assertions, zero failures/errors** across
+observation, compiled support transport, functional effects, dataflow diagnostics,
+TTMS primitive and branching suites. In particular, state-only bring-in cannot
+revive an old computation; a fresh compatible observation is required. Conflicting
+independent A/B observations retract and recover with exact support and state.
+An empty collection forwards empty state without normalization exceptions.
+
+| Remaining slice | Current completion gate |
+| --- | --- |
+| Primitive transport extraction | Implemented; focused lifecycle and compatibility tests pass. |
+| Compiler connections | Definitions, ports, returned results and sync use primitive identity; focused forwarding/effects tests pass. |
+| Tracer migration | High-level and nonrecursive child oracles pass; full-TTMS recursive gate still blocks completion. |
+| Consumer diagnostics | Dataflow error reasons pass; proof contradiction-as-data needs an explicit observation boundary. |
+| UI/reload integration | External-file replacement and renderer checks previously passed; broad versioned/TUI/replay failures still need resolution and fresh end-to-end verification. |
+| Cleanup/publication | Reachability and full compatibility remain gates; no reducer-cell deletion, commit, push or model mutation. |
+
+The flat-GUR `when` gate currently checks bare nothing and contradiction only.
+A layered unusable guard can therefore build recursive topology. Diagnosis must
+not be confused with approval to modify that fixed dependency. `when` withdrawal
+remains deferred independently of fixing initial readiness.
+
+Prepared architecture evidence, for separate review: retain the existing
+layer-blind dispatcher and explicit-projection constraints; replace obsolete
+retained-application evidence paths with `stdlib/observation.clj`,
+`stdlib/premise_publication.clj`, `stdlib/supported_procedure.clj` and
+`test/propagators/observation_transport_test.clj`. Compiler declaration evidence
+belongs to definitions/application/returned-output connections; compound
+synchronization ownership is unchanged. No candidate is automatically approved.
+
+See `doc/functional-web-integration-trial.md` for the composition, current gates
+and verification logs. Historical full-suite numbers above are not the results
+of this new tree.
+
+Confirmed recursive diagnosis: wrapping only flat GUR's generated `when` gate
+with existing `value/unusable?` in a temporary process made both recursive checks
+pass (178 assertions, no failures/errors), without increasing their limit. The
+fixed GUR source is unchanged. The report proposes this exact readiness correction
+for renewed approval; topology withdrawal remains outside scope.
+
+Latest actual full run before the final view-fixture syntax migration:
+4,435 passed assertions, 10 failures, 27 errors. The subsequent fixture migration
+uses `define` and functional `network` callbacks and preserves all assertions.
+Its focused outcome must be distinguished from that full-suite checkpoint.
+
+Final fixture result: 9 TTMS view tests / 54 assertions pass, including value
+withdrawal/recovery, callback support, graph replacement, selection and dataflow
+error reasons. The real WebSocket check passes 5 assertions separately. Both
+staged and unstaged whitespace checks pass. No full-suite-green claim is made.
+
+User-refined `when` fix: compose `prop/concrete-propagator` around the declaration
+activation in the expression adapter. GUR remains unchanged. The existing layered
+`value/unusable?` dispatch already supplies the readiness semantics; no new TTMS
+rule or layer-specific compiler interpretation is added. This supersedes the
+earlier proposal to edit flat GUR. The focused test covers layered nothing,
+contradiction, retracted support, fresh usable false, and idempotent declaration.
+Post-build topology withdrawal remains deferred.
+
+Actual expression-level implementation verification: 544 assertions pass, zero
+failures/errors. This includes 270 exact compound/recursive tracer assertions,
+219 observation/readiness assertions and 55 functional GUR assertions. The prior
+two recursive errors are resolved without modifying GUR or test limits.
+
+Fresh full-suite checkpoint: 4,553 passed assertions, 10 failures, 17 errors.
+Recursive and TTMS view suites are green. Versioned/TUI, environment IO/replay,
+organization and unsupported whole-compound readiness still block complete
+integration. No commit, push or architecture model mutation was performed.
+
+### 2026-10-10: non-TUI migration completion and publication boundary
+
+The user excludes TUI for now and authorizes main publication after the remaining
+supported paths pass. This checkpoint supersedes the earlier outstanding-status
+claims, not their historical counts. The isolated integration retains the
+original checkout's unrelated work.
+
+Completed non-TUI gates: 1,593 assertions for structural/transport/view/proof and
+functional compiler composition; 372 additional API/runtime/assembly/codec
+assertions; 95 loader/XR assertions; 20 renderer tests. Selections overlap.
+The default suite reports 4,568 passing assertions, four failures, sixteen errors:
+three failures/all errors are TUI; one failure is the documented unsupported
+whole-owner TTMS slot experiment. Tests remain registered and unweakened.
+
+Observation excludes its own publication cell to prevent recursive self-sampling.
+File watching requires two equal reads before fresh compilation, with a
+deterministic transient-empty-read test. Primitive publication and identity
+transport remain independent of the compiler and do not copy retained evidence
+or create epochs. KIROSHI ownership/constraints were queried read-only; no model
+mutation occurred. The stale accumulating-GUR model fact requires separate
+review. Reducer-cell remains reachable through the maintained lexical reducer.
+
+The bounded 10/100-node compiled arithmetic/branch benchmark passes initial,
+update, withdrawal and recovery assertions with zero topology growth. Timings,
+activation counts, limits and full publication scope are documented in
+[`doc/functional-web-integration-trial.md`](../../../doc/functional-web-integration-trial.md).
+Deferred work remains TUI migration, `when` topology withdrawal after construction,
+and unsupported whole-owner structural-topology replacement—not an additional
+compiler-specific TTMS forwarding layer.

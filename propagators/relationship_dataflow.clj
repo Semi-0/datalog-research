@@ -5,6 +5,7 @@
             [propagators.dataflow-projection :as projection]
             [propagators.compiler-2.runtime.application :as application]
             [propagators.compiler-2.runtime.application-ports :as ports]
+            [propagators.compiler-2.model.operator-value :as operator]
             [propagators.compiler-2.runtime.topology-effects :as topology]
             [propagators.gur.flat :as gur]
             [propagators.ids :as ids]
@@ -20,6 +21,15 @@
        (not (ids/node-id? label))
        (not (contains? #{:cell/anonymous "cell"} label))))
 
+(defn- application-routing [network app]
+  (let [callable (application/callable-declaration
+                  (net/network-cell-strongest network (:operator-id app)))
+        name (operator/operator-name callable)]
+    (case name
+      -> :forward
+      <-> :bidirectional
+      :application)))
+
 (defn- selected-applications [network operational]
   (mapcat
    (fn [path]
@@ -28,7 +38,9 @@
        (for [app (application/application-topologies owner)
              :let [id [path (gur/stable-node-id [(:application-id app) :apply-prop])]]
              :when (contains? (:nodes operational) id)
-             :let [interface (ports/application-ports owner app)]
+             :when (not (value/unusable? (net/network-cell-strongest owner (:operator-id app))))
+             :let [interface (assoc (ports/application-ports owner app)
+                                    :routing (application-routing owner app))]
              :when (and (not (value/nothing? interface))
                         (not (and (= :forward (:routing interface))
                                   (contains? topology-results (first (:argument-ids app))))))]
@@ -99,13 +111,15 @@
   (when-not (trace/semantic-trace-graph? operational)
     (throw (ex-info "relationship:dataflow expects a relationship graph"
                     {:value operational})))
-  (let [declared (remove #(contains? #{'xr:io 'io:xr} (:label %))
+  (let [original (remove #(contains? #{'xr:io 'io:xr} (:label %))
                          (selected-applications network operational))
+        declared (mapv #(projection/rename-application (:dataflow/aliases operational) %) original)
         returns (projection/return-aliases declared)
         applications (retain-consumed-results
                       (mapv #(projection/rename-application returns %) declared))
         edges (projection/rename-edges returns
-                (mapcat application-edges (retain-consumed-results declared)))
+                (projection/rename-edges (:dataflow/aliases operational)
+                  (mapcat application-edges (retain-consumed-results original))))
         aliases (contractions operational applications edges)
         edges (projection/rename-edges aliases edges)
         seeds (map #(projection/canonical aliases (projection/canonical returns %))
@@ -133,6 +147,27 @@
       :values (select-keys (:values sampled) cells)
       :edges edges})))
 
+(defn- body-return-aliases [network path application-id]
+  (let [boundaries
+        (for [[id {:keys [inputs outputs]}] (net/net-graph network)
+              :let [entry (net/network-env-lookup network id)]
+              :when (and (prop/prop? entry)
+                         (= (application/boundary-name application-id :outbound :body-result)
+                            (prop/prop-name entry))
+                         (= 1 (count inputs)) (= 1 (count outputs)))]
+          [(first outputs) (first inputs)])
+        returns (set (map first boundaries))
+        routes (for [app (application/application-topologies network)
+                     :when (= :forward (application-routing network app))
+                     :let [arguments (:argument-ids app)]
+                     :when (and (= 2 (count arguments))
+                                (contains? returns (last arguments)))]
+                 [(last arguments) (first arguments)])]
+    (into {}
+          (keep (fn [[target source]]
+                  (when (not= target source) [[path target] [path source]])))
+          (concat boundaries routes))))
+
 (defn child-dataflow-graph
   "One occurrence's body. Traverse structural wrappers, stop at child calls.
   Selecting a recursive child repeats this operation without unfolding siblings."
@@ -140,8 +175,14 @@
   (when-not (prop/prop? (observer/node-entry network parent))
     (throw (ex-info "Expected a propagator occurrence" {:parent parent})))
   (let [owner (observer/network-at-path network path)
+        topologies (application/application-topologies owner)
         applications (set (map #(vector path (gur/stable-node-id [(:application-id %) :apply-prop]))
-                               (application/application-topologies owner)))
+                               topologies))
+        parent-application (first (filter #(= parent [path (gur/stable-node-id [(:application-id %) :apply-prop])])
+                                         topologies))
+        aliases (if parent-application
+                  (body-return-aliases owner path (:application-id parent-application))
+                  {})
         relations (net/net-relationship network)
         selected (loop [pending (vec (relationship/children relations parent)) seen #{parent}]
                    (if (empty? pending)
@@ -152,7 +193,7 @@
                          (contains? applications node) (recur remaining (conj seen node))
                          :else (recur (into remaining (relationship/children relations node))
                                       (conj seen node))))))]
-    (dataflow-graph network (observer/snapshot network selected))))
+    (dataflow-graph network (assoc (observer/snapshot network selected) :dataflow/aliases aliases))))
 
 (defn project-result
   [project network graph input-id output-id]

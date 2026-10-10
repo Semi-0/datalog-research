@@ -34,6 +34,7 @@
     propagators.experimental.tracer-topology-test
     propagators.experimental.compound-tracer-test
     propagators.experimental.compound-levels-demo-test
+    propagators.experimental.functional-web-migration-test
     propagators.dataflow-projection-test
     propagators.experimental.view-xr-test
     propagators.install-test
@@ -45,6 +46,7 @@
     propagators.named-network-test
     propagators.network-patch-test
     propagators.premise-transport-test
+    propagators.observation-transport-test
     propagators.reducer-cell-test
     propagators.runner-test
     propagators.structural-records-test

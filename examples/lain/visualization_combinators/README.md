@@ -1,5 +1,17 @@
 # Run the live visualization example
 
+## October 10 functional-compiler integration trial
+
+The isolated migration now passes exact compound-chain graph, interaction and
+external-file topology-reload checks. It is **not yet merged or pushed**: broader
+compatibility gates still fail. See the [integration trial report](../../../doc/functional-web-integration-trial.md)
+for the tested checkout, current launch command, results and blockers.
+
+The opt-in tracer now uses the functional compiler's CPS operand protocol;
+layered adapters record their declarations through its existing effect builder.
+Compound demo networks return scalar expressions rather than explicit output
+arguments. These changes do not alter production compiler or TTMS policy.
+
 ## October 1 consumer update
 
 The same launch command now enables the opt-in TTMS visualization extension.

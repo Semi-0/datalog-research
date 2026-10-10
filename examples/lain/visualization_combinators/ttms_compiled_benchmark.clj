@@ -13,7 +13,7 @@
             [propagators.runner :as runner]))
 
 (defn- source [length kind]
-  (str "(def-cells source condition)\n(def result (let-cell ["
+  (str "(define source (cell))\n(define condition (cell))\n(define result (let-cell ["
        (str/join " " (map #(str "v" %) (range 1 (inc length)))) "]\n"
        (str/join "\n"
          (for [i (range 1 (inc length))]

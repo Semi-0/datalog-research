@@ -49,12 +49,12 @@
 (deftest compiled-arithmetic-conditional-and-network-definition-lifecycle
   (doseq [code ["(if (<= x 10) (+ x 1) (* x 2))"
                 "(let-cell [out]
-                   (def-net calculate [a] [b] (-> (+ a 1) b))
-                   (calculate x out)
+                   (define calculate (network (a) (+ a 1)))
+                   (-> (calculate x) out)
                    out)"
                 "(let-cell [out]
-                   (def-net captured [a] [b] (-> (+ a x) b))
-                   (captured 1 out)
+                   (define captured (network (a) (+ a x)))
+                   (-> (captured 1) out)
                    out)"]]
     (let [{:keys [network source output tasks]} (compile-chain code)
           updated (publish network source 2 :active 20)

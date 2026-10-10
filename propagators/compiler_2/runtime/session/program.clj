@@ -7,8 +7,7 @@
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.compiler-2.runtime.session.program.source :as source]
             [propagators.compiler-2.runtime.session.state :as state]
-            [propagators.compiler-2.runtime.bridge.widget :as runtime-widget]
-            [graph.compiler-2-semantic-repl :as semantic-repl]
+            [propagators.compiler-2.runtime.inspection.semantic-graph :as semantic-repl]
             [propagators.cell-evaluator :as cell-evaluator]
             [propagators.cells.value :as value]
             [propagators.compiler-2.language.ast :as ast]
@@ -62,9 +61,12 @@
          settle-application-props)
 
 (defn compiled-state
-  [source]
-  (let [graph-id (runtime-graph-id)
-        base-state (empty-state)
+  ([source]
+   (compiled-state source {}))
+  ([source options]
+   (if (map? options)
+     (let [graph-id (runtime-graph-id)
+        base-state (assoc (empty-state) :runtime/options options)
         base-net (-> (:program/net base-state)
                      (nb/ensure-cell (boundary-outbox-id))
                      (nb/install-cell graph-id
@@ -93,7 +95,7 @@
         network (settle-application-props network2 (:props compiled))
         graph (assoc (semantic-repl/compiled-semantic-graph compiled network)
                      :source source)]
-    {:source source
+       {:source source
      :compiled compiled
      :compiled-network network
      :network net/empty-net
@@ -110,14 +112,17 @@
      :next-order 0
      :tuis {}
      :xr {:launched {}}
-     :graph graph}))
+        :graph graph})
+     (throw (ex-info "runtime compile options must be a map"
+                     {:options options})))))
 
 (defn compile-source!
   [session source]
   (doseq [{:keys [stop]} (vals (:traces @session))]
     (when stop (stop)))
-  (let [state (perform-boundary-effects
-               (assoc (compiled-state source) :traces {}))]
+  (let [options (or (:runtime/options @session) {})
+        state (perform-boundary-effects
+               (assoc (compiled-state source options) :traces {}))]
     (reset! session state)
     (:graph state)))
 
@@ -248,31 +253,43 @@
    program-net
    (all-blocks state)))
 
-(defn- static-runtime-bindings
+(defn- core-runtime-bindings
   [graph-id]
-  (into
-   [['block-at (runtime-ops/block-at-operator (boundary-outbox-id))]
-    ['be:block-at (runtime-ops/be-block-at-operator (boundary-outbox-id))]
-    ['be:event-block-at (runtime-ops/be-event-block-at-operator)]
-    ['instance (runtime-ops/instance-operator)]
-    ['trace-target (runtime-ops/trace-target-operator)]
-    ['trace (runtime-ops/trace-operator graph-id (boundary-outbox-id))]
-    ['xr-io (runtime-ops/xr-io-operator (boundary-outbox-id))]
-    ['io:xr (runtime-ops/io-xr-operator (boundary-outbox-id))]
-    ['slider-io (runtime-widget/slider-io-operator (boundary-outbox-id))]
-    ['slider-panel-io (runtime-widget/slider-panel-io-operator (boundary-outbox-id))]
-    ['io:slider (runtime-widget/io-slider-operator (boundary-outbox-id))]
-    ['io:slider-panel (runtime-widget/io-slider-panel-operator (boundary-outbox-id))]
-    ['io:slider-panels (runtime-widget/io-slider-panel-operator (boundary-outbox-id))]
-    ['io:slider-panel-name
-     (runtime-widget/io-slider-panel-name-operator (boundary-outbox-id))]
-    ['runtime:clients (runtime-ops/runtime-clients-operator)]
-    ['runtime:client-pipe (runtime-ops/runtime-client-pipe-operator)]
-    ['runtime:list-text-events (runtime-ops/list-text-events-operator)]
-    ['translate (runtime-ops/translate-operator)]]
-   (extension/program-bindings
-    extension/core-extension
-    {:outbox-id (boundary-outbox-id)})))
+  [['block-at (runtime-ops/block-at-operator (boundary-outbox-id))]
+   ['be:block-at (runtime-ops/be-block-at-operator (boundary-outbox-id))]
+   ['be:event-block-at (runtime-ops/be-event-block-at-operator)]
+   ['instance (runtime-ops/instance-operator)]
+   ['trace-target (runtime-ops/trace-target-operator)]
+   ['trace (runtime-ops/trace-operator graph-id (boundary-outbox-id))]
+   ['runtime:list-text-events (runtime-ops/list-text-events-operator)]
+   ['load-primitive-environment
+    (runtime-ops/load-primitive-environment-operator (boundary-outbox-id))]
+   ['load-lain (runtime-ops/load-lain-operator (boundary-outbox-id))]
+   ['save-environment
+    (runtime-ops/save-environment-operator (boundary-outbox-id))]
+   ['translate (runtime-ops/translate-operator)]])
+
+(defn- external-runtime-bindings
+  [runtime-state graph-id]
+  (let [options (:runtime/options runtime-state)
+        groups (or (:operator-groups options) [])
+        providers (or (:operator-providers options) {})
+        context {:graph-id graph-id
+                 :boundary-outbox-id (boundary-outbox-id)}]
+    (reduce (fn [bindings group]
+              (let [provider (get providers group)]
+                (if (fn? provider)
+                  (into bindings (provider context))
+                  (throw (ex-info "unsupported operator group"
+                                  {:group group
+                                   :supported-groups (set (keys providers))})))))
+            []
+            groups)))
+
+(defn- static-runtime-bindings
+  [runtime-state graph-id]
+  (into (core-runtime-bindings graph-id)
+        (external-runtime-bindings runtime-state graph-id)))
 
 (defn- dynamic-runtime-bindings
   [runtime-state current-client-id]
@@ -308,7 +325,7 @@
        (throw (ex-info "Runtime environment must be a live environment cell"
                        {:environment base-env})))
      (let [child-id (state/stable-node-id :compiler-2 :runtime-env scope-key)
-           bindings (into (vec (static-runtime-bindings graph-id)) dynamic)
+           bindings (into (vec (static-runtime-bindings runtime-state graph-id)) dynamic)
            declared (cenv/declare-child network base-env child-id bindings)]
        {:net (runner/completed-network
               (runner/run-network (:props declared) (:net declared)))
@@ -523,6 +540,7 @@
   [state]
   (let [epoch (inc (or (:program/epoch state) 0))
         source-blocks (source-blocks state)
+        root (state/runtime-root (runtime-base-net))
         base (assoc state
                     :program/net (nb/install-cell
                                   (net/assoc-net-dict-entry
@@ -530,14 +548,14 @@
                                     (seed-program-blocks
                                      state
                                      (seed-program-instances state
-                                                             (runtime-base-net)))
+                                                             (:net root)))
                                     (boundary-outbox-id))
                                    :program/epoch
                                    epoch)
                                   (runtime-graph-id)
                                   (semantic-trace/graph-union (empty-graph))
                                   (semantic-trace/graph-union (empty-graph)))
-                    :program/env (runtime-compiler-env)
+                    :program/env (:env root)
                     :program/graph (empty-graph)
                     :program/results {}
                     :program/epoch epoch

@@ -9,11 +9,11 @@
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms.distributed :as tms]
-            [propagators.core :as core]
+            [propagators.compiler-2.runtime.declaration-effects :as core]
             [propagators.gur :as gur]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (defn- unwrap-compiler-value
@@ -114,6 +114,13 @@
         outputs (closure-output-symbols (closure-value/closure-output closure-info))
         arg-ids (vec arg-ids)]
     (cond
+      (closure-value/implicit-return-output? (closure-value/closure-output closure-info))
+      (when (= (count arg-ids) input-count)
+        {:input-ids arg-ids
+         :real-output-id out-id
+         :hidden-output-id (h/stable-node-id tag closure-id out-id arg-ids)
+         :inner-arg-ids arg-ids})
+
       (= 1 (count outputs))
       (when (= (count arg-ids) (inc input-count))
         (let [real-output-id (peek arg-ids)

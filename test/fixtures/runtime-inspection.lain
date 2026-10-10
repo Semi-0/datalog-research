@@ -1,0 +1,1 @@
+(define inspect:retraction-summary (network [report] (inspect:summary report)))

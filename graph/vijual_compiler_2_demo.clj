@@ -1,474 +1,54 @@
 (ns graph.vijual-compiler-2-demo
-  "Compile a compiler_2 let-cell form and draw the resulting propagator graph."
+  "TUI rendering adapter for compiler semantic graph projections."
   (:require [clojure.string :as str]
             [graph.vijual :as v]
-            [propagators.compiler-2.compiler.declarations :as declarations]
-            [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.closure-value :as closure-value]
-            [propagators.compiler-2.model.env :as cenv]
-            [propagators.compiler-2.runtime.application :as application]
-            [propagators.compiler-2.main :as compiler]
-            [propagators.cells.value :as value]
-            [propagators.datastructures.compound-object :as obj]
-            [propagators.graph :as pgraph]
-            [propagators.ids :as ids]
-            [propagators.gur :as gur]
-            [propagators.network :as net]
-            [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.compiler-2.runtime.inspection.semantic-support :as support]))
 
-(def source
-  "(let-cell [inc-local]
-     (<-> inc-local
-          (:: [x]
-            (+ x 1)))
-     (inc-local 5))")
-
+(def source support/source)
 (def draw-opts
   {:stress-node-spacing 1.7
    :stress-iterations 200
    :stress-refine-iterations 200
    :routing :shortest-path})
+(def semantic-draw-opts (assoc draw-opts :arrow-position :end))
 
-(def semantic-draw-opts
-  (assoc draw-opts :arrow-position :end))
+(def display-name support/display-name)
+(def ast-label support/ast-label)
+(def topology-binding-labels support/topology-binding-labels)
+(def network-closure-values support/network-closure-values)
+(def closure-labels support/closure-labels)
+(def closure-key support/closure-key)
+(def unique-network-closure-values support/unique-network-closure-values)
+(def generated-labels support/generated-labels)
+(def simple-cell-value? support/simple-cell-value?)
+(def literal-cell-labels support/literal-cell-labels)
+(def application-records support/application-records)
+(def label-entry support/label-entry)
+(def application-node-labels support/application-node-labels)
+(def application-prop-labels support/application-prop-labels)
+(def slot-prop-labels support/slot-prop-labels)
+(def compiled-labels support/compiled-labels)
+(def network-edges support/network-edges)
+(def network-vijual-graph support/network-vijual-graph)
+(def compiled-progression support/compiled-progression)
+(def closure-body-progression support/closure-body-progression)
+(def semantic-base-labels support/semantic-base-labels)
+(def semantic-label support/semantic-label)
+(def semantic-key support/semantic-key)
+(def semantic-node support/semantic-node)
+(def semantic-edge support/semantic-edge)
+(def add-sync-semantic support/add-sync-semantic)
+(def add-forward-sync-semantic support/add-forward-sync-semantic)
+(def add-call-semantic support/add-call-semantic)
+(def add-operator-semantic support/add-operator-semantic)
+(def add-application-node-semantic support/add-application-node-semantic)
+(def add-application-semantic support/add-application-semantic)
+(def semantic-graph support/semantic-graph)
+(def semantic-progression support/semantic-progression)
 
-(defn display-name [x]
-  (cond
-    (symbol? x) (str x)
-    (keyword? x) (if-let [ns (namespace x)]
-                   (str ns "/" (name x))
-                   (name x))
-    :else (pr-str x)))
-
-(defn ast-label [expr]
-  (let [expr (ast/ast expr)]
-    (case (ast/type expr)
-      :symbol (display-name (ast/name expr))
-      :literal (display-name (ast/value expr))
-      :network "::"
-      :compound "::"
-      :apply (str "(" (ast-label (ast/operator expr)) " ...)")
-      (display-name (ast/type expr)))))
-
-(defn topology-binding-labels [n]
-  (into {}
-        (map (fn [[id sym]] [id (display-name sym)]))
-        (cenv/binding-names n)))
-
-(defn network-closure-values [n]
-  (keep (fn [[id entry]]
-          (let [strongest (net/network-cell-strongest n id)
-                declaration (application/callable-declaration strongest)]
-            (when (closure-value/closure-info? declaration)
-              [id declaration])))
-        (net/net-env n)))
-
-(defn closure-labels [n]
-  (into {}
-        (map (fn [[id closure-info]]
-               [id (str ":: "
-                        (pr-str (closure-value/closure-inputs closure-info)))]))
-        (network-closure-values n)))
-
-(defn closure-key [closure-info]
-  [(closure-value/closure-inputs closure-info)
-   (closure-value/closure-output closure-info)
-   (closure-value/closure-body closure-info)
-   (closure-value/closure-scope closure-info)])
-
-(defn unique-network-closure-values [n]
-  (vals
-   (reduce (fn [acc [_ closure-info]]
-             (let [k (closure-key closure-info)]
-               (if (contains? acc k)
-                 acc
-                 (assoc acc k closure-info))))
-           {}
-           (network-closure-values n))))
-
-(defn generated-labels [ids prefix]
-  (into {}
-        (map-indexed (fn [index id]
-                       [id (str prefix index)]))
-        ids))
-
-(defn simple-cell-value? [v]
-  (or (number? v)
-      (string? v)
-      (boolean? v)
-      (symbol? v)
-      (keyword? v)
-      (nil? v)))
-
-(defn literal-cell-labels [n]
-  (into {}
-        (keep (fn [[id _entry]]
-                (let [v (net/network-cell-strongest n id)]
-                  (when (and (not (value/unusable? v))
-                             (simple-cell-value? v))
-                    [id (display-name v)]))))
-        (net/net-env n)))
-
-(defn- application-relation-key?
-  [key]
-  (and (vector? key)
-       (= 2 (count key))
-       (vector? (first key))
-       (= :gur.flat/application (first (first key)))))
-
-(defn- application-relations
-  [n]
-  (let [bindings (get (net/network-dict-entry n gur/name-bindings-key)
-                      application/application-name-scope
-                      {})]
-    (reduce-kv
-     (fn [applications key id]
-       (cond
-         (application-relation-key? key)
-         (let [[application-id role] key]
-           (assoc-in applications [application-id role] id))
-
-         :else
-         applications))
-     {}
-     bindings)))
-
-(defn- callable-label
-  [n operator-id]
-  (let [binding-name (get (cenv/binding-names n) operator-id)
-        callable-name (:gur.flat/name
-                       (net/network-cell-strongest n operator-id))]
-    (cond
-      binding-name
-      (display-name binding-name)
-
-      (and (vector? callable-name) (seq callable-name))
-      (display-name (peek callable-name))
-
-      callable-name
-      (display-name callable-name)
-
-      :else
-      "callable")))
-
-(defn- argument-cells
-  [relations]
-  (->> relations
-       (keep (fn [[role id]]
-               (cond
-                 (and (vector? role)
-                      (= :argument (first role))
-                      (number? (second role)))
-                 [(second role) id]
-
-                 :else
-                 nil)))
-       (sort-by first)
-       (mapv second)))
-
-(defn- application-lowering
-  [n operator-id]
-  (let [operator (net/network-cell-strongest n operator-id)
-        declaration (application/callable-declaration operator)]
-    (cond
-      (closure-value/closure-info? declaration)
-      :closure-cell
-
-      :else
-      :flat-gur)))
-
-(defn application-records [compiled n]
-  (let [declared-applications (set (:applications compiled))]
-    (->> (application-relations n)
-       (filter (fn [[application-id _relations]]
-                 (contains? declared-applications application-id)))
-       (keep (fn [[app-id relations]]
-               (let [operator-id (:operator relations)
-                     output-id (:result relations)
-                     apply-prop-id (gur/stable-node-id [app-id :apply-prop])]
-                 (cond
-                   (and operator-id output-id)
-                   {:application-id app-id
-                    :app-id apply-prop-id
-                    :operator-label (callable-label n operator-id)
-                    :operator-cell operator-id
-                    :arg-cells (argument-cells relations)
-                    :context-id (:context relations)
-                    :output-id output-id
-                    :lowering (application-lowering n operator-id)}
-
-                   :else
-                   nil))))
-       vec)))
-
-(defn label-entry [id label]
-  (when (and id (not (value/unusable? id)))
-    [id label]))
-
-(defn application-node-labels [compiled n]
-  (into {}
-        (mapcat
-         (fn [{:keys [app-id operator-label operator-cell context-id output-id]}]
-           (keep identity
-                 [(label-entry app-id (str "app:" operator-label))
-                  (label-entry operator-cell (str "op:" operator-label))
-                  (label-entry context-id (str "ctx:" operator-label))
-                  (label-entry output-id (str "out:" operator-label))])))
-        (application-records compiled n)))
-
-(defn application-prop-labels [compiled n]
-  (let [graph (net/net-graph n)]
-    (into {}
-          (mapcat
-           (fn [{:keys [application-id operator-label]}]
-             (keep (fn [[prop-id _node]]
-                     (let [name (prop/prop-name
-                                 (net/network-env-lookup n prop-id))]
-                       (cond
-                         (and (vector? name)
-                              (= :compiler-2/application (first name))
-                              (= application-id (second name)))
-                         [prop-id (str "prop:" operator-label)]
-
-                         :else
-                         nil)))
-                   graph))
-           (application-records compiled n)))))
-
-(defn slot-prop-labels [n]
-  (into {}
-        (mapcat (fn [[_collection-id slots]]
-                  (mapcat (fn [[slot-key parents]]
-                            (keep (fn [[_parent-id {:keys [prop-id]}]]
-                                    (when prop-id
-                                      [prop-id (str "prop:"
-                                                    (display-name slot-key))]))
-                                  parents))
-                          slots)))
-        (net/network-dict-entry n :slot-declarations)))
-
-(defn compiled-labels [compiled n]
-  (let [graph (net/net-graph n)
-        env-labels (topology-binding-labels n)
-        props (vec (or (:props compiled)
-                       (compiler/compiled-props (:net compiled))))
-        applications (vec (or (:applications compiled)
-                              (compiler/compiled-applications (:net compiled))))
-        generated (generated-labels (keys graph) "cell")]
-    (merge generated
-           (literal-cell-labels n)
-           (generated-labels props "prop")
-           (generated-labels applications "app")
-           (slot-prop-labels n)
-           (application-node-labels compiled n)
-           (application-prop-labels compiled n)
-           (closure-labels n)
-           env-labels
-           {(:cell compiled) "result"})))
-
-(defn network-edges [n]
-  (let [graph (net/net-graph n)]
-    (vec
-     (distinct
-      (mapcat
-       (fn [[id node]]
-         (concat
-          (map (fn [input] [input id])
-               (pgraph/node-input-ids node))
-          (map (fn [output] [id output])
-               (pgraph/node-output-ids node))))
-       graph)))))
-
-(defn network-vijual-graph [compiled n]
-  (let [ids (vec (keys (net/net-graph n)))
-        id->vijual-id (into {}
-                            (map-indexed
-                             (fn [index id]
-                               [id (keyword (str "n" index))]))
-                            ids)
-        labels (compiled-labels compiled n)]
-    {:id->vijual-id id->vijual-id
-     :edges (mapv (fn [[from to]]
-                    [(id->vijual-id from) (id->vijual-id to)])
-                  (network-edges n))
-     :nodes (into {}
-                  (keep (fn [[id label]]
-                          (when-let [vijual-id (id->vijual-id id)]
-                            [vijual-id label])))
-                  labels)}))
-
-(defn compiled-progression [source]
-  (let [compiled (compiler/compile-source source)
-        expanded-net (nb/run-propagators (:net compiled) (:props compiled))]
-    [{:title "Stage 1: compiled declaration graph"
-      :compiled compiled
-      :network (:net compiled)}
-     {:title "Stage 2: after propagation evaluates closure application"
-      :compiled compiled
-      :network expanded-net}]))
-
-(defn closure-body-progression [n]
-  (vec
-   (map-indexed
-    (fn [index closure-info]
-      (let [compiled (compiler/compile-expr
-                      (closure-value/closure-body closure-info))]
-        {:title (str "Closure body " index ": stored subgraph")
-         :compiled compiled
-         :network (:net compiled)}))
-    (unique-network-closure-values n))))
-
-(defn semantic-base-labels
-  ([compiled n]
-   (semantic-base-labels compiled n {}))
-  ([compiled n {:keys [result-label] :or {result-label "result"}}]
-   (let [env-labels (topology-binding-labels n)
-         labels (merge (literal-cell-labels n)
-                       (closure-labels n)
-                       env-labels)]
-     (if (contains? env-labels (:cell compiled))
-       labels
-       (assoc labels (:cell compiled) result-label)))))
-
-(defn semantic-label [labels id]
-  (or (get labels id) "cell"))
-
-(defn semantic-key [key]
-  (if (ids/node-id? key)
-    [:cell key]
-    key))
-
-(defn semantic-node
-  [state key label]
-  (let [key (semantic-key key)]
-    (if-let [id (get-in state [:key->id key])]
-      [state id]
-      (let [id (keyword (str "sem" (:next-id state)))]
-        [(-> state
-             (update :next-id inc)
-             (assoc-in [:key->id key] id)
-             (assoc-in [:nodes id] label))
-         id]))))
-
-(defn semantic-edge
-  [state from-key from-label to-key to-label]
-  (let [[state from-id] (semantic-node state from-key from-label)
-        [state to-id] (semantic-node state to-key to-label)]
-    (update state :edges conj [from-id to-id])))
-
-(defn add-sync-semantic [state labels {:keys [app-id arg-cells]}]
-  (let [[left right] arg-cells
-        sync-key [:sync app-id]
-        sync-label "<->"
-        left-label (semantic-label labels left)
-        right-label (semantic-label labels right)]
-    (-> state
-        (semantic-edge left left-label sync-key sync-label)
-        (semantic-edge right right-label sync-key sync-label)
-        (semantic-edge sync-key sync-label left left-label)
-        (semantic-edge sync-key sync-label right right-label))))
-
-(defn add-forward-sync-semantic [state labels {:keys [app-id arg-cells]}]
-  (let [[source target] arg-cells
-        sync-key [:forward-sync app-id]
-        sync-label "->"
-        source-label (semantic-label labels source)
-        target-label (semantic-label labels target)]
-    (-> state
-        (semantic-edge [:cell source] source-label sync-key sync-label)
-        (semantic-edge sync-key sync-label [:cell target] target-label))))
-
-(defn add-call-semantic [state labels {:keys [app-id operator-label operator-cell arg-cells output-id]}]
-  (let [call-key [:call app-id]
-        call-label (str "call " operator-label)
-        operator-label (semantic-label labels operator-cell)
-        output-label (semantic-label labels output-id)]
-    (as-> state state
-      (semantic-edge state operator-cell operator-label call-key call-label)
-      (reduce (fn [state arg-id]
-                (semantic-edge state
-                               arg-id
-                               (semantic-label labels arg-id)
-                               call-key
-                               call-label))
-              state
-              arg-cells)
-      (semantic-edge state call-key call-label output-id output-label))))
-
-(defn add-operator-semantic [state labels {:keys [app-id operator-label arg-cells output-id]}]
-  (let [operator-key [:operator app-id]
-        output-label (semantic-label labels output-id)]
-    (as-> state state
-      (reduce (fn [state arg-id]
-                (semantic-edge state
-                               arg-id
-                               (semantic-label labels arg-id)
-                               operator-key
-                               operator-label))
-              state
-              arg-cells)
-      (semantic-edge state operator-key operator-label output-id output-label))))
-
-(defn add-application-node-semantic
-  [state labels {:keys [app-id operator-label arg-cells output-id]}]
-  (let [app-key [:application app-id]
-        app-label (str "app:" operator-label)
-        output-label (semantic-label labels output-id)]
-    (as-> state state
-      (reduce (fn [state arg-id]
-                (semantic-edge state
-                               arg-id
-                               (semantic-label labels arg-id)
-                               app-key
-                               app-label))
-              state
-              arg-cells)
-      (semantic-edge state app-key app-label output-id output-label))))
-
-(defn add-application-semantic [state labels {:keys [operator-label lowering] :as app}]
-  (cond
-    (= "<->" operator-label)
-    (add-sync-semantic state labels app)
-
-    (= "->" operator-label)
-    (add-forward-sync-semantic state labels app)
-
-    (= :closure-cell lowering)
-    (add-call-semantic state labels app)
-
-    :else
-    (add-operator-semantic state labels app)))
-
-(defn semantic-graph
-  ([compiled n]
-   (semantic-graph compiled n {}))
-  ([compiled n opts]
-   (let [labels (semantic-base-labels compiled n opts)
-         state (reduce (fn [state app]
-                         (add-application-semantic state labels app))
-                       {:next-id 0
-                        :key->id {}
-                        :nodes {}
-                        :edges []}
-                       (application-records compiled n))]
-     {:nodes (:nodes state)
-      :edges (vec (distinct (:edges state)))})))
-
-(defn semantic-progression [compiled n]
-  (vec
-   (cons
-    {:title "Semantic main graph: compiler wiring collapsed"
-     :graph (semantic-graph compiled n)}
-    (map-indexed
-     (fn [index closure-info]
-       (let [compiled (compiler/compile-expr
-                       (declarations/closure-semantic-body closure-info))]
-         {:title (str "Semantic closure body " index ": compiler wiring collapsed")
-          :graph (semantic-graph compiled (:net compiled) {:result-label "output"})}))
-     (unique-network-closure-values n)))))
-
-(defn draw-stage [{:keys [title compiled network]}]
+(defn draw-stage
+  [{:keys [title compiled network]}]
   (let [{:keys [edges nodes]} (network-vijual-graph compiled network)]
     (println title)
     (println (str (count nodes) " nodes, " (count edges) " directed edges"))
@@ -476,7 +56,8 @@
     (v/draw-stress-directed-graph edges nodes draw-opts)
     (println)))
 
-(defn draw-semantic-stage [{:keys [title graph]}]
+(defn draw-semantic-stage
+  [{:keys [title graph]}]
   (let [{:keys [edges nodes]} graph]
     (println title)
     (println (str (count nodes) " nodes, " (count edges) " semantic edges"))
@@ -486,30 +67,27 @@
     (v/draw-stress-directed-graph edges nodes semantic-draw-opts)
     (println)))
 
-(defn print-closures [n]
-  (doseq [[index closure-info] (map-indexed vector (unique-network-closure-values n))]
+(defn print-closures
+  [network]
+  (doseq [[index closure-info]
+          (map-indexed vector (unique-network-closure-values network))]
     (println (str "closure " index ": inputs "
                   (pr-str (closure-value/closure-inputs closure-info))
                   ", output "
                   (pr-str (closure-value/closure-output closure-info))))))
 
-(defn -main [& _args]
-  (let [source (if (seq _args) (str/join " " _args) source)
-        stages (compiled-progression source)
+(defn -main
+  [& args]
+  (let [source-text (if (seq args) (str/join " " args) source)
+        stages (compiled-progression source-text)
         {:keys [compiled network]} (last stages)
         {:keys [id->vijual-id nodes]} (network-vijual-graph compiled network)]
     (println "compiler_2 source:")
-    (println source)
-    (println)
-    (println (str "stress-directed graph opts: " (pr-str draw-opts)))
-    (println (str "semantic graph opts: " (pr-str semantic-draw-opts)))
+    (println source-text)
     (println)
     (doseq [stage (semantic-progression compiled network)]
       (draw-semantic-stage stage))
-    (println "Raw compiler graph progression:")
-    (println)
     (doseq [stage (concat stages (closure-body-progression network))]
       (draw-stage stage))
     (print-closures network)
-    (println)
     (println (str "result cell: " (get nodes (id->vijual-id (:cell compiled)))))))

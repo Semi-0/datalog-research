@@ -4,7 +4,6 @@
             [propagators.compiler-2.model.closure-value :as closure]
             [propagators.compiler-2.model.operator-value :as operator]
             [propagators.compiler-2.runtime.application :as application]
-            [propagators.compiler-2.runtime.application-ports :as ports]
             [propagators.experimental.visualization.collections :as collections]
             [propagators.experimental.visualization.data :as data]
             [propagators.gur.flat :as gur]
@@ -19,7 +18,7 @@
                                  (into [(:context-id a)] (:argument-ids a))
                                  (:result-id a))))
 
-(defn declared-interface [network reference direction]
+(defn- declared-inputs [network reference]
   (let [path (:source/path reference)
         owner (observer/network-at-path network path)
         selected (:source/cell reference)
@@ -28,17 +27,29 @@
     (when-not (= 1 (count matches))
       (throw (ex-info "Expected one declared network occurrence" {:reference reference})))
     (let [a (first matches)
-          callable (ports/callable-value owner (:operator-id a))
+          callable (data/payload (net/network-cell-strongest owner (:operator-id a)))
           declaration (application/callable-declaration callable)]
       (when-not (closure/closure-info? declaration)
         (throw (ex-info "Selected occurrence is not a network definition" {:reference reference})))
-      (let [interface (ports/application-ports owner a)
-            selected-ports (case direction
-                             :inputs (:inputs interface)
-                             :outputs (:outputs interface)
-                             (throw (ex-info "Unsupported interface direction"
-                                             {:direction direction})))]
-        (set (map #(data/reference path % []) selected-ports))))))
+      (let [n (count (closure/closure-inputs declaration))
+            ports (take n (:argument-ids a))]
+        (set (map #(data/reference path % []) ports))))))
+
+(defn- graph-outputs [network reference]
+  (let [path (:source/path reference)
+        owner (observer/network-at-path network path)
+        selected (:source/cell reference)]
+    (if (prop/prop? (get (net/net-env owner) selected))
+      (set (map #(data/reference path % [])
+                (:outputs (get (net/net-graph owner) selected))))
+      (throw (ex-info "Output interface requires a propagator reference"
+                      {:reference reference})))))
+
+(defn declared-interface [network reference direction]
+  (case direction
+    :inputs (declared-inputs network reference)
+    :outputs (graph-outputs network reference)
+    (throw (ex-info "Unknown interface direction" {:direction direction}))))
 
 (defn value-operator [name arity compute]
   (operator/propagator-operator
@@ -54,7 +65,7 @@
           (if (value/unusable? result)
             []
             [(message out (data/supported [name out] result #{} contents))]))
-        (data/state-messages out (mapv #(net/network-cell-content network %) inputs))))}))
+        []))}))
 
 (def inputs-of
   (value-operator ::inputs-of 1 #(declared-interface %1 (first %2) :inputs)))
@@ -105,8 +116,7 @@
               (let [content (data/read-source current reference)
                     result (data/payload (data/read-strongest current reference))]
                 (if (value/unusable? result)
-                  (data/state-messages out
-                                      (into [content] (map #(net/network-cell-content current %) inputs)))
+                  []
                   [(message out (data/supported [::read out] result #{reference}
                                                (into [content] (map #(net/network-cell-content current %) inputs))))]))))])
         []))}))

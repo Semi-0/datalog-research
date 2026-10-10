@@ -168,7 +168,7 @@
 
 (defn watch-file!
   "Poll a .lain file and replace the complete live environment after each
-  successful change. A failed reload is reported through `on-error` and the
+  stable change (two consecutive equal reads). A failed reload is reported through `on-error` and the
   last good environment remains live. Returns a closeable watcher map.
   "
   ([session file] (watch-file! session file {}))
@@ -180,6 +180,7 @@
    (let [file (io/file file)
          running? (atom true)
          last-source (atom (read-file-source file))
+         candidate-source (atom @last-source)
          loader-opts (dissoc opts :interval-ms :on-reload :on-error)
          thread (Thread.
                  (fn []
@@ -187,14 +188,16 @@
                      (try
                        (Thread/sleep (long interval-ms))
                        (let [source (read-file-source file)]
-                         (when-not (= source @last-source)
+                         (if (not= source @candidate-source)
+                           (reset! candidate-source source)
+                           (when-not (= source @last-source)
                            (reset! last-source source)
                            (try
                              (let [loaded (replace-session-from-source!
                                            session source loader-opts)]
                                (on-reload (assoc loaded :file (str file))))
                              (catch Throwable t
-                               (on-error t)))))
+                               (on-error t))))))
                        (catch InterruptedException _ nil)
                        (catch Throwable t
                          (on-error t)))))

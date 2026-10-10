@@ -46,7 +46,7 @@
   (let [file (temp-file ".lain")
         _ (spit file (str "(load-primitive-environment "
                           (pr-str fixture-module) " " fixture-entry " 0)\n"
-                          "(def answer (square 6))\n"
+                          "(define answer (square 6))\n"
                           "(+ answer 1)\n"))
         request {:boundary/kind :environment/load-lain
                  :boundary/payload {:file (.getPath file) :revision 0}}

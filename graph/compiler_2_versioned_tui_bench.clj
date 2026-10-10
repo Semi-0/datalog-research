@@ -1,6 +1,7 @@
 (ns graph.compiler-2-versioned-tui-bench
   "Diagnostic topology/latency receipt for versioned block commits."
   (:require [propagators.compiler-2.runtime :as runtime]
+            [graph.compiler-2-assembly :as assembly]
             [propagators.compiler-2.runtime.tui.block-model :as block-model]
             [propagators.compiler-2.runtime.session.input :as input]
             [propagators.compiler-2.runtime.session.program :as program]
@@ -71,7 +72,7 @@
 
 (defn benchmark-edits
   [edits]
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "bench"
                                     :mode :versioned-premise})
     (let [started (System/nanoTime)]
@@ -91,7 +92,7 @@
              (topology-counts @session)))))
 
 (defn benchmark-definition-and-application-edits [edits]
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "bench"
                                     :mode :versioned-premise})
     (let [started (System/nanoTime)]
@@ -101,7 +102,7 @@
          {:commit-id (str (UUID/randomUUID))
           :client-id "bench" :index 0
           :expected-version (when (pos? version) (dec version))
-          :text (str "(def-net f [x] [out] (-> (+ x " version ") out))")})
+          :text (str "(define f (network [x out] (-> (+ x " version ") out) (list out)))")})
         (runtime/commit-version!
          session
          {:commit-id (str (UUID/randomUUID))
@@ -137,14 +138,14 @@
   [edits]
   (when-not (pos? edits)
     (throw (ex-info "benchmark expects at least one edit" {:edits edits})))
-  (let [session (runtime/new-session)
+  (let [session (assembly/new-session)
         client-id "bench-existing-application"
         commit! #(runtime/commit-version! session %)]
     (runtime/register-tui! session {:client-id client-id
                                     :mode :versioned-premise})
     (commit! {:commit-id (str (UUID/randomUUID))
               :client-id client-id :index 0 :expected-version nil
-              :text "(def-net f [x] [out] (-> (+ x 0) out))"})
+              :text "(define f (network [x out] (-> (+ x 0) out) (list out)))"})
     (commit! {:commit-id (str (UUID/randomUUID))
               :client-id client-id :index 1 :expected-version nil
               :text "(let-cell [x out] (f x out) out)"})
@@ -152,8 +153,8 @@
       (commit! {:commit-id (str (UUID/randomUUID))
                 :client-id client-id :index 0
                 :expected-version (dec version)
-                :text (str "(def-net f [x] [out] (-> (+ x " version
-                           ") out))")}))
+                :text (str "(define f (network [x out] (-> (+ x " version
+                           ") out) (list out)))")}))
     (let [runtime-state @session
           {:keys [input-id output-id]}
           (current-application-io runtime-state client-id 1)
@@ -202,7 +203,7 @@
     (/ (double (- (System/nanoTime) started)) 1000000.0)))
 
 (defn benchmark-edit-latencies [edits]
-  (let [session (runtime/new-session)]
+  (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "bench"
                                     :mode :versioned-premise})
     (mapv
@@ -213,8 +214,8 @@
               session
               {:commit-id (str (UUID/randomUUID))
                :client-id "bench" :index 0 :expected-version expected
-               :text (str "(def-net f [x] [out] (-> (+ x " version
-                          ") out))")})
+               :text (str "(define f (network [x out] (-> (+ x " version
+                          ") out) (list out)))")})
              application-ms
              (timed-commit!
               session

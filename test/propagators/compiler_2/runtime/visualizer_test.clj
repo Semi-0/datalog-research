@@ -16,11 +16,12 @@
 (deftest lain-visualizers-compose-over-a-compound-propagator
   (let [session
         (loader/load-session-from-source
-         "(def-cells source result refs tree window history dashboard)
+         "(define source (cell)) (define result (cell)) (define refs (cell))
+          (define tree (cell)) (define window (cell)) (define history (cell))
+          (define dashboard (cell))
           (<-> 1 source)
-          (def-net inc [x] [out]
-            (-> (+ x 1) out))
-          (inc source result)
+          (define inc (network [x] (+ x 1)))
+          (-> (inc source) result)
           (propagator-references result :inputs refs)
           (hierarchy refs tree)
           (cell-window result window)

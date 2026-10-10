@@ -6,6 +6,7 @@
             [propagators.compiler-2.compiler.predicates :as predicates]
             [propagators.compiler-2.main :as main]
             [propagators.compiler-2.runtime :as runtime]
+            [graph.compiler-2-assembly :as assembly]
             [graph.compiler-2-runtime :as runtime-shim]))
 
 (deftest cps-is-the-canonical-production-compiler
@@ -31,6 +32,10 @@
   (is (not (:deprecated (meta (find-ns
                                'propagators.compiler-2.runtime)))))
   (is (:deprecated (meta (find-ns 'graph.compiler-2-runtime))))
-  (is (identical? runtime/new-session runtime-shim/new-session))
+  (is (identical? assembly/new-session runtime-shim/new-session))
+  (is (= {} (:runtime/options @(runtime/new-session))))
+  (let [options {:operator-groups []}]
+    (with-redefs [assembly/runtime-options (constantly options)]
+      (is (identical? options (:runtime/options @(runtime-shim/new-session))))))
   (is (identical? runtime/compile-source! runtime-shim/compile-source!))
   (is (identical? runtime/commit-version! runtime-shim/commit-version!)))

@@ -1,5 +1,19 @@
-(def-cells a b middle result raw semantic)
+(define a)
+
+(define b)
+
+(define middle)
+
+(define result)
+
+(define raw)
+
+(define semantic)
+
 (-> (+ a b) middle)
+
 (-> (* middle b) result)
+
 (relationship:roots a raw)
+
 (relationship:dataflow raw semantic)

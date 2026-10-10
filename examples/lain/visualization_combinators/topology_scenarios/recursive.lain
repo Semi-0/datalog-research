@@ -1,8 +1,28 @@
-(def-net down [a] [out]
-  (when (switch true (<= a 1)) (-> a out))
-  (when (switch true (> a 1)) (down (- a 1) out)))
-(def-cells input result other unused raw semantic)
-(down input result)
-(down other unused)
+(define down
+  (network [a]
+    (define out)
+    (when (switch true (<= a 1))
+      (-> a out))
+    (when (switch true (> a 1))
+      (-> (down (- a 1)) out))
+    out))
+
+(define input)
+
+(define result)
+
+(define other)
+
+(define unused)
+
+(define raw)
+
+(define semantic)
+
+(-> (down input) result)
+
+(-> (down other) unused)
+
 (relationship:roots input raw)
+
 (relationship:dataflow raw semantic)

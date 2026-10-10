@@ -2,6 +2,8 @@
   "Composable propagators that sample structural relationships from a Net."
   (:require [propagators.cells.cell :as cell]
             [propagators.compiler-2.model.env.index :as lexical-index]
+            [propagators.compiler-2.runtime.application :as application]
+            [propagators.compiler-2.runtime.application-ports :as ports]
             [propagators.datastructures.compound-object.patch :as compound-patch]
             [propagators.graph :as graph]
             [propagators.gur.flat :as gur]
@@ -70,9 +72,25 @@
 
 (defn connected-root-node-keys
   "Top-level nodes connected to explicit outer seed cells."
-  [seed-ids]
+  ([seed-ids] (connected-root-node-keys seed-ids #{}))
+  ([seed-ids excluded-node-ids]
   (fn [network]
-    (let [allowed (root-node-keys network)
+    (let [roots (root-node-keys network excluded-node-ids)
+          interfaces
+          (mapcat
+           (fn [app]
+             (let [id (gur/stable-node-id [(:application-id app) :apply-prop])]
+               (if (contains? roots (relationship/node-key [:outer] id))
+                 (let [interface (ports/application-ports network app)]
+                   (concat (:inputs interface) (:outputs interface)))
+                 [])))
+           (application/application-topologies network))
+          ;; Returned cells can have a structural owner and still be an
+          ;; interface of a top-level call. Do not unfold that owner's body.
+          allowed (into roots
+                        (comp (remove excluded-node-ids)
+                              (map #(relationship/node-key [:outer] %)))
+                        interfaces)
           g (net/net-graph network)
           seeds (into #{}
                       (map #(relationship/node-key [:outer] %))
@@ -93,7 +111,7 @@
                                  (remove seen))]
               (recur (into (subvec frontier 1) next-keys)
                      (conj seen current))))
-          seen)))))
+          seen))))))
 
 (defn child-node-keys
   "Return a selector for `parent` and its immediate structural children."
@@ -290,7 +308,7 @@
    (fn [network]
     (let [prepared (nb/ensure-cell network output-id)
           select (if (seq observed-cell-ids)
-                   (connected-root-node-keys observed-cell-ids)
+                   (connected-root-node-keys observed-cell-ids #{output-id})
                    #(root-node-keys % #{output-id}))
           sample (fn [current]
                    (let [result (snapshot current (select current))]

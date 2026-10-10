@@ -2,6 +2,7 @@
   "Small construction helpers for immutable propagator networks."
   (:require [propagators.cells.cell :as cell]
             [propagators.helpers.task-queue :as tq]
+            [propagators.graph :as graph]
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
@@ -19,6 +20,30 @@
   (if (contains? (net/net-env n) id)
     n
     (install-cell n id)))
+
+(defn extend-propagator-outputs
+  "Add graph output edges without changing positional activation arguments.
+
+  Existing cells keep their values. The entire boundary is validated before
+  missing cells are declared; repeated additions are an immutable no-op."
+  [network propagator-id output-ids]
+  (let [outputs (vec output-ids)
+        entries (net/net-env network)]
+    (if (and (prop/prop? (get entries propagator-id))
+             (every? ids/node-id? outputs)
+             (every? (fn [id]
+                       (if (contains? entries id)
+                         (cell/cell? (get entries id))
+                         true))
+                     outputs))
+      (let [prepared (reduce ensure-cell network outputs)
+            updated (reduce (fn [g output]
+                              (graph/link-edge g propagator-id output))
+                            (net/net-graph prepared)
+                            outputs)]
+        (net/net-with-graph prepared updated))
+      (throw (ex-info "Invalid propagator output extension"
+                      {:propagator-id propagator-id :outputs outputs})))))
 
 (defn copy-cell
   "Install `id` in `n` with the strongest value from `source-net`."

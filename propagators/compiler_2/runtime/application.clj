@@ -3,15 +3,15 @@
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
-            [propagators.compiler-2.runtime.topology-effects :as topology]
-            [propagators.core :as core]
+            [propagators.compiler-2.runtime.returned-outputs :as returned-outputs]
+            [propagators.compiler-2.runtime.declaration-effects :as core]
             [propagators.gur :as gur]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]
-            [propagators.stdlib.prop :as stdlib-prop]))
+            [propagators.stdlib.observation :as observation]))
 
 (def compiler-callable-key :compiler-2/callable?)
 (def declaration-id-key :compiler-2/declaration-id)
@@ -22,7 +22,6 @@
 
 (declare primitive-application-effects)
 (declare closure-application-effects)
-(declare constraint-application-effects)
 
 (defprotocol ApplicationTopology
   (application-effects
@@ -36,22 +35,13 @@
      installer declaration gur-context invocation-ids result-id)))
 
 (deftype ClosureApplication
-  [compile* declaration-id lexical-env-id closure-info]
+  [compile* declaration-id lexical-env-id closure-info output-boundary]
   ApplicationTopology
   (application-effects
     [_ gur-context invocation-ids result-id]
     (closure-application-effects
      compile* declaration-id lexical-env-id closure-info
-     gur-context invocation-ids result-id)))
-
-(deftype ConstraintApplication
-  [compile* declaration-id lexical-env-id closure-info]
-  ApplicationTopology
-  (application-effects
-    [_ gur-context invocation-ids result-id]
-    (constraint-application-effects
-     compile* declaration-id lexical-env-id closure-info
-     gur-context invocation-ids result-id)))
+     gur-context invocation-ids result-id output-boundary)))
 
 (defn compiler-callable
   [name declaration-id lexical-env-id application declaration]
@@ -70,18 +60,14 @@
    declaration))
 
 (defn closure-callable
-  [compile* name declaration-id lexical-env-id closure-info]
-  (compiler-callable
-   name declaration-id lexical-env-id
-   (ClosureApplication. compile* declaration-id lexical-env-id closure-info)
-   closure-info))
-
-(defn constraint-callable
-  [compile* name declaration-id lexical-env-id closure-info]
-  (compiler-callable
-   name declaration-id lexical-env-id
-   (ConstraintApplication. compile* declaration-id lexical-env-id closure-info)
-   closure-info))
+  ([compile* name declaration-id lexical-env-id closure-info]
+   (closure-callable compile* name declaration-id lexical-env-id closure-info
+                     returned-outputs/copy-output-boundary))
+  ([compile* name declaration-id lexical-env-id closure-info output-boundary]
+   (compiler-callable
+    name declaration-id lexical-env-id
+    (ClosureApplication. compile* declaration-id lexical-env-id closure-info output-boundary)
+    closure-info)))
 
 (defn compiler-callable?
   [candidate]
@@ -188,20 +174,10 @@
   [:compiler-2/application application-id direction position])
 
 (defn concrete-boundary
-  "Forward usable ordinary content and supported information, including withdrawal."
   [application-id direction position]
   (fn [source-id target-id]
-    (prop/construct-propagator
-     (boundary-name application-id direction position)
-     (fn [_inputs _outputs network]
-       (let [content (net/network-cell-content network source-id)
-             update (stdlib-prop/forward-value
-                     content (net/network-cell-strongest network source-id))]
-         (if (value/unusable? update)
-           []
-           [(message target-id (stdlib-prop/forward-value content content))])))
-     [source-id]
-     [target-id])))
+    (observation/identity (boundary-name application-id direction position)
+                          source-id target-id)))
 
 (defn- boundary-installer
   [application-id direction position source-id target-id]
@@ -219,7 +195,7 @@
 (defn- install-one
   [{:keys [net prop-ids]} installer]
   (let [[installed next-net] (installer net)]
-    {:net next-net
+    {:net (nb/register-props next-net (installed-prop-ids installed))
      :prop-ids (into prop-ids (installed-prop-ids installed))}))
 
 (defn- install-all
@@ -250,8 +226,7 @@
      (ex-info "Unsupported closure output declaration"
               {:output output}))))
 
-(defn closure-call
-  "Interpret fixed closure arguments without installing or executing topology."
+(defn- closure-call
   [closure-info argument-ids result-id]
   (let [parameters (closure-value/closure-inputs closure-info)
         output (closure-value/closure-output closure-info)
@@ -454,10 +429,10 @@
 
 (defn- declaration-result
   [base application-id compiled relations]
-  (let [diff (topology/network-diff base (:net compiled) (:prop-ids compiled))]
+  (let [declared (nb/result (:net compiled))]
     {:effects (into (application-name-effects application-id relations)
-                    (:effects diff))
-     :messages (:messages diff)}))
+                    (:effects declared))
+     :messages (:messages declared)}))
 
 (defn- declare-closure-effects
   [compile* declaration-id lexical-env-id closure-info
@@ -467,7 +442,7 @@
         {:keys [parameters input-ids outputs]}
         (closure-call closure-info argument-ids result-id)
         frame-id (gur/stable-node-id [application-id :lexical-frame])
-        base (:network gur-context)
+        base (nb/begin (:network gur-context))
         compiled
         (-> (frame-topology base application-id lexical-env-id frame-id
                             parameters input-ids outputs result-id input-mode)
@@ -488,17 +463,12 @@
 
 (defn closure-application-effects
   [compile* declaration-id lexical-env-id closure-info
-   gur-context invocation-ids result-id]
-  (declare-closure-effects
-   compile* declaration-id lexical-env-id closure-info
-   gur-context invocation-ids result-id :inbound))
-
-(defn constraint-application-effects
-  [compile* declaration-id lexical-env-id closure-info
-   gur-context invocation-ids result-id]
-  (declare-closure-effects
-   compile* declaration-id lexical-env-id closure-info
-   gur-context invocation-ids result-id :bidirectional))
+   gur-context invocation-ids result-id output-boundary]
+  (returned-outputs/register-application-return
+   (declare-closure-effects
+    compile* declaration-id lexical-env-id closure-info
+    gur-context invocation-ids result-id :inbound)
+   gur-context result-id output-boundary))
 
 (defn- primitive-input-topology
   [base application-id argument-ids]
@@ -520,12 +490,12 @@
   [installer _declaration gur-context invocation-ids result-id]
   (let [{:keys [context-id argument-ids]} (invocation invocation-ids)
         application-id (:app-key gur-context)
-        base (:network gur-context)
+        base (nb/begin (:network gur-context))
         inbound (primitive-input-topology base application-id argument-ids)
         [installed primitive-props selected-output]
         (installer (:net inbound) argument-ids result-id context-id)
         primitive
-        {:net installed
+        {:net (nb/register-props installed (installed-prop-ids primitive-props))
          :prop-ids (into (:prop-ids inbound)
                          (installed-prop-ids primitive-props))}
         routed
@@ -582,7 +552,7 @@
          (update :applications (fnil conj []) topology-id))
      (env/cell-binding result-id)]))
 
-;; Compatibility entry points owned by the existing sub-environment runtime.
+;; Compatibility entry points delegated to the compiler-owned lowering module.
 (defn execute-sub-env-messages-with
   [& args]
   (apply

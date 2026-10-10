@@ -56,7 +56,7 @@
 
 (deftest fan-out-retains-expression-result
   (let [state @(loader/load-session-from-source
-                "(def-cells a b c raw semantic)
+                "(define a) (define b) (define c) (define raw) (define semantic)
                  (<-> 1 a)
                  (let-cell [v] (-> (+ a 1) v) (-> v b) (-> v c))
                  (relationship:roots a raw)
@@ -67,7 +67,7 @@
     (is (contains? edges ['+ 'v]))))
 
 (deftest projection-follows-cell-updates-and-environment-replacement
-  (let [source "(def-cells a b raw semantic)
+  (let [source "(define a) (define b) (define raw) (define semantic)
                 (-> (+ a 1) b)
                 (relationship:roots a raw)
                 (relationship:dataflow raw semantic)"

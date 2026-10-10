@@ -1,0 +1,24 @@
+{:persisted false
+ :approved false
+ :validation :blocked-by-automatic-approval-review
+ :grounding-revision 511
+ :hierarchy {:new-components [] :changed-parentage [] :new-boundary-assignments []}
+ :candidates
+ [{:id :constraint/application-output-boundary-is-graph-topology
+   :type :constraint
+   :evidence-state :needs-verification
+   :statement "Discovered application member ports are reciprocal output edges of the owning application propagator. Names provide ordering and labels; activation arguments remain unchanged."
+   :applies-to [:component/application-runtime :component/network-state]
+   :verification {:infrastructure "12112d2bd937dd968f143bcd85f9656ed026ddb3"
+                  :compiler "1e288c27e302521c665abf8d38f5eb8310a046c8"
+                  :runtime "1885deb38d6c43d3f70ff82ffc4c1ec03b90b73d"
+                  :report "doc/graph-declared-application-outputs.md"}}
+  {:id :decision/application-outputs-extend-net-graph
+   :type :decision
+   :evidence-state :needs-verification
+   :statement "Use additive immutable graph output extension effects for late application ports, preserving activation arity, creation ownership, values, scheduler policy and kernel merge semantics."
+   :applies-to [:component/network-state :component/recursive-topology-declaration
+                :component/application-runtime]
+   :supersedes []}]
+ :limitations [:two-node-lain-tracer-exceeds-three-second-deadline
+               :historical-application-model-reconciliation-not-included]}

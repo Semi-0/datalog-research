@@ -1,4 +1,4 @@
-(ns propagators.compiler-behavior.core
+(ns ^:deprecated propagators.compiler-behavior.core
   "Behavior-valued compiler parallel to compiler-2.
 
   Values produced by this compiler are behavior histories. Closure declarations
@@ -18,7 +18,7 @@
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]))
 
 (def compiler-result-key common/compiler-result-key)

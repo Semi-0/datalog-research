@@ -5,7 +5,7 @@
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support :as support]
             [propagators.datastructures.support-collection :as collection]
-            [propagators.experimental.premise-publication :as publication]
+            [propagators.stdlib.premise-publication :as publication]
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.propagator :as prop]

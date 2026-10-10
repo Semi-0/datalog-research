@@ -118,6 +118,10 @@
 (defn be-block-target-operator [outbox-id instance-id]
   (operator-value/operator-closure
    {:name 'be:block
+    :input-selector (fn [arg-ids fallback-id _context-id]
+                      (vec (distinct (conj (vec arg-ids)
+                                           (or (nth (vec arg-ids) 1 nil)
+                                               fallback-id)))))
     :output-selector (fn [arg-ids fallback-id]
                        (or (nth (vec arg-ids) 1 nil) fallback-id))
     :activate (fn [network _context-id arg-ids out-id]

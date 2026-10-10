@@ -43,15 +43,15 @@
 
 (defn callback-source [execution]
   (case execution
-    :direct "(def-cells seed captured out) (-> (tracked+ seed captured) out)"
-    :compiler-direct "(def-cells seed captured out) (-> (+ seed captured) out)"
+    :direct "(define seed) (define captured) (define out) (-> (tracked+ seed captured) out)"
+    :compiler-direct "(define seed) (define captured) (define out) (-> (+ seed captured) out)"
     :higher-order (slurp "examples/lain/visualization_combinators/tracked_callback.lain")
     :chained
-    "(def-cells seed captured out)
-     (def-net transform [item] [out]
-       (-> (tracked+ (tracked+ item captured) captured) out))
-     (def-net apply-transform [f item] [out] (f item out))
-     (apply-transform transform seed out)"
+    "(define seed) (define captured) (define out)
+     (define transform (network (item)
+       (tracked+ (tracked+ item captured) captured)))
+     (define apply-transform (network (f item) (f item)))
+     (-> (apply-transform transform seed) out)"
     (throw (ex-info "Unknown probe execution" {:execution execution}))))
 
 (defn run-callback
@@ -122,13 +122,13 @@
 (deftest late-callback-definition
   (let [[item captured] (tracked-inputs)
         running (session
-                 "(def-cells seed captured callback out)
-                  (def-net apply-transform [f item] [out] (f item out))
-                  (apply-transform callback seed out)")]
+                 "(define seed) (define captured) (define callback) (define out)
+                  (define apply-transform (network (f item) (f item)))
+                  (-> (apply-transform callback seed) out)")]
     (swap! running #(-> % (seed 'seed item) (seed 'captured captured)))
     (is (value/nothing? (:value (observe @running 'out))))
     (loader/load-source! running
-                        "(-> (network [item] [out] (-> (tracked+ item captured) out)) callback)")
+                        "(-> (network (item) (tracked+ item captured)) callback)")
     (is (= {:value 7 :sources #{item-source captured-source}
             :supports #{item-support captured-support}}
            (observe @running 'out)))))

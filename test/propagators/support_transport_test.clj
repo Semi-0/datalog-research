@@ -128,11 +128,11 @@
 (deftest compiled-links-and-compound-network-withdraw-and-recover
   (doseq [program ["(let-cell [a b] (-> x a) (-> a b) b)"
                    "(let-cell [out]
-                      (def-net copy [input] [output] (-> input output))
-                      (copy x out) out)"
+                      (define copy (network [input] input))
+                      (-> (copy x) out) out)"
                    "(let-cell [middle out]
-                      (def-net copy [input] [output] (-> input output))
-                      (copy x middle) (copy middle out) out)"]]
+                      (define copy (network [input] input))
+                      (-> (copy x) middle) (-> (copy middle) out) out)"]]
     (testing program
       (let [source (ids/new-node-id)
             compiled (compiler/compile-expr-with-bindings

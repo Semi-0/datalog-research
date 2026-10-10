@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is]]
             [propagators.dataflow-projection :as projection]
             [propagators.compiler-2.runtime.topology-effects :as topology]
+            [propagators.compiler-2.runtime.declaration-effects :as declarations]
             [propagators.gur.flat :as gur]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -33,11 +34,13 @@
 
 (deftest observation-metadata-does-not-export-runtime-markers
   (let [id (ids/new-node-id)
-        compiled (net/assoc-net-dict-entry net/empty-net gur/name-bindings-key
-                   {topology/topology-result-scope {:result id}
-                    :runtime/marker {:executed id}})
-        diff (topology/network-diff net/empty-net compiled [])]
-    (is (= [(gur/bind-name topology/topology-result-scope :result id)] (:effects diff)))
+        effect (gur/bind-name topology/topology-result-scope :result id)
+        [_ recorded] (declarations/eval-activation-result
+                       effect (declarations/begin net/empty-net))
+        compiled (net/update-net-dict-entry recorded gur/name-bindings-key
+                   assoc :runtime/marker {:executed id})]
+    (is (= [effect] (:effects (declarations/result compiled))))
     (is (= #{} (topology/topology-result-ids net/empty-net)))
     (is (= #{id} (topology/topology-result-ids compiled)))
-    (is (empty? (:effects (topology/network-diff compiled compiled []))))))
+    (is (empty? (:effects (declarations/result
+                           (declarations/emit-effect (declarations/begin compiled) effect)))))))

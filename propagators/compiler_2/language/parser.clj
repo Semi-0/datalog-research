@@ -1,9 +1,7 @@
 (ns propagators.compiler-2.language.parser
   "Reader-backed source parser for compile-2 expressions.
 
-  The surface language is intentionally small. `::` is not valid EDN, so the
-  parser rewrites list-head `::` into the internal `:compiler/network` marker
-  before reading."
+  Functional networks use the ordinary reader and named CPS handlers."
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
             [propagators.compiler-2.language.ast :as ast]
@@ -43,13 +41,6 @@
     (parse-error (str role " must contain only symbols") {:value v}))
   v)
 
-(defn- fixed-inputs [v role]
-  (symbol-vector v role)
-  (when (some #{'&} v)
-    (parse-error "Rest parameters are supported only in :: and cell-expr"
-                 {:role role :value v}))
-  v)
-
 (defn- body-form [forms role]
   (when-not (seq forms)
     (parse-error (str role " requires at least one body expression")
@@ -78,113 +69,32 @@
                     pairs)
               (body-form body "let"))))
 
-(defn- parse-network [[params & body]]
-  (rest-parameters/parameter-spec (symbol-vector params ":: params"))
-  (ast/network params
-               (body-form body "::")))
+(defn- parse-functional-network [[parameters & body]]
+  (when-not (sequential? parameters)
+    (parse-error "network parameters must be a symbol list or vector"
+                 {:parameters parameters :capability :computed-input-description}))
+  (let [parameters (vec parameters)]
+    (rest-parameters/parameter-spec parameters)
+    (when (vector? (first body))
+      (parse-error "Explicit network output vectors were removed; connect output cells and return (list ...)"
+                   {:parameters parameters :body body}))
+    (ast/network parameters (body-form body "network"))))
 
-(defn- parse-cell-expr [[params & body]]
-  (rest-parameters/parameter-spec (symbol-vector params "cell-expr params"))
-  (ast/network params
-               (body-form body "cell-expr")))
-
-(defn- parse-network-form [[inputs outputs & body]]
-  (ast/compound {:inputs (fixed-inputs inputs "network inputs")
-                 :output (symbol-vector outputs "network outputs")}
-                (body-form body "network")))
-
-(defn- parse-def-net [[name inputs outputs & body]]
-  (when-not (symbol? name)
-    (parse-error "def-net name must be a symbol" {:name name}))
-  (ast/def-net name
-               (fixed-inputs inputs "def-net inputs")
-               (symbol-vector outputs "def-net outputs")
-               (body-form body "def-net")))
-
-(defn- parse-def-constraint [[name inputs & body]]
-  (when-not (symbol? name)
-    (parse-error "def-constraint name must be a symbol" {:name name}))
-  (ast/def-constraint name
-                      (fixed-inputs inputs "def-constraint inputs")
-                      (body-form body "def-constraint")))
-
-(defn- parse-def [[name expr & more]]
-  (when-not (symbol? name)
-    (parse-error "def name must be a symbol" {:name name}))
-  (when (seq more)
-    (parse-error "def expects a name and optional expression"
-                 {:name name :expr expr :extra more}))
-  (ast/def* name (when (some? expr)
-                   (parse-form expr))))
-
-(defn- parse-def-cell [[name maybe-expr & body]]
-  (when-not (symbol? name)
-    (parse-error "def-cell name must be a symbol" {:name name}))
-  (cond
-    (seq body)
-    (parse-error "def-cell expression form expects only a name and expression"
-                 {:name name :expr maybe-expr :extra body})
-
-    (nil? maybe-expr)
-    (ast/def* name nil)
-
-    :else
-    (ast/def* name (parse-form maybe-expr))))
-
-(defn- parse-def-cells [names]
-  (when-not (seq names)
-    (parse-error "def-cells expects at least one name" {:names names}))
-  (doseq [name names]
-    (when-not (symbol? name)
-      (parse-error "def-cells names must be symbols" {:name name})))
-  (apply ast/sequence* (map #(ast/def* % nil) names)))
-
-(declare parse-cond-form)
-
-(defn- parse-compound-spec [spec]
-  (cond
-    (map? spec)
-    (let [{:keys [inputs output]} spec]
-      [(fixed-inputs inputs "compound inputs") output])
-
-    (vector? spec)
-    [(fixed-inputs spec "compound inputs") nil]
-
-    :else
-    (parse-error "compound expects an input vector or {:inputs ... :output ...}"
-                 {:spec spec})))
-
-(defn- parse-compound [[spec & rest-args]]
-  (let [[inputs map-output] (parse-compound-spec spec)
-        [output body] (if (some? map-output)
-                        [map-output rest-args]
-                        [(first rest-args) (rest rest-args)])]
-    (when-not (or (symbol? output)
-                  (and (vector? output) (every? symbol? output)))
-      (parse-error "compound output must be a symbol or symbol vector"
-                   {:output output}))
-    (ast/compound {:inputs inputs
-                   :output output}
-                  (body-form body "compound"))))
+(defn- parse-define [operands]
+  (let [[name expression] operands]
+    (when-not (and (symbol? name) (contains? #{1 2} (count operands)))
+      (parse-error "define expects a name and optional expression" {:operands operands}))
+    (ast/def* name (if (= 2 (count operands)) (parse-form expression) nil))))
 
 (defn- removed-form [form]
-  (parse-error (str (first form) " is not part of compiler-2 target syntax")
-               {:form form}))
+  (parse-error (str (first form) " was removed; use define, network, connections, and a body return")
+               {:form form :syntax/error :removed-form}))
 
-(defn- parse-if [[condition then-expr else-expr & more]]
-  (when (or (nil? condition)
-            (nil? then-expr)
-            (nil? else-expr)
-            (seq more))
+(defn- parse-if [operands]
+  (when-not (= 3 (count operands))
     (parse-error "if expects condition, then expression, and else expression"
-                 {:condition condition
-                  :then then-expr
-                  :else else-expr
-                  :extra more}))
-  (ast/app (ast/sym 'if)
-           (parse-form condition)
-           (parse-form then-expr)
-           (parse-form else-expr)))
+                 {:operands operands}))
+  (apply ast/app (ast/sym 'if) (map parse-form operands)))
 
 (defn- parse-when [[condition & body]]
   (when (or (nil? condition)
@@ -234,19 +144,17 @@
   "Normalize one reader form into compiler-2 source IR."
   [form]
   (cond
+    (ast/ast-node? form)
+    (ast/ast form)
+
     (seq? form)
     (case (first form)
       let (parse-let (rest form))
       let-cell (parse-let-cell (rest form))
-      :compiler/network (parse-network (rest form))
-      cell-expr (parse-cell-expr (rest form))
-      network (parse-network-form (rest form))
-      def-net (parse-def-net (rest form))
-      def-constraint (parse-def-constraint (rest form))
-      def (parse-def (rest form))
-      def-cell (parse-def-cell (rest form))
-      def-cells (parse-def-cells (rest form))
-      compound (parse-compound (rest form))
+      (:compiler/network cell-expr def-net def-constraint def def-cell def-cells compound)
+      (removed-form form)
+      network (parse-functional-network (rest form))
+      define (parse-define (rest form))
       if (parse-if (rest form))
       when (parse-when (rest form))
       cond (parse-cond-form (rest form))

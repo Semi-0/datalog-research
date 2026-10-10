@@ -168,6 +168,7 @@
 (deftest failed-import-is-atomic
   (testing "a later failed commit publishes none of the candidate"
     (let [session (runtime/new-session)
+          before @session
           manifest (update (fixture-manifest) :commits
                            #(conj (vec (take 1 %))
                                   {:commit-id
@@ -178,7 +179,7 @@
                                    :text "("}))]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"compilation failed"
                             (runtime/import-instance! session manifest)))
-      (is (nil? @session)))))
+      (is (identical? before @session)))))
 
 (deftest exact-import-is-idempotent-and-rejects-divergence
   (testing "exact replay is mutation-free and divergent history is rejected"
@@ -198,7 +199,8 @@
 (deftest json-socket-rejects-malformed-schema-without-mutating-and-closes
   (let [runtime-server (start-json-runtime)
         port (:json-port runtime-server)
-        session (:session runtime-server)]
+        session (:session runtime-server)
+        before @session]
     (try
       (let [response (json-server/request
                       "127.0.0.1" port
@@ -209,7 +211,7 @@
                                   :commits []}})]
         (is (false? (:ok response)))
         (is (re-find #"schema" (:error response)))
-        (is (nil? @session)))
+        (is (identical? before @session)))
       (finally
         ((:close runtime-server))))
     (is (thrown? java.net.ConnectException

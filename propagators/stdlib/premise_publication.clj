@@ -1,5 +1,5 @@
-(ns propagators.experimental.premise-publication
-  "TTMS publication policy composed after layered application. No epoch creation."
+(ns propagators.stdlib.premise-publication
+  "Publish current observations and independent premise states. No epoch creation."
   (:require [propagators.cells.value :as value]
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support-collection :as collection]
@@ -20,9 +20,7 @@
       state-update)))
 
 (defn transport-states
-  "Result transform. Knowledge from all watched inputs is not output support.
-  Legacy two-layer applications remain unchanged until an explicit state layer
-  enters the input tuple."
+  "All watched inputs contribute state knowledge, not output support."
   [patches inputs outputs network]
   (let [arguments (mapv #(net/network-cell-strongest network %) inputs)]
     (if (some #(datum/layer-present? % :premise-state) arguments)

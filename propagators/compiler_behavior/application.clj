@@ -12,15 +12,14 @@
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as h]
-            [propagators.compiler-2.runtime.topology-effects :as topology-effects]
-            [propagators.core :as core]
+            [propagators.compiler-2.runtime.declaration-effects :as core]
             [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.behavior-algebra :as hist]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]
             [propagators.runner :as runner]))
 
@@ -241,7 +240,8 @@
 
 (defn- closure-behavior-messages
   [app-id operator-id args-id out-id network]
-  (let [operator-view (behavior-view-or-nothing network operator-id)
+  (let [network (nb/begin network)
+        operator-view (behavior-view-or-nothing network operator-id)
         closure-info (when-not (value/unusable? operator-view)
                        (behavior-base operator-view))
         arg-object (strongest-or-nothing network args-id)
@@ -268,7 +268,7 @@
             props (into (vec (:props history)) (:props base))]
         (if (value/unusable? body-view)
           []
-          (update (topology-effects/network-diff network final-net props)
+          (update (nb/result (nb/register-props final-net props))
                   :messages
                   conj
                   (message out-id
