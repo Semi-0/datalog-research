@@ -1,5 +1,6 @@
 import { batch, coalescedRuntimeCommand, none, runtimeCommand } from "./combinators.js";
 import { enterXrEffect } from "./effects.js";
+import { flattenViewPlanes } from "./views.js";
 import {
   graphWithWidgets,
   liftLayoutInto3d,
@@ -155,18 +156,28 @@ const nearestNode = (model, point) => {
   return bestD2 < 1.2 ? best : null;
 };
 
+
 export const update = (model, msg) => {
   switch (msg.type) {
     case "socket/open":
-      return [{ ...model, connected: true, status: "connected" }, none()];
+      return [{ ...model, connected: true, status: "connected" },
+        [runtimeCommand("xr/context/subscribe", {})]];
 
     case "socket/closed":
-      return [{ ...model, connected: false, status: "disconnected" }, none()];
+      return [{ ...model, connected: false, context: null, status: "disconnected" }, none()];
 
     case "socket/error":
       return [{ ...model, status: `socket error: ${msg.error || "unknown"}` }, none()];
 
     case "socket/message": {
+      if (msg.payload.type === "xr/context/update") {
+        if (msg.payload.ok === false) {
+          return [{ ...model, context: null, status: msg.payload.error || "context unavailable" }, none()];
+        } else {
+          const context = msg.payload.result?.context || null;
+          return [{ ...model, context, status: `${flattenViewPlanes(model.views).length} views · network ${context?.status || "unavailable"}` }, none()];
+        }
+      }
       if (msg.payload?.ok === false) {
         return [{ ...model, status: msg.payload.error || "runtime error" }, none()];
       }
@@ -178,15 +189,26 @@ export const update = (model, msg) => {
       const graphWithRegisteredWidgets = graphWithWidgets(graph, widgets);
       const nodeCount = graphWithRegisteredWidgets.nodes?.length || 0;
       const edgeCount = graphWithRegisteredWidgets.edges?.length || 0;
+      const generation = msg.payload.result?.generation || msg.payload.generation || null;
+      let retainedContext = model.context;
+      if (generation && retainedContext && generation !== retainedContext.generation) {
+        retainedContext = null;
+      }
+      const context = msg.payload.result?.context || msg.payload.context || retainedContext;
+      const viewCount = flattenViewPlanes(views).length;
+      let status;
+      if (viewCount > 0) status = `${viewCount} views · network ${context?.status || "unavailable"}`;
+      else status = `graph ${nodeCount} nodes / ${edgeCount} edges · 0 views`;
       return [
         {
           ...model,
           graph: graphWithRegisteredWidgets,
           views,
+          context,
           widgets,
           layout: reconcileLayout(model.layout, graphWithRegisteredWidgets, model.viewMode),
           pulses: { ...model.pulses, ...graphPulses(model, graphWithRegisteredWidgets) },
-          status: `graph ${nodeCount} nodes / ${edgeCount} edges · ${views.length} views`,
+          status,
         },
         none(),
       ];

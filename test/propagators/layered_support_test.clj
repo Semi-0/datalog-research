@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is]]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.evidence-set :as evidence]
             [propagators.datastructures.layered-value :as datum]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
@@ -103,3 +104,19 @@
     (is (= #{active} (datum/support-of output)))
     (is (value/contradiction? (datum/layer-value output :base)))
     (is (value/unusable? output))))
+
+(deftest evidence-container-does-not-hide-layered-readiness
+  (let [active (premise :A 1 :active)
+        fresh (premise :A 2 :active)
+        retracted (premise :B 2 :retracted)
+        nested #(supported (evidence/evidence-set %) active)]
+    (is (not (value/unusable? (nested (supported 10 active)))))
+    (is (value/unusable? (nested (supported 10 retracted))))
+    (is (value/unusable? (nested (supported value/nothing active))))
+    (is (value/unusable? (nested (supported value/contradiction active))))
+    (is (value/unusable? (nested (supported 10 fresh)))
+        "Evidence nesting must not conceal incompatible versions of a source")
+    (is (value/any-unusable-values?
+         (evidence/evidence-set (supported 10 active)) (supported 20 fresh)))
+    (is (not (value/unusable? #{1 2 3})))
+    (is (not (value/unusable? #{})))))

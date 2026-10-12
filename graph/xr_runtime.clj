@@ -8,12 +8,15 @@
             [clojure.string :as str]
             [propagators.compiler-2.runtime :as runtime]
             [graph.compiler-2-semantic-repl :as semantic-repl]
+            [graph.xr-inspection :as inspection]
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.tms :as tms]
             [propagators.experimental.visualization.interaction :as interaction]
+            [propagators.experimental.visualization.ttms :as ttms]
+            [propagators.datastructures.layered-value :as datum]
             [propagators.ids :as ids]
             [propagators.network :as net]))
 
@@ -75,6 +78,7 @@
     :behavior-projection
     (tms/distributed-value? v) :tms
     (behavior/behavior-value? v) :behavior
+    (ttms/supported? v) :supported
     (net/network? v) :network
     :else :value))
 
@@ -132,6 +136,11 @@
       :behavior-projection (behavior-projection-summary v)
       :tms (tms-summary v)
       :behavior (behavior-summary v)
+      :supported {:kind "supported"
+                  :status (name (ttms/status v))
+                  :current (semantic-repl/display-cell-value (ttms/payload v))
+                  :support (mapv #(update % :source pr-str)
+                                 (datum/support-of (ttms/projection v)))}
       :network {:kind "network"}
       {:kind "value"
        :value (semantic-repl/display-cell-value v)})))
@@ -288,6 +297,9 @@
                                 ui
                                 (assoc :ui ui)
 
+                                (inspection/source-reference id)
+                                (assoc :source (inspection/source-reference id))
+
                                 (contains? values id)
                                 (assoc :value (value-summary (get values id)))
 
@@ -311,9 +323,11 @@
 
 (defn- history-sample->json
   [sample]
-  (-> sample
+  (cond-> (-> sample
       (update :sample/content value-summary)
-      (update :sample/strongest value-summary)))
+      (update :sample/strongest value-summary))
+    (:sample/node sample) (assoc :source (inspection/source-reference (:sample/node sample))
+                                 :sample/node (pr-str (:sample/node sample)))))
 
 (defn view->json
   "Project a resolved visualizer declaration into browser-friendly data."
@@ -337,6 +351,7 @@
                               {:id (pr-str (:identity row))
                                :label (:label row)
                                :kind (some-> (:node-kind row) name)
+                               :source (inspection/source-reference (:identity row))
                                :value (value-summary (:payload row))}) (:items collection))
                :edges (mapv (fn [[a b]] {:from (pr-str a) :to (pr-str b)}) (:edges collection))
                :pending (count (filter #(= :pending (:membership %)) (:candidates collection)))))
@@ -348,6 +363,7 @@
 
       :cell-history
       (assoc base
+             :dropped (or (:view/dropped view) 0)
              :samples (mapv history-sample->json (:view/samples view)))
 
       :hierarchy

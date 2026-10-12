@@ -1,0 +1,23 @@
+;; Positive Datalog: path(x,y) :- edge(x,y).
+;;                  path(x,z) :- path(x,y), edge(y,z).
+;; All rule logic is here; the extension only stores relations and wires HOP.
+(let []
+  (define identity-row (network [row] row))
+  (define joinable? (network [pair]
+    (= (at (at pair 0) 1) (at (at pair 1) 0))))
+  (define extend-path (network [pair]
+    (let-cell [x y z]
+      (-> (at (at pair 0) 0) x)
+      (-> (at (at pair 0) 1) y)
+      (-> (at (at pair 1) 0) y)
+      (-> (at (at pair 1) 1) z)
+      (tuple x z))))
+  (let-cell [edges paths db]
+    (-> (empty-relation) edges)
+    (-> (empty-relation) paths)
+    (p:slot :edge edges db)
+    (p:slot :path paths db)
+    (-> (map identity-row edges) paths)
+    (-> (map extend-path
+          (filter joinable? (product paths edges))) paths)
+    db))

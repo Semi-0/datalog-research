@@ -1,0 +1,9 @@
+;; Run after datalog.lain. Facts and rules are declarative compound lists.
+(define facts
+  (database (list (list :edge 1 2) (list :edge 2 3))))
+(define rules
+  (list
+    (list (list :path :x :y) (list (list :edge :x :y)))
+    (list (list :path :x :z)
+          (list (list :edge :x :y) (list :path :y :z)))))
+(p:slot :facts (datalog facts rules))

@@ -16,8 +16,8 @@ export const arrowGeometry = (from, to) => {
 export const drawArrow = (ctx, from, to) => {
   const arrow = arrowGeometry(from, to);
   if (arrow === null) return;
-  ctx.strokeStyle = "#8a9aa8";
-  ctx.fillStyle = "#c0d1df";
+  ctx.strokeStyle = "#ccc";
+  ctx.fillStyle = "#ccc";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(arrow.start.x, arrow.start.y);
@@ -34,7 +34,7 @@ export const drawArrow = (ctx, from, to) => {
 export const drawNode = (ctx, node, point) => {
   ctx.beginPath();
   if (node.kind === "propagator") {
-    ctx.fillStyle = "#71d9ef";
+    ctx.fillStyle = "#fff";
     ctx.moveTo(point.x + 11, point.y);
     ctx.lineTo(point.x - 9, point.y - 10);
     ctx.lineTo(point.x - 9, point.y + 10);

@@ -1,0 +1,22 @@
+;; Three positive clauses, with mutual recursion between two relation cells.
+;; reach(x,y)     :- edge(x,y).
+;; extension(x,z) :- reach(x,y), edge(y,z).
+;; reach(x,z)     :- extension(x,z).
+(let []
+  (define identity-row (network [row] row))
+  (define same-middle? (network [pair]
+    (= (at (at pair 0) 1) (at (at pair 1) 0))))
+  (define endpoints (network [pair]
+    (tuple (at (at pair 0) 0) (at (at pair 1) 1))))
+  (let-cell [edges reachable extensions db]
+    (-> (empty-relation) edges)
+    (-> (empty-relation) reachable)
+    (-> (empty-relation) extensions)
+    (p:slot :edge edges db)
+    (p:slot :reach reachable db)
+    (p:slot :extension extensions db)
+    (-> (map identity-row edges) reachable)
+    (-> (map endpoints
+          (filter same-middle? (product reachable edges))) extensions)
+    (-> (map identity-row extensions) reachable)
+    db))

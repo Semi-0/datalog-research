@@ -10,7 +10,7 @@ body {
   overflow: hidden;
   background: #000;
   color: #fff;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 #app {
@@ -20,8 +20,44 @@ body {
 }
 
 #viewport {
+  position: relative;
   min-width: 0;
   min-height: 0;
+}
+
+#viewport[data-mode="2d"] > .xr-canvas { visibility: hidden; }
+.desktop { position: absolute; inset: 0; overflow: auto; background: #111; z-index: 0; }
+.desktop[hidden], .desktop-window[hidden] { display: none; }
+.desktop-window { position: absolute; display: flex; flex-direction: column; border: 1px solid #888;
+  border-radius: 0; background: #181818; overflow: hidden; }
+.window-header { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #222;
+  cursor: grab; touch-action: none; user-select: none; min-height: 28px; }
+.window-title { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
+.window-controls { display: flex; gap: 3px; }
+.window-controls button { padding: 4px 7px; min-width: 28px; }
+.window-body { flex: 1; min-height: 0; overflow: auto; padding: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.window-body:has(.desktop-graph) { padding: 0; overflow: hidden; }
+.desktop-graph { width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.desktop-graph [role="button"] { cursor: pointer; }
+.desktop-graph [role="button"]:focus { outline: none; filter: drop-shadow(0 0 5px white); }
+.window-resize { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px;
+  cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, #aaa 51%, transparent 58%, #aaa 65%, transparent 72%); }
+.window-body details { margin: 6px 0 6px 8px; overflow-wrap: anywhere; }
+.window-body pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.window-body button { display: block; margin: 5px 0; overflow-wrap: anywhere; }
+.desktop-window[data-context-status="withdrawn"]::after,
+.desktop-window[data-context-status="pending"]::after,
+.desktop-window[data-context-status="unavailable"]::after,
+.desktop-window[data-context-status="contradiction"]::after { content: attr(data-context-status); position: absolute;
+  top: 58px; left: 10px; background: #111; border: 1px dashed #fff; padding: 5px; pointer-events: none; }
+#window-menu button { display: block; margin: 4px 0; width: 100%; text-align: left; }
+#window-menu h2 { font-size: 14px; margin: 8px 0; }
+@media (max-width: 780px) {
+  .desktop { top: 60px; }
+  .window-header { padding: 4px 6px; gap: 4px; }
+  .window-controls button { min-width: 44px; min-height: 44px; padding: 6px; }
+  .window-resize { width: 32px; height: 32px; }
+  .window-body button, #window-menu button, .segmented button { min-height: 44px; }
 }
 
 #viewport canvas {
@@ -47,7 +83,7 @@ body {
 }
 
 button:focus-visible {
-  outline: 2px solid #90caff;
+  outline: 2px solid #fff;
   outline-offset: 3px;
 }
 
@@ -80,8 +116,8 @@ input,
 textarea,
 button,
 pre {
-  border: 1px solid #39434f;
-  border-radius: 6px;
+  border: 1px solid #777;
+  border-radius: 0;
   background: #000;
   color: #fff;
   font: inherit;
@@ -124,12 +160,12 @@ button:hover {
 }
 
 .segmented button:first-child {
-  border-radius: 6px 0 0 6px;
+  border-radius: 0;
 }
 
 .segmented button:last-child {
   border-left: 0;
-  border-radius: 0 6px 6px 0;
+  border-radius: 0;
 }
 
 .segmented button + button {
@@ -148,7 +184,7 @@ button:hover {
 
 .widget-panel {
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px;
 }
 
@@ -228,9 +264,8 @@ button:hover {
     right: max(12px, env(safe-area-inset-right));
     min-width: 72px;
     min-height: 44px;
-    border-radius: 24px;
-    background: #15191f;
-    box-shadow: 0 3px 18px #0008;
+    border-radius: 0;
+    background: #111;
   }
 
   #panel {
@@ -242,9 +277,8 @@ button:hover {
     left: max(12px, env(safe-area-inset-left));
     box-sizing: border-box;
     max-height: calc(100dvh - 88px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    border: 1px solid #39434f;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px #0009;
+    border: 1px solid #777;
+    border-radius: 0;
     overscroll-behavior: contain;
   }
 

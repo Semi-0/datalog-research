@@ -48,7 +48,7 @@ const drawHierarchy = (ctx, view, forcePositions = null, zoom = 1) => {
   if (forcePositions !== null) {
     Object.assign(positions, forcePositions);
   }
-  ctx.strokeStyle = "#6f7782";
+  ctx.strokeStyle = "#ccc";
   ctx.lineWidth = 3;
   for (const edge of edges) {
     const from = positions[edge.from];
@@ -78,7 +78,7 @@ const drawHierarchy = (ctx, view, forcePositions = null, zoom = 1) => {
     ctx.beginPath();
     ctx.rect(label.x, label.y, label.width, label.height);
     ctx.clip();
-    ctx.fillStyle = "#07090c";
+    ctx.fillStyle = "#111";
     ctx.fillRect(label.x, label.y, label.width, label.height);
     ctx.fillStyle = "#ffffff";
     ctx.fillText(label.text, label.x + label.padding, label.y + label.height / 2);
@@ -91,7 +91,7 @@ const drawHierarchy = (ctx, view, forcePositions = null, zoom = 1) => {
 const paint = (texture, view, zoom, positions) => {
   let targets = [];
   const ctx = texture.getContext();
-  ctx.fillStyle = "#07090c";
+  ctx.fillStyle = "#111";
   ctx.fillRect(0, 0, textureSize.width, textureSize.height);
   ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 4;
@@ -122,7 +122,7 @@ const paint = (texture, view, zoom, positions) => {
     }));
   } else {
     if (view.selectable) {
-      ctx.strokeStyle = "#71d9ef";
+      ctx.strokeStyle = "#fff";
       view.items.slice(0, 10).forEach((_item, index) => ctx.strokeRect(24, 102 + index * 32, 720, 32));
     }
     viewLines(view).forEach((line, index) => {
@@ -142,7 +142,7 @@ const paint = (texture, view, zoom, positions) => {
   if ((!view.status || view.status === "ready") &&
       (view.type === "graph" || view.type === "hierarchy" ||
       (view.type === "collection" && view.kind === "graph"))) {
-    ctx.fillStyle = "#07090c";
+    ctx.fillStyle = "#111";
     ctx.fillRect(18, 70, 730, 64);
     ctx.font = "18px sans-serif";
     drawNode(ctx, { kind: "cell" }, { x: 34, y: 92 });

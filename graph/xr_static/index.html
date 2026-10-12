@@ -13,12 +13,13 @@
       <aside id="panel" aria-label="Graph controls">
         <h1>XR Graph</h1>
         <div id="status">disconnected</div>
-        <div id="collections" aria-label="Published collection views"></div>
         <div class="segmented" role="group" aria-label="View mode">
-          <button id="view-2d" aria-pressed="false">2D View</button>
-          <button id="view-3d" class="active" aria-pressed="true">3D View</button>
+          <button id="view-2d" class="active" aria-pressed="true">2D View</button>
+          <button id="view-3d" aria-pressed="false">3D View</button>
           <button id="view-xr" aria-pressed="false">XR View</button>
         </div>
+        <div id="window-menu" aria-label="Visualization windows"></div>
+        <div id="collections" aria-label="Published collection views"></div>
         <label>
           Trace label
           <input id="trace-label" value="out" />

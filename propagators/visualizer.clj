@@ -280,8 +280,12 @@
 
     :cell-history
     (let [history-id (:view/history-cell declaration)
-          history (net/network-cell-content network history-id)]
-      (assoc declaration :view/samples (history-samples history)))
+          history (net/network-cell-content network history-id)
+          snapshot (collection-data/payload (net/network-cell-strongest network history-id))]
+      (if (and (map? snapshot) (vector? (:history/samples snapshot)))
+        (assoc declaration :view/samples (:history/samples snapshot)
+               :view/dropped (or (:history/dropped snapshot) 0))
+        (assoc declaration :view/samples (history-samples history))))
 
     :hierarchy
     (let [reference-id (:reference-cell declaration)

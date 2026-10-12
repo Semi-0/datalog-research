@@ -10,6 +10,7 @@
             [graph.json :as json]
             [graph.xr-runtime :as xr]
             [graph.xr-server :as xr-server]
+            [graph.xr-network-inlet :as inlet]
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.datastructures.behavior :as behavior]
@@ -1050,7 +1051,8 @@
 	               receipt)"})
     (let [stop (#'xr-server/start-effect-push!
                 session
-                (BufferedOutputStream. bytes))]
+                (BufferedOutputStream. bytes)
+                (atom (inlet/inlet)))]
       (try
         (is (wait-for-bytes bytes))
         (stop)

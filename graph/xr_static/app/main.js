@@ -6,6 +6,7 @@ import { createRenderer } from "./babylon-render.js";
 import { update } from "./update.js";
 import { bindMobileControls } from "./mobile-controls.js";
 import { collectionControls } from "./collection-controls.js";
+import { createDesktop } from "./desktop.js";
 
 const env = {
   model: initialModel(),
@@ -21,6 +22,7 @@ const view2dEl = document.getElementById("view-2d");
 const view3dEl = document.getElementById("view-3d");
 const viewXrEl = document.getElementById("view-xr");
 const renderCollections = collectionControls(document.getElementById("collections"), (msg) => dispatch(msg));
+const desktop = createDesktop(viewport, document.getElementById("window-menu"));
 
 bindMobileControls({
   toggle: document.getElementById("panel-toggle"),
@@ -157,6 +159,7 @@ export const dispatch = (msg) => {
   statusEl.textContent = env.model.status;
   renderWidgets(env.model);
   renderCollections(env.model);
+  desktop.render(env.model);
   view2dEl.classList.toggle("active", env.model.viewMode === "2d");
   view3dEl.classList.toggle("active", env.model.viewMode === "3d");
   viewXrEl.classList.toggle("active", env.model.viewMode === "xr");

@@ -10,6 +10,9 @@ Open http://127.0.0.1:45670/relationships. The source is
 `compound_levels.lain`; saving it rebuilds the environment through the existing
 file watcher. Stop the process with Ctrl-C.
 
+The recovered interface adds draggable/resizable 2D windows, independent zoom,
+mobile controls and live inspectors. See [interactive windows](INTERACTIVE_WINDOWS.md).
+
 The juxtaposed cards, left to right:
 
 1. Outer chain: literal `2` → `source` → `stage` → `prepared` (9) →

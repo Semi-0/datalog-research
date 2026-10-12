@@ -6,10 +6,21 @@ export const connectSocket = () =>
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
     env.socket = socket;
-    socket.addEventListener("open", () => dispatch(Msg.SocketOpen()));
-    socket.addEventListener("close", () => dispatch(Msg.SocketClosed()));
-    socket.addEventListener("error", () => dispatch(Msg.SocketError("connection failed")));
+    socket.addEventListener("open", () => {
+      if (env.socket === socket) dispatch(Msg.SocketOpen());
+    });
+    socket.addEventListener("close", () => {
+      if (env.socket !== socket) return;
+      dispatch(Msg.SocketClosed());
+      window.setTimeout(() => {
+        if (env.socket === socket) connectSocket().run(dispatch, env);
+      }, 1000);
+    });
+    socket.addEventListener("error", () => {
+      if (env.socket === socket) dispatch(Msg.SocketError("connection failed"));
+    });
     socket.addEventListener("message", (event) => {
+      if (env.socket !== socket) return;
       try {
         dispatch(Msg.SocketMessage(JSON.parse(event.data)));
       } catch (error) {

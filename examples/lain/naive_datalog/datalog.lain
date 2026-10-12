@@ -1,0 +1,84 @@
+;; Positive, safe rules. Keyword terms are variables; scalar terms are constants.
+(define empty? (network [xs] (= xs :compiler-2/list-empty)))
+(define second (network [xs] (car (cdr xs))))
+(define map (network [f xs]
+  ((if (empty? xs) (network [] (list))
+    (network [] (cons (f (car xs)) (map f (cdr xs))))))))
+(define filter (network [f xs]
+  ((if (empty? xs) (network [] (list))
+    (network [] (let [tail (filter f (cdr xs))]
+      (if (f (car xs)) (cons (car xs) tail) tail)))))))
+(define append (network [xs ys]
+  ((if (empty? xs) (network [] ys)
+    (network [] (cons (car xs) (append (cdr xs) ys)))))))
+(define flat-map (network [f xs]
+  ((if (empty? xs) (network [] (list))
+    (network [] (append (f (car xs)) (flat-map f (cdr xs))))))))
+(define every? (network [f xs]
+  ((if (empty? xs) (network [] true)
+    (network [] ((if (f (car xs))
+      (network [] (every? f (cdr xs))) (network [] false))))))))
+(define length (network [xs]
+  ((if (empty? xs) (network [] 0)
+    (network [] (+ 1 (length (cdr xs))))))))
+(define same-row? (network [a b]
+  ((if (empty? a) (network [] (empty? b))
+    (network [] ((if (empty? b) (network [] false)
+      (network [] (if (= (car a) (car b))
+        (same-row? (cdr a) (cdr b)) false)))))))))
+(define contains-row? (network [row rows]
+  ((if (empty? rows) (network [] false)
+    (network [] ((if (same-row? row (car rows)) (network [] true)
+      (network [] (contains-row? row (cdr rows))))))))))
+(define unique (network [rows]
+  ((if (empty? rows) (network [] (list))
+    (network [] (let [tail (unique (cdr rows))]
+      (if (contains-row? (car rows) tail) tail (cons (car rows) tail))))))))
+(define variable? (network [term]
+  (if (number? term) false (if (string? term) false (not (boolean? term))))))
+(define bind-row (network [terms values tail]
+  ((if (empty? terms) (network [] tail)
+    (network [] (cons (list (car terms) (car values))
+      (bind-row (cdr terms) (cdr values) tail)))))))
+(define matches (network [db body]
+  ((if (empty? body) (network [] (list (list)))
+    (network [] (let [atom (car body) arity (length atom)
+                     tails (matches db (cdr body))]
+      (flat-map (network [row] (map (network [tail]
+        (bind-row (cdr atom) (cdr row) tail)) tails))
+        (filter (network [row] (if (= (car atom) (car row))
+          (= arity (length row)) false)) (p:slot :facts db)))))))))
+(define compatible? (network [bindings]
+  ((if (empty? bindings) (network [] true)
+    (network [] (let [pair (car bindings) tail (cdr bindings)]
+      ((if (if (variable? (car pair))
+        (every? (network [other] (if (= (car pair) (car other))
+          (= (second pair) (second other)) true)) tail)
+        (= (car pair) (second pair)))
+        (network [] (compatible? tail)) (network [] false)))))))))
+(define bind-term (network [term bindings]
+  ((if (empty? bindings) (network [] (let-cell [unbound] unbound))
+    (network [] (let-cell [bound]
+      (-> (bind-term term (cdr bindings)) bound)
+      (-> (if (= term (car (car bindings)))
+        (second (car bindings)) :bool4/nothing) bound)
+      bound))))))
+(define candidate (network [head bindings]
+  (cons (car head) (map (network [term]
+    ((if (variable? term) (network [] (bind-term term bindings))
+      (network [] term)))) (cdr head)))))
+(define derive (network [db rule]
+  (let [head (car rule)]
+    (map (network [bindings] (candidate head bindings))
+      (filter compatible? (matches db (second rule)))))))
+(define database (network [rows]
+  ((if (>= (length rows) 0)
+    (network [] (let-cell [db] (p:slot :facts rows db) db))
+    (network [] :bool4/contradiction)))))
+(define step (network [db rules]
+  (database (unique (append (p:slot :facts db)
+    (flat-map (network [rule] (derive db rule)) rules))))))
+(define datalog (network [db rules]
+  (let [next (step db rules)]
+    ((if (= (length (p:slot :facts db)) (length (p:slot :facts next)))
+      (network [] next) (network [] (datalog next rules)))))))

@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [graph.json :as json]
             [graph.xr-runtime :as xr]
+            [graph.xr-network-inlet :as inlet]
             [propagators.experimental.visualization.interaction :as interaction]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.visualizer :as visualizer])
@@ -297,11 +298,11 @@
     (get-in effect [:boundary/payload :view])))
 
 (defn- resolve-view-effect
-  [session effect]
+  [state effect]
   (when-let [declaration (view-effect-declaration effect)]
     (->> declaration
-         (visualizer/resolve-view (:program/net @session))
-         (interaction/generation-view @session)
+         (visualizer/resolve-view (:program/net state))
+         (interaction/generation-view state)
          xr/view->json)))
 
 (defn- widget-id
@@ -332,22 +333,29 @@
                           node)))
                     nodes)))))
 
-(defn- latest-effect-payload
-  [session]
-  (let [result (xr/handle-command! session {:op :xr/effects})
-        change-token (:runtime/commit-tick @session)
+(defn- effect-payload
+  [session network-inlet]
+  (let [[result state] (locking session
+                         [(xr/handle-command! session {:op :xr/effects}) @session])
+        change-token (:runtime/commit-tick state)
         widgets (vals (:widgets result))
         effects (:effects result)
         graph (some launch-effect-graph (reverse effects))
         views (->> effects
-                   (keep #(resolve-view-effect session %))
+                   (keep #(resolve-view-effect state %))
                    (reduce (fn [by-id view]
                              (assoc by-id (:id view) view))
                            {})
                    vals
-                   vec)]
-    (when (or graph (seq views))
-      {:graph (cond-> (assoc (if graph
+                   vec)
+        context (when network-inlet
+                  (let [observed (locking network-inlet
+                                   (swap! network-inlet inlet/observe-context
+                                          (:program/net state)
+                                          (:environment/generation state)))]
+                    (:encoded-context observed)))]
+    (when (or graph (seq views) context)
+      (cond-> {:graph (cond-> (assoc (if graph
                                (xr/graph->json
                                 graph
                                 {:changed-node-ids (:changed-node-ids result)
@@ -359,7 +367,16 @@
 
                 (seq (:changed-node-ids result))
                 (assoc :change-token change-token))
-       :views views})))
+       :views views
+       :generation (:environment/generation state)}
+        context (assoc :context context)))))
+
+(defn- latest-effect-payload
+  ([session] (latest-effect-payload session nil))
+  ([session network-inlet]
+   (if network-inlet
+     (locking network-inlet (effect-payload session network-inlet))
+     (effect-payload session nil))))
 
 (defn- latest-relationship-payload
   [session relationship-state]
@@ -368,24 +385,26 @@
       {:graph {:nodes [] :edges []}}))
 
 (defn- start-effect-push!
-  [session out]
+  [session out network-inlet]
   (let [interval-ms 500
         last-payload (atom nil)
         executor (daemon-executor "xr-effects")]
     (try
-      (when-let [payload (latest-effect-payload session)]
+      (when-let [payload (latest-effect-payload session network-inlet)]
         (reset! last-payload payload)
         (locking out
           (write-frame out
                        (response "xr/effects/update"
                                  {:ok true
                                   :result payload}))))
-      (catch Throwable _ nil))
+      (catch Exception error
+        (locking out (write-frame out (response "xr/effects/update"
+                                              {:ok false :error (ex-message error)})))))
     (.scheduleAtFixedRate
      executor
      (fn []
        (try
-         (when-let [payload (latest-effect-payload session)]
+         (when-let [payload (latest-effect-payload session network-inlet)]
            (when-not (= payload @last-payload)
              (reset! last-payload payload)
              (locking out
@@ -393,7 +412,9 @@
                             (response "xr/effects/update"
                                       {:ok true
                                        :result payload})))))
-         (catch Throwable _ nil)))
+         (catch Exception error
+           (locking out (write-frame out (response "xr/effects/update"
+                                                 {:ok false :error (ex-message error)}))))))
      interval-ms
      interval-ms
      TimeUnit/MILLISECONDS)
@@ -421,28 +442,62 @@
      TimeUnit/MILLISECONDS)
     #(.shutdownNow executor)))
 
+(defn- start-context-push!
+  "Context is opt-in transport, independent of ordinary declarative-view pushes."
+  [session network-inlet out]
+  (let [last-context (atom nil)
+        executor (daemon-executor "xr-context")]
+    (.scheduleWithFixedDelay
+     executor
+     (fn []
+       (try
+         (let [state @session
+               context (locking network-inlet
+                         (:encoded-context
+                          (swap! network-inlet inlet/observe-context
+                                 (:program/net state) (:environment/generation state))))]
+           (when-not (identical? context @last-context)
+             (reset! last-context context)
+             (let [frame (response "xr/context/update" {:ok true :result {:context context}})]
+               (locking out (write-frame out frame)))))
+         (catch Exception error
+           (locking out
+             (write-frame out (response "xr/context/update"
+                                        {:ok false :error (ex-message error)}))))))
+     0 500 TimeUnit/MILLISECONDS)
+    #(.shutdownNow executor)))
+
 (defn- websocket-loop
-  [session relationship-state ^BufferedInputStream in ^BufferedOutputStream out]
-  (loop [stops [(start-effect-push! session out)
-                (start-relationship-push! relationship-state out)]]
-    (let [{:keys [opcode text]} (read-frame in)]
-      (case opcode
-        8 (doseq [stop stops] (stop))
-        1 (let [command (json/read-json text)
-                result (handle-json-command session command)
-                stop (when (and (:ok result)
-                                (= (:op (normalize-op command))
-                                   :xr/trace/install))
-                       (start-trace-push! session
-                                          out
-                                          (select-keys (:result result)
-                                                       [:trace-id :interval-ms])))]
-            (locking out
-              (write-frame out (response "xr/response" result)))
-            (recur (cond-> stops stop (conj stop))))
-        9 (do (locking out (write-frame out text))
-              (recur stops))
-        (recur stops)))))
+  [session {:keys [relationship-state network-inlet]}
+   ^BufferedInputStream in ^BufferedOutputStream out]
+  (let [stops (atom [])]
+    (try
+      (swap! stops conj (start-effect-push! session out nil))
+      (swap! stops conj (start-relationship-push! relationship-state out))
+      (loop [context-subscribed? false]
+        (let [{:keys [opcode text]} (read-frame in)]
+          (case opcode
+            8 nil
+            1 (let [command (json/read-json text)
+                    op (:op (normalize-op command))
+                    subscribe? (= op :xr/context/subscribe)
+                    result (if subscribe?
+                             {:ok true :result {:context-subscribed true}}
+                             (handle-json-command session command))
+                    stop (cond
+                           (and subscribe? (not context-subscribed?))
+                           (start-context-push! session network-inlet out)
+                           (and (:ok result) (= op :xr/trace/install))
+                           (start-trace-push! session out
+                                             (select-keys (:result result) [:trace-id :interval-ms]))
+                           :else nil)]
+                (when stop (swap! stops conj stop))
+                (locking out (write-frame out (response "xr/response" result)))
+                (recur (or context-subscribed? subscribe?)))
+            9 (do (locking out (write-frame out text)) (recur context-subscribed?))
+            (recur context-subscribed?))))
+      (finally
+        (doseq [stop (reverse @stops)] (stop))))))
 
 (defn- websocket-request?
   [{:keys [headers]}]
@@ -459,7 +514,7 @@
                   (json/write-json value)))
 
 (defn- handle-socket
-  [session relationship-state ^Socket socket]
+  [session relationship-state network-inlet ^Socket socket]
   (daemon-thread
    "xr-client"
    (fn []
@@ -476,7 +531,8 @@
              (do (write-websocket-handshake out
                                             (get-in request [:headers
                                                              "sec-websocket-key"]))
-                 (websocket-loop session relationship-state in out))
+                 (websocket-loop session {:relationship-state relationship-state
+                                          :network-inlet network-inlet} in out))
 
              (and (= "GET" (:method request))
                   (relationship-api? request))
@@ -521,6 +577,7 @@
          host (or host default-host)
          tls (or tls {})
          relationship-state (atom nil)
+         network-inlet (atom (inlet/inlet))
          server (server-socket port host tls)
          running? (atom true)
          accept-thread
@@ -529,11 +586,12 @@
           (fn []
             (while @running?
               (try
-                (handle-socket session relationship-state (.accept server))
+                (handle-socket session relationship-state network-inlet (.accept server))
                 (catch java.net.SocketException _ nil)))))]
      {:server server
       :session session
       :relationship-state relationship-state
+      :network-inlet network-inlet
       :host host
       :scheme (if (:https? tls) "https" "http")
       :port (.getLocalPort server)

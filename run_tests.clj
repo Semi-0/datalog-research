@@ -78,6 +78,19 @@
     graph.vijual.compiler-2-demo-test
     graph.vijual.render-test])
 
+(def recovered-slice-test-namespaces
+  '[graph.xr-inspection-test
+    graph.xr-context-stream-test
+    experiments.synth-test
+    propagators.experimental.runner.profiling-test])
+
+(def relational-experiment-test-namespaces
+  '[examples.lain.relational-datalog.experiment
+    examples.lain.relational-datalog.semi-naive-test
+    examples.lain.relational-datalog.compare-engines-test
+    examples.lain.relational-datalog.proof-experiment-test
+    examples.lain.relational-datalog.clause-terms-test])
+
 (def leapfrog-test-namespaces
   '[leapfrog.pure-test
     leapfrog.differential-test])
@@ -91,12 +104,15 @@
 
 (def all-test-namespaces
   (vec (concat propagators-test-namespaces
+               recovered-slice-test-namespaces
                leapfrog-test-namespaces
                differential-dataflow-test-namespaces
                graph-test-namespaces)))
 
 (def suite-aliases
   {"propagators" propagators-test-namespaces
+   "recovered-slices" recovered-slice-test-namespaces
+   "relational-experiments" relational-experiment-test-namespaces
    "graph" graph-test-namespaces
    "leapfrog" leapfrog-test-namespaces
    "differential-dataflow" differential-dataflow-test-namespaces

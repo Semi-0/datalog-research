@@ -1,0 +1,5 @@
+;; Run after datalog.lain; this single-rule query is verified.
+(derive
+  (database (list (list :edge 1 2)))
+  (list (list :path :x :y)
+        (list (list :edge :x :y))))

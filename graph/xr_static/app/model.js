@@ -7,7 +7,7 @@ export const initialModel = () => ({
   layout: {},
   pulses: {},
   selectedId: null,
-  viewMode: "3d",
+  viewMode: "2d",
   xr: { supported: false, active: false, lastPinchAt: 0 },
 });
 
