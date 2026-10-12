@@ -1,0 +1,17 @@
+(let []
+  (define pythagorean
+    (network (domain)
+      (let-cell [repairs choice-a choice-b choice-c]
+        (define a (amb domain repairs choice-a))
+        (define b (amb domain repairs choice-b))
+        (define c (amb domain repairs choice-c))
+        (define choices (list choice-a choice-b choice-c))
+        (define valid (and (<= a b)
+                           (<= b c)
+                           (= (+ (* a a) (* b b)) (* c c))))
+        (define failure (require valid))
+        (define knowledge (learn failure choices))
+        (-> (backtrack choices knowledge) repairs)
+        ;; Keep ordinary compound structure outside the scalar TTMS wrapper.
+        (list (switch a valid) (switch b valid) (switch c valid)))))
+  (pythagorean (list 1 2 3 4 5)))
