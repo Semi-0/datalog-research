@@ -1,0 +1,5 @@
+;; Solver is a first-class cell value; the same query serves every strategy.
+;; CONSTRAINT and DOMAIN are replaced by the benchmark's declared fixture.
+(let-cell [a b c]
+  (define constraint CONSTRAINT)
+  (solve solver constraint DOMAIN a b c))

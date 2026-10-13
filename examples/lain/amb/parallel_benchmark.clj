@@ -12,11 +12,17 @@
             [propagators.network-cache :as cache]
             [propagators.runner :as runner]))
 
+(def ^:dynamic *advance-transform*
+  "Optional experiment instrumentation, outside Net and solver policy."
+  identity)
+
 (defn profile [f]
   (let [counts (atom {:activations 0}) predicates (atom 0)
         before (measurement/allocated-bytes) started (System/nanoTime)
         result (binding [cache/*cache* nil previous/*predicate-checks* predicates
-                         runner/*advance-transform* (checkpoint/counter-transform counts)] (f))
+                         runner/*advance-transform*
+                         (runner/compose-advance-transforms
+                          *advance-transform* (checkpoint/counter-transform counts))] (f))
         elapsed (/ (- (System/nanoTime) started) 1e6)
         after (measurement/allocated-bytes)]
     (assoc result :profile
