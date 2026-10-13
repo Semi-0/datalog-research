@@ -1,0 +1,6 @@
+;; Positive transitive closure is a network fixed point, not a host-side loop.
+;; The opt-in relation runner unions observations in reachable.
+(let-cell [reachable]
+  (-> edges reachable)
+  (-> (extend-reach reachable edges) reachable)
+  reachable)

@@ -1,0 +1,29 @@
+(let []
+  (define empty? (network (xs) (= xs :compiler-2/list-empty)))
+  (define append
+    (network (xs ys)
+      ((if (empty? xs)
+         (network () ys)
+         (network () (cons (car xs) (append (cdr xs) ys)))))))
+  (define flat-map
+    (network (f xs)
+      ((if (empty? xs)
+         (network () (list))
+         (network () (append (f (car xs)) (flat-map f (cdr xs))))))))
+  (define constraint
+    (network (a b c)
+      (and (and (<= a b) (<= b c))
+           (= (+ (* a a) (* b b)) (* c c)))))
+  (define domain (list 1 2 3 4 5))
+  (flat-map
+    (network (a)
+      (flat-map
+        (network (b)
+          (flat-map
+            (network (c)
+              ((if (constraint a b c)
+                 (network () (list (list a b c)))
+                 (network () (list)))))
+            domain))
+        domain))
+    domain))

@@ -1,0 +1,6 @@
+(let-cell [a b c]
+  (define constraint
+    (network (a b c)
+      (and (and (<= a b) (<= b c))
+           (= (+ (* a a) (* b b)) (* c c)))))
+  (solve solver constraint (list 1 2 3 4 5) a b c))

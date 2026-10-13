@@ -1,0 +1,8 @@
+;; facts is the immutable result of the knowledge network reaching quiescence.
+;; a, b, c are missing nodes; b witnesses composable transitive knowledge.
+(let-cell [a b c]
+  (define constraint
+    (network (a b c)
+      (and (reachable? facts a b)
+           (reachable? facts b c))))
+  (solve solver constraint DOMAIN a b c))
