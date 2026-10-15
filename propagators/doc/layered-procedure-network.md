@@ -13,7 +13,7 @@ Source files:
 
 Layered procedures are modeled as pure propagator values.
 
-Bootstrap and compile policy: see [Builder Policy, Run Order, and Correctness](builder-policy-run-order-and-correctness.md) and [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md). Test helpers that split `eval-layered` (install apply, then seed, then manual `run-propagators`) assume **`:lazy`**; under **`:queue`** they run apply before seeds unless refactored into a single `(do …)` flush boundary. A layered procedure
+Bootstrap and compile policy: see [Builder Policy, Run Order, and Correctness](../../experiments/runtime/builder-policy-run-order-and-correctness.md) and [Eager Install and Arithmetic Procedure](../../experiments/runtime/eager-install-and-arithmetic-procedure.md). Test helpers that split `eval-layered` (install apply, then seed, then manual `run-propagators`) assume **`:lazy`**; under **`:queue`** they run apply before seeds unless refactored into a single `(do …)` flush boundary. A layered procedure
 cell stores a named-network procedure object. Extending a procedure means
 attaching a closure cell as a compound-object slot on that procedure cell.
 
@@ -230,7 +230,7 @@ This benchmark is intentionally outside `clj -M:test`.
 The current tests use closure cells + slot propagators for reactive procedure
 extension.
 
-See [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)
+See [Eager Install and Arithmetic Procedure](../../experiments/runtime/eager-install-and-arithmetic-procedure.md)
 for the two-stage plan to (1) experiment with eager installer/compile
 activation, then (2) add `install-arithmetic-procedure` as a one-shot bootstrap
 over `proc`, with `p:layered-procedure` kept for late or external layers.

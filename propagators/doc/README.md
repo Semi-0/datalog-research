@@ -1,8 +1,7 @@
 # Propagators Documentation
 
-This folder holds design notes for the propagator experiment. It intentionally
-lives under `propagators/` so the propagator system can be separated from the
-larger repo later.
+This folder holds runtime and architecture documentation. Experiment proposals,
+reports, and benchmarks are collected in [Experiments](../../experiments/README.md).
 
 ## Four core features
 
@@ -88,9 +87,9 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
 - [Boundary Effect Runtime](boundary-effect-runtime.md) defines the commit /
   propagate / effect split for external IO, so XR, TUI, trace, socket, and file
   communication stay outside propagation.
-- [Cells As Agents](cells-as-agents.md) proposes agent descriptions as partial
+- [Cells As Agents](../../experiments/research/cells-as-agents.md) proposes agent descriptions as partial
   information, including contradiction provenance, supported behavior, and
-  explicit effect commitment. [Composition examples](agent-network-examples.md)
+  explicit effect commitment. [Composition examples](../../experiments/research/agent-network-examples.md)
   compare six possible network structures with current mechanisms.
 - [XR Runtime Surface](xr-runtime-surface.md) describes the browser/WebXR graph
   projection experiment and its boundary rule: extend graph or send a cell
@@ -104,14 +103,14 @@ See [Four Core Features](four-core-features.md) for definitions, MIT comparison,
   layered/generic procedures, compiler-2, and hot reload.
 - `propagators.stdlib.provenance-arithmetic` — `+`, `-`, `*`, `/` that bootstrap
   base and provenance on a fresh `proc` and return the `layered/*` installer.
-- [Eager Install and Arithmetic Procedure](eager-install-and-arithmetic-procedure.md)
+- [Eager Install and Arithmetic Procedure](../../experiments/runtime/eager-install-and-arithmetic-procedure.md)
   is a two-stage plan: experiment eager installer/macro activation (stage 1),
   then define `install-arithmetic-procedure` as a bootstrap installer (stage 2).
-- [Builder Policy, Run Order, and Correctness](builder-policy-run-order-and-correctness.md)
+- [Builder Policy, Run Order, and Correctness](../../experiments/runtime/builder-policy-run-order-and-correctness.md)
   explains why propagator results should not depend on task order, how `:lazy`
   vs `:queue` flush boundaries interact with that goal, and which test suites
   break if policy is applied globally without refactoring helpers.
-- [Experiments And Commands](experiments-and-commands.md) keeps test commands,
+- [Experiments And Commands](../../experiments/runtime/experiments-and-commands.md) keeps test commands,
   benchmark commands, file maps, and open-work notes.
 
 ## Current Direction

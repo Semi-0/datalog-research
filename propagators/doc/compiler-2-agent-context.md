@@ -862,6 +862,6 @@ wrong environment is not correctness.
   benchmark receipts.
 - `propagators/doc/compiler-2-progress-and-priorities.md`: lexical/runtime
   decisions and deferred work.
-- `propagators/doc/multi-client-runtime-bottleneck.md`: watcher/runtime scaling
+- `experiments/runtime/multi-client-runtime-bottleneck.md`: watcher/runtime scaling
   evidence.
 - `todo/async-propagator-trace-runtime.md`: trace worker boundary design gap.

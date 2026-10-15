@@ -147,7 +147,7 @@ not yet part of this compiler surface.
 controls whether compile install/seed only wire topology or enqueue tasks drained
 at `(do …)` and `eval-net` flush boundaries. Scheduler order should still be
 immaterial at quiescence; flush **placement** is not — see
-[Builder Policy, Run Order, and Correctness](builder-policy-run-order-and-correctness.md).
+[Builder Policy, Run Order, and Correctness](../../experiments/runtime/builder-policy-run-order-and-correctness.md).
 
 ## Assumptions
 

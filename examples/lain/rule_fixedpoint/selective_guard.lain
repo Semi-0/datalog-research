@@ -1,0 +1,11 @@
+;; A meaningful guard control, separate from unconditional dataflow rules.
+(let-cell []
+  (define ceiling 4)
+  (rule-set
+    (guarded-rule
+      (rule :answer-via-left-right
+        (relation :answer :x :z)
+        (relation :left :x :y)
+        (relation :right :y :z))
+      (network (x y z)
+        (and (< z ceiling) (= (+ x y) z))))))

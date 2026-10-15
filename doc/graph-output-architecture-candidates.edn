@@ -12,7 +12,7 @@
    :verification {:infrastructure "12112d2bd937dd968f143bcd85f9656ed026ddb3"
                   :compiler "1e288c27e302521c665abf8d38f5eb8310a046c8"
                   :runtime "1885deb38d6c43d3f70ff82ffc4c1ec03b90b73d"
-                  :report "doc/graph-declared-application-outputs.md"}}
+                  :report "experiments/runtime/graph-declared-application-outputs.md"}}
   {:id :decision/application-outputs-extend-net-graph
    :type :decision
    :evidence-state :needs-verification

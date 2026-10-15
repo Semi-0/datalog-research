@@ -1,0 +1,10 @@
+;; Complete declarations; the evaluator strategy is supplied independently.
+(rule-set
+  (rule :edge-to-reach
+    (relation :reach :x :y)
+    (relation :edge :x :y))
+
+  (rule :reach-via-reach-edge
+    (relation :reach :x :z)
+    (relation :reach :x :y)
+    (relation :edge :y :z)))

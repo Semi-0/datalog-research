@@ -23,7 +23,7 @@ Start here:
 - [Named network evidence](doc/named-network-evidence.md)
 - [Compound runtime](doc/compound-runtime.md)
 - [Compound data linked-list model](doc/compound-data-linked-list.md)
-- [Experiments and commands](doc/experiments-and-commands.md)
+- [Experiments and commands](../experiments/runtime/experiments-and-commands.md)
 
 Current warning: `compound_data.clj` is a linked-list-centered spike. It works
 for the present tests, but the dispatch logic is centralized in

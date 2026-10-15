@@ -34,7 +34,7 @@ This document is the canonical place for that framing. Detailed mechanics live i
 
 **MIT reference:** “Run the network” until nothing pending.
 
-**This repo:** `run-tasks` drains a FIFO queue of propagator ids (`eval-propagator` → `eval-cells` → enqueue downstream). Inner fixpoints appear inside runtime compounds (`compound-activate`) and layered apply (`p:apply-layered` runs a subnet to quiescence). Compile can defer runs (`:lazy`) or batch-enqueue at flush boundaries (`:queue` on branch `experiment/eager-install-stage-1`; see [Builder Policy](builder-policy-run-order-and-correctness.md)).
+**This repo:** `run-tasks` drains a FIFO queue of propagator ids (`eval-propagator` → `eval-cells` → enqueue downstream). Inner fixpoints appear inside runtime compounds (`compound-activate`) and layered apply (`p:apply-layered` runs a subnet to quiescence). Compile can defer runs (`:lazy`) or batch-enqueue at flush boundaries (`:queue` on branch `experiment/eager-install-stage-1`; see [Builder Policy](../../experiments/runtime/builder-policy-run-order-and-correctness.md)).
 
 ---
 
@@ -110,7 +110,7 @@ The long single-file `propagators/NOTES.md` was split into `propagators/doc/*`. 
 | **Compound data** | Linked-list spike documented as fragile; **compound-object slot sync** (`p:car` / `p:cdr`) is the replacement direction |
 | **Layered procedures** | `p:layered-procedure`, `p:apply-layered`, `layered/+` … `layered//`, `install-layered-procedure!`, **`provenance-arithmetic`** (`+` `-` `*` `/` with base + provenance bootstrap) |
 | **Stdlib** | Leaf namespaces under `propagators.stdlib.*`; deprecated barrel |
-| **Builder policy** | Stage-1 `:queue` + flush experiment on `experiment/eager-install-stage-1`; results on `main` in [Builder Policy](builder-policy-run-order-and-correctness.md) and [Eager Install](eager-install-and-arithmetic-procedure.md) |
+| **Builder policy** | Stage-1 `:queue` + flush experiment on `experiment/eager-install-stage-1`; results on `main` in [Builder Policy](../../experiments/runtime/builder-policy-run-order-and-correctness.md) and [Eager Install](../../experiments/runtime/eager-install-and-arithmetic-procedure.md) |
 | **Tests** | Default layered tests use full bootstrap; reactive extension is explicit special-case tests only |
 
 ---
@@ -136,7 +136,7 @@ The long single-file `propagators/NOTES.md` was split into `propagators/doc/*`. 
 3. **Networked semantics** — compiled compound lowering; port-order discipline for set-backed graph ports.
 4. **Dependence tracking** — merge-time subsystem on `cell-merge` (MIT-shaped); do not wire into `eval-cell` / `eval-propagator`; not the same as layered **:provenance**.
 
-Commands and file map: [Experiments And Commands](experiments-and-commands.md).
+Commands and file map: [Experiments And Commands](../../experiments/runtime/experiments-and-commands.md).
 
 ---
 

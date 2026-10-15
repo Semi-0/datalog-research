@@ -5,6 +5,7 @@
   clojure -M:test differential-dataflow    ; differential dataflow suites
   clojure -M:test leapfrog                 ; leapfrog suites
   clojure -M:test propagators              ; stable propagator suites
+  clojure -M:test rule-fixedpoint          ; opt-in DB/rule evaluator experiment
   clojure -M:test propagators.network-test ; one suite"
   (:require [clojure.string :as str]
             [clojure.test :refer [run-tests]]))
@@ -91,6 +92,11 @@
     examples.lain.relational-datalog.proof-experiment-test
     examples.lain.relational-datalog.clause-terms-test])
 
+(def rule-fixedpoint-test-namespaces
+  '[propagators.experimental.rule-fixedpoint-test
+    propagators.experimental.rule-fixedpoint-validation-test
+    propagators.experimental.rule-fixedpoint-catalog-test])
+
 (def leapfrog-test-namespaces
   '[leapfrog.pure-test
     leapfrog.differential-test])
@@ -113,6 +119,7 @@
   {"propagators" propagators-test-namespaces
    "recovered-slices" recovered-slice-test-namespaces
    "relational-experiments" relational-experiment-test-namespaces
+   "rule-fixedpoint" rule-fixedpoint-test-namespaces
    "graph" graph-test-namespaces
    "leapfrog" leapfrog-test-namespaces
    "differential-dataflow" differential-dataflow-test-namespaces

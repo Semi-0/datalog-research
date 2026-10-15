@@ -199,7 +199,7 @@ The implementation report records **1,336 focused** and **3,054 default-suite**
 passing assertions. The isolated staged TTMS tree also passes **72 additional**
 event/visualization/dataflow assertions. Separate unfinished tracer work has two
 known error-reporting failures and is excluded from that tree. See
-[the report](../../examples/lain/visualization_combinators/SUPPORT_RETRACTION_REPORT.md)
+[the report](../../experiments/visualization_combinators/SUPPORT_RETRACTION_REPORT.md)
 for development history and remaining integration slices.
 
 TTMS remains opt-in. General transport audit, automatic tracer source/epoch

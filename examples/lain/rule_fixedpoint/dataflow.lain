@@ -1,0 +1,16 @@
+;; Complete rule declarations; keywords name logical variables.
+;; Only the opt-in session extension provides relation, rule and rule-set.
+(rule-set
+  (rule :flow-to-reach
+    (relation :reach :x :y)
+    (relation :flow :x :y))
+
+  (rule :reach-via-reach-flow
+    (relation :reach :x :z)
+    (relation :reach :x :y)
+    (relation :flow :y :z))
+
+  (rule :taint-via-taint-flow
+    (relation :taint :x :z)
+    (relation :taint :x :y)
+    (relation :flow :y :z)))

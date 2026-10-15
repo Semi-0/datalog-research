@@ -149,7 +149,7 @@ only after that owner-module change has its own boundary, verification, commit,
 and delivery record.
 
 The Compiler 2 application work provides both failure and recovery evidence.
-The [scope-drift incident](compiler-2-direct-gur-application-incident-report.md)
+The [scope-drift incident](../../experiments/compiler-2/compiler-2-direct-gur-application-incident-report.md)
 records how a compiler refactor expanded into shared GUR behavior. The
 [flat-GUR delivery record](flat-gur-compiler-2-application.md#multi-repository-delivery-gap)
 records the corrected repository ownership and the stop at `wired` when the

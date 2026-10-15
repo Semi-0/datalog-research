@@ -691,7 +691,7 @@ correct path is explicit `be:+`. On the captured 5-update run:
 - full-rebuild fallback count stayed `0`.
 
 The raw measurements are recorded in
-`propagators/doc/behavior-event-split-benchmark.md`.
+`experiments/benchmarks/behavior-event-split-benchmark.md`.
 
 ## Behavior Compiler V1
 

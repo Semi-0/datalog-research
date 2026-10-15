@@ -1,5 +1,8 @@
 # Compiler 2 layout
 
+Experiment plans, reports, and benchmarks are collected in
+[Experiments](../experiments/README.md); this directory retains compiler contracts.
+
 - [Lain syntax](syntax-design.md) defines the canonical functional-network
   grammar, cell returns, definition receipts, and returned-member ports.
 - [Migration verification](functional-network-migration.md) records owner
@@ -35,4 +38,4 @@ only on `lain-infrastructure`.
 
 Current implementation status, unresolved correctness issues, and their
 dependency order are tracked in
-[`../doc/compiler-2-progress-and-priorities.md`](../doc/compiler-2-progress-and-priorities.md).
+[`../doc/compiler-2-progress-and-priorities.md`](compiler-2-progress-and-priorities.md).

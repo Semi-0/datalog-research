@@ -1,10 +1,10 @@
 ;; Benchmarks: leapfrog vs differential-leapfrog (manual compare with leapfrog-rs via cargo bench).
-;; Recorded results and crossover notes: docs/bench-incremental-path-expansion.md
+;; Recorded results and crossover notes: experiments/benchmarks/bench-incremental-path-expansion.md
 (ns bench-compare
   (:require [differential-leapfrog.core :as d]
             [leapfrog :refer [R S T lftj path-rules semi-naive semi-naive-step]]))
 
-;; --- recorded sweep (2026-05-19, single JVM); see docs/bench-incremental-path-expansion.md ---
+;; --- recorded sweep (2026-05-19, single JVM); see experiments/benchmarks/bench-incremental-path-expansion.md ---
 
 (def ^:private dleap-drain-timeout-ms 200)
 
