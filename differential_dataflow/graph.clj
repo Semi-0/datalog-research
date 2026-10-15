@@ -34,8 +34,9 @@
         idx-b'  (index/merge-deltas idx-b delta-b)
 
         rows    (ms/consolidate (into rows-a rows-b))
-        keys-a  (vec (keys idx-a'))
-        keys-b  (vec (keys idx-b'))]
+        ;; Untouched bags were already consolidated by the preceding batch.
+        keys-a  (vec (keys delta-a))
+        keys-b  (vec (keys delta-b))]
     [[(index/compact-keys idx-a' keys-a)
       (index/compact-keys idx-b' keys-b)]
      rows]))

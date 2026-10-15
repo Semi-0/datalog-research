@@ -1,6 +1,7 @@
 ;; Maintained from Conrad Barski's vijual idea, modernized for this repo.
 (ns graph.vijual
   (:require [graph.vijual.layout :as layout]
+            [graph.vijual.layout.nodes :as nodes]
             [graph.vijual.render :as render])
   (:import (java.io File)
            (javax.imageio ImageIO)))
@@ -14,6 +15,11 @@
 (def draw-shapes-image render/draw-shapes-image)
 
 (def layout-result layout/layout-result)
+(def layout-stress-nodes nodes/layout-nodes)
+(def create-stress-layout nodes/create-layout)
+(def update-stress-layout nodes/update-layout)
+(def advance-stress-layout nodes/advance-layout)
+(def stress-layout-flow nodes/layout-flow)
 (def layout-graph layout/layout-graph)
 (def layout-force-result layout/layout-force-result)
 (def layout-force-graph layout/layout-force-graph)
