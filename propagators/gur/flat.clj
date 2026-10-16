@@ -4,6 +4,7 @@
   This tests recursive HOP as delayed main-network topology. It is separate
   from the canonical accumulating GUR and from the nested network VM."
   (:require [propagators.application :as app]
+            [propagators.application-dispatch :as application-dispatch]
             [propagators.cells.value :as value]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -103,25 +104,31 @@
    :when (fn [when-key condition-id body-f]
            (when-effect when-key condition-id body-f))})
 
+(defmethod application-dispatch/application-effects :default
+  [closure {:keys [network closure-id app-key] :as context} arg-ids out-id]
+  (cond
+    (unusable-closure? closure)
+    []
+
+    (not (recursive-closure? closure))
+    [(message out-id value/contradiction)]
+
+    (frame-declared? network app-key)
+    []
+
+    :else
+    (let [body (:gur.flat/body closure)]
+      [(frame-bootstrap app-key closure-id out-id)
+       (body context arg-ids out-id)])))
+
 (defn- apply-closure-activation
   [closure-id arg-ids out-id app-key]
-  (fn [_inputs _outputs network]
-    (let [closure (app/cell-strongest-or-nothing network closure-id)]
-      (cond
-        (unusable-closure? closure)
-        []
-
-        (not (recursive-closure? closure))
-        [(message out-id value/contradiction)]
-
-        (frame-declared? network app-key)
-        []
-
-        :else
-        (let [ctx (frame-context network closure-id app-key)
-              body (:gur.flat/body closure)]
-          [(frame-bootstrap app-key closure-id out-id)
-           (body ctx arg-ids out-id)])))))
+  (let [context (frame-context nil closure-id app-key)]
+    (fn [_inputs _outputs network]
+      (application-dispatch/application-effects
+       (app/cell-strongest-or-nothing network closure-id)
+       (assoc context :network network)
+       arg-ids out-id))))
 
 (defn apply-closure-effect
   "Declare a recursive closure application into the main network.

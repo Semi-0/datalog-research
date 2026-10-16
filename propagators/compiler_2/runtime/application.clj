@@ -468,7 +468,7 @@
    (declare-closure-effects
     compile* declaration-id lexical-env-id closure-info
     gur-context invocation-ids result-id :inbound)
-   gur-context result-id output-boundary))
+   gur-context result-id (get gur-context :application/output-boundary output-boundary)))
 
 (defn- primitive-input-topology
   [base application-id argument-ids]

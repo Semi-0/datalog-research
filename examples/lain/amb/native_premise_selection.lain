@@ -1,0 +1,12 @@
+(let-cell [repairs control]
+  (define plus-one (ttms-premise-closure (network (x) (+ x 1)) definition-one))
+  (define plus-ten (ttms-premise-closure (network (x) (+ x 10)) definition-ten))
+  (define chosen (amb (list 1 2) repairs control))
+  (define procedure (if (= chosen 1) plus-one plus-ten))
+  (define result (procedure 5))
+  (define valid (= result 15))
+  (define choices (list control))
+  (define failure (require valid))
+  (define knowledge (learn failure choices))
+  (-> (backtrack choices knowledge) repairs)
+  (list (switch chosen valid) (switch result valid)))
