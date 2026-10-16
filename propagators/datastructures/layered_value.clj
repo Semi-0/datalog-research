@@ -9,12 +9,16 @@
 
 (defn layer-present? [x layer]
   (cond
+    (value/contradiction? x) (and (vector? x)
+                                  (map? (second x))
+                                  (contains? (second x) layer))
     (net/net? x) (contains? (net/net-dict x) layer)
     (map? x) (contains? x layer)
     :else false))
 
 (defn layer-value [x layer]
   (cond
+    (value/contradiction? x) (if (vector? x) (get (second x) layer) nil)
     (net/net? x) (obj/slot-value x layer)
     (map? x) (get x layer)
     :else nil))
@@ -24,12 +28,15 @@
   [x]
   (if (layer-present? x :support) (layer-value x :support) #{}))
 
+(defn membership-of [x]
+  (if (layer-present? x :membership) (layer-value x :membership) #{}))
+
 (defn- support-layers [x]
   (cond
     (evidence/evidence-set? x) (mapcat support-layers x)
     (layer-present? x :base)
-    (cons (support-of x) (support-layers (layer-value x :base)))
-    :else [(support-of x)]))
+    (concat [(support-of x) (membership-of x)] (support-layers (layer-value x :base)))
+    :else [(support-of x) (membership-of x)]))
 
 (defmethod value/unusable? clojure.lang.IPersistentSet [x]
   ;; Named-network evidence is a transport container, not an opaque base.

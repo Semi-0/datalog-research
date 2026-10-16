@@ -17,7 +17,9 @@
    [(extension/extension-bundle
      {:id ::tracer
       :bindings [['relationship:roots (trace/roots-operator)]
-                 ['relationship:dataflow (trace/dataflow-operator)]]
+                 ['relationship:dataflow (trace/dataflow-operator)]
+                 ['relationship:semantic (trace/semantic-operator)]
+                 ['relationship:roots-semantic (trace/roots-semantic-operator)]]
       :effects []})]})
 
 (defn bounded [f]
@@ -72,9 +74,9 @@
                            (define result (sample 2))" options))
         state @session]
     (is (semantic/semantic-trace-graph? (binding-value state 'result)))
-    ;; Roots omit child-owned topology. The body still publishes a supported
-    ;; complete snapshot; child inspection is a distinct observation.
-    (is (empty? (:nodes (binding-value state 'result))))
+    ;; A local input resolves to its caller. Root tracing shows the outer
+    ;; call boundary, and keeps its child-owned topology opaque.
+    (is (contains? (set (vals (:nodes (binding-value state 'result)))) 'sample))
     (is (seq (datum/support-of
               (net/network-cell-strongest
                (:program/net state)
@@ -121,3 +123,17 @@
             (is (empty? (:runtime/errors after))))
           (finally ((:close watcher)))))
       (finally (.delete file) (.delete replacement)))))
+
+(deftest direct-semantic-retains-ttms-publication-and-refreshes-appended-calls
+  (let [session (bounded #(loader/load-session-from-source
+                          "(define input 2) (define output (+ input 1))
+                           (define roots (relationship:roots input))
+                           (define projected (relationship:roots-semantic input))" options))
+        state @session id (env/resolve-binding-id (:program/net state) (:program/env state) 'projected)
+        strongest (net/network-cell-strongest (:program/net state) id)]
+    (is (seq (datum/support-of strongest)))
+    (is (contains? (set (vals (:nodes (binding-value state 'projected)))) '+))
+    (is (nil? (get-in (bounded #(loader/load-source! session "(define doubled (* output 2))"))
+                     [:load-result :error])))
+    (is (contains? (set (vals (:nodes (binding-value @session 'projected)))) '*))
+    (is (seq (datum/support-of (net/network-cell-strongest (:program/net @session) id))))))

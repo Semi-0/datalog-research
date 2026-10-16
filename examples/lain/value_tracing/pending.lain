@@ -1,0 +1,7 @@
+(def-cells input result)
+
+(-> (+ input 1) result)
+
+(display
+  (relationship:with-values
+    (relationship:roots-semantic input)))

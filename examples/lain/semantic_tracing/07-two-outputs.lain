@@ -1,0 +1,17 @@
+(load-lain
+  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+
+; two outputs: sum = 7, product = 12, result = 19
+(define stats
+  (network [x y sum product]
+    (-> (+ x y) sum)
+    (-> (* x y) product)
+    (list sum product)))
+
+(def-cells sum product result)
+
+(stats 3 4 sum product)
+(-> (+ sum product) result)
+
+(display
+  (observe-dependents-retained sum))

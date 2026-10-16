@@ -72,11 +72,9 @@
     "registered" (do (require 'propagators.experimental.ttms-application)
                        (ordinary-workloads))
     "native" (let [prepare (requiring-resolve 'examples.lain.amb.native-premise-selection/prepare)]
-               [{:case :native-amb :expected [2 15]
+               [{:case :native-amb :expected 2
                  :prepare #(:compiled (prepare))
-                 :observe (fn [network root]
-                            (let [snapshot (observation/list-snapshot network root)]
-                              (if (:ready? snapshot) (:items snapshot) :pending)))}])
+                 :observe observation/cell-base}])
     (throw (ex-info "Unknown benchmark mode" {:mode mode}))))
 
 (defn- legacy-activation [path]

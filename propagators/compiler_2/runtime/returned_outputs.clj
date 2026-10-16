@@ -1,6 +1,8 @@
 (ns propagators.compiler-2.runtime.returned-outputs
   "Declare one stable outbound port for each returned linked-list member."
   (:require [propagators.compiler-2.runtime.list-interface :as list-interface]
+            [propagators.compiler-2.model.env :as env]
+            [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.gur :as gur]
@@ -32,8 +34,12 @@
   [(copy-effect scope source target)])
 
 (defn- output-boundary-effects [context project routes application-id position head]
-  (let [port-id (gur/stable-node-id [application-id :output-port position])]
-    (into [(gur/declare-cell port-id)
+  (let [port-id (gur/stable-node-id [application-id :output-port position])
+        network (:network context)
+        name (cell/cell-name (net/network-env-lookup network head))
+        label (or (get (env/binding-names network) head)
+                  (if (cell/anonymous-name? name) [:output position] name))]
+    (into [(gur/declare-cell port-id label)
            (patch/extend-propagator-outputs
             (gur/stable-node-id [application-id :apply-prop]) [port-id])
            (gur/bind-name output-scope [application-id position] port-id)

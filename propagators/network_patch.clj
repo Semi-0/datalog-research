@@ -9,14 +9,15 @@
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
+            [propagators.observer :as observer]
             [propagators.propagator :as prop]
             [propagators.relationship :as relationship]))
 
 (def name-bindings-key [:network :name-bindings])
 
-(defn declare-cell [id]
-  {:op :network/declare-cell
-   :id id})
+(defn declare-cell
+  ([id] {:op :network/declare-cell :id id})
+  ([id name] {:op :network/declare-cell :id id :name name}))
 
 (defn declare-propagator
   ([id inputs outputs activate]
@@ -27,7 +28,10 @@
     :name name
     :inputs (vec inputs)
     :outputs (vec outputs)
-    :activate activate}))
+     :activate activate}))
+
+(defn declare-observer [id name sample]
+  {:op :network/declare-observer :id id :name name :sample sample})
 
 (defn bind-name [scope name id]
   {:op :network/bind-name
@@ -43,7 +47,8 @@
 (defn network-declaration?
   [patch]
   (contains? #{:network/declare-cell
-               :network/declare-propagator
+                :network/declare-propagator
+                :network/declare-observer
                :network/extend-propagator-outputs
                :network/bind-name}
              (:op patch)))
@@ -75,13 +80,20 @@
 (defn apply-declaration-patch
   [emitter declaration network]
   (case (:op declaration)
+    :network/declare-observer
+    (let [[_ installed] ((observer/construct-observer
+                          (:id declaration) (:name declaration) (:sample declaration)) network)]
+      [tq/empty-queue installed])
+
     :network/extend-propagator-outputs
     (apply-output-extension emitter declaration network)
 
     :network/declare-cell
     (let [id (:id declaration)
           new? (not (contains? (net/net-env network) id))
-          installed (nb/ensure-cell network id)]
+          installed (if (contains? declaration :name)
+                       (nb/ensure-cell network id (:name declaration))
+                       (nb/ensure-cell network id))]
       [tq/empty-queue
        (relate-introduced installed emitter (if new? [id] []))])
 

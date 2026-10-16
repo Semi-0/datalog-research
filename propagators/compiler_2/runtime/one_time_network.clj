@@ -136,7 +136,10 @@
   id)
 
 (defn run-flat-gur-once
-  [active-net context-id closure-id argument-ids projection result-id]
+  ([active-net context-id closure-id argument-ids projection result-id]
+   (run-flat-gur-once active-net context-id closure-id argument-ids projection result-id
+                      (observation/frozen-snapshot active-net)))
+  ([active-net context-id closure-id argument-ids projection result-id snapshot]
   (let [snapshot-id
         (assert-private-id!
          active-net
@@ -148,9 +151,6 @@
          active-net
          (private-id result-id :result)
          :result)
-
-        snapshot
-        (observation/frozen-snapshot active-net)
 
         prepared
         (-> active-net
@@ -174,8 +174,8 @@
      :temporary-net
      completed
 
-     :temporary-net-disposed?
-     true}))
+      :temporary-net-disposed?
+      true})))
 
 (defn- usable-inputs?
   [network input-ids]

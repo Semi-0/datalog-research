@@ -16,10 +16,18 @@
 
 (defn ensure-cell
   "Install an empty cell only when `id` is not already present in `n`."
-  [n id]
-  (if (contains? (net/net-env n) id)
-    n
-    (install-cell n id)))
+  ([n id]
+   (if (contains? (net/net-env n) id)
+     n
+     (install-cell n id)))
+  ([n id name]
+   (let [prepared (ensure-cell n id)
+         entry (net/network-env-lookup prepared id)]
+     (if (cell/cell? entry)
+       (if (cell/anonymous-name? (cell/cell-name entry))
+         (net/assoc-net-cell prepared id (assoc entry :name name))
+         prepared)
+       (throw (ex-info "Named cell declaration targets a non-cell" {:id id :name name}))))))
 
 (defn extend-propagator-outputs
   "Add graph output edges without changing positional activation arguments.
@@ -59,7 +67,7 @@
 (defn seed-cell
   "Set `id` to a cell whose content and strongest value are both `v`."
   [n id v]
-  (net/assoc-net-cell n id (cell/cell v v)))
+  (net/assoc-net-cell n id (cell/cell (cell/cell-name (net/network-env-lookup n id)) v v)))
 
 (defn install-propagator
   "Install a propagator with `installer`, returning `[prop-id updated-network]`."

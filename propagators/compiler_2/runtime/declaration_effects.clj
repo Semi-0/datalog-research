@@ -19,7 +19,7 @@
 (defn begin [network]
   (let [base (discard network)]
     (net/assoc-net-dict-entry base buffer-key
-      {:base base :effects [] :messages [] :message-positions {} :cells #{} :props #{} :names {} :values {}
+      {:base base :effects [] :messages [] :message-positions {} :cells #{} :cell-names {} :props #{} :names {} :values {}
        :entries {} :frames {}})))
 
 (defn result [network]
@@ -31,13 +31,18 @@
   (apply net/update-net-dict-entry network buffer-key f args))
 
 (defn emit-effect [network effect]
-  (if-let [{:keys [base cells props names]} (net/network-dict-entry network buffer-key)]
+  (if-let [{:keys [base cells cell-names props names]} (net/network-dict-entry network buffer-key)]
     (let [{:keys [op id scope name]} effect
           previous-name (get-in names [scope name]
                           (get-in (net/network-dict-entry base gur/name-bindings-key) [scope name]))
           known? (case op
-                   :network/declare-cell (or (contains? cells id) (contains? (net/net-env base) id))
+                   :network/declare-cell
+                   (and (or (contains? cells id) (contains? (net/net-env base) id))
+                        (or (not (contains? effect :name))
+                            (= name (get cell-names id
+                                         (cell/cell-name (net/network-env-lookup base id))))))
                    :network/declare-propagator (or (contains? props id) (contains? (net/net-env base) id))
+                   :network/declare-observer false
                    :network/bind-name (= id previous-name)
                    :network/extend-propagator-outputs false
                    (throw (ex-info "Unsupported compiler declaration effect" {:effect effect})))]
@@ -47,8 +52,13 @@
           (fn [buffer]
             (let [emitted (update buffer :effects conj effect)]
               (case op
-                :network/declare-cell (update emitted :cells conj id)
-                :network/declare-propagator (update emitted :props conj id)
+                :network/declare-cell
+                (let [declared (update emitted :cells conj id)]
+                  (if (contains? effect :name)
+                    (assoc-in declared [:cell-names id] name)
+                    declared))
+                 :network/declare-propagator (update emitted :props conj id)
+                 :network/declare-observer emitted
                 :network/bind-name (assoc-in emitted [:names scope name] id)
                 :network/extend-propagator-outputs emitted))))))
     network))
@@ -78,7 +88,9 @@
       (if (or (not (cell/cell? entry)) (identical? entry (get (:entries buffer) id)))
         network
         (-> network
-            (emit-effect (gur/declare-cell id))
+            (emit-effect (if (cell/anonymous-name? (cell/cell-name entry))
+                           (gur/declare-cell id)
+                           (gur/declare-cell id (cell/cell-name entry))))
             (emit-message (message/message id (cell/cell-content entry)))
             (update-buffer assoc-in [:entries id] entry))))
     network))
@@ -110,8 +122,9 @@
       network (distinct prop-ids))
     network))
 
-(defn ensure-cell [network id]
-  (register-cell (nb/ensure-cell network id) id))
+(defn ensure-cell
+  ([network id] (register-cell (nb/ensure-cell network id) id))
+  ([network id name] (register-cell (nb/ensure-cell network id name) id)))
 
 (defn seed-cell [network id candidate]
   (register-cell (nb/seed-cell network id candidate) id))

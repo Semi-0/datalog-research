@@ -2,6 +2,8 @@
   "Merge, strongest selection, and contradiction handling."
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
+            [propagators.cells.merge-failure :as merge-failure]
+            [propagators.cells.error-layer :as error-layer]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.datastructures.named-network :as named]
             [propagators.network :as net]
@@ -22,8 +24,13 @@
 
 (defn- semantic-merge-kind
   [content update]
-  (or (semantic-kind update)
-      (semantic-kind content)))
+  (let [left (semantic-kind content)
+        right (semantic-kind update)
+        evidence-kinds #{:support-collection :membership-collection}]
+    (if (and (evidence-kinds left) (evidence-kinds right)
+             (or (= :membership-collection left) (= :membership-collection right)))
+      :membership-collection
+      (or right left))))
 
 (defn- resolved [symbol]
   (delay (requiring-resolve symbol)))
@@ -158,7 +165,13 @@
 
 (defmethod built-in-cell-merge :support-collection
   [content update _network]
-  (@support-merge-fn content update))
+  (preserve-contradiction content update @support-merge-fn))
+
+(defmethod built-in-cell-merge :membership-collection
+  [content update _network]
+  (preserve-contradiction
+   content update
+   #((requiring-resolve 'propagators.datastructures.membership-collection/merge-content) %1 %2)))
 
 (defmethod built-in-cell-merge :event-content
   [content update _network]
@@ -308,15 +321,23 @@
     (try-cell-merge network content update)))
 
 (defn cell-merge
+  "Merge contributions without throwing; failures become explained contradiction."
   [content update network]
-  (if (= content update)
-    content
-    (if (semantic-merge-kind content update)
-      (built-in-cell-merge content update network)
-      (let [protocol-result (protocol-cell-merge content update network)]
-        (if (protocol-handled? protocol-result)
-          (protocol-handled-value protocol-result)
-          (built-in-cell-merge content update network))))))
+  (try
+    (cond
+      (= content update) content
+      (or (seq (error-layer/errors-of content))
+          (seq (error-layer/errors-of update)))
+      (error-layer/merge-contradictions content update)
+      :else
+      (if (semantic-merge-kind content update)
+        (built-in-cell-merge content update network)
+        (let [protocol-result (protocol-cell-merge content update network)]
+          (if (protocol-handled? protocol-result)
+            (protocol-handled-value protocol-result)
+            (built-in-cell-merge content update network)))))
+    (catch Throwable error
+      (merge-failure/contradiction content update error))))
 
 (def generic-merge cell-merge)
 
@@ -354,6 +375,11 @@
 (defmethod built-in-strongest-value :support-collection
   [content network]
   (@support-strongest-fn content #(cell-merge %1 %2 network)))
+
+(defmethod built-in-strongest-value :membership-collection
+  [content network]
+  ((requiring-resolve 'propagators.datastructures.membership-collection/strongest-value)
+   content #(cell-merge %1 %2 network) #(strongest-value % network)))
 
 (defmethod built-in-strongest-value :cell
   [c _network]

@@ -1,0 +1,52 @@
+{
+  "format": "lain-tiled-editor",
+  "version": 2,
+  "panes": [
+    {
+      "id": "network-replay",
+      "title": "",
+      "filename": "replay.lain",
+      "source": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "executedSource": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "extensions": [],
+      "extensionDraft": "(-> 7 input)",
+      "outputRatio": 0.5,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      },
+      "layerMode": "stack",
+      "layers": [
+        {
+          "id": "code",
+          "visible": true
+        },
+        {
+          "id": "topology",
+          "visible": true
+        },
+        {
+          "id": "result",
+          "visible": false
+        },
+        {
+          "id": "cell",
+          "visible": false
+        }
+      ]
+    }
+  ],
+  "activeDesktop": "desktop-1",
+  "desktops": [
+    {
+      "id": "desktop-1",
+      "name": "1",
+      "selectedPane": "network-replay",
+      "layout": {
+        "type": "pane",
+        "id": "network-replay"
+      }
+    }
+  ]
+}

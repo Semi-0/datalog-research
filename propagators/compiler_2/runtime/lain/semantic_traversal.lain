@@ -1,0 +1,27 @@
+(load-primitive-environment
+  "propagators/compiler_2/runtime/operators/network_traversal.clj"
+  :propagators.compiler-2.runtime.operators.network-traversal/traversal-environment
+  0)
+
+(define semantic-neighborhood
+  (network (snapshot root direction)
+    (traverse
+      (semantic-snapshot snapshot root)
+      root
+      direction)))
+
+(define observe-semantic
+  (network (root direction)
+    (observe-network root semantic-neighborhood direction)))
+
+(define observe-dependents
+  (network (root)
+    (observe-semantic root :downstream)))
+
+(define observe-semantic-retained
+  (network (root direction)
+    (observe-network-retained root semantic-neighborhood direction)))
+
+(define observe-dependents-retained
+  (network (root)
+    (observe-semantic-retained root :downstream)))

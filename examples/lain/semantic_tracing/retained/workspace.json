@@ -1,0 +1,81 @@
+{
+  "format": "lain-tiled-editor",
+  "version": 2,
+  "panes": [
+    {
+      "id": "09-semantic",
+      "title": "09-semantic",
+      "filename": "09-semantic.lain",
+      "source": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n(define left 3)\n(define right 4)\n(def-cells result)\n(-> (combine left right) result)\n(display\n  (relationship:with-values\n    (relationship:semantic left)))\n",
+      "executedSource": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n(define left 3)\n(define right 4)\n(def-cells result)\n(-> (combine left right) result)\n(display\n  (relationship:with-values\n    (relationship:semantic left)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.56,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "10-roots",
+      "title": "10-roots",
+      "filename": "10-roots.lain",
+      "source": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n(define left 3)\n(define right 4)\n(def-cells result)\n(-> (combine left right) result)\n(define roots\n  (relationship:roots left))\n(display\n  (relationship:with-values\n    (relationship:dataflow roots)))\n",
+      "executedSource": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n(define left 3)\n(define right 4)\n(def-cells result)\n(-> (combine left right) result)\n(define roots\n  (relationship:roots left))\n(display\n  (relationship:with-values\n    (relationship:dataflow roots)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.56,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "11-children",
+      "title": "11-children",
+      "filename": "11-children.lain",
+      "source": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n(define left 3)\n(define right 4)\n(def-cells result)\n(-> (combine left right) result)\n(display\n  (relationship:with-values\n    (relationship:children result)))\n",
+      "executedSource": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n(define left 3)\n(define right 4)\n(def-cells result)\n(-> (combine left right) result)\n(display\n  (relationship:with-values\n    (relationship:children result)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.56,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    }
+  ],
+  "activeDesktop": "tracer-1",
+  "desktops": [
+    {
+      "id": "tracer-1",
+      "name": "1",
+      "selectedPane": "09-semantic",
+      "layout": {
+        "type": "pane",
+        "id": "09-semantic"
+      }
+    },
+    {
+      "id": "tracer-2",
+      "name": "2",
+      "selectedPane": "10-roots",
+      "layout": {
+        "type": "pane",
+        "id": "10-roots"
+      }
+    },
+    {
+      "id": "tracer-3",
+      "name": "3",
+      "selectedPane": "11-children",
+      "layout": {
+        "type": "pane",
+        "id": "11-children"
+      }
+    }
+  ]
+}

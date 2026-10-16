@@ -106,4 +106,22 @@
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"unknown network patch"
-           (runner/apply-patch nil {:op :test/unknown} network))))))
+            (runner/apply-patch nil {:op :test/unknown} network))))))
+
+(deftest named-cell-declaration-preserves-existing-state-and-ownership
+  (let [[id propagator emitter-id] (repeatedly 3 new-node-id)
+        emitter (relationship/node-key [:outer] emitter-id)
+        base (-> net/empty-net (nb/ensure-cell id) (nb/seed-cell id 7))
+        [_ base] ((prop/construct-propagator propagator :test/noop (fn [_ _ _] []) [] []) base)
+        declaration (patch/declare-cell id 'input)
+        [tasks named] (runner/apply-patch emitter declaration base)
+        [_ repeated] (runner/apply-patch emitter declaration named)
+        [_ preserved] (runner/apply-patch emitter (patch/declare-cell id 'other) named)]
+    (is (= 'input (:name (net/network-env-lookup named id))))
+    (is (= 7 (net/network-cell-value named id)))
+    (is (= (net/net-graph base) (net/net-graph named)))
+    (is (= (net/net-relationship base) (net/net-relationship named)))
+    (is (= named repeated preserved))
+    (is (tq/queue-empty? tasks))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"targets a non-cell"
+                         (runner/apply-patch emitter (patch/declare-cell propagator 'invalid) base)))))

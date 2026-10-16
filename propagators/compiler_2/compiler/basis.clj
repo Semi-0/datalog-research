@@ -47,11 +47,13 @@
 
 (defn new-cell
   ([state role] (new-cell state role value/nothing))
-  ([{:keys [net] :as state} role v]
-   (let [id (node-id state role)]
+  ([state role v] (new-cell state role v role))
+  ([{:keys [net] :as state} role v name]
+   (let [id (node-id state role)
+         named (nb/ensure-cell net id name)]
      [(assoc state :net (if (value/nothing? v)
-                          (nb/ensure-cell net id)
-                          (seed-cell net id v)))
+                          named
+                          (seed-cell named id v)))
       (env/cell-binding id)])))
 
 (defn child [state segment]
@@ -521,6 +523,8 @@
              set)
         claim-id [:compiler-2/primitive out-id support-version]]
     (cond
+      (some #((requiring-resolve 'propagators.datastructures.layered-value/layer-present?) % :membership) arg-values)
+      [(message out-id ((requiring-resolve 'propagators.stdlib.membership/apply-value) f arg-values))]
       (some value/contradiction? bases)
       []
 

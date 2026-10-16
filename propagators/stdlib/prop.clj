@@ -6,6 +6,7 @@
             [propagators.cells.value :as value]
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support-collection :as collection]
+            [propagators.datastructures.membership-collection :as membership]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.propagator :as prop]))
@@ -15,6 +16,8 @@
   Preserve retained TTMS observations; ordinary values keep strongest semantics."
   [content strongest]
   (cond
+    (membership/content? content) content
+    (datum/layer-present? strongest :membership) (membership/content strongest)
     (collection/content? content) content
     (datum/layer-present? strongest :support) (collection/content strongest)
     :else strongest))

@@ -2,6 +2,7 @@
   "Layered computation and publication, independent of compiler declarations."
   (:require [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support-collection :as collection]
+            [propagators.datastructures.support :as premises]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
             [propagators.layered.procedure :as procedure]
@@ -18,13 +19,21 @@
    :f (fn [_ inputs outputs network]
         (second ((apply primitive (concat inputs outputs)) network)))})
 
-(defn publish [result]
-  (if (datum/layer-present? result :premise-state)
-    (publication/content result)
-    (collection/content
-     (if (datum/layer-present? result :support)
-       result
-       {:base (datum/layer-value result :base) :support #{}}))))
+(defn publish
+  ([result] (publish result []))
+  ([result arguments]
+   (cond
+     (some #(datum/layer-present? % :membership) arguments)
+     (publication/content {:base (datum/layer-value result :base)
+                           :support (datum/support-of result)
+                           :membership (apply premises/combine (map datum/membership-of arguments))
+                           :premise-state (apply premises/join (map state/states-of arguments))})
+     (datum/layer-present? result :premise-state) (publication/content result)
+     :else
+     (collection/content
+      (if (datum/layer-present? result :support)
+        result
+        {:base (datum/layer-value result :base) :support #{}})))))
 
 (defn install
   "Install existing base, support and state procedures. Return [Net props output].
@@ -43,7 +52,10 @@
         [id installed] ((layered/p:apply-layered procedure arguments output) (:net stateful))
         application (net/network-env-lookup installed id)
         activation (prop/compose-activation (prop/prop-f application)
-                                            (message/lift-message publish)
+                                            (fn [patches inputs outputs current]
+                                              ((message/lift-message
+                                                #(publish % (mapv (partial net/network-cell-strongest current) arguments)))
+                                               patches inputs outputs current))
                                             publication/transport-states)]
     [(net/assoc-net-prop installed id (assoc application :activate activation))
      (into [id] layer-props) output]))

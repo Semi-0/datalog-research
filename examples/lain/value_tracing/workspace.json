@@ -1,0 +1,138 @@
+{
+  "format": "lain-tiled-editor",
+  "version": 2,
+  "activeDesktop": "desktop-2",
+  "panes": [
+    {
+      "id": "values",
+      "title": "values",
+      "filename": "values.lain",
+      "source": "(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (+ left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic left)))\n",
+      "executedSource": "(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (+ left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic left)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      },
+      "outputRatio": 0.55,
+      "layerMode": "overlay",
+      "layers": [
+        {
+          "id": "code",
+          "visible": true
+        },
+        {
+          "id": "result",
+          "visible": false
+        },
+        {
+          "id": "topology",
+          "visible": true
+        },
+        {
+          "id": "cell",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "id": "layers",
+      "title": "layers",
+      "filename": "layers.lain",
+      "source": "(define input {:base 7\n               :unit \"ms\"\n               :quality :measured})\n(def-cells result)\n\n(-> (p:slot :base input) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "executedSource": "(define input {:base 7\n               :unit \"ms\"\n               :quality :measured})\n(def-cells result)\n\n(-> (p:slot :base input) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      },
+      "outputRatio": 0.55,
+      "layerMode": "overlay",
+      "layers": [
+        {
+          "id": "code",
+          "visible": true
+        },
+        {
+          "id": "result",
+          "visible": false
+        },
+        {
+          "id": "topology",
+          "visible": true
+        },
+        {
+          "id": "cell",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "id": "pending",
+      "title": "pending",
+      "filename": "pending.lain",
+      "source": "(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "executedSource": "(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      },
+      "outputRatio": 0.55,
+      "layerMode": "overlay",
+      "layers": [
+        {
+          "id": "code",
+          "visible": true
+        },
+        {
+          "id": "result",
+          "visible": false
+        },
+        {
+          "id": "topology",
+          "visible": true
+        },
+        {
+          "id": "cell",
+          "visible": false
+        }
+      ]
+    }
+  ],
+  "desktops": [
+    {
+      "id": "desktop-1",
+      "name": "1",
+      "selectedPane": "values",
+      "layout": {
+        "type": "pane",
+        "id": "values"
+      }
+    },
+    {
+      "id": "desktop-2",
+      "name": "2",
+      "selectedPane": "layers",
+      "layout": {
+        "type": "pane",
+        "id": "layers"
+      }
+    },
+    {
+      "id": "desktop-3",
+      "name": "3",
+      "selectedPane": "pending",
+      "layout": {
+        "type": "pane",
+        "id": "pending"
+      }
+    }
+  ]
+}

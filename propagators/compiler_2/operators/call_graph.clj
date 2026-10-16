@@ -1,6 +1,8 @@
 (ns propagators.compiler-2.operators.call-graph
   "Reactive call graphs derived from closure syntax and connected topology."
   (:require [propagators.cells.value :as value]
+            [propagators.cells.cell :as cell]
+            [propagators.compiler-2.operators.call-graph-syntax :as syntax]
             [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
@@ -34,36 +36,10 @@
     (str (ast/name operator-expr))
     (str (ast/type operator-expr))))
 
-(defn- expression-children
-  [expr]
-  (let [expr (ast/ast expr)]
-    (case (ast/type expr)
-      :apply (into [(ast/operator expr)] (ast/args expr))
-      :sequence (ast/body expr)
-      :let-cell [(ast/body expr)]
-      :let (concat (map second (ast/bindings expr)) [(ast/body expr)])
-      :when-topology [(ast/condition expr) (ast/body expr)]
-      :network [(ast/body expr)]
-      :compound [(ast/body expr)]
-      :def-net [(ast/body expr)]
-      :def-constraint [(ast/body expr)]
-      :def (keep identity [(ast/body expr)])
-      [])))
-
 (defn call-sites
-  "Return syntax-level application descriptors without consulting a network."
-  [expr]
-  (letfn [(walk [expr path]
-            (let [expr (ast/ast expr)
-                  site (when (= :apply (ast/type expr))
-                         [{:path path
-                           :operator (ast/operator expr)
-                           :operator-label (operator-label (ast/operator expr))}])]
-              (into (vec site)
-                    (mapcat (fn [[index child]]
-                              (walk child (conj path index))))
-                    (map-indexed vector (expression-children expr)))))]
-    (walk expr [])))
+  "Applications in this body only; nested callable declarations are opaque."
+  ([expr] (syntax/call-sites expr #{}))
+  ([expr bound] (syntax/call-sites expr bound)))
 
 (defn- empty-graph []
   (semantic-trace/graph-union
@@ -74,13 +50,19 @@
   (str "closure " (pr-str (closure-value/closure-inputs closure-info))))
 
 (defn- potential-callee-id
-  [network closure-info {:keys [operator operator-label]}]
-  (if (= :symbol (ast/type operator))
+  [network closure-id closure-info {:keys [operator path bound?]}]
+  (if (and (= :symbol (ast/type operator)) (not bound?))
     (or (env/lexical-binding-id network
                                 (ast/name operator)
                                 (closure-value/closure-env closure-info))
-        (stable-node-id :operator operator-label))
-    (stable-node-id :operator operator-label)))
+        (stable-node-id :callee closure-id path))
+    (stable-node-id :callee closure-id path)))
+
+(defn- callable-name [network id fallback]
+  (let [entry (net/network-env-lookup network id)]
+    (if (and (cell/cell? entry) (not (cell/anonymous-name? (cell/cell-name entry))))
+      (str (cell/cell-name entry))
+      fallback)))
 
 (defn potential-call-graph
   "Build the potential call graph stored in one closure body."
@@ -88,21 +70,27 @@
   (reduce
    (fn [graph {:keys [path operator-label] :as site}]
      (let [call-id (stable-node-id :potential closure-id path)
-           callee-id (potential-callee-id network closure-info site)
+           callee-id (potential-callee-id network closure-id closure-info site)
            callee-label (if (= closure-id callee-id)
                           (closure-label closure-info)
                           operator-label)]
        (semantic-trace/graph-union
         graph
-        {:nodes (assoc {closure-id (closure-label closure-info)
-                        call-id (str "potential " operator-label)}
+        {:nodes (assoc {closure-id (callable-name network closure-id (closure-label closure-info))
+                        call-id operator-label}
                        callee-id callee-label)
+         :node-kinds (assoc {closure-id :cell call-id :propagator} callee-id :cell)
+         :dataflow/representation :callgraph
          :values {call-id {:call/status :potential
                            :call/path path
                            :call/operator operator-label}}
          :edges [[closure-id call-id] [call-id callee-id]]})))
-   (empty-graph)
-   (call-sites (closure-value/closure-body closure-info))))
+   (semantic-trace/graph-union
+    {:nodes {closure-id (callable-name network closure-id (closure-label closure-info))}
+     :node-kinds {closure-id :cell}
+     :dataflow/representation :callgraph})
+   (call-sites (closure-value/closure-body closure-info)
+               (set (closure-value/closure-inputs closure-info)))))
 
 (defn- realized-callee-label
   [operator]
@@ -136,8 +124,10 @@
                              callee-label)]
     (semantic-trace/graph-union
      {:nodes (assoc {caller-id "closure"
-                     application-id (str "call " application-label)}
+                     application-id application-label}
                     operator-id callee-label)
+      :node-kinds (assoc {caller-id :cell application-id :propagator} operator-id :cell)
+      :dataflow/representation :callgraph
       :values {application-id {:call/status :realized
                                :call/application application-id
                                :call/operator operator-id}}

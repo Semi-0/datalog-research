@@ -151,7 +151,7 @@
 (deftest application-boundary-preserves-ordinary-readiness-and-content
   (doseq [[content strongest expected]
           [[value/nothing value/nothing []]
-           [value/contradiction value/contradiction []]
+           [value/contradiction value/contradiction [value/contradiction]]
            [false false [false]]
            [10 10 [10]]
            [{:retained :opaque} 10 [{:retained :opaque}]]]]

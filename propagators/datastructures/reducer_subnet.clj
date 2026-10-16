@@ -98,15 +98,18 @@
         after (completed-network (run-network tasks n0))]
     (net/network-cell-strongest after out-id)))
 
-(defn strongest
-  [reducer-value]
-  (let [merge-template (merge-net reducer-value)]
-    (if-not (net/network? merge-template)
-      value/contradiction
-      (reduce
-       (fn [acc update]
-         (if (value/contradiction? acc)
-           value/contradiction
-           (run-merge-round merge-template acc update)))
-       (init reducer-value)
-       (source-updates (source reducer-value))))))
+(defn fold-updates
+  "Fold an explicitly ordered update sequence through the ordinary merge network."
+  [merge-template initial updates]
+  (if-not (net/network? merge-template)
+    value/contradiction
+    (reduce
+     (fn [acc update]
+       (if (value/contradiction? acc)
+         value/contradiction
+         (run-merge-round merge-template acc update)))
+     initial updates)))
+
+(defn strongest [reducer-value]
+  (fold-updates (merge-net reducer-value) (init reducer-value)
+                (source-updates (source reducer-value))))

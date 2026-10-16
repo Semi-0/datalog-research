@@ -3,6 +3,7 @@
   Run -M -m examples.lain.amb.native-premise-selection."
   (:require [clojure.java.io :as io]
             [propagators.compiler-2.cps-core :as compiler]
+            [propagators.cells.value :as value]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.compiler-2.runtime.session.state :as session]
@@ -21,12 +22,13 @@
 
 (defn prepare
   ([] (prepare source))
-  ([source]
+  ([source] (prepare source '[definition-one definition-ten]))
+  ([source definition-names]
    (let [state (reduce (fn [s ext] (extension/install-session-extension s ext {}))
                        (session/empty-state)
                        [primitives/session-extension amb/session-extension application/session-extension])
          sources (into {} (map (fn [name] [name (ids/new-node-id)]))
-                       '[definition-one definition-ten])
+                       definition-names)
          network (reduce (fn [n [name id]]
                            (let [v (collection/content
                                     {:base name :support #{{:source id :timestamp 1
@@ -44,22 +46,25 @@
 
 (defn run
   ([] (run source))
-  ([source]
-   (let [{:keys [compiled] :as prepared} (prepare source)
+  ([source] (run source '[definition-one definition-ten]))
+  ([source definition-names]
+   (let [{:keys [compiled] :as prepared} (prepare source definition-names)
          result (runner/run-network (:props compiled) (:net compiled))
          network (:network result)
          root (:cell compiled)
          snapshot (if (or (obj/existing-slot-cell-id network :car root)
                           (= :compiler-2/list-empty (net/network-cell-strongest network root)))
                     (observation/list-snapshot network root)
-                    {:value (observation/base (net/network-cell-strongest network root))})]
+                    {:value (observation/base (net/network-cell-strongest network root))
+                     :ready? (not (value/unusable? (net/network-cell-strongest network root)))})]
      (assoc prepared :result result :snapshot snapshot))))
 
 (defn -main [& _]
   (try
     (let [run (run)]
       (prn {:status (get-in run [:result :status])
-            :solution (get-in run [:snapshot :items])
+            :solution (let [snapshot (:snapshot run)]
+                        (if (contains? snapshot :value) (:value snapshot) (:items snapshot)))
             :ready? (get-in run [:snapshot :ready?])})
       (if-let [error (get-in run [:result :error])] (throw error) nil))
     (finally (shutdown-agents))))

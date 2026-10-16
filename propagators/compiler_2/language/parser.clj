@@ -86,6 +86,11 @@
       (parse-error "define expects a name and optional expression" {:operands operands}))
     (ast/def* name (if (= 2 (count operands)) (parse-form expression) nil))))
 
+(defn- parse-def-cells [names]
+  (when-not (and (seq names) (every? symbol? names) (= (count names) (count (distinct names))))
+    (parse-error "def-cells expects one or more distinct symbol names" {:names names}))
+  (apply ast/sequence* (map #(ast/def* % nil) names)))
+
 (defn- removed-form [form]
   (parse-error (str (first form) " was removed; use define, network, connections, and a body return")
                {:form form :syntax/error :removed-form}))
@@ -151,10 +156,11 @@
     (case (first form)
       let (parse-let (rest form))
       let-cell (parse-let-cell (rest form))
-      (:compiler/network cell-expr def-net def-constraint def def-cell def-cells compound)
+      (:compiler/network cell-expr def-net def-constraint def def-cell compound)
       (removed-form form)
       network (parse-functional-network (rest form))
       define (parse-define (rest form))
+      def-cells (parse-def-cells (rest form))
       if (parse-if (rest form))
       when (parse-when (rest form))
       cond (parse-cond-form (rest form))

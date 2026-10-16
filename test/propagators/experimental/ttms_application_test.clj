@@ -55,13 +55,13 @@
   (let [run (example/run)
         network (get-in run [:result :network])
         root (get-in run [:compiled :cell])
-        result (second (member-ids network root))
+        result root
         current (net/network-cell-strongest network result)
         record (first (amb-example/choice-records network))
         definition (get-in run [:sources 'definition-ten])
         replay (nb/run-propagators network (get-in run [:compiled :props]))]
     (is (= :completed (get-in run [:result :status])))
-    (is (= [2 15] (get-in run [:snapshot :items])))
+    (is (= 2 (get-in run [:snapshot :value])))
     (is (get-in run [:snapshot :ready?]))
     (is (= #{(contracts/premise record)
              {:source definition :timestamp 1 :premises-status :active}}
@@ -166,7 +166,7 @@
     (is (= (net/net-graph original) (net/net-graph recovered)))))
 
 (deftest no-satisfying-callable-exhausts-with-contextual-evidence
-  (let [run (example/run (str/replace example/source "(= result 15)" "(= result 99)"))
+  (let [run (example/run (str/replace example/source "(= (procedure 5) 15)" "(= (procedure 5) 99)"))
         record (first (amb-example/choice-records (get-in run [:result :network])))]
     (is (= :completed (get-in run [:result :status])))
     (is (= 1 (:index record)))

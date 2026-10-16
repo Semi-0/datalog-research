@@ -9,6 +9,7 @@
 (defn states-of [value]
   (support/join
    (datum/support-of value)
+   (datum/membership-of value)
    (if (datum/layer-present? value :premise-state)
      (datum/layer-value value :premise-state)
      #{})))

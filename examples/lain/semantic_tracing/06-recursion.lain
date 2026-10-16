@@ -1,0 +1,21 @@
+(load-lain
+  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+
+; sum-to(4, 0) = 10
+; (4,0) -> (3,4) -> (2,7) -> (1,9) -> (0,10)
+(define sum-to
+  (network [n acc]
+    ((if (<= n 0)
+       (network [n acc]
+         acc)
+       (network [n acc]
+         (sum-to (- n 1) (+ acc n))))
+     n acc)))
+
+(define input 4)
+(def-cells result)
+
+(-> (sum-to input 0) result)
+
+(display
+  (observe-dependents-retained input))

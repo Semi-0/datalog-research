@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
+            [propagators.compiler-2.runtime.session.relationship-traces :as relationship-traces]
             [propagators.compiler-2.runtime.session.program.source :as source]))
 
 (def default-client-id "file")
@@ -60,6 +61,9 @@
               (if (:environment/generation state)
                 state
                 (assoc state :environment/generation (str (java.util.UUID/randomUUID))))))
+     (if (:error load-result)
+       nil
+       (relationship-traces/refresh! session))
      (runtime/refresh-trace-subscriptions! session)
      {:session session
       :client-id client-id

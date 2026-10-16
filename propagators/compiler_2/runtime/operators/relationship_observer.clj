@@ -1,79 +1,79 @@
 (ns propagators.compiler-2.runtime.operators.relationship-observer
-  "Compiler-2 direct installers for native relationship observers."
-  (:require [propagators.compiler-common.cps :as cps]
-            [clojure.set :as set]
-            [propagators.compiler-2.compiler.basis :as h]
-            [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
-            [propagators.compiler-2.model.env :as cenv]
+  "Ordinary callable installers for raw and semantic relationship observation."
+  (:require [clojure.set :as set]
             [propagators.compiler-2.model.operator-value :as operator-value]
+            [propagators.compiler-2.runtime.declaration-effects :as nb]
+            [propagators.gur.flat :as gur]
             [propagators.network :as net]
             [propagators.propagator :as prop]
             [propagators.relationship-dataflow :as dataflow]
             [propagators.relationship-observer :as observer]))
 
-(defn- compile-form
-  [state form role]
-  (let [compile* (compiler-dispatch/state-compiler state)
-        [state' binding] (compile* (h/child state role) form)]
-    [(assoc state' :path (:path state)) binding]))
+(defn- propagator-ids [network]
+  (into #{} (keep (fn [[id entry]] (when (prop/prop? entry) id))) (net/net-env network)))
 
-(defn- propagator-ids
-  [network]
-  (into #{}
-        (keep (fn [[id entry]]
-                (when (prop/prop? entry) id)))
-        (net/net-env network)))
+(defn- observer-ports [name arg-ids fallback-id]
+  (when (empty? arg-ids)
+    (throw (ex-info (str name " expects a seed cell and optional output cell")
+                    {:argument-ids arg-ids})))
+  (if (= 1 (count arg-ids))
+    [(vec arg-ids) fallback-id]
+    [(vec (butlast arg-ids)) (last arg-ids)]))
 
-(defn- observed-and-output-cells
-  [state operand-forms]
-  (when-not (<= 2 (count operand-forms))
-    (throw (ex-info "relationship:roots expects observed cells followed by one output cell"
-                    {:operand-forms operand-forms})))
-  (let [[compiled bindings]
-        (reduce (fn [[current bindings] [index form]]
-                  (let [[next-state binding]
-                        (compile-form current form [:relationship-roots index])]
-                    [next-state (conj bindings binding)]))
-                [state []]
-                (map-indexed vector operand-forms))
-        ids (mapv cenv/binding-id bindings)]
-    (when-not (every? some? ids)
-      (throw (ex-info "relationship:roots operands must compile to cells"
-                      {:operand-forms operand-forms})))
-    [compiled (vec (butlast ids)) (last ids)]))
+(defn- install-roots
+  ([network observed-ids output-id] (install-roots network observed-ids output-id output-id))
+  ([network observed-ids output-id owner-id]
+  (let [prepared (reduce nb/ensure-cell network (conj observed-ids output-id))
+        before (propagator-ids prepared)
+        [initial installed] ((observer/p:observe-roots observed-ids output-id owner-id) prepared)
+        [_ registered] (nb/eval-activation-result
+                        [(gur/bind-name [:relationship/root-observers]
+                                        [observed-ids output-id owner-id] output-id)] installed)
+        introduced (set/difference (propagator-ids registered) before)]
+    [registered (vec (distinct (cons initial (sort-by pr-str introduced)))) output-id])))
 
-(defn roots-operator
-  []
+(defn- observer-operator [name install]
   (operator-value/operator-closure
-   {:name 'relationship:roots
-    :compiler-operands
-    (fn [_compile-k state operand-forms _out-id k]
-      (let [[next-state binding]
-            (do
-      (let [[state' observed-ids output-id]
-            (observed-and-output-cells state operand-forms)
-            before (propagator-ids (:net state'))
-            [_ installed]
-            ((observer/p:observe-roots observed-ids output-id) (:net state'))
-            introduced (set/difference (propagator-ids installed) before)]
-        [(-> state'
-             (assoc :net installed)
-             (h/add-props (sort-by pr-str introduced)))
-         (cenv/cell-binding output-id)]))]
-        (cps/continue k next-state binding)))}))
+   {:name name
+    :input-selector (fn [arg-ids fallback-id _context-id]
+                      (first (observer-ports name arg-ids fallback-id)))
+    :output-selector (fn [arg-ids fallback-id]
+                       [(second (observer-ports name arg-ids fallback-id))])
+    :install (fn [network arg-ids fallback-id]
+               (let [[observed-ids output-id] (observer-ports name arg-ids fallback-id)]
+                 (install network observed-ids output-id)))}))
+
+(defn roots-operator []
+  (observer-operator 'relationship:roots install-roots))
+
+(defn- install-semantic [network observed-ids output-id]
+  (let [raw-id (gur/stable-node-id [:relationship/semantic output-id :raw])
+        [observed observers _] (install-roots network observed-ids raw-id output-id)
+        prepared (nb/ensure-cell observed output-id)
+        [projector installed] ((dataflow/p:semantic-network raw-id output-id) prepared)]
+    [installed (conj observers projector) output-id]))
+
+(defn roots-semantic-operator []
+  (observer-operator 'relationship:roots-semantic install-semantic))
+
+(defn semantic-operator []
+  (roots-semantic-operator))
+
+(defn- dataflow-ports [arg-ids fallback-id]
+  (when-not (contains? #{1 2} (count arg-ids))
+    (throw (ex-info "relationship:dataflow expects a graph and optional output cell"
+                    {:argument-ids arg-ids})))
+  [(first arg-ids) (if (= 2 (count arg-ids)) (second arg-ids) fallback-id)])
 
 (defn dataflow-operator []
   (operator-value/operator-closure
    {:name 'relationship:dataflow
-    :compiler-operands
-    (fn [_compile-k state forms _out-id k]
-      (let [[next-state binding]
-            (do
-      (when-not (= 2 (count forms))
-        (throw (ex-info "relationship:dataflow expects input and output cells"
-                        {:operand-forms forms})))
-      (let [[compiled [input-id] output-id] (observed-and-output-cells state forms)
-            [id installed] ((dataflow/p:dataflow input-id output-id) (:net compiled))]
-        [(-> compiled (assoc :net installed) (h/add-props [id]))
-         (cenv/cell-binding output-id)]))]
-        (cps/continue k next-state binding)))}))
+    :input-selector (fn [arg-ids fallback-id _context-id]
+                      [(first (dataflow-ports arg-ids fallback-id))])
+    :output-selector (fn [arg-ids fallback-id]
+                       [(second (dataflow-ports arg-ids fallback-id))])
+    :install (fn [network arg-ids fallback-id]
+               (let [[input-id output-id] (dataflow-ports arg-ids fallback-id)
+                     prepared (reduce nb/ensure-cell network [input-id output-id])
+                     [id installed] ((dataflow/p:dataflow input-id output-id) prepared)]
+                 [installed [id] output-id]))}))

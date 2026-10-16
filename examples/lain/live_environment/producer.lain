@@ -1,0 +1,2 @@
+;; This file owns x. Replacing it must not recompile consumer.lain.
+(define x 10)

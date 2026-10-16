@@ -1,0 +1,2 @@
+(define helper (network (x) (+ x 10)))
+(define procedure (network (x) ((network (y) (helper y)) x)))

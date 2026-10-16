@@ -1,0 +1,15 @@
+(load-lain
+  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+
+; false branch: 14
+(define flag false)
+(define x 7)
+(def-cells result)
+
+(-> (if flag
+      (+ x 1)
+      (* x 2))
+    result)
+
+(display
+  (observe-dependents-retained x))

@@ -1,6 +1,7 @@
 (ns propagators.compiler-2-call-graph-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.cells.value :as value]
+            [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.compiler.basis :as helpers]
             [propagators.compiler-2.main :as compiler]
             [propagators.compiler-2.model.closure-value :as closure-value]
@@ -62,7 +63,7 @@
         graph (strongest network (:cell compiled))
         self-id (binding-id network 'self)
         recursive-call-id (some (fn [[id label]]
-                                  (when (= "potential self" label) id))
+                                  (when (and (= "self" label) (= :potential (get-in graph [:values id :call/status]))) id))
                                 (:nodes graph))]
     (is (some? self-id))
     (is (some? recursive-call-id))
@@ -88,7 +89,7 @@
         graph (strongest network (:cell compiled))]
     (is (contains? (graph-statuses graph) :potential))
     (is (contains? (graph-statuses graph) :realized))
-    (is (some #{"call +"} (vals (:nodes graph))))
+    (is (some (fn [[id info]] (and (= :realized (:call/status info)) (= "+" (get-in graph [:nodes id])))) (:values graph)))
     (is (some #{:compiler-2/call-graph-application}
               (keep (fn [[_ entry]]
                       (when (prop/prop? entry) (prop/prop-name entry)))
@@ -109,11 +110,12 @@
                  with-callee
                  (nb/neighbor-propagator-ids with-callee g-id))
         settled-graph (strongest settled graph-id)
-        waiting-labels (set (vals (:nodes waiting-graph)))
-        settled-labels (set (vals (:nodes settled-graph)))]
-    (is (not (contains? waiting-labels "call g")))
+        realized-labels (fn [graph] (set (for [[id info] (:values graph) :when (= :realized (:call/status info))] (get-in graph [:nodes id]))))
+        waiting-labels (realized-labels waiting-graph)
+        settled-labels (realized-labels settled-graph)]
+    (is (not (contains? waiting-labels "g")))
     (is (not (value/unusable? callee)))
-    (is (contains? settled-labels "call g"))))
+    (is (contains? settled-labels "g"))))
 
 (deftest pure-call-site-extraction-is-independent-of-runtime-state
   (let [compiled (compiler/compile-source
@@ -124,3 +126,42 @@
                       (closure-value/closure-body
                        (application/callable-declaration closure))))]
     (is (= ["->" "+" "*"] labels))))
+
+(deftest potential-calls-stop-at-nested-closure-boundaries
+  (let [body (ast/network ['x] (ast/app '+ 'x 1))]
+    (is (empty? (call-graph/call-sites body)))))
+
+(deftest potential-computed-callees-have-call-site-identity
+  (let [compiled (compiler/compile-source "(network [x] (+ ((if true + -) x 1) ((if false + -) x 2)))")
+        network (:net compiled)
+        closure-id (:cell compiled)
+        declaration (application/callable-declaration (strongest network closure-id))
+        graph (call-graph/potential-call-graph network closure-id declaration)
+        computed (for [[id info] (:values graph)
+                       :when (= ":apply" (:call/operator info))]
+                   (second (first (filter #(= id (first %)) (:edges graph)))))]
+    (is (= 2 (count computed)))
+    (is (= 2 (count (set computed))))
+    (is (= #{:cell :propagator} (set (vals (:node-kinds graph)))))
+    (is (every? (fn [[a b]] (not= (get-in graph [:node-kinds a]) (get-in graph [:node-kinds b]))) (:edges graph)))))
+
+(deftest closure-parameters-do-not-resolve-to-outer-bindings
+  (let [compiled (compiler/compile-expr
+                  (ast/sequence*
+                   (ast/def* 'f (ast/network ['x] (ast/app '+ 'x 1)))
+                   (ast/network ['f 'x] (ast/app 'f 'x))))
+        network (run-compiled compiled)
+        closure-id (:cell compiled)
+        declaration (application/callable-declaration (strongest network closure-id))
+        graph (call-graph/potential-call-graph network closure-id declaration)
+        outer-f (binding-id network 'f)
+        sites (set (for [[id info] (:values graph) :when (= "f" (:call/operator info))] id))]
+    (is (= 1 (count sites)))
+    (is (not-any? #(and (sites (first %)) (= outer-f (second %))) (:edges graph)))))
+
+(deftest identity-closure-retains-its-isolated-callable
+  (let [compiled (compiler/compile-source "(network [x] x)")
+        network (:net compiled)
+        graph (call-graph/potential-call-graph network (:cell compiled)
+                (application/callable-declaration (strongest network (:cell compiled))))]
+    (is (contains? (:nodes graph) (:cell compiled)))))

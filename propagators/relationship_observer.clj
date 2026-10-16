@@ -5,6 +5,8 @@
             [propagators.compiler-2.runtime.application :as application]
             [propagators.compiler-2.runtime.application-ports :as ports]
             [propagators.datastructures.compound-object.patch :as compound-patch]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.dependency :as dependency]
             [propagators.graph :as graph]
             [propagators.gur.flat :as gur]
             [propagators.ids :as ids]
@@ -14,7 +16,8 @@
             [propagators.network-patch :as patch]
             [propagators.propagator :as prop]
             [propagators.relationship :as relationship]
-            [propagators.semantic-trace :as semantic-trace]))
+            [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.facts :as semantic-facts]))
 
 (def observer-name :relationship/observer)
 
@@ -75,26 +78,25 @@
   ([seed-ids] (connected-root-node-keys seed-ids #{}))
   ([seed-ids excluded-node-ids]
   (fn [network]
-    (let [roots (root-node-keys network excluded-node-ids)
-          interfaces
-          (mapcat
-           (fn [app]
-             (let [id (gur/stable-node-id [(:application-id app) :apply-prop])]
-               (if (contains? roots (relationship/node-key [:outer] id))
-                 (let [interface (ports/application-ports network app)]
-                   (concat (:inputs interface) (:outputs interface)))
-                 [])))
-           (application/application-topologies network))
-          ;; Returned cells can have a structural owner and still be an
-          ;; interface of a top-level call. Do not unfold that owner's body.
-          allowed (into roots
-                        (comp (remove excluded-node-ids)
-                              (map #(relationship/node-key [:outer] %)))
-                        interfaces)
+    (let [apps (semantic-facts/applications network [:outer])
+          records (semantic-facts/copies network [:outer])
+          scopes (semantic-facts/scope (net/net-relationship network)
+                                      (mapv #(assoc % :eligible? (:observable? %)) apps)
+                                      nil (map :id records))
+          visible (set (map first (:visible scopes)))
+          all-apps (set (map :id apps))
+          roots (remove all-apps (root-node-keys network excluded-node-ids))
+          interfaces (mapcat (fn [app]
+                               (if (visible (:id app))
+                                 (concat [(:id app) (:operator app)] (:inputs app) (:outputs app)) [])) apps)
+          copies (semantic-facts/visible-copies scopes records nil)
+          allowed (into (set roots)
+                        (remove #(contains? excluded-node-ids (second %)))
+                        (concat interfaces (mapcat (juxt :id :source :target) copies)))
           g (net/net-graph network)
           seeds (into #{}
                       (map #(relationship/node-key [:outer] %))
-                      seed-ids)]
+                      (semantic-facts/root-seeds network seed-ids))]
       (loop [frontier (vec (filter allowed seeds))
              seen #{}]
         (if-let [[_path node-id :as current] (first frontier)]
@@ -212,11 +214,21 @@
 
       :else (pr-str (second node-key)))))
 
-(defn- node-value
-  [network node-key]
+(defn- node-value [network node-key]
   (let [entry (node-entry network node-key)]
     (when (cell/cell? entry)
-      (cell/cell-strongest entry))))
+      (let [v (cell/cell-strongest entry)
+            base (if (datum/layer-present? v :base) (datum/layer-value v :base) v)]
+        (if (semantic-trace/semantic-trace-graph? (dependency/unwrap base))
+          {:semantic-trace/value :graph}
+          v)))))
+
+(defn- node-content [network node-key]
+  (let [entry (node-entry network node-key)
+        sampled (node-value network node-key)]
+    (if (= {:semantic-trace/value :graph} sampled)
+      sampled
+      (cell/cell-content entry))))
 
 (defn- selected-network-edges
   [network selected]
@@ -255,6 +267,12 @@
                               (when (cell/cell? entry)
                                 [key (node-value network key)]))))
                     selected)
+      :contents (into {}
+                      (keep (fn [key]
+                              (let [entry (node-entry network key)]
+                                (when (cell/cell? entry)
+                                  [key (node-content network key)]))))
+                      selected)
       :node-ui {}
       :expansions {}
       :edges (vec (distinct
@@ -273,12 +291,10 @@
   A nil trigger installs a zero-input sampler suitable for one initial run."
   [id trigger-id output-id sample]
   (prop/construct-propagator
-   id
-   observer-name
+   id observer-name
    (fn [_inputs _outputs network]
      [(message output-id (sample network))])
-   (if trigger-id [trigger-id] [])
-   [output-id]))
+   (if trigger-id [trigger-id] []) [output-id]))
 
 (defn observer-id
   [output-id role trigger-id]
@@ -304,17 +320,21 @@
   installed observer ids in the same way as other installed propagators."
   ([output-id]
    (p:observe-roots nil output-id))
-  ([observed-cell-ids output-id]
-   (fn [network]
-    (let [prepared (nb/ensure-cell network output-id)
-          select (if (seq observed-cell-ids)
-                   (connected-root-node-keys observed-cell-ids #{output-id})
-                   #(root-node-keys % #{output-id}))
-          sample (fn [current]
-                   (let [result (snapshot current (select current))]
+   ([observed-cell-ids output-id]
+    (p:observe-roots observed-cell-ids output-id output-id))
+   ([observed-cell-ids output-id owner-id]
+    (fn [network]
+     (let [prepared (nb/ensure-cell network output-id)
+           select (if (seq observed-cell-ids)
+                    (connected-root-node-keys observed-cell-ids (set [output-id owner-id]))
+                    #(root-node-keys % (set [output-id owner-id])))
+           sample (fn [current]
+                    (let [result (assoc (snapshot current (select current))
+                                        :dataflow/observer-outputs #{(relationship/node-key [:outer] owner-id)})]
                      (if (seq observed-cell-ids)
                        (assoc result :dataflow/seeds
-                              (set (map #(relationship/node-key [:outer] %) observed-cell-ids)))
+                              (set (map #(relationship/node-key [:outer] %)
+                                         (semantic-facts/root-seeds current observed-cell-ids))))
                        result)))
           roots (cell-node-keys prepared (select prepared))
           [_ watched]
@@ -325,6 +345,37 @@
                   [[] prepared]
                   roots)]
       (install-observer watched output-id :initial nil sample)))))
+
+(defn refresh-roots
+  "Refresh registered root observers after successful declaration installation.
+  Returns [observer-ids network]; stable IDs make repeated refresh idempotent."
+  [network]
+  (let [requests (keys (get (net/network-dict-entry network gur/name-bindings-key)
+                            [:relationship/root-observers]))
+        [ids installed]
+         (reduce (fn [[ids current] [observed-cell-ids output-id owner-id]]
+                   (let [[initial installed] ((p:observe-roots observed-cell-ids output-id (or owner-id output-id)) current)
+                        template (net/network-env-lookup current initial)
+                        ;; Refresh inherits publication decoration from the initial
+                        ;; observer; it never replaces an existing activation.
+                        installed (if (prop/prop? template)
+                                    (reduce (fn [network [id entry]]
+                                              (if (and (prop/prop? entry)
+                                                       (= observer-name (prop/prop-name entry))
+                                                       (not (contains? (net/net-env current) id)))
+                                                (net/assoc-net-prop network id
+                                                  (assoc entry :activate (prop/prop-f template)))
+                                                network))
+                                            installed (net/net-env installed))
+                                    installed)
+                        watched (for [[id entry] (net/net-env installed)
+                                      :when (and (prop/prop? entry)
+                                                 (= observer-name (prop/prop-name entry))
+                                                 (contains? (:outputs (get (net/net-graph installed) id)) output-id))]
+                                  id)]
+                    [(into (conj ids initial) watched) installed]))
+                [#{} network] requests)]
+    [ids installed]))
 
 (defn- observer-declaration
   [output-id role trigger-id sample]

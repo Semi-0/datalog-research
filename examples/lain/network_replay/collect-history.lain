@@ -1,0 +1,24 @@
+(load-lain
+  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+
+(define collect-frame
+  (network (acc next)
+    (history:append acc (p:slot :value next))))
+
+(define collect-history
+  (network (graph start end)
+    (define recording
+      (history:record graph))
+
+    (define selected
+      (history:between recording start end))
+
+    (reduce collect-frame (history:empty) selected)))
+
+(define collect-semantic-history
+  (network (root start end)
+    (collect-history
+      (relationship:with-values
+        (observe-semantic root :both))
+      start
+      end)))

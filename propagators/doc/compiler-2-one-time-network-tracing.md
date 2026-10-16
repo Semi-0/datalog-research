@@ -32,6 +32,10 @@ that temporary topology to quiescence, projects its result, and discards the
 temporary network. Only the projected value crosses back to the caller. The
 active network receives no trace cells or propagators.
 
+Semantic snapshots now implement the same neighbor API. See
+[Semantic traversal](semantic-traversal.md) for disposable Lain observation
+callbacks, live dependent queries, and gallery integration.
+
 The Lain file owns traversal policy. `trace-walk` is an explicit-output,
 tail-recursive network with breadth-first `ready` and `queued` collections and a
 visited scan. `trace-network-once` uses a constant trigger. `trace-network-every`

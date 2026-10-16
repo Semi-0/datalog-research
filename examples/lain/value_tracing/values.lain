@@ -1,0 +1,9 @@
+(define left 3)
+(define right 4)
+(def-cells result)
+
+(-> (+ left right) result)
+
+(display
+  (relationship:with-values
+    (relationship:roots-semantic left)))

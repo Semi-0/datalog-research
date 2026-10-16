@@ -1,0 +1,12 @@
+(load-lain
+  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+
+; binary primitive: 7
+(define left 3)
+(define right 4)
+(def-cells result)
+
+(-> (+ left right) result)
+
+(display
+  (observe-dependents-retained left))

@@ -1,0 +1,10 @@
+(let-cell [repairs decision]
+  (define backtrack-unless
+    (network (target decisions)
+      (let [error (learn (require target) decisions)]
+        (backtrack decisions error))))
+  (define chosen (amb (list 1 2) repairs decision))
+  (define procedure (if (= chosen 1) one/procedure ten/procedure))
+  (define target (goal/target procedure))
+  (-> (backtrack-unless target (list decision)) repairs)
+  (switch chosen target))

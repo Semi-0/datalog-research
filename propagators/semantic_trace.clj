@@ -87,19 +87,48 @@
   [& epochs]
   (epoch (apply max 0 (keep :semantic-trace/epoch epochs))))
 
+(defn- projection-context [graphs key]
+  (let [contexts (set (keep key graphs))]
+    (case (count contexts)
+      0 nil
+      1 (first contexts)
+      :mixed)))
+
 (defn- union-graphs [graphs]
-  (let [graphs (remove value/unusable? graphs)]
+  (let [graphs (remove value/unusable? graphs)
+        scope (projection-context graphs :dataflow/scope)
+        projection (projection-context graphs :dataflow/projection)
+        representation (projection-context graphs :dataflow/representation)
+        direction (projection-context graphs :traversal/direction)]
     (cond-> {:semantic-trace/graph true
      :nodes (apply merge (map :nodes graphs))
      :node-kinds (apply merge (map :node-kinds graphs))
      :node-aliases (merge-node-aliases graphs)
-     :values (apply merge (map :values graphs))
+     :values (apply merge-with (fn [known incoming]
+                                (if (value/nothing? incoming) known incoming))
+                    (map :values graphs))
      :node-ui (apply merge (map :node-ui graphs))
      :expansions (apply merge (map :expansions graphs))
      :edges (vec (distinct (filter #(and (vector? %) (= 2 (count %)))
                                    (mapcat :edges graphs))))}
+      (some #(contains? % :contents) graphs)
+      (assoc :contents (apply merge-with (fn [known incoming]
+                                           (if (value/nothing? incoming) known incoming))
+                              (map :contents graphs)))
       (some #(contains? % :dataflow/seeds) graphs)
-      (assoc :dataflow/seeds (set (mapcat :dataflow/seeds graphs))))))
+      (assoc :dataflow/seeds (set (mapcat :dataflow/seeds graphs)))
+      (some #(contains? % :dataflow/observer-outputs) graphs)
+      (assoc :dataflow/observer-outputs (set (mapcat :dataflow/observer-outputs graphs)))
+      (some #(contains? % :dataflow/observer-applications) graphs)
+      (assoc :dataflow/observer-applications (set (mapcat :dataflow/observer-applications graphs)))
+      (some #(contains? % :bidirectional-edges) graphs)
+      (assoc :bidirectional-edges (set (mapcat :bidirectional-edges graphs)))
+      (some #(contains? % :graph/modifiers) graphs)
+      (assoc :graph/modifiers (set (mapcat :graph/modifiers graphs)))
+      scope (assoc :dataflow/scope scope)
+      projection (assoc :dataflow/projection projection)
+       representation (assoc :dataflow/representation representation)
+       direction (assoc :traversal/direction direction))))
 
 (defn graph-union
   "Union graph declarations, retaining diagnosed projection failures."
@@ -125,14 +154,18 @@
            kept []]
       (if (empty? frontier)
         (let [kept (vec (distinct kept))]
-          (graph-union {:nodes (select-keys (:nodes graph) seen)
+          (graph-union (cond-> {:nodes (select-keys (:nodes graph) seen)
                         :node-kinds (select-keys (:node-kinds graph) seen)
                         :node-aliases (select-node-aliases (:node-aliases graph)
                                                            seen)
                         :values (select-keys (:values graph) seen)
                         :node-ui (select-keys (:node-ui graph) seen)
                         :expansions (select-keys (:expansions graph) seen)
-                        :edges kept}))
+                        :graph/modifiers (:graph/modifiers graph)
+                        :edges kept
+                        :bidirectional-edges (set (filter (set kept) (:bidirectional-edges graph)))}
+                         (contains? graph :contents)
+                         (assoc :contents (select-keys (:contents graph) seen)))))
         (let [next-edges (vec (step-edges edges direction frontier))
               next-nodes (expand-equivalents equiv (set (mapcat identity next-edges)))
               new-nodes (set (remove seen next-nodes))]

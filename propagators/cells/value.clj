@@ -19,8 +19,11 @@
 
 (defn add-contradiction-provenance
   [x provenance]
-  (contradiction-with-provenance
-   (into (contradiction-provenance x) provenance)))
+  (let [result (contradiction-with-provenance
+                (into (contradiction-provenance x) provenance))]
+    (if (and (bool4/contradiction? x) (vector? x) (map? (second x)))
+      (update result 1 merge (assoc (second x) :provenance (contradiction-provenance result)))
+      result)))
 
 (def nothing? bool4/nothing?)
 (def contradiction? bool4/contradiction?)

@@ -59,7 +59,7 @@
   (is (= :compiler-2/list-empty (evaluate "((network (& rest) rest))"))))
 
 (deftest removed-source-forms-are-errors
-  (doseq [source ["(def x 1)" "(def-cell x)" "(def-cells x y)"
+  (doseq [source ["(def x 1)" "(def-cell x)"
                   "(def-net f [x] [y] x)" "(def-constraint f [x] x)"
                   "(compound [x] y x)" "(cell-expr [x] x)" "(:: [x] x)"]]
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"removed"
@@ -86,3 +86,10 @@
         network (fixture/run compiled)
         topology (application/application-topology-for-result network (:cell compiled))]
     (is (= :pending (:output-status (ports/application-ports network topology))))))
+
+(deftest def-cells-restores-ordinary-named-declarations
+  (is (= 7 (evaluate "(let [] (def-cells a b) (-> 3 a) (-> (+ a 4) b) b)")))
+  (is (value/nothing? (evaluate "(let [] (def-cells a b) b)")))
+  (doseq [source ["(def-cells)" "(def-cells a 1)" "(def-cells a a)"]]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"def-cells expects"
+                         (compiler/compile-source source)))))

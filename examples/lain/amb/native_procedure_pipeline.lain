@@ -1,0 +1,47 @@
+(let-cell [repairs start-decision transform-decision finish-decision]
+  (define backtrack-unless
+    (network (target decisions)
+      (let [error (learn (require target) decisions)]
+        (backtrack decisions error))))
+
+  (define choose-procedure
+    (network (choice a b c)
+      (if (= choice 1) a (if (= choice 2) b c))))
+
+  (define plus-one
+    (ttms-premise-closure (network (x) (+ x 1)) definition-one))
+  (define plus-ten
+    (ttms-premise-closure (network (x) (+ x 10)) definition-ten))
+  (define plus-three
+    (ttms-premise-closure (network (x) (+ x 3)) definition-three))
+
+  (define double
+    (ttms-premise-closure (network (x) (* x 2)) definition-double))
+  (define square
+    (ttms-premise-closure (network (x) (* x x)) definition-square))
+  (define triple
+    (ttms-premise-closure (network (x) (* x 3)) definition-triple))
+
+  (define minus-three
+    (ttms-premise-closure (network (x) (- x 3)) definition-minus-three))
+  (define plus-seven
+    (ttms-premise-closure (network (x) (+ x 7)) definition-seven))
+  (define half
+    (ttms-premise-closure (network (x) (/ x 2)) definition-half))
+
+  (define start-choice (amb (list 1 2 3) repairs start-decision))
+  (define transform-choice (amb (list 1 2 3) repairs transform-decision))
+  (define finish-choice (amb (list 1 2 3) repairs finish-decision))
+
+  (define start (choose-procedure start-choice plus-one plus-ten plus-three))
+  (define transform (choose-procedure transform-choice double square triple))
+  (define finish (choose-procedure finish-choice minus-three plus-seven half))
+  (define target (= (finish (transform (start 5))) 42))
+
+  (-> (backtrack-unless target
+        (list start-decision transform-decision finish-decision)) repairs)
+
+  (list
+    (switch start-choice target)
+    (switch transform-choice target)
+    (switch finish-choice target)))

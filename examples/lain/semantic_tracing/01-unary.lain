@@ -1,0 +1,11 @@
+(load-lain
+  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+
+; unary primitive: true
+(define flag false)
+(def-cells result)
+
+(-> (not flag) result)
+
+(display
+  (observe-dependents-retained flag))

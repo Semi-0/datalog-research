@@ -122,19 +122,17 @@
 
 (defn declare-application-context
   [state expression]
-  (let [[result-state result-binding]
-        (h/new-cell state :result)
-        result-id (env/binding-id result-binding)
+  (let [result-id (h/node-id state :result)
         application-id
-        (h/stable-node-id (:seed result-state)
-                          (:path result-state)
+        (h/stable-node-id (:seed state)
+                          (:path state)
                           :application
                           result-id)
         operator-ast (ast/ast (ast/operator expression))
         [context-state context-binding]
-        (h/new-cell result-state
+        (h/new-cell state
                     :context
-                    (context/context-value (:env result-state)
+                    (context/context-value (:env state)
                                            application-id
                                            operator-ast))]
     [(assoc context-state
@@ -288,7 +286,7 @@
      (fn [[state bindings] name]
        (let [binding-id (h/stable-node-id :compiler-2 :binding child-id name)
              state' (-> state
-                        (update :net nb/ensure-cell binding-id)
+                        (update :net nb/ensure-cell binding-id name)
                         (reserve-fixed-local name binding-id))]
          [state' (assoc bindings name (env/cell-binding binding-id))]))
      [state' {}]

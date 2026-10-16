@@ -9,11 +9,24 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.compiler-2.runtime.declaration-effects :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.semantic-trace.snapshot :as semantic]
+            [propagators.relationship-dataflow :as dataflow]
+            [propagators.relationship-observer :as relationships]
+            [propagators.semantic-trace.facts :as facts]))
 
 (defprotocol NetworkSnapshot
   (snapshot-neighbors [snapshot node-id])
   (snapshot-node-info [snapshot node-id]))
+
+(defprotocol SemanticSnapshot
+  (snapshot-semantic-graph [snapshot root]))
+
+(defprotocol RelationshipSnapshot
+  (snapshot-value [snapshot node])
+  (snapshot-dataflow [snapshot graph])
+  (snapshot-roots [snapshot roots])
+  (snapshot-children [snapshot parent]))
 
 (defn- node-kind
   [entry]
@@ -22,7 +35,7 @@
     (prop/prop? entry) :propagator
     :else :unknown))
 
-(deftype FrozenNetworkSnapshot [source-net]
+(deftype FrozenNetworkSnapshot [source-net observation]
   NetworkSnapshot
   (snapshot-neighbors [_ node-id]
     (let [node (graph/get-node (net/net-graph source-net) node-id)]
@@ -40,11 +53,28 @@
          (= kind :cell) (get (net/net-dict-or-empty source-net)
                              [:node/name node-id]
                              value/nothing)
-         :else value/nothing)})))
+          :else value/nothing)}))
+  SemanticSnapshot
+  (snapshot-semantic-graph [_ root]
+    (semantic/root-graph source-net root observation))
+  RelationshipSnapshot
+  (snapshot-value [_ node]
+    ((requiring-resolve 'propagators.experimental.visualization.data/payload)
+     (net/network-cell-strongest source-net node)))
+  (snapshot-dataflow [_ graph]
+    (dataflow/dataflow-graph source-net graph))
+  (snapshot-roots [_ roots]
+    (let [output (:output observation)
+          selected ((relationships/connected-root-node-keys roots #{output}) source-net)]
+      (assoc (relationships/snapshot source-net selected)
+             :dataflow/seeds (set (map #(vector [:outer] %) (facts/root-seeds source-net roots)))
+             :dataflow/observer-outputs #{[[:outer] output]})))
+  (snapshot-children [_ parent]
+    (dataflow/child-semantic-network-graph source-net parent)))
 
 (defn frozen-snapshot
-  [network]
-  (FrozenNetworkSnapshot. network))
+  ([network] (FrozenNetworkSnapshot. network {}))
+  ([network observation] (FrozenNetworkSnapshot. network observation)))
 
 (defn frozen-snapshot?
   [candidate]

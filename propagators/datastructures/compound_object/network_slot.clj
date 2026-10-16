@@ -3,6 +3,8 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object.merge :as compound-merge]
+            [propagators.datastructures.compound-object.membership-slot :as membership-slot]
+            [propagators.datastructures.membership-collection :as membership]
             [propagators.datastructures.compound-object.patch :as compound-patch]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.effectful-execution :as effect]
@@ -121,7 +123,7 @@
   [collection-net slot-key parent-id parent-net]
   (let [v (message-value (compound-merge/source-slot-value collection-net slot-key))]
     (if (or (not (compound-merge/source-slot-present? collection-net slot-key))
-            (value/unusable? v)
+            (value/nothing? v)
             (not (messageable-parent? parent-net parent-id))
             (equivalent-to-parent? parent-net parent-id v))
       []
@@ -140,7 +142,7 @@
      (for [from-id parent-ids
            :let [entry (net/network-env-lookup parent-net from-id)
                  v (message-value (cell/cell-content entry))]
-           :when (not (value/unusable? v))
+           :when (not (value/nothing? v))
            to-id parent-ids
            :when (and (not= from-id to-id)
                       (messageable-parent? parent-net to-id)
@@ -157,7 +159,7 @@
                    (let [v (stdlib-prop/forward-value
                             (net/network-cell-content executed-net avatar-id)
                             (net/network-cell-strongest executed-net avatar-id))]
-                     (when-not (or (value/unusable? v)
+                     (when-not (or (value/nothing? v)
                                    (equivalent-to-parent? parent-net parent-id v))
                        (message parent-id (message-value v))))))))
        vec))
@@ -238,17 +240,21 @@
 
 (defn network-slot-activation
   [slot-key parent-id collection-id]
-  (fn [_inputs _outputs parent-net]
-    (let [collection-net (-> parent-net
-                             (net/network-cell-strongest collection-id)
-                             compound-merge/as-accessor-network)]
-      (if (value/contradiction? collection-net)
-        [(message collection-id value/contradiction)]
-        (network-slot-messages collection-id
-                               slot-key
-                               parent-id
-                               parent-net
-                               collection-net)))))
+  (let [guarded (delay (membership-slot/activation slot-key parent-id collection-id))]
+    (fn [inputs outputs parent-net]
+      (if (or (membership/content? (net/network-cell-content parent-net collection-id))
+              (membership/content? (net/network-cell-content parent-net parent-id)))
+        (@guarded inputs outputs parent-net)
+        (let [collection-net (-> parent-net
+                                 (net/network-cell-strongest collection-id)
+                                 compound-merge/as-accessor-network)]
+          (if (value/contradiction? collection-net)
+            [(message collection-id value/contradiction)]
+            (network-slot-messages collection-id
+                                   slot-key
+                                   parent-id
+                                   parent-net
+                                   collection-net)))))))
 
 (defn p:network-slot
   [slot-key parent-id collection-id]

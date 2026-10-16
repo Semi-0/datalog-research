@@ -1323,7 +1323,12 @@
     (is (nil? (ast/body waiting)))
     (is (= :literal (ast/type (ast/body literal-nil))))
     (is (nil? (ast/value (ast/body literal-nil)))))
-  (doseq [source ["(def x 1)" "(def-cell x)" "(def-cells x y)"]]
+  (let [declarations (parse "(def-cells x y)")]
+    (is (= :sequence (ast/type declarations)))
+    (is (= '[x y] (mapv ast/name (ast/body declarations))))
+    (is (every? #(and (= :def (ast/type %)) (nil? (ast/body %)))
+                (ast/body declarations))))
+  (doseq [source ["(def x 1)" "(def-cell x)"]]
     (is (thrown? clojure.lang.ExceptionInfo (parse source))))
   (is (thrown? clojure.lang.ExceptionInfo (parse "(define inc [x] (+ x 1))"))))
 

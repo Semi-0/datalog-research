@@ -2,6 +2,7 @@
   "Active continuation-based compiler-2 handlers."
   (:require [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.compiler.declarations :as declarations]
+            [propagators.compiler-2.compiler.cell-names :as cell-names]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.runtime.lazy-topology :as lazy-topology]
@@ -17,7 +18,8 @@
 (defn compile-literal
   [_compile-k state expr k]
   (let [candidate (ast/value expr)]
-    (let [[declared binding] (h/new-cell state :literal candidate)]
+    (let [[declared binding] (h/new-cell state :literal candidate (cell-names/source-name expr))
+          declared (update declared :net cell-names/assign (env/binding-id binding) expr)]
       (finish k (declarations/declare-operator-description declared binding candidate)))))
 
 (defn- compile-accessed-symbol
@@ -26,7 +28,7 @@
         value-id (h/node-id state [:lexical-access sym :value])
         network (-> (:net state)
                     (nb/ensure-cell binding-id)
-                    (nb/ensure-cell value-id))
+                    (nb/ensure-cell value-id sym))
         [access-props with-access]
         ((env/p:lexical-access-local-first sym (:env state) binding-id) network)
         [value-props compiled]
@@ -41,13 +43,14 @@
   [state sym k]
   (let [binding-id (h/node-id state [:free-symbol sym])
         declared (-> state
-                     (update :net nb/ensure-cell binding-id)
+                     (update :net nb/ensure-cell binding-id sym)
                      (declarations/reserve-fixed-local sym binding-id))]
     (cps/continue k declared (env/cell-binding binding-id))))
 
 (defn- compile-found-symbol
-  [state binding-id k]
-  (let [candidate (h/strongest-or-nothing (:net state) binding-id)]
+  [state sym binding-id k]
+  (let [state (update state :net nb/ensure-cell binding-id sym)
+        candidate (h/strongest-or-nothing (:net state) binding-id)]
     (finish k (declarations/declare-operator-description
                state (env/cell-binding binding-id) candidate))))
 
@@ -57,7 +60,7 @@
         {:keys [status binding/id]}
         (env/lexical-binding-status (:net state) sym (:env state))]
     (case status
-      :found (compile-found-symbol state id k)
+      :found (compile-found-symbol state sym id k)
       :missing (compile-free-symbol state sym k)
       (compile-accessed-symbol state sym k))))
 
@@ -184,7 +187,13 @@
      (let [[application-state fallback-result-id]
            (declarations/declare-application-context operator-state expr)]
        (dispatch-application
-        compile-k k application-state operator-binding
+        compile-k
+        (fn [compiled binding]
+          (let [named (if (= fallback-result-id (env/binding-id binding))
+                        (update compiled :net cell-names/assign fallback-result-id expr)
+                        compiled)]
+            (cps/continue k named binding)))
+        application-state operator-binding
         (ast/args expr) fallback-result-id)))))
 
 (defn continue-with-cell [continuation state binding]

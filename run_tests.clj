@@ -6,12 +6,15 @@
   clojure -M:test leapfrog                 ; leapfrog suites
   clojure -M:test propagators              ; stable propagator suites
   clojure -M:test rule-fixedpoint          ; opt-in DB/rule evaluator experiment
+  clojure -M:test ttms-compound            ; opt-in compound/history experiment
+  clojure -M:test network-replay           ; compiled Lain recorder/reducer and playback
   clojure -M:test propagators.network-test ; one suite"
   (:require [clojure.string :as str]
             [clojure.test :refer [run-tests]]))
 
 (def propagators-test-namespaces
   '[propagators.bool4-test
+    propagators.error-layer-test
     propagators.behavior-algebra-test
     propagators.behavior-arithmetic-test
     propagators.behavior-compiler-test
@@ -26,6 +29,9 @@
     propagators.compiler-2-cps-test
     propagators.compiler-2-rest-parameters-test
     propagators.compiler-2-network-observation-test
+    propagators.compiler-2.runtime.semantic-traversal-test
+    propagators.compiler-2.runtime.retained-network-test
+    propagators.observer-test
     propagators.compiler-2-organization-test
     propagators.compound-object-network-slot-test
     propagators.debug-test
@@ -43,6 +49,7 @@
     propagators.layered-dispatcher-test
     propagators.layered-arity-test
     propagators.layered-support-test
+    propagators.membership-collection-test
     propagators.message-lift-test
     propagators.named-network-test
     propagators.network-patch-test
@@ -55,6 +62,7 @@
     propagators.support-collection-test
     propagators.support-transport-test
     propagators.support-glitch-test
+    propagators.sync-contradiction-test
     propagators.ttms-branching-test
     propagators.ttms-compound-boundary-test
     propagators.ttms-primitives-test
@@ -62,7 +70,8 @@
     propagators.tms-test])
 
 (def graph-test-namespaces
-  '[graph.ttms-view-live-test
+  '[graph.lain-editor.retained-relationship-test
+    graph.ttms-view-live-test
     graph.vijual.math-test
     propagators.compiler-2.runtime.tui.version-history-test
     propagators.compiler-2.runtime.tui.block-compiler-test
@@ -97,6 +106,14 @@
     propagators.experimental.rule-fixedpoint-validation-test
     propagators.experimental.rule-fixedpoint-catalog-test])
 
+(def ttms-compound-test-namespaces
+  '[propagators.experimental.ttms-compound-test
+    propagators.experimental.ttms-reducer-test])
+
+(def network-replay-test-namespaces
+  '[graph.lain-editor.network-replay-test
+    graph.lain-editor.replay-model-test])
+
 (def leapfrog-test-namespaces
   '[leapfrog.pure-test
     leapfrog.differential-test])
@@ -120,6 +137,8 @@
    "recovered-slices" recovered-slice-test-namespaces
    "relational-experiments" relational-experiment-test-namespaces
    "rule-fixedpoint" rule-fixedpoint-test-namespaces
+   "ttms-compound" ttms-compound-test-namespaces
+   "network-replay" network-replay-test-namespaces
    "graph" graph-test-namespaces
    "leapfrog" leapfrog-test-namespaces
    "differential-dataflow" differential-dataflow-test-namespaces

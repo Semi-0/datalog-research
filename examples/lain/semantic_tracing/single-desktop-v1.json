@@ -1,0 +1,193 @@
+{
+  "format": "lain-tiled-editor",
+  "version": 1,
+  "panes": [
+    {
+      "id": "01-unary",
+      "title": "01-unary",
+      "filename": "01-unary.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; unary primitive: true\n(define flag false)\n(def-cells result)\n\n(-> (not flag) result)\n\n(display\n  (observe-dependents-retained flag))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; unary primitive: true\n(define flag false)\n(def-cells result)\n\n(-> (not flag) result)\n\n(display\n  (observe-dependents-retained flag))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.55,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "02-binary",
+      "title": "02-binary",
+      "filename": "02-binary.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; binary primitive: 7\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (+ left right) result)\n\n(display\n  (observe-dependents-retained left))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; binary primitive: 7\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (+ left right) result)\n\n(display\n  (observe-dependents-retained left))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.55,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "03-three-inputs",
+      "title": "03-three-inputs",
+      "filename": "03-three-inputs.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; three-input closure: 10\n(define combine\n  (network [a b c]\n    (+ (* a b) c)))\n\n(define a 2)\n(define b 3)\n(define c 4)\n(def-cells result)\n\n(-> (combine a b c) result)\n\n(display\n  (observe-dependents-retained a))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; three-input closure: 10\n(define combine\n  (network [a b c]\n    (+ (* a b) c)))\n\n(define a 2)\n(define b 3)\n(define c 4)\n(def-cells result)\n\n(-> (combine a b c) result)\n\n(display\n  (observe-dependents-retained a))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.55,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "04-branch-true",
+      "title": "04-branch-true",
+      "filename": "04-branch-true.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; true branch: 8\n(define flag true)\n(define x 7)\n(def-cells result)\n\n(-> (if flag\n      (+ x 1)\n      (* x 2))\n    result)\n\n(display\n  (observe-dependents-retained x))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; true branch: 8\n(define flag true)\n(define x 7)\n(def-cells result)\n\n(-> (if flag\n      (+ x 1)\n      (* x 2))\n    result)\n\n(display\n  (observe-dependents-retained x))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.55,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "05-branch-false",
+      "title": "05-branch-false",
+      "filename": "05-branch-false.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; false branch: 14\n(define flag false)\n(define x 7)\n(def-cells result)\n\n(-> (if flag\n      (+ x 1)\n      (* x 2))\n    result)\n\n(display\n  (observe-dependents-retained x))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; false branch: 14\n(define flag false)\n(define x 7)\n(def-cells result)\n\n(-> (if flag\n      (+ x 1)\n      (* x 2))\n    result)\n\n(display\n  (observe-dependents-retained x))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.55,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "06-recursion",
+      "title": "06-recursion",
+      "filename": "06-recursion.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; sum-to(4, 0) = 10\n; (4,0) -> (3,4) -> (2,7) -> (1,9) -> (0,10)\n(define sum-to\n  (network [n acc]\n    ((if (<= n 0)\n       (network [n acc]\n         acc)\n       (network [n acc]\n         (sum-to (- n 1) (+ acc n))))\n     n acc)))\n\n(define input 4)\n(def-cells result)\n\n(-> (sum-to input 0) result)\n\n(display\n  (observe-dependents-retained input))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; sum-to(4, 0) = 10\n; (4,0) -> (3,4) -> (2,7) -> (1,9) -> (0,10)\n(define sum-to\n  (network [n acc]\n    ((if (<= n 0)\n       (network [n acc]\n         acc)\n       (network [n acc]\n         (sum-to (- n 1) (+ acc n))))\n     n acc)))\n\n(define input 4)\n(def-cells result)\n\n(-> (sum-to input 0) result)\n\n(display\n  (observe-dependents-retained input))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.55,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "07-two-outputs",
+      "title": "07-two-outputs",
+      "filename": "07-two-outputs.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; two outputs: sum = 7, product = 12, result = 19\n(define stats\n  (network [x y sum product]\n    (-> (+ x y) sum)\n    (-> (* x y) product)\n    (list sum product)))\n\n(def-cells sum product result)\n\n(stats 3 4 sum product)\n(-> (+ sum product) result)\n\n(display\n  (observe-dependents-retained sum))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; two outputs: sum = 7, product = 12, result = 19\n(define stats\n  (network [x y sum product]\n    (-> (+ x y) sum)\n    (-> (* x y) product)\n    (list sum product)))\n\n(def-cells sum product result)\n\n(stats 3 4 sum product)\n(-> (+ sum product) result)\n\n(display\n  (observe-dependents-retained sum))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.55,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    },
+    {
+      "id": "08-captured-closure",
+      "title": "08-captured-closure",
+      "filename": "08-captured-closure.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; captured bias: 15\n(define make-adder\n  (network [bias]\n    (network [x]\n      (+ x bias))))\n\n(define add-ten (make-adder 10))\n(define input 5)\n(def-cells result)\n\n(-> (add-ten input) result)\n\n(display\n  (observe-dependents-retained input))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n; captured bias: 15\n(define make-adder\n  (network [bias]\n    (network [x]\n      (+ x bias))))\n\n(define add-ten (make-adder 10))\n(define input 5)\n(def-cells result)\n\n(-> (add-ten input) result)\n\n(display\n  (observe-dependents-retained input))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.55,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
+    }
+  ],
+  "layout": {
+    "type": "split",
+    "axis": "row",
+    "ratio": 0.5,
+    "first": {
+      "type": "split",
+      "axis": "row",
+      "ratio": 0.5,
+      "first": {
+        "type": "split",
+        "axis": "column",
+        "ratio": 0.5,
+        "first": {
+          "type": "pane",
+          "id": "01-unary"
+        },
+        "second": {
+          "type": "pane",
+          "id": "05-branch-false"
+        }
+      },
+      "second": {
+        "type": "split",
+        "axis": "column",
+        "ratio": 0.5,
+        "first": {
+          "type": "pane",
+          "id": "02-binary"
+        },
+        "second": {
+          "type": "pane",
+          "id": "06-recursion"
+        }
+      }
+    },
+    "second": {
+      "type": "split",
+      "axis": "row",
+      "ratio": 0.5,
+      "first": {
+        "type": "split",
+        "axis": "column",
+        "ratio": 0.5,
+        "first": {
+          "type": "pane",
+          "id": "03-three-inputs"
+        },
+        "second": {
+          "type": "pane",
+          "id": "07-two-outputs"
+        }
+      },
+      "second": {
+        "type": "split",
+        "axis": "column",
+        "ratio": 0.5,
+        "first": {
+          "type": "pane",
+          "id": "04-branch-true"
+        },
+        "second": {
+          "type": "pane",
+          "id": "08-captured-closure"
+        }
+      }
+    }
+  }
+}

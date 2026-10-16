@@ -1,0 +1,55 @@
+;; the intention of this sketch
+;; is to give each independent lain program
+;; a multi-projectional protocol
+;; so we can start observe inputs & outputs
+;; just behind the desktop
+;; outputs could be processed by terminal (defaultly as terminal)
+;; but also a graphical user interface
+;; it follows the same multi-projectional idea for xr:io
+;; but the intention is to make it more generic
+
+;; it would be great if each mini env could supports multiple input and multiple output
+
+;; so each input would looks like
+
+(define construct-input-ports
+   [script-in . pointer-ins]
+   (flat-list script-in pointers-in)
+)
+
+;; abstracted networked env
+(define networked-env
+   (network [inputs outputs]
+     (let [script (get-script-input inputs)
+           env (|> (empty-env)
+                   (register-slots inputs :inputs)
+                   (register-slots outputs :outputs))]
+        (compile script env))))
+
+;; env should be able to get the reference of itself
+;; (except itself based on the late-accessor nature of compound env)
+
+;; therefore inside the input cell we can declare code like
+;; if we want the entire env to be observable
+(-> runtime-env (slot :env-out outputs))
+
+;; if we want to publish the env to be interactable we can do
+(<-> runtime-env (slot :env-out outputs))
+
+;; and the observer instance could observe the parent env input like
+(-> (cell-strongest (slot :env-out input)) output)
+
+;; and defaultly if we execute default TUI env
+;; output would just print entire env line by line into the terminal
+
+;; if the display media supports render graph so we can trace a input
+;; like
+(define input-env (slot :env inputs))
+(-> (trace-dependents (env-lookup <interested-cell> input-env))
+    (slot <interested-cell> outputs))
+
+;; i guess if we design the env like this perhaps we dont even need an rpc or socket
+;; we could use the default unix pipe if unix pipe could simutaniously projected to
+;; file string
+
+;; or if we use a socket or other very fast protocol is also acceptable

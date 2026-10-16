@@ -1,0 +1,143 @@
+{
+  "format": "lain-tiled-editor",
+  "version": 2,
+  "activeDesktop": "desktop-1",
+  "desktops": [
+    {
+      "id": "desktop-1",
+      "name": "1",
+      "selectedPane": "values",
+      "layout": {
+        "type": "pane",
+        "id": "values"
+      }
+    },
+    {
+      "id": "desktop-2",
+      "name": "2",
+      "selectedPane": "topology",
+      "layout": {
+        "type": "pane",
+        "id": "topology"
+      }
+    },
+    {
+      "id": "desktop-3",
+      "name": "3",
+      "selectedPane": "clock",
+      "layout": {
+        "type": "pane",
+        "id": "clock"
+      }
+    }
+  ],
+  "panes": [
+    {
+      "id": "values",
+      "title": "",
+      "filename": "values.lain",
+      "source": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "executedSource": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "extensions": [
+        "(-> 7 input)"
+      ],
+      "extensionDraft": "",
+      "outputRatio": 0.53,
+      "layerMode": "stack",
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      },
+      "layers": [
+        {
+          "id": "code",
+          "visible": true
+        },
+        {
+          "id": "topology",
+          "visible": true
+        },
+        {
+          "id": "result",
+          "visible": false
+        },
+        {
+          "id": "cell",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "id": "topology",
+      "title": "",
+      "filename": "topology.lain",
+      "source": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "executedSource": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "extensions": [
+        "(-> 7 input)",
+        "(def-cells doubled)\n\n(-> (* input 2) doubled)"
+      ],
+      "extensionDraft": "",
+      "outputRatio": 0.53,
+      "layerMode": "stack",
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      },
+      "layers": [
+        {
+          "id": "code",
+          "visible": true
+        },
+        {
+          "id": "topology",
+          "visible": true
+        },
+        {
+          "id": "result",
+          "visible": false
+        },
+        {
+          "id": "cell",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "id": "clock",
+      "title": "",
+      "filename": "clock.lain",
+      "source": "(load-primitive-environment\n  \"extensions/runtime_clock.clj\"\n  :extensions.runtime-clock/primitive-bindings)\n\n(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(define time\n  (clock-in 1000))\n\n(display\n  (collect-semantic-history time 0 60000))\n",
+      "executedSource": "(load-primitive-environment\n  \"extensions/runtime_clock.clj\"\n  :extensions.runtime-clock/primitive-bindings)\n\n(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(define time\n  (clock-in 1000))\n\n(display\n  (collect-semantic-history time 0 60000))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.53,
+      "layerMode": "stack",
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      },
+      "layers": [
+        {
+          "id": "code",
+          "visible": true
+        },
+        {
+          "id": "topology",
+          "visible": true
+        },
+        {
+          "id": "result",
+          "visible": false
+        },
+        {
+          "id": "cell",
+          "visible": false
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,7 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.event :as event]
             [propagators.datastructures.support-collection :as supported]
+            [propagators.datastructures.membership-collection :as membership]
             [propagators.datastructures.tms :as tms]))
 
 (defn slot-data
@@ -19,6 +20,7 @@
 (defn semantic-kind
   [value]
   (cond
+    (membership/content? value) :membership-collection
     (supported/content? value) :support-collection
     (or (event/event-content? value)
         (event/event-fact? value)

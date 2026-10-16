@@ -1,0 +1,12 @@
+(load-primitive-environment
+  "extensions/runtime_clock.clj"
+  :extensions.runtime-clock/primitive-bindings)
+
+(load-lain
+  "examples/lain/network_replay/collect-history.lain")
+
+(define time
+  (clock-in 1000))
+
+(display
+  (collect-semantic-history time 0 60000))

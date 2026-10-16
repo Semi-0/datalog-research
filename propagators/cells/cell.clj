@@ -21,6 +21,9 @@
 (defn cell-name [c]
   (or (:name c) :cell/anonymous))
 
+(defn anonymous-name? [name]
+  (or (nil? name) (= :cell/anonymous name) (ids/node-id? name)))
+
 (defn cell-content [c]
   (:content c))
 

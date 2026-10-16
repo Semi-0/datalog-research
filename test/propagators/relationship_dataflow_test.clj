@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is]]
             [graph.xr-runtime :as xr]
             [propagators.cells.value :as value]
+            [propagators.experimental.visualization.data :as data]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.extensions.relationship-xr :as extension]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
@@ -19,8 +20,8 @@
 
 (defn graph-value [state name]
   (let [network (:program/net state)]
-    (net/network-cell-strongest
-     network (env/resolve-binding-id network (:program/env state) name))))
+    (data/payload (net/network-cell-strongest
+                   network (env/resolve-binding-id network (:program/env state) name)))))
 
 (defn labeled-edges [graph]
   (set (map #(mapv (:nodes graph) %) (:edges graph))))
@@ -32,12 +33,15 @@
         graph (graph-value state 'semantic)]
     (is (= 8 (count (:nodes graph))))
     (is (< (count (:nodes graph)) (count (:nodes raw))))
-    (is (= #{["1" 'source] ['source "1"] ['source '+] ["1" '+]
-             ['+ 'middle] ['middle '*] ["2" '*] ['* 'result]}
+    (is (= #{["CONSTANT" 'source] ['source "CONSTANT"] ['source '+] ["CONSTANT" '+]
+             ['+ 'middle] ['middle '*] ["CONSTANT" '*] ['* 'result]}
            (labeled-edges graph)))
     (is (= 8 (count (:edges graph))))
     (is (= {:cell 6 :propagator 2} (frequencies (vals (:node-kinds graph)))))
-    (is (= 2 (count (filter #{"1"} (vals (:nodes graph))))))
+    (is (= 2 (count (filter (fn [[id label]]
+                             (and (= "CONSTANT" label)
+                                  (= 1 (data/payload (get (:values graph) id)))))
+                           (:nodes graph)))))
     (is (= 4 (get (:values graph)
                   (first (keep (fn [[id label]] (when (= 'result label) id))
                                (:nodes graph))))))
@@ -171,3 +175,53 @@
       (is (instance? InterruptedException (:error result)))
       (is (:interrupted? result)))
     (finally (Thread/interrupted))))
+
+(deftest if-selected-operator-is-a-semantic-input-to-the-dynamic-call
+  (doseq [[flag expected] [["true" 5] ["false" 8]]]
+    (let [source (str "(define flag " flag ") (define input 4) (define result)
+                       (-> ((if flag (network [x] (+ x 1))
+                                     (network [x] (* x 2))) input) result)
+                       (define raw) (define semantic)
+                       (relationship:roots input raw)
+                       (relationship:dataflow raw semantic)")
+          session (loader/load-session-from-source source options)
+          graph (graph-value @session 'semantic)
+          operation (fn [label] (first (for [[id name] (:nodes graph)
+                                            :when (and (= label name)
+                                                       (= :propagator (get-in graph [:node-kinds id])))] id)))
+          chooser (operation 'if) call (operation :propagator/anonymous)
+          selected (set (for [[from to] (:edges graph) :when (= chooser from)] to))
+          used (set (for [[from to] (:edges graph) :when (= call to)] from))]
+      (is (= expected (graph-value @session 'result)))
+      (is (some? chooser)) (is (some? call))
+      (is (some selected used) "The chosen network must feed the dynamic call"))))
+
+(deftest returned-member-values-reach-their-caller-cells
+  (let [source "(define stats (network [x y sum product]
+                  (-> (+ x y) sum) (-> (* x y) product) (list sum product)))
+                (define sum) (define product) (define result)
+                (stats 3 4 sum product) (-> (+ sum product) result)
+                (define raw) (define semantic)
+                (relationship:roots sum raw) (relationship:dataflow raw semantic)"
+        session (loader/load-session-from-source source options)
+        graph (graph-value @session 'semantic)
+        network (:program/net @session)]
+    (is (= 19 (graph-value @session 'result)))
+    (doseq [[name expected] [['sum 7] ['product 12]]]
+      (let [caller [[:outer] (env/resolve-binding-id network (:program/env @session) name)]
+            sources (for [[source target] (:edges graph)
+                          :when (and (= caller target) (= name (get (:nodes graph) source)))] source)]
+        (is (= 1 (count sources)))
+        (is (not= caller (first sources)))
+        (is (= expected (get (:values graph) (first sources))))))))
+
+(deftest return-copy-flow-preserves-origins-and-terminates-on-cycles
+  (let [flow (dataflow/return-flow {:result #{:port} :port #{:acc}} :result)]
+    (is (= #{:acc} (:sources flow)))
+    (is (= #{[:port :result] [:acc :port]} (set (:edges flow)))))
+  (let [flow (dataflow/return-flow {:result #{:left :right}} :result)]
+    (is (= #{:left :right} (:sources flow)))
+    (is (= #{[:left :result] [:right :result]} (set (:edges flow)))))
+  (let [flow (dataflow/return-flow {:a #{:b} :b #{:a}} :a)]
+    (is (empty? (:sources flow)))
+    (is (= #{[:a :b] [:b :a]} (set (:edges flow))))))

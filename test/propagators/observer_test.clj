@@ -1,9 +1,11 @@
 (ns propagators.observer-test
   (:require [clojure.test :refer [deftest is testing]]
             [propagators.compiler-2.observer :as compiler-observer]
+            [propagators.compiler-2.runtime.declaration-effects :as declarations]
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
+            [propagators.network-patch :as patch]
             [propagators.observer :as observer]))
 
 (deftest observer-installs-without-changing-propagation-topology
@@ -52,4 +54,16 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"observer is not installed"
                           (observer/sample-observer net/empty-net
-                                                    (ids/new-node-id))))))
+                                                     (ids/new-node-id))))))
+
+(deftest observer-declaration-survives-the-compiler-effect-boundary
+  (let [id (ids/new-node-id)
+        effect (patch/declare-observer id :test/declarative #(count (net/net-env %)))
+        [_ recording] (declarations/eval-activation-result [effect] (declarations/begin net/empty-net))
+        recorded (declarations/result recording)
+        [_ installed] (patch/apply-root-patch (first (:effects recorded)) net/empty-net)]
+    (is (= [effect] (:effects recorded)))
+    (is (empty? (:messages recorded)))
+    (is (empty? (net/net-env installed)))
+    (is (empty? (net/net-graph installed)))
+    (is (= 0 (observer/sample-observer installed id)))))

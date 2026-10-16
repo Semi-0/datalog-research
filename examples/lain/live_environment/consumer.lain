@@ -1,0 +1,2 @@
+;; x is a stable shared binding, not a copy of the producer's private cell.
+(define answer (* (+ x 1) 2))

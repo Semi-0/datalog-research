@@ -3,6 +3,12 @@
 Experiment documentation is collected here. Runnable code and data remain in
 [`examples/lain/amb/`](../../examples/lain/amb/).
 
+Follow-up: [dependency-directed backtracking](../../propagators/doc/dependency-directed-backtracking.md)
+shows how an opt-in compiler adds file premises to ordinary Lain procedures,
+and how AMB selects a procedure file fitting a separately loaded target. The
+[session composition example](../../examples/lain/amb/file_premise_selection/composition.lain)
+declares the module loads and query directly in Lain.
+
 An opt-in finite-domain experiment. The search policy is a propagator, not a
 runner modification. The unchanged normal runner reaches quiescence after
 learning and repairing choices.

@@ -1,0 +1,7 @@
+(let [one (file-load file-composition
+                     "examples/lain/amb/file_premise_selection/one.lain" "one")
+      ten (file-load one
+                     "examples/lain/amb/file_premise_selection/ten.lain" "ten")
+      definitions (file-load ten
+                             "examples/lain/amb/file_premise_selection/goal.lain" "goal")]
+  (file-run definitions "examples/lain/amb/file_premise_selection/target.lain"))

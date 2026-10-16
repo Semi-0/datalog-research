@@ -6,3 +6,7 @@ leapfrog-rs/target/
 .DS_Store
 better-layering/
 .agent-memory/
+
+# Generated ClojureScript editor bundles and test output
+graph/lain_editor_static/compiled/
+target/lain-editor/

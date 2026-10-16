@@ -1,0 +1,10 @@
+(define combine
+  (network [a b]
+    (+ (* a 2) b)))
+(define left 3)
+(define right 4)
+(def-cells result)
+(-> (combine left right) result)
+(display
+  (relationship:with-values
+    (relationship:semantic left)))

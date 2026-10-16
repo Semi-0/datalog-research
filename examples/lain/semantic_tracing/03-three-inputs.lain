@@ -1,0 +1,17 @@
+(load-lain
+  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+
+; three-input closure: 10
+(define combine
+  (network [a b c]
+    (+ (* a b) c)))
+
+(define a 2)
+(define b 3)
+(define c 4)
+(def-cells result)
+
+(-> (combine a b c) result)
+
+(display
+  (observe-dependents-retained a))

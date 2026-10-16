@@ -110,7 +110,8 @@ Run the executable AMB example with:
 clojure -M -m examples.lain.amb.native-premise-selection
 ```
 
-For input `5`, AMB rejects `x+1` and selects `x+10`, producing `[2 15]`.
+For input `5`, AMB rejects `x+1` and selects `x+10`. The target is
+`(= (procedure 5) 15)`; the example returns only the accepted choice number, `2`.
 The result retains both the selected choice premise and the definition-source
 premise. This is finite satisfiability against a predicate, not global ranking.
 Tests cover default/registration isolation, custom compiler capture, recursion,
@@ -119,8 +120,19 @@ retraction/recovery, stale epochs, interface rejection, and replay stability.
 Arithmetic, TTMS merge, cell evaluation, and the scheduler are unchanged by this
 extension.
 
+The larger
+[`native_procedure_pipeline.lain`](../../examples/lain/amb/native_procedure_pipeline.lain)
+selects one of three procedures at each of three stages. Its target is
+`(= (finish (transform (start 5))) 42)`. Among the 27 combinations, the unique
+answer is `[2 3 1]`: add ten, triple, then subtract three. The learned failures
+refer to all three decision records and the selected definition premises.
+Run it with `clojure -M -m examples.lain.amb.native-procedure-pipeline`.
+
 
 ## Performance check: 2026-10-16
+
+These measurements describe `f984a5b`, before the example's `backtrack-unless`
+network extraction.
 
 Verified independently of unrelated workspace edits: export `0dc50e7`, apply
 only this feature's files, then run the selected compiler, AMB, and support

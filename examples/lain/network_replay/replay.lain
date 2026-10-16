@@ -1,0 +1,9 @@
+(load-lain
+  "examples/lain/network_replay/collect-history.lain")
+
+(def-cells input result)
+
+(-> (+ input 1) result)
+
+(display
+  (collect-semantic-history input 0 60000))
