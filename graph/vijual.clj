@@ -16,6 +16,10 @@
 
 (def layout-result layout/layout-result)
 (def layout-stress-nodes nodes/layout-nodes)
+(def layout-balanced-stress-nodes nodes/layout-balanced-nodes)
+(def create-balanced-stress-layout nodes/create-balanced-layout)
+(def layout-symmetric-stress-nodes nodes/layout-symmetric-nodes)
+(def create-symmetric-stress-layout nodes/create-symmetric-layout)
 (def create-stress-layout nodes/create-layout)
 (def update-stress-layout nodes/update-layout)
 (def advance-stress-layout nodes/advance-layout)

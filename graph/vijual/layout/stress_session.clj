@@ -2,6 +2,7 @@
   "Persistent layout sessions. Internal buffers are opaque and must not be edited."
   (:require [graph.vijual.layout.node-model :as model]
             [graph.vijual.layout.stress-numeric :as numeric]
+            [graph.vijual.layout.stress-preferences :as preferences]
             [graph.vijual.layout.stress-topology :as topology]))
 
 (defn- metrics [sources]
@@ -84,7 +85,9 @@
    (let [budget (merge (select-keys (:opts state) [:iterations :tolerance]) opts)
          _ (model/validate-budget! budget)
          indices (zipmap (map :id (:normalized state)) (range))
-         [result work] (numeric/advance (:numeric state) (get-in state [:topology :packed])
+         packed (assoc (get-in state [:topology :packed]) :preferences
+                       (preferences/prepare (:normalized state) (:edges state) (:opts state)))
+         [result work] (numeric/advance (:numeric state) packed
                                         (map indices (:pinned-ids state)) budget)
          next-state (merge state (materialize state result)
                            {:numeric result :metrics (merge (metrics 0) work)})]

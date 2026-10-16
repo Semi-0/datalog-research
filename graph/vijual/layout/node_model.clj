@@ -6,7 +6,9 @@
   {:id-fn :id :position-fn :position :size-fn :size
    :with-position (fn [node position] (assoc node :position position))
    :iterations 100 :tolerance 0.0 :gap 10.0 :edge-length 80.0
-   :disconnected-weight 0.02 :pinned-ids #{}})
+   :disconnected-weight 0.02 :pinned-ids #{}
+   :stress-method :standard :edge-symmetry-weight 6.0 :edge-axis-weight 12.0
+   :edge-overlap-weight 24.0 :edge-clearance 8.0 :mirror-symmetry-weight 24.0})
 
 (defn require-valid! [valid? message data]
   (when-not valid? (throw (ex-info message data))))
@@ -27,7 +29,10 @@
 (defn options [opts]
   (let [opts (merge default-options opts)]
     (validate-budget! opts)
-    (doseq [k [:gap :disconnected-weight]]
+    (require-valid! (contains? #{:standard :balanced :symmetric} (:stress-method opts))
+                    "Unknown stress method" {:stress-method (:stress-method opts)})
+    (doseq [k [:gap :disconnected-weight :edge-symmetry-weight :edge-axis-weight
+              :edge-overlap-weight :edge-clearance :mirror-symmetry-weight]]
       (require-valid! (and (finite-number? (get opts k)) (<= 0 (get opts k)))
                       "Option must be finite and nonnegative" {k (get opts k)}))
     (require-valid! (and (finite-number? (:edge-length opts))

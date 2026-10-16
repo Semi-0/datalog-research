@@ -31,3 +31,22 @@
   ([nodes edges] (layout-nodes nodes edges {}))
   ([nodes edges opts]
    (:nodes (advance-layout (create-layout nodes edges opts)))))
+
+(defn create-balanced-layout
+  "Prepare Balanced Stress: size-aware stress with extra equal-edge-length and
+  horizontal/vertical alignment, twin-node mirror symmetry and clearance preferences.
+  Weights default to 6, 12, 24 and 24; :edge-clearance defaults to 8 layout units.
+  Mirror inference covers equal-size two-member neighborhood classes with two or
+  more common anchors. Larger symmetries are not inferred. Sizes are unchanged."
+  ([nodes edges] (create-balanced-layout nodes edges {}))
+  ([nodes edges opts] (create-layout nodes edges (assoc opts :stress-method :balanced))))
+
+(defn layout-balanced-nodes
+  "Run Balanced Stress with soft length, axis, twin-node mirror and clearance preferences.
+  Uses the same adapters, pins and iteration budget as layout-nodes."
+  ([nodes edges] (layout-balanced-nodes nodes edges {}))
+  ([nodes edges opts] (:nodes (advance-layout (create-balanced-layout nodes edges opts)))))
+
+;; Compatibility names for the initial symmetry/clearance API.
+(def create-symmetric-layout create-balanced-layout)
+(def layout-symmetric-nodes layout-balanced-nodes)

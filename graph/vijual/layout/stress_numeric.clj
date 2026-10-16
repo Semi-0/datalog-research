@@ -1,6 +1,8 @@
 (ns graph.vijual.layout.stress-numeric
   "Private numeric buffers. Every advance owns its writes; prior states are read-only.
-  Cached sums always carry the geometry at which they were evaluated.")
+  Cached sums always carry the geometry at which they were evaluated."
+  (:require [graph.vijual.layout.stress-preferences :as preferences]
+            [graph.vijual.layout.stress-clearance :as clearance]))
 
 (defn geometry [normalized]
   {:xs (double-array (map (comp first :position) normalized))
@@ -108,18 +110,28 @@
           (aset-double xs i (+ (aget xs i) (* 1.0e-3 (Math/cos angle))))
           (aset-double ys i (+ (aget ys i) (* 1.0e-3 (Math/sin angle)))))))))
 
-(defn- move! [packed geometry next-geometry sums pinned?]
+(defn- move! [packed geometry next-geometry sums preference-sums pinned?]
   (let [^doubles xs (:xs geometry) ^doubles ys (:ys geometry)
         ^doubles nx (:xs next-geometry) ^doubles ny (:ys next-geometry)
         ^doubles sx (:sx sums) ^doubles sy (:sy sums)
-        ^doubles totals (:totals packed)]
+        ^doubles totals (:totals packed)
+        ^doubles px (:sx preference-sums) ^doubles py (:sy preference-sums)
+        ^doubles wx (:wx preference-sums) ^doubles wy (:wy preference-sums)]
     (loop [i 0 maximum 0.0]
       (if (= i (alength xs))
         maximum
         (let [weight (aget totals i)
               free? (and (not (aget ^booleans pinned? i)) (pos? weight))
-              x (if free? (* 0.5 (+ (aget xs i) (/ (aget sx i) weight))) (aget xs i))
-              y (if free? (* 0.5 (+ (aget ys i) (/ (aget sy i) weight))) (aget ys i))]
+              x (if free?
+                  (if (some? preference-sums)
+                    (* 0.5 (+ (aget xs i) (/ (+ (aget sx i) (aget px i)) (+ weight (aget wx i)))))
+                    (* 0.5 (+ (aget xs i) (/ (aget sx i) weight))))
+                  (aget xs i))
+              y (if free?
+                  (if (some? preference-sums)
+                    (* 0.5 (+ (aget ys i) (/ (+ (aget sy i) (aget py i)) (+ weight (aget wy i)))))
+                    (* 0.5 (+ (aget ys i) (/ (aget sy i) weight))))
+                  (aget ys i))]
           (when-not (and (Double/isFinite x) (Double/isFinite y))
             (throw (ex-info "Stress calculation exceeded finite coordinates" {:index i})))
           (aset-double nx i x)
@@ -128,29 +140,45 @@
                                                        (- y (aget ys i))))))))))
 
 (def empty-metrics
-  {:iterations 0 :pair-evaluations 0 :dense-sweeps 0 :sparse-sweeps 0
-   :max-displacement 0.0})
+  (merge clearance/empty-metrics
+         {:iterations 0 :pair-evaluations 0 :dense-sweeps 0 :sparse-sweeps 0
+          :max-displacement 0.0 :preference-edge-evaluations 0}))
+
+(defn- iteration-metrics [metrics work refinement config]
+  (let [counts [:edge-overlaps :edge-crossings :node-edge-conflicts :node-overlaps :edge-node-overlaps]
+        additive (apply dissoc (:metrics refinement) counts)]
+    (-> (merge-with + metrics work additive)
+        (merge (select-keys (:metrics refinement) counts))
+        (assoc :iterations (inc (:iterations metrics))
+               :max-displacement (:displacement refinement)
+               :preference-edge-evaluations
+               (+ (:preference-edge-evaluations metrics)
+                  (if (some? config) (alength ^longs (:aa config)) 0))))))
 
 (defn advance [numeric packed pinned-indices {:keys [iterations tolerance]}]
   (let [n (:n packed) pinned? (boolean-array n)
         _ (doseq [i pinned-indices] (aset-boolean pinned? i true))
+        clearance? (and (some? (:preferences packed))
+                        (pos? (get-in packed [:preferences :overlap-weight])))
         movable? (some (fn [i] (and (not (aget pinned? i))
-                                    (pos? (aget ^doubles (:totals packed) i)))) (range n))]
+                                    (or clearance? (pos? (aget ^doubles (:totals packed) i))))) (range n))]
     (if (or (zero? iterations) (not movable?))
-      [numeric empty-metrics]
+      [numeric (merge empty-metrics (clearance/geometry-metrics (:preferences packed) (:geometry numeric)))]
       (let [geometry (copy-geometry (:geometry numeric))
             spare (assoc geometry :xs (double-array n) :ys (double-array n))
             sums (if (some? (:sums numeric))
                    {:sx (aclone ^doubles (get-in numeric [:sums :sx]))
                     :sy (aclone ^doubles (get-in numeric [:sums :sy]))}
-                   {:sx (double-array n) :sy (double-array n)})]
+                   {:sx (double-array n) :sy (double-array n)})
+            config (:preferences packed)
+            preference-sums (if (some? config) (preferences/buffers n) nil)]
         (separate-coincident! packed geometry pinned?)
         (loop [geometry geometry spare spare basis (:basis numeric) metrics empty-metrics]
           (let [work (refresh-sums! packed geometry basis sums)
-                displacement (move! packed geometry spare sums pinned?)
-                metrics (assoc (merge-with + metrics work)
-                               :iterations (inc (:iterations metrics))
-                               :max-displacement displacement)]
-            (if (or (>= (:iterations metrics) iterations) (<= displacement tolerance))
+                _ (when (some? config) (preferences/accumulate! config geometry preference-sums))
+                displacement (move! packed geometry spare sums preference-sums pinned?)
+                refinement (clearance/finish-step! packed config geometry spare pinned? displacement)
+                metrics (iteration-metrics metrics work refinement config)]
+            (if (or (>= (:iterations metrics) iterations) (<= (:displacement refinement) tolerance))
               [{:geometry spare :basis geometry :sums sums} metrics]
               (recur spare geometry geometry metrics))))))))
