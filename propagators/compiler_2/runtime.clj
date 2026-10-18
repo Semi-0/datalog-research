@@ -18,8 +18,6 @@
 
 (def new-session state/new-session)
 (def ensure-session-state! state/ensure-session-state!)
-(def install-network-iterator state/install-network-iterator)
-(def remove-network-iterator state/remove-network-iterator)
 (def record-runtime-error! state/record-runtime-error!)
 (def default-xr-client-id state/default-xr-client-id)
 (def compile-source! program/compile-source!)
@@ -53,11 +51,6 @@
   (state/mutate-session!
    session
    #(extension/install-session-extension % bundle context)))
-
-(defn install-network-iterator!
-  [session iterator]
-  (state/ensure-session-state! session)
-  (state/mutate-session! session #(state/install-network-iterator % iterator)))
 
 (defn- with-trace-refresh!
   [session result]

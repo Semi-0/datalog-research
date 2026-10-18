@@ -1,6 +1,7 @@
 (ns propagators.experimental.network-history
   "Explicit finite semantic-network recording and replay values. Time is elapsed milliseconds."
-  (:require [propagators.cells.value :as value]
+  (:require [propagators.semantic-trace.capture :as capture]
+            [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.membership-collection :as membership]
             [propagators.datastructures.layered-value :as datum]
@@ -8,8 +9,7 @@
             [propagators.experimental.visualization.data :as data]
             [propagators.message :refer [message]]
             [propagators.network :as net]
-            [propagators.propagator :as prop]
-            [propagators.semantic-trace :as trace]))
+            [propagators.propagator :as prop]))
 
 (defn field [x k]
   (if (net/net? x) (obj/accessor-source-slot-value x k) (get x k)))
@@ -28,7 +28,7 @@
   (let [graph (field frame :graph)
         frame (into {} (map #(vector % (field frame %)))
                     [:sequence :time :elapsedMs :graph :source-support])]
-    (if (and (replay? acc) (trace/semantic-trace-graph? graph) (number? (:elapsedMs frame)))
+    (if (and (replay? acc) (capture/semantic-graph? graph) (number? (:elapsedMs frame)))
       {:replay/type :semantic :replay/frames (conj (vec (field acc :replay/frames)) frame)}
       (throw (ex-info "history:append expects a replay and a recorded semantic graph"
                       {:replay? (replay? acc) :acc-type (field acc :replay/type)
@@ -49,7 +49,7 @@
       (assoc previous :history/latest graph :history/frames (conj frames frame)))))
 
 (defn- captured-support [input graph]
-  (apply support/combine (map datum/support-of (cons input (vals (:values graph))))))
+  (apply support/combine (map datum/support-of (cons input (vals (:values (capture/root-graph graph)))))))
 
 (defn p:record [source out]
   (prop/construct-propagator
@@ -59,7 +59,7 @@
            graph (data/payload input)]
        (cond
          (value/nothing? graph) []
-         (not (trace/semantic-trace-graph? graph))
+         (not (capture/semantic-graph? graph))
          (throw (ex-info "history:record expects a semantic tracer graph" {}))
          :else
          (let [old (data/payload (net/network-cell-strongest network out))

@@ -1,6 +1,7 @@
 (ns propagators.experimental.visualization.collections
   "Higher-order collection topology, declared by ordinary propagators."
-  (:require [propagators.cells.value :as value]
+  (:require [propagators.semantic-trace.capture :as capture]
+            [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.closure-value :as closure]
             [propagators.compiler-2.model.operator-value :as operator]
@@ -11,8 +12,7 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-patch :as patch]
-            [propagators.propagator :as prop]
-            [propagators.semantic-trace :as trace]))
+            [propagators.propagator :as prop]))
 
 (defn stable-id [& parts] (gur/stable-node-id (into [::collection] parts)))
 
@@ -63,7 +63,7 @@
       (if (value/unusable? graph)
         (data/state-messages gate [content])
         [(message gate (data/supported [::member gate]
-                                       (contains? (:nodes graph) identity)
+                                       (contains? (:nodes (capture/root-graph graph)) identity)
                                        #{(data/reference source)} [content]))]))))
 
 (defn- discover [source out network]
@@ -71,7 +71,7 @@
         v (data/payload (net/network-cell-strongest network source))]
     (cond
       (data/collection? v) [(message out v)]
-      (trace/semantic-trace-graph? v)
+      (capture/semantic-graph? v)
       (into [(header out :graph ref ref)]
             (mapcat
              (fn [identity]
@@ -86,7 +86,7 @@
                   (message out (data/fragment
                                 {[:element identity] {:identity identity :order (pr-str identity) :value item
                                                       :sources #{source-ref} :gates [gate]}}))]))
-             (sort-by pr-str (keys (:nodes v)))))
+             (sort-by pr-str (keys (:nodes (capture/root-graph v))))))
       :else
       [(header out :list ref nil)
        (patch/declare-propagator (stable-id out :root) ::list-step

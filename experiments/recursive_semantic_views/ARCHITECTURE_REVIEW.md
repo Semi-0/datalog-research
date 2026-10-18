@@ -1,3 +1,5 @@
+> Historical proposal: the session runner and publication wrapper below have been superseded by `propagators.semantic-trace.merge` and the host retention capability. `review_probe.clj` now verifies ordinary-runner composition.
+
 # Recursive semantic views: boundary review
 
 Prepared 2026-10-18. Planning and assessment only. Production implementation is

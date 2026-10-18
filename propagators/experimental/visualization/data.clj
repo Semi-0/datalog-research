@@ -1,6 +1,7 @@
 (ns propagators.experimental.visualization.data
   "Read-only source references and cell-backed collection declarations."
   (:require [clojure.set :as set]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.dependency :as dependency]
@@ -141,7 +142,8 @@
                                 (not (value/unusable? (:payload %)))) rows)
         identities (set (map :identity included))
         graph-ref (field collection :collection/graph-source)
-        graph (if (reference? graph-ref) (payload (read-source network graph-ref)) {})]
+        graph (capture/root-graph
+               (if (reference? graph-ref) (payload (read-source network graph-ref)) {}))]
     {:kind (field collection :collection/type)
      :items (mapv (fn [row]
                     (assoc row :label (get (:nodes graph) (:identity row))

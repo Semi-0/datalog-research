@@ -9,18 +9,15 @@
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.operators.network-history :as history]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
-            [propagators.semantic-trace.session-runner :as semantic-runner]
+            [propagators.semantic-trace.retention :as retention]
             [propagators.semantic-trace.observation :as capture-observation]
-            [propagators.semantic-trace.capture :as capture]
-            [propagators.runner :as runner]
             [propagators.experimental.visualization.extension :as visualization]))
 
 (defn close-session! [session]
   (when-let [storage (get @session retained-inspection/storage-key)] (reset! storage {}))
   (semantic-capture/close! session)
   (runtime/stop-clocks! session)
-  (doseq [trace (vals (:traces @session))] ((:stop trace)))
-  (swap! session runtime/remove-network-iterator))
+  (doseq [trace (vals (:traces @session))] ((:stop trace))))
 
 (defn load-checked! [session source]
   (when-not (string? source) (throw (ex-info "Source must be a string" {})))
@@ -29,17 +26,13 @@
       (throw (ex-info (str "Lain compilation failed: " error) {:compile-error error})))
     loaded))
 
-(defn- select-capture-runner! [session sources]
-  (runtime/install-network-iterator!
-   session (semantic-runner/make-session-iterator
-            sources capture/capture-pair? capture/join runner/make-patch-evaluator))
-  (swap! session assoc semantic-capture/storage-key sources))
-
 (defn prepare [source extensions]
-  (let [session (runtime/new-session)
-        sources (semantic-capture/storage session)]
+  (let [sources (atom {})
+        session (runtime/new-session {semantic-capture/storage-key sources})]
+    (runtime/ensure-session-state! session)
     (try
-      (select-capture-runner! session sources)
+      (runtime/install-session-extension!
+       session retention/extension {:outbox-id (runtime-ids/boundary-outbox-id)})
       (runtime/install-session-extension!
        session visualization/extension {:outbox-id (runtime-ids/boundary-outbox-id)})
       (runtime/install-session-extension! session display/extension {})
@@ -47,9 +40,6 @@
       (runtime/install-session-extension! session capture-observation/extension {})
       (load-checked! session source)
       (doseq [extension extensions] (load-checked! session extension))
-      ;; Loading may rebuild the runtime state map. Reattach the exact storage
-      ;; captured by the session iterator; replacing it would orphan retained
-      ;; frozen observations from inspection and refinement.
       (swap! session assoc
              semantic-capture/storage-key sources
              retained-inspection/storage-key (atom {}))
@@ -96,7 +86,7 @@
                                    semantic-capture/storage-key sources
                                    retained-inspection/storage-key (atom {})))]
         (try
-          (select-capture-runner! candidate sources)
+          (swap! candidate assoc-in [:runtime/options semantic-capture/storage-key] sources)
           (load-checked! candidate source)
           (swap! candidate assoc semantic-capture/storage-key sources)
           (promote! editors pane

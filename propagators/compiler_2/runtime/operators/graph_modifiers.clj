@@ -9,6 +9,7 @@
             [propagators.datastructures.support-collection :as collection]
             [propagators.message :refer [message]]
             [propagators.network :as net]
+            [propagators.stdlib.premise-state :as state]
             [propagators.semantic-trace.modifiers :as modifiers]
             [propagators.semantic-trace.capture :as capture]))
 
@@ -30,10 +31,10 @@
                       [(message output
                                 (cond
                                   (capture/fragment? result)
-                                  (capture/publication
-                                   (collection/content
-                                    {:base result :support (datum/support-of
-                                                           (net/network-cell-strongest network source))}))
+                                  (collection/content
+                                   {:base result
+                                    :support (datum/support-of (net/network-cell-strongest network source))
+                                    :premise-state (state/states-of (net/network-cell-strongest network source))})
                                   (or (ttms/supported? content) (tms/distributed-content? content))
                                   (data/supported [claim output] result #{source} [content])
                                   :else result))]))))}))

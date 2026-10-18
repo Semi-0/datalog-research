@@ -69,3 +69,29 @@
             (is (seq (:nodes (:graph (inspect editors {:parent (:id node)
                                                        :recordedObservation observation}))))))))
       (finally (editor/close! editors)))))
+
+(deftest failed-candidate-cleans-up-retention-without-touching-the-active-session
+  (let [editors (atom {}) candidate-storage (atom nil)]
+    (try
+      (editor/run! editors {:pane "recursive" :source source})
+      (let [pane (get @editors "recursive")
+            session (:session pane)
+            network (:program/net @session)
+            sources @(retained/storage session)
+            load editor/load-checked!]
+        (with-redefs [editor/load-checked!
+                      (fn [candidate text]
+                        (load candidate text)
+                        (reset! candidate-storage (retained/storage candidate))
+                        (throw (ex-info "Candidate rejected after acquisition" {})))]
+          (is (thrown? Exception
+                       (editor/extend! editors
+                                       {:pane "recursive" :generation (:generation pane)
+                                        :source "(define candidate-only (outer 9))
+                                                 (collect-semantic-history candidate-only 0 600000)"}))))
+        (is (identical? session (:session (get @editors "recursive"))))
+        (is (identical? network (:program/net @session)))
+        (is (= sources @(retained/storage session)))
+        (is (some? @candidate-storage))
+        (is (empty? @@candidate-storage)))
+      (finally (editor/close! editors)))))

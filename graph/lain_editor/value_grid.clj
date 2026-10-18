@@ -1,13 +1,13 @@
 (ns graph.lain-editor.value-grid
   "Complete public values as rows. Event timestamps retain separate source identities."
-  (:require [graph.lain-editor.call-inspection :as calls]
+  (:require [propagators.semantic-trace.capture :as capture]
+            [graph.lain-editor.call-inspection :as calls]
             [graph.lain-editor.value-labels :as labels]
             [graph.lain-editor.structural-value :as structure]
             [propagators.cells.value :as value]
             [propagators.datastructures.event :as event]
             [propagators.ids :as ids]
             [propagators.experimental.network-history :as history]
-            [propagators.semantic-trace :as trace]
             [propagators.network :as net]))
 
 (defn cell-token [id]
@@ -64,7 +64,7 @@
   (cond
     (or (value/nothing? v) (value/contradiction? v) (ids/node-id? v))
     [{:key title :value (labels/datum-text v) :depth depth}]
-    (or (trace/semantic-trace-graph? v) (history/replay? v) (history/recording? v))
+    (or (capture/semantic-graph? v) (history/replay? v) (history/recording? v))
     [{:key title :value (labels/datum-text v) :depth depth}]
     (structure/linked? v) (list-rows title v depth reader)
     (event/event-protocol-value? v)

@@ -8,14 +8,14 @@
   (update graph :graph/modifiers (fnil conj #{}) modifier))
 
 (defn with-values [graph]
-  (when-not (trace/semantic-trace-graph? graph)
+  (when-not (capture/semantic-graph? graph)
     (throw (ex-info "relationship:with-values expects a semantic graph" {})))
   (if (capture/fragment? graph)
     (capture/update-scope graph :root #(add-modifier % :cell-values))
     (add-modifier graph :cell-values)))
 
 (defn- caller-graph [graph]
-  (if (and (trace/semantic-trace-graph? graph) (seq (:dataflow/seeds graph)))
+  (if (and (capture/semantic-graph? graph) (seq (:dataflow/seeds graph)))
     (let [excluded (:dataflow/observer-applications graph #{})
           edges (remove (fn [[source target]] (or (excluded source) (excluded target))) (:edges graph))
           cut (assoc graph :edges (vec edges))

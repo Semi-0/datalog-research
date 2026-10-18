@@ -67,7 +67,7 @@
    (if (map? options)
      (let [graph-id (runtime-graph-id)
         base-state (assoc (empty-state) :runtime/options options)
-        base-net (-> (state/session-network base-state (:program/net base-state))
+        base-net (-> (:program/net base-state)
                      (nb/ensure-cell (boundary-outbox-id))
                      (nb/install-cell graph-id
                                       (semantic-trace/graph-union (empty-graph))
@@ -98,7 +98,7 @@
        {:source source
      :compiled compiled
      :compiled-network network
-     :network (state/session-network base-state net/empty-net)
+     :network net/empty-net
      :runtime/options options
      :program/net network
      :program/env (:env compiled)
@@ -541,7 +541,7 @@
   [state]
   (let [epoch (inc (or (:program/epoch state) 0))
         source-blocks (source-blocks state)
-        root (state/runtime-root (state/session-network state (runtime-base-net)))
+        root (state/runtime-root (runtime-base-net))
         base (assoc state
                     :program/net (nb/install-cell
                                   (net/assoc-net-dict-entry

@@ -1,8 +1,6 @@
 (ns propagators.runner
   "Continuation-constructed propagation runner."
-  (:require [propagators.cell-evaluator :as cell-evaluator]
-            [propagators.cells.merge :as merge]
-            [propagators.combinator :as combinator]
+  (:require [propagators.combinator :as combinator]
             [propagators.datastructures.compound-object.patch :as compound-patch]
             [propagators.graph :as graph]
             [propagators.helpers.task-queue :as tq]
@@ -18,27 +16,6 @@
                 (tq/pop-task tasks))
    :add-tasks (fn [remaining new-tasks]
                 (tq/merge-queues remaining (tq/into-queue new-tasks)))})
-
-(def network-iterator-key
-  [:runner :network-iterator])
-
-(declare network-iterator)
-
-(defn with-network-iterator
-  "Attach the iterator selected by the owning session to an immutable Net."
-  [network iterator]
-  (net/assoc-net-dict-entry network network-iterator-key iterator))
-
-(defn without-network-iterator
-  [network]
-  (net/net-with-dict network
-                     (dissoc (net/net-dict-or-empty network)
-                             network-iterator-key)))
-
-(defn selected-network-iterator
-  [network]
-  (or (net/network-dict-entry network network-iterator-key)
-      (network-iterator)))
 
 (def ^:dynamic *advance-transform*
   "Domain-neutral composition over one complete runner transition."
@@ -87,45 +64,29 @@
    patch/cell-patch? patch/apply-cell-patch
    patch/reject-patch))
 
-(defn make-patch-evaluator
-  "Construct activation patch evaluation around an explicit cell merge."
-  [merge-content]
-  (let [evaluate-cell-message (cell-evaluator/make-cell-evaluator merge-content)
-        apply-cell-patch (fn [_emitter cell-message network]
-                           (evaluate-cell-message cell-message network))
-        apply-accessor-patch
-        (compound-patch/make-accessor-patch-applier evaluate-cell-message)
-        apply-patch
-        (combinator/branch
-         patch/declaration-patch? patch/apply-declaration-patch
-         compound-patch/accessor-patch? apply-accessor-patch
-         patch/cell-patch? apply-cell-patch
-         patch/reject-patch)]
-    (fn [evaluated network {:keys [success fail]}]
-      (if-not (evaluated-activation? evaluated)
-        (fail (ex-info "patch evaluator expected evaluated activation"
-                       {:value evaluated}))
-        (try
-          (let [{:keys [messages effects]}
-                (patch/normalize-activation-return
-                 (:activation-result evaluated))
-                emitter (:emitter evaluated)
-                ordered-patches (concat effects messages)]
-            (loop [remaining (seq ordered-patches)
-                   tasks tq/empty-queue
-                   current network]
-              (if (nil? remaining)
-                (success tasks current)
-                (let [[new-tasks next-network]
-                      (apply-patch emitter (first remaining) current)]
-                  (recur (next remaining)
-                         (tq/merge-queues tasks new-tasks)
-                         next-network)))))
-          (catch Throwable error
-            (fail error)))))))
-
-(def evaluate-patches
-  (make-patch-evaluator merge/cell-merge))
+(defn evaluate-patches
+  [evaluated network {:keys [success fail]}]
+  (if-not (evaluated-activation? evaluated)
+    (fail (ex-info "patch evaluator expected evaluated activation"
+                   {:value evaluated}))
+    (try
+      (let [{:keys [messages effects]}
+            (patch/normalize-activation-return
+             (:activation-result evaluated))
+            emitter (:emitter evaluated)
+            ordered-patches (concat effects messages)]
+        (loop [remaining (seq ordered-patches)
+               tasks tq/empty-queue
+               current network]
+          (if (nil? remaining)
+            (success tasks current)
+            (let [[new-tasks next-network]
+                  (apply-patch emitter (first remaining) current)]
+              (recur (next remaining)
+                     (tq/merge-queues tasks new-tasks)
+                     next-network)))))
+      (catch Throwable error
+        (fail error)))))
 
 (defn network-iterator
   []
@@ -134,11 +95,11 @@
    evaluate-propagator
    evaluate-patches))
 
-(defn run-network-with
-  "Run `tasks` with an explicit iterator until quiescence."
-  [iterator tasks network]
+(defn run-network
+  "Run ordinary FIFO propagation until quiescence."
+  [tasks network]
   (let [last-network (atom network)
-        advance (*advance-transform* iterator)]
+        advance (*advance-transform* (network-iterator))]
     (letfn [(bounce [{:keys [network] :as state}]
               (reset! last-network network)
               (fn []
@@ -164,13 +125,6 @@
       (trampoline bounce
                   {:network network
                    :tasks (tq/into-queue tasks)}))))
-
-(defn run-network
-  "Run `tasks` with the iterator explicitly carried by this network.
-
-  Ordinary networks carry no selection and retain the standard iterator."
-  [tasks network]
-  (run-network-with (selected-network-iterator network) tasks network))
 
 (defn completed-network
   "Return the completed network or throw the runner failure."

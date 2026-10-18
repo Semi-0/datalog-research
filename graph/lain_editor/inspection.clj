@@ -40,14 +40,16 @@
   (let [v (data/payload candidate)]
     (cond
       (history/replay? v) (str (count (history/field v :replay/frames)) " recorded observations")
-      (trace/semantic-trace-graph? v) (str "semantic topology · " (count (:nodes v)) " nodes")
+      (capture/semantic-graph? v) (str "semantic topology · " (count (:nodes (capture/root-graph v))) " nodes")
       (and (net/net? v) (not (compound/accessor-network? v))
            (empty? (compound/public-slot-keys v))) (str "network · " (count (net/net-env v)) " nodes")
       :else (value-labels/format-value v))))
 
 (defn- display-candidate [network id]
   (let [v (data/payload (net/network-cell-strongest network id))]
-    (if (and (compound/accessor-network? v) (not (datum/layer-present? v :base)))
+    (if (and (compound/accessor-network? v)
+             (not (capture/fragment? v))
+             (not (datum/layer-present? v :base)))
        (projection/project-trace (projection/compound-projection) network id)
        v)))
 
@@ -56,7 +58,7 @@
 
 (defn- inspection-rows [v reader]
   (let [payload (data/payload v)]
-    (if (or (history/replay? payload) (trace/semantic-trace-graph? payload))
+    (if (or (history/replay? payload) (capture/semantic-graph? payload))
       [{:key "" :value (render-value payload) :depth 0}]
       (value-grid/rows payload reader))))
 
@@ -147,7 +149,7 @@
 
 (defn semantic-graph [network id]
   (let [payload (data/payload (net/network-cell-strongest network id))]
-    (if (trace/semantic-trace-graph? payload)
+    (if (capture/semantic-graph? payload)
       payload
       (let [operational (assoc (observer/snapshot network ((observer/connected-root-node-keys [id]) network))
                                :dataflow/seeds #{[[:outer] id]})]
@@ -155,7 +157,7 @@
 
 (defn- retain-semantic-graph
   [session generation network id graph supported]
-  (if (or (not (trace/semantic-trace-graph? graph))
+  (if (or (not (capture/semantic-graph? graph))
           (capture/fragment? graph))
     graph
     (let [observation-id [:lain-editor generation id
@@ -248,7 +250,7 @@
                    (when recorded [(capture/observation-id recorded) {:capture recorded}])
                    (throw (ex-info "The recorded frozen observation is no longer available"
                                    {:observation recordedObservation})))
-               known (if recorded (capture/join (:capture entry) recorded nil) (:capture entry))
+               known (or recorded (:capture entry))
                selected (captured-node known parent)
                scope-id [observation selected]
                refined (semantic-capture/publish-refinement!
@@ -279,14 +281,17 @@
         (= "graph" (:mode display))
         (let [direction (keyword (:direction display))
               graph semantic
-              graph-value? (trace/semantic-trace-graph?
+              graph-value? (capture/semantic-graph?
                             (data/payload (net/network-cell-strongest network id)))]
           (when-not (contains? #{:upstream :downstream :both} direction)
             (throw (ex-info "Unknown trace direction" {})))
           (assoc result :graph
                  (graph-json (if graph-value?
                                graph
-                               (trace/trace-graph graph {:node key :direction direction})) network)))
+                               (if (capture/fragment? graph)
+                                 (capture/update-scope graph :root
+                                                       #(trace/trace-graph % {:node key :direction direction}))
+                                 (trace/trace-graph graph {:node key :direction direction}))) network)))
         :else (assoc result :valueGrid
                      (value-grid/rows (data/payload (net/network-cell-strongest network id))
                                       (structure/network-reader network)))))))

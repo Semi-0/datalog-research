@@ -5,11 +5,7 @@
   `SemanticCaptureSource`; joining fragments never consults a live network."
   (:require [clojure.set :as set]
             [propagators.cells.value :as value]
-            [propagators.datastructures.compound-object :as object]
-            [propagators.datastructures.dependency :as dependency]
-            [propagators.datastructures.layered-value :as datum]
-            [propagators.network :as net]
-            [propagators.datastructures.support-collection :as collection]))
+            [propagators.datastructures.compound-object :as object]))
 
 (defprotocol SemanticCaptureSource
   (capture-fragment [source request]))
@@ -19,62 +15,47 @@
 (def ^:private scopes-key ::scopes)
 (def ^:private support-key ::support)
 (def ^:private provenance-key ::provenance)
-(def ^:private retain-source-op ::retain-source)
 
-(defn fragment?
-  [candidate]
-  (and (map? candidate) (= capture-tag (::type candidate))))
+(defn fragment? [candidate]
+  (and (object/accessor-network? candidate)
+       (= capture-tag (object/accessor-source-slot-value candidate ::type))))
 
 (defn fragment
-  "Construct one immutable partial capture.
-
-  Scope maps are keyed by stable semantic scope identities and contain public
-  scene facts such as `:nodes`, `:edges`, `:values`, and diagnostics."
+  "Construct an immutable capture using the public compound interface."
   [{:keys [observation scopes support provenance]}]
   (when (nil? observation)
     (throw (ex-info "Semantic capture requires an observation identity" {})))
-  (let [scopes (or scopes {})
-        root (or (get scopes :root) {})]
-    (merge root
-           {:semantic-trace/graph true
-            ::type capture-tag
-            observation-key observation
-            scopes-key scopes
-            support-key (or support #{})
-            provenance-key (vec (or provenance []))})))
+  (object/as-accessor-network
+   {::type capture-tag
+    observation-key observation
+    scopes-key (or scopes {})
+    support-key (or support #{})
+    provenance-key (vec (or provenance []))}))
 
-(defn observation-id [capture] (get capture observation-key))
-(defn scopes [capture] (get capture scopes-key {}))
+(defn observation-id [capture] (object/accessor-source-slot-value capture observation-key))
+(defn scopes [capture] (object/accessor-source-slot-value capture scopes-key))
 (defn scope [capture scope-id] (get (scopes capture) scope-id))
-(defn support [capture] (get capture support-key #{}))
-(defn provenance [capture] (get capture provenance-key []))
+(defn support [capture] (object/accessor-source-slot-value capture support-key))
+(defn provenance [capture] (object/accessor-source-slot-value capture provenance-key))
 
-(defn retain-source-patch
-  "Transient runner effect retaining the immutable source of one publication.
+(defn equivalent?
+  "Compare capture facts independently of compound accessor topology."
+  [left right]
+  (if (and (fragment? left) (fragment? right))
+    (and (= (observation-id left) (observation-id right))
+         (= (scopes left) (scopes right))
+         (= (support left) (support right))
+         (= (provenance left) (provenance right)))
+    (= left right)))
 
-  The patch is consumed only by a capture-enabled session runner and is never
-  installed in an immutable propagator network."
-  [source captured]
-  (when-not (fragment? captured)
-    (throw (ex-info "Source retention requires a capture fragment"
-                    {:captured captured})))
-  {:op retain-source-op
-   :observation (observation-id captured)
-   :source source
-   :capture captured})
-
-(defn retain-source-patch?
+(defn semantic-graph?
+  "Consumer predicate for captures and legacy partial graph recordings."
   [candidate]
-  (and (map? candidate)
-       (= retain-source-op (:op candidate))))
+  (or (fragment? candidate)
+      (and (map? candidate) (true? (:semantic-trace/graph candidate)))))
 
-(defn retained-source
-  [patch]
-  (when-not (retain-source-patch? patch)
-    (throw (ex-info "Not a semantic capture source-retention patch"
-                    {:patch patch})))
-  {:source (:source patch)
-   :capture (:capture patch)})
+(defn root-graph [candidate]
+  (if (fragment? candidate) (scope candidate :root) candidate))
 
 (defn update-scope
   "Apply a graph operation to one captured scope without losing capture facts."
@@ -187,70 +168,3 @@
       :provenance (vec (sort-by pr-str
                                 (set (concat (provenance left)
                                              (provenance right)))))})))
-
-(defn capture-pair?
-  "Recognize only capture-domain joins, in either operand order."
-  [left right _network]
-  (or (and (fragment? left)
-           (or (fragment? right)
-               (value/nothing? right)
-               (value/contradiction? right)))
-      (and (fragment? right)
-           (or (fragment? left)
-               (value/nothing? left)
-               (value/contradiction? left)))))
-
-(def ^:private publication-kind (object/internal-metadata-key ::kind))
-(def ^:private publication-evidence-key (object/internal-metadata-key ::evidence))
-
-(defn publication? [candidate]
-  (and (net/net? candidate)
-       (= ::publication (object/slot-value candidate publication-kind))))
-
-(defn retained-evidence [publication]
-  (object/slot-value publication publication-evidence-key))
-
-(defn- join-bases [left right]
-  (join (dependency/unwrap left) (dependency/unwrap right) nil))
-
-(defn publication
-  "Retain opaque supported evidence and explicitly derive its capture projection."
-  [evidence]
-  (let [projected (collection/strongest-value evidence join-bases)
-        layers {publication-kind ::publication publication-evidence-key evidence
-                :base (datum/layer-value projected :base)
-                :support (datum/support-of projected)}]
-    (object/compound-object
-     (if (datum/layer-present? projected :premise-state)
-       (assoc layers :premise-state (datum/layer-value projected :premise-state))
-       layers))))
-
-(defn- publication-evidence [candidate]
-  (cond
-    (publication? candidate) (retained-evidence candidate)
-    (value/nothing? candidate) value/nothing
-    (collection/content? candidate) candidate
-    (and (datum/layer-present? candidate :base)
-         (datum/layer-present? candidate :support)) (collection/content candidate)
-    :else (throw (ex-info "Capture publication requires supported evidence"
-                          {:candidate candidate}))))
-
-(defn- supported-capture? [candidate]
-  (and (collection/content? candidate)
-       (fragment? (datum/layer-value
-                   (collection/strongest-value candidate join-bases) :base))))
-
-(defn publication-pair? [left right _network]
-  (or (publication? left) (publication? right)
-      (supported-capture? left) (supported-capture? right)))
-
-(defn join-publications [left right _network]
-  (cond
-    (value/contradiction? left) left
-    (value/contradiction? right) right
-    :else (let [evidence (collection/merge-content
-                         (publication-evidence left) (publication-evidence right))]
-            (cond
-              (and (publication? left) (= evidence (retained-evidence left))) left
-              (and (publication? right) (= evidence (retained-evidence right))) right
-              :else (publication evidence)))))

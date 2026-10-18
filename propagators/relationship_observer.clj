@@ -1,6 +1,7 @@
 (ns propagators.relationship-observer
   "Composable propagators that sample structural relationships from a Net."
-  (:require [propagators.cells.cell :as cell]
+  (:require [propagators.semantic-trace.capture :as capture]
+            [propagators.cells.cell :as cell]
             [propagators.compiler-2.model.env.index :as lexical-index]
             [propagators.compiler-2.runtime.application :as application]
             [propagators.compiler-2.runtime.application-ports :as ports]
@@ -219,7 +220,7 @@
     (when (cell/cell? entry)
       (let [v (cell/cell-strongest entry)
             base (if (datum/layer-present? v :base) (datum/layer-value v :base) v)]
-        (if (semantic-trace/semantic-trace-graph? (dependency/unwrap base))
+        (if (capture/semantic-graph? (dependency/unwrap base))
           {:semantic-trace/value :graph}
           v)))))
 
@@ -348,13 +349,16 @@
 
 (defn refresh-roots
   "Refresh registered root observers after successful declaration installation.
-  Returns [observer-ids network]; stable IDs make repeated refresh idempotent."
+  Returns [observer-ids network]; stable IDs make repeated refresh idempotent.
+  A registration may supply a fourth, pure network preparer to compose parent
+  activations before newly loaded topology first runs under observation."
   [network]
   (let [requests (keys (get (net/network-dict-entry network gur/name-bindings-key)
                             [:relationship/root-observers]))
         [ids installed]
-         (reduce (fn [[ids current] [observed-cell-ids output-id owner-id]]
-                   (let [[initial installed] ((p:observe-roots observed-cell-ids output-id (or owner-id output-id)) current)
+         (reduce (fn [[ids current] [observed-cell-ids output-id owner-id prepare]]
+                   (let [current (if prepare (prepare current) current)
+                         [initial installed] ((p:observe-roots observed-cell-ids output-id (or owner-id output-id)) current)
                         template (net/network-env-lookup current initial)
                         ;; Refresh inherits publication decoration from the initial
                         ;; observer; it never replaces an existing activation.

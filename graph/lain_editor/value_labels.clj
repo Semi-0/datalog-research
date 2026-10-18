@@ -1,13 +1,13 @@
 (ns graph.lain-editor.value-labels
   "Read-only, complete presentations of every public layer; runtime data stays intact."
-  (:require [clojure.string :as str]
+  (:require [propagators.semantic-trace.capture :as capture]
+            [clojure.string :as str]
             [graph.lain-editor.call-inspection :as calls]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as object]
             [propagators.datastructures.event :as event]
             [propagators.ids :as ids]
             [propagators.experimental.network-history :as history]
-            [propagators.semantic-trace :as trace]
             [propagators.network :as net]))
 
 (defn public-keys [v]
@@ -37,7 +37,7 @@
     (ids/node-id? v) (symbol (str "cell/" (:uuid v)))
     (history/replay? v) (symbol (str (count (history/field v :replay/frames)) " recorded observations"))
     (history/recording? v) (symbol (str (count (history/field v :history/frames)) " recorded observations"))
-    (trace/semantic-trace-graph? v) (symbol (str "semantic topology · " (count (:nodes v)) " nodes"))
+    (capture/semantic-graph? v) (symbol (str "semantic topology · " (count (:nodes (capture/root-graph v))) " nodes"))
     (event/event-protocol-value? v) (mapv #(preview %) (event-layers v))
     (calls/callable-inputs v) (symbol (str "network " (calls/callable-inputs v)))
     (net/net? v) (into (sorted-map-by #(compare (pr-str %1) (pr-str %2)))

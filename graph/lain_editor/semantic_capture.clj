@@ -1,13 +1,13 @@
 (ns graph.lain-editor.semantic-capture
   "Pane-owned retention and refinement of original frozen observations."
   (:require [propagators.semantic-trace.capture :as capture]
-            [propagators.semantic-trace.session-runner :as session-runner]
-            [propagators.semantic-trace.observation :as observation]
-            [propagators.cell-evaluator :as evaluator]
-            [propagators.gur :as gur]
-            [propagators.message :as message]
+            [propagators.semantic-trace.merge :as merge]
+            [propagators.compiler-2.runtime.declaration-effects :as declarations]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support :as support]
+            [propagators.stdlib.premise-state :as state]
+            [propagators.ids :as ids]
             [propagators.network :as net]
-            [propagators.network-builder :as builder]
             [propagators.runner :as runner]))
 
 (def storage-key ::sources)
@@ -15,6 +15,7 @@
 (defn storage
   [session]
   (or (get @session storage-key)
+      (get-in @session [:runtime/options storage-key])
       (locking session
         (or (get @session storage-key)
             (let [sources (atom {})]
@@ -25,9 +26,12 @@
   ([session observation-id source]
    (retain! session observation-id source nil))
   ([session observation-id source captured]
-   (swap! (storage session) assoc observation-id
-          (cond-> {:source source}
-            captured (assoc :capture captured)))
+   (swap! (storage session)
+          #(if (contains? % observation-id)
+             %
+             (assoc % observation-id
+                    (cond-> {:source source}
+                      captured (assoc :capture captured)))))
    observation-id))
 
 (defn retained
@@ -36,12 +40,13 @@
 
 (defn close!
   [session]
-  (when-let [sources (get @session storage-key)]
+  (when-let [sources (or (get @session storage-key)
+                         (get-in @session [:runtime/options storage-key]))]
     (reset! sources {}))
-  (swap! session dissoc storage-key))
+  (swap! session #(-> % (dissoc storage-key) (update :runtime/options dissoc storage-key))))
 
 (defn refine
-  "Acquire one scope from the retained original and join it into `known`."
+  "Acquire another fragment from the original frozen adapter."
   [session known request]
   (let [observation-id (capture/observation-id known)
         entry (retained session observation-id)
@@ -54,7 +59,7 @@
                         (capture/update-scope acquired (:scope request)
                                               #(assoc % :graph/modifiers modifiers))
                         acquired)]
-        (capture/join known inherited nil))
+        inherited)
       (capture/with-diagnostic
        known
        (or (:scope request) :root)
@@ -63,29 +68,35 @@
         :observation observation-id}))))
 
 (defn publish-refinement!
-  "Accumulate original-source refinement in a cell, then publish a new version.
-  Earlier recorded values remain immutable. The owning Net selects its runner."
+  "Submit another fragment through the ordinary merge propagator."
   [session known request]
   (locking session
     (let [observation-id (capture/observation-id known)
           entry (retained session observation-id)
-          known (if-let [existing (:capture entry)] (capture/join existing known nil) known)]
-      (if (capture/scope known (:scope request))
-        known
-        (let [refined (refine session known request)
-              publisher (:publisher entry)]
-          (when publisher
-            (let [id (gur/stable-node-id [::accumulation observation-id])
-                  network (builder/ensure-cell (:program/net @session) id)
-                  evaluate (evaluator/make-cell-evaluator (session-runner/combined-capture-merge))
-                  [_ seeded] (evaluate (message/message id known) network)
-                  [_ accumulated] (evaluate (message/message id refined) seeded)
-                  captured (net/network-cell-strongest accumulated id)
-                  previous (net/network-cell-strongest accumulated publisher)
-                  [tasks published] (evaluate (observation/publication-message publisher previous captured)
-                                              accumulated)
-                  settled (runner/completed-network (runner/run-network tasks published))]
-              (swap! session assoc :program/net settled)))
-          (when entry
-            (swap! (storage session) assoc observation-id (assoc entry :capture refined)))
-          refined)))))
+          output (or (:publisher entry)
+                     (ids/new-node-id))
+          network (:program/net @session)
+          inbox (merge/inbox-id output)
+          existing (when (and network (contains? (net/net-env network) inbox))
+                     (merge/joined-observation network inbox observation-id))
+          current (or existing known)]
+      (if (capture/scope current (:scope request))
+        current
+        (let [acquired (refine session known request)
+              original (when (:publisher entry)
+                         (net/network-cell-strongest
+                          network
+                          (merge/fragment-cell-id inbox [observation-id :root])))
+              dependencies (support/combine (capture/support acquired)
+                                             (datum/support-of original))
+              evidence (merge/fragment-evidence acquired dependencies (state/states-of original))
+              seed (when-not existing
+                     (merge/submit output [observation-id :root]
+                                   (merge/fragment-evidence current (capture/support current) #{})))
+              [tasks submitted] (declarations/eval-activation-result
+                                 [seed (merge/submit output [observation-id (:scope request)] evidence)]
+                                 (or network net/empty-net))
+              settled (runner/completed-network (runner/run-network tasks submitted))
+              refined (merge/joined-observation settled inbox observation-id)]
+          (swap! session assoc :program/net settled)
+          (or refined acquired))))))

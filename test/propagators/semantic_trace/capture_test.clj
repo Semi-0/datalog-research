@@ -1,12 +1,9 @@
 (ns propagators.semantic-trace.capture-test
   (:require [clojure.test :refer [deftest is]]
-            [propagators.cell-evaluator :as evaluator]
-            [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.ids :as ids]
             [propagators.compiler-2.runtime.operators.network-observation :as observation]
             [propagators.compiler-2.runtime :as runtime]
-            [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.session.clock :as clock]
             [propagators.datastructures.compound-object :as object]
             [propagators.datastructures.support-collection :as collection]
@@ -18,31 +15,14 @@
             [propagators.propagator :as prop]
             [propagators.runner :as runner]
             [propagators.semantic-trace.capture :as capture]
-            [propagators.semantic-trace.session-runner :as session-runner]))
-
-(deftest supported-capture-survives-compiler-rewrapping
-  (let [source (ids/new-node-id)
-        captured (capture/fragment {:observation :original :scopes {:root {:nodes {:x 'x} :edges []}}})
-        evidence (collection/content {:base captured
-                                      :support #{{:source source :timestamp 1 :premises-status :active}}})
-        publication (capture/publication evidence)
-        rewrapped (collection/content publication)
-        combined (session-runner/combined-capture-merge)
-        output (ids/new-node-id)
-        evaluate (evaluator/make-cell-evaluator combined)
-        [_ settled] (evaluate (message/message output rewrapped) (builder/install-cell net/empty-net output))]
-    (is (= #{:base :support} (object/public-slot-keys publication)))
-    (is (= evidence (capture/retained-evidence publication)))
-    (is (= captured (data/payload (net/network-cell-strongest settled output))))
-    (is (= (datum/support-of publication)
-           (datum/support-of (net/network-cell-strongest settled output))))
-    (is (identical? publication (combined publication rewrapped net/empty-net)))
-    (let [withdrawn (combined publication
-                              (collection/content {:premise-state #{{:source source :timestamp 2
-                                                                    :premises-status :retracted}}})
-                              net/empty-net)]
-      (is (value/nothing? (data/payload withdrawn)))
-      (is (seq (datum/layer-value withdrawn :premise-state))))))
+            [propagators.semantic-trace.merge :as tracer-merge]
+            [propagators.semantic-trace.observation :as tracer]
+            [propagators.compiler-2.runtime.declaration-effects :as declarations]
+            [propagators.network-patch :as patch]
+            [propagators.relationship-observer :as roots]
+            [propagators.compiler-2.runtime.boundary.effects :as effects]
+            [propagators.semantic-trace.retention :as retention]
+            [propagators.compiler-2.runtime.ids :as runtime-ids]))
 
 (defn- fragment [observation facts]
   (capture/fragment
@@ -96,71 +76,6 @@
     (is (value/contradiction?
          (get-in (capture/scope joined :root) [:values :a])))))
 
-(deftest combined-merge-recognizes-only-the-capture-domain
-  (let [delegations (atom [])
-        combined (session-runner/combined-capture-merge
-                  capture/capture-pair?
-                  capture/join)
-        a (fragment :observation {:a 1})]
-    (is (= a (combined value/nothing a nil)))
-    (is (= a (combined a value/nothing nil)))
-    (is (= 3 (combined 3 3 net/empty-net)))
-    (is (= value/contradiction (combined 3 4 net/empty-net)))
-    (is (empty? @delegations))))
-
-(deftest evaluator-constructor-preserves-default-and-isolates-merge-policy
-  (let [id (ids/new-node-id)
-        network (builder/install-cell net/empty-net id)
-        update (message/message id 7)
-        [_ default-network] (evaluator/evaluate update network)
-        calls (atom [])
-        custom (evaluator/make-cell-evaluator
-                (fn [content incoming n]
-                  (swap! calls conj [content incoming n])
-                  (merge/cell-merge content incoming n)))
-        [_ custom-network] (custom update network)]
-    (is (= (net/network-cell-content default-network id)
-           (net/network-cell-content custom-network id)))
-    (is (= (net/network-cell-strongest default-network id)
-           (net/network-cell-strongest custom-network id)))
-    (is (= 1 (count @calls)))
-    (is (nil? (net/network-dict-entry network runner/network-iterator-key)))
-    (is (ifn? (runner/selected-network-iterator
-               (runner/with-network-iterator
-                network
-                (session-runner/make-session-iterator)))))))
-
-(deftest session-owned-network-selects-capture-merge-without-global-leakage
-  (let [output (ids/new-node-id)
-        propagator-id (ids/new-node-id)
-        a (fragment :observation {:a 1})
-        b (fragment :observation {:b 2})
-        base (builder/install-cell net/empty-net output)
-        [_ installed]
-        ((prop/construct-propagator
-          propagator-id
-          :capture/publisher
-          (fn [_inputs _outputs _network]
-            [(message/message output a) (message/message output b)])
-          [] [output])
-         base)
-        ordinary (runner/completed-network
-                  (runner/run-network [propagator-id] installed))
-        extended-input
-        (runner/with-network-iterator
-         installed
-         (session-runner/make-session-iterator))
-        extended (runner/completed-network
-                  (runner/run-network [propagator-id] extended-input))]
-    (is (not (capture/fragment?
-              (net/network-cell-content ordinary output))))
-    (is (capture/fragment?
-         (net/network-cell-content extended output)))
-    (is (nil? (net/network-dict-entry installed runner/network-iterator-key)))
-    (is (nil? (net/network-dict-entry
-               (runner/without-network-iterator extended)
-               runner/network-iterator-key)))))
-
 (deftest frozen-capture-retains-public-slot-cells-outside-visible-topology
   (let [root (ids/new-node-id)
         slot-parent (ids/new-node-id)
@@ -183,29 +98,6 @@
            (set (keys (:nodes (capture/scope captured :root)))))
         "Slot cells are captured as structural facts, not rendered nodes")))
 
-(deftest capture-operand-orders-and-concurrent-runner-ownership
-  (let [a (fragment :same {:a 1}) b (fragment :same {:b 2})
-        merge-capture (session-runner/combined-capture-merge)
-        output (ids/new-node-id) publisher (ids/new-node-id)
-        [_ base] ((prop/construct-propagator
-                   publisher :publish
-                   (fn [& _] [(message/message output a) (message/message output b)])
-                   [] [output])
-                  (builder/install-cell net/empty-net output))
-        iterator (session-runner/make-session-iterator)
-        extended (runner/with-network-iterator base iterator)
-        run #(runner/completed-network (runner/run-network [publisher] %))
-        extended-job (future (run extended))
-        ordinary-job (future (run base))]
-    (doseq [[left right] [[a value/contradiction] [value/contradiction a]]]
-      (is (value/contradiction? (merge-capture left right nil))))
-    (is (capture/fragment? (net/network-cell-strongest @extended-job output)))
-    (is (not (capture/fragment? (net/network-cell-strongest @ordinary-job output))))
-    (is (identical? iterator (runner/selected-network-iterator @extended-job)))
-    (is (= (net/network-cell-content @extended-job output)
-           (net/network-cell-content (run @extended-job) output))
-        "Resumed work selects its own runner without a calling-thread binding")))
-
 (deftest frozen-slot-cycles-and-shared-references-preserve-identities
   (let [root (ids/new-node-id) other (ids/new-node-id)
         root-value (object/accessor-declaration :cdr other)
@@ -227,32 +119,212 @@
     (is (= captured (capture/capture-fragment source request))
         "Later live state cannot repair or replace historical evidence")))
 
-(deftest asynchronous-clock-entry-selects-the-owning-session-runner
-  (let [extended (runtime/new-session) ordinary (runtime/new-session)
-        input (ids/new-node-id) output (ids/new-node-id) publisher (ids/new-node-id)
-        subscription-id :capture-test/clock
-        iterator (session-runner/make-session-iterator)
-        a (fragment :clock-observation {:a 1}) b (fragment :clock-observation {:b 2})]
-    (doseq [session [extended ordinary]]
-      (state/ensure-session-state! session)
-      (let [base (-> (:program/net @session)
-                     (builder/install-cell input)
-                     (builder/install-cell output))
-            [_ installed] ((prop/construct-propagator
-                            publisher :clock-capture
-                            (fn [& _] [(message/message output a) (message/message output b)])
-                            [input] [output]) base)]
-        (swap! session assoc :program/net installed
-               :clock/subscriptions {subscription-id {:clock/id subscription-id :clock/target-id input}})))
-    (runtime/install-network-iterator! extended iterator)
+
+(defn- settle [network result]
+  (let [[tasks installed] (declarations/eval-activation-result result network)]
+    (runner/completed-network (runner/run-network tasks installed))))
+
+(defn- evidence [captured premises]
+  (tracer-merge/fragment-evidence captured premises premises))
+
+(deftest capture-representation-and-ordinary-runner-composition
+  (let [output (ids/new-node-id)
+        a (fragment :same {:a 1}) b (fragment :same {:a 1})
+        more (capture/fragment {:observation :same :scopes {:child {:nodes {:x 'x}}}})
+        base net/empty-net
+        run #(settle base [(tracer-merge/submit output :first (evidence a #{}))
+                           (tracer-merge/submit output :second (evidence more #{}))])
+        jobs [(future (run)) (future (run))]]
+    (is (object/accessor-network? a))
+    (is (nil? (:semantic-trace/graph a)))
+    (is (= a b))
+    (doseq [job jobs]
+      (let [network @job
+            joined (data/payload (net/network-cell-strongest network output))]
+        (is (= (capture/scopes (capture/join a more nil)) (capture/scopes joined)))
+        (is (= network (settle network (tracer-merge/submit output :second (evidence more #{})))))
+        (is (= network (runner/completed-network
+                        (runner/run-network (keep (fn [[id p]] (when (prop/prop? p) id))
+                                                  (net/net-env network)) network))))))))
+
+(deftest fragment-order-duplicates-and-observation-separation
+  (let [a (fragment :first 1)
+        b (capture/fragment {:observation :first :scopes {:child {:nodes {:b 'b}}}})
+        c (fragment :second 2)
+        project (fn [fragments]
+                  (tracer-merge/joined-groups
+                   (mapv (fn [v] (collection/strongest-value (evidence v #{})
+                                  (fn [a b] (capture/join a b nil)))) fragments)))]
+    (is (= (project [a b]) (project [b a a])))
+    (let [groups (:groups (project [a b c]))]
+      (is (= #{:first :second} (set (keys groups))))
+      (is (= (capture/join a b nil) (get-in groups [:first :capture])))
+      (is (= c (get-in groups [:second :capture]))))))
+
+(deftest ttms-retraction-recovery-and-incomparable-support
+  (let [output (ids/new-node-id) source (ids/new-node-id) unrelated (ids/new-node-id)
+        premise (fn [epoch status] {:source source :timestamp epoch :premises-status status})
+        a (fragment :first 1) b (fragment :second 2)
+        initial (settle net/empty-net
+                        (tracer-merge/submit output :root (evidence a #{(premise 1 :active)})))
+        withdrawn (settle initial
+                          (message/message (tracer-merge/fragment-cell-id (tracer-merge/inbox-id output) :root)
+                                           (collection/content {:premise-state #{(premise 2 :retracted)}})))
+        recovered (settle withdrawn
+                         (tracer-merge/submit output :new-root (evidence b #{(premise 3 :active)})))
+        read #(net/network-cell-strongest % output)]
+    (is (capture/equivalent? a (data/payload (read initial))))
+    (is (value/nothing? (data/payload (read withdrawn))))
+    (is (capture/equivalent? b (data/payload (read recovered))))
+    (is (contains? (datum/layer-value (read withdrawn) :premise-state) (premise 2 :retracted)))
+    (is (not (contains? (datum/support-of (read recovered)) (premise 1 :active))))
+    (let [other (settle recovered
+                        (tracer-merge/submit output :independent
+                                             (evidence a #{{:source unrelated :timestamp 1 :premises-status :active}})))]
+      (is (value/contradiction? (data/payload (read other))))
+      (is (= #{source unrelated output} (set (map :source (datum/support-of (read other)))))))))
+
+(deftest equal-version-fragment-conflict-stays-local
+  (let [out (ids/new-node-id) source (ids/new-node-id)
+        premises #{{:source source :timestamp 1 :premises-status :active}}
+        network (settle net/empty-net
+                        [(tracer-merge/submit out :left (evidence (fragment :one 1) premises))
+                         (tracer-merge/submit out :right (evidence (fragment :one 2) premises))])
+        captured (data/payload (net/network-cell-strongest network out))]
+    (is (capture/fragment? captured))
+    (is (value/contradiction? (get-in (capture/scope captured :root) [:values :n])))))
+
+(deftest dynamically-declared-descendants-observe-multiple-generations
+  (let [root (ids/new-node-id) direction (ids/new-node-id) output (ids/new-node-id)
+        parent (ids/new-node-id) child (ids/new-node-id) grandchild (ids/new-node-id)
+        leaf (ids/new-node-id)
+        [_ network] ((prop/construct-propagator
+                      parent :parent
+                      (fn [& _]
+                        [(patch/declare-propagator
+                          child :child [root] [leaf]
+                          (fn [& _]
+                            [(patch/declare-cell leaf)
+                             (patch/declare-propagator
+                              grandchild :grandchild [root] [leaf]
+                              (fn [& _] [(message/message leaf 42)]))]))])
+                      [root] [leaf])
+                     (-> net/empty-net (builder/install-cell root 1 1)
+                         (builder/install-cell leaf)
+                         (builder/install-cell direction :both :both)))
+        [installed ids _] (tracer/install-observer network root direction output)
+        network (runner/completed-network (runner/run-network (conj ids parent) installed))
+        captured (data/payload (net/network-cell-strongest network output))]
+    (is (= 42 (net/network-cell-strongest network leaf)))
+    (is (capture/fragment? captured))
+    (let [request (first (filter #(= (capture/observation-id captured)
+                                   (get-in % [:boundary/payload :observation]))
+                                 (effects/outbox-effects network)))
+          frozen (get-in request [:boundary/payload :source])]
+      (is (= 42 (observation/snapshot-value frozen leaf)))
+      (is (seq (:node/inputs (observation/snapshot-neighbors frozen grandchild)))))
+    (is (<= 3 (second (capture/observation-id captured))))
+    (is (= network (runner/completed-network (runner/run-network [parent child grandchild] network))))))
+
+(deftest same-slot-equal-version-conflicts-and-recovery
+  (let [out (ids/new-node-id) source (ids/new-node-id)
+        premise (fn [epoch] #{{:source source :timestamp epoch :premises-status :active}})
+        a (fragment :one 1) b (fragment :one 2)
+        initial (settle net/empty-net (tracer-merge/submit out :slot (evidence a (premise 1))))
+        conflict (settle initial (tracer-merge/submit out :slot (evidence b (premise 1))))
+        recovered (settle conflict (tracer-merge/submit out :slot (evidence b (premise 2))))]
+    (is (value/contradiction? (data/payload (net/network-cell-strongest conflict out))))
+    (is (capture/equivalent? b (data/payload (net/network-cell-strongest recovered out))))))
+
+(deftest asynchronous-clock-acquisition-uses-the-standard-runner
+  (let [sessions [(runtime/new-session) (runtime/new-session)]
+        root (ids/new-node-id) direction (ids/new-node-id) out (ids/new-node-id)
+        subscription :capture-clock]
     (try
-      (let [first-job (future (clock/tick-clock! extended subscription-id (constantly 1000)))
-            second-job (future (clock/tick-clock! ordinary subscription-id (constantly 1000)))]
-        @first-job @second-job
-        (is (capture/fragment? (net/network-cell-strongest (:program/net @extended) output)))
-        (is (not (capture/fragment? (net/network-cell-strongest (:program/net @ordinary) output))))
-        (is (identical? iterator (runner/selected-network-iterator (:program/net @extended))))
-        (is (= 1 (get-in @extended [:clock/epochs subscription-id])))
-        (swap! extended state/remove-network-iterator)
-        (is (nil? (net/network-dict-entry (:program/net @extended) runner/network-iterator-key))))
-      (finally (runtime/stop-clocks! extended) (runtime/stop-clocks! ordinary)))))
+      (doseq [session sessions]
+        (runtime/install-session-extension!
+         session retention/extension {:outbox-id (runtime-ids/boundary-outbox-id)})
+        (let [base (-> (:program/net @session)
+                       (builder/install-cell root)
+                       (builder/install-cell direction :both :both))
+              [installed _ _] (tracer/install-observer base root direction out)]
+          (swap! session assoc :program/net installed
+                 :clock/subscriptions {subscription {:clock/id subscription :clock/target-id root}})))
+      (let [jobs (mapv #(future (clock/tick-clock! % subscription (constantly 1000))) sessions)]
+        (doseq [job jobs] @job))
+      (doseq [session sessions]
+        (let [network (:program/net @session)
+              captured (data/payload (net/network-cell-strongest network out))]
+          (is (capture/fragment? captured))
+          (is (= 1 (get-in @session [:clock/epochs subscription])))
+          (is (= 1 (count @(get @session retention/storage-key))))
+          (is (nil? (net/network-dict-entry network [:runner :network-iterator])))))
+      (is (not (identical? (get @(first sessions) retention/storage-key)
+                          (get @(second sessions) retention/storage-key))))
+      (finally (doseq [session sessions] (runtime/stop-clocks! session))))))
+
+(deftest acquisition-transports-direction-versions-and-withdrawal
+  (let [root (ids/new-node-id) direction (ids/new-node-id) out (ids/new-node-id)
+        source (ids/new-node-id)
+        premise (fn [epoch status] #{{:source source :timestamp epoch :premises-status status}})
+        direction-value (fn [epoch] (collection/content {:base :both :support (premise epoch :active)
+                                                         :premise-state (premise epoch :active)}))
+        [installed tasks _] (tracer/install-observer
+                             (-> net/empty-net (builder/install-cell root 7 7)
+                                 (builder/install-cell direction)) root direction out)
+        initial (settle installed (message/message direction (direction-value 1)))
+        advanced (settle initial (message/message direction (direction-value 2)))
+        withdrawn (settle advanced (message/message direction
+                                                   (collection/content {:premise-state (premise 3 :retracted)})))
+        recovered (settle withdrawn (message/message direction (direction-value 4)))
+        read #(net/network-cell-strongest % out)]
+    (is (capture/fragment? (data/payload (read initial))))
+    (is (contains? (datum/support-of (read advanced)) (first (premise 2 :active))))
+    (is (not (contains? (datum/support-of (read advanced)) (first (premise 1 :active)))))
+    (is (value/nothing? (data/payload (read withdrawn))))
+    (is (capture/fragment?
+         (tracer-merge/joined-observation withdrawn (tracer-merge/inbox-id out)
+                                          (capture/observation-id (data/payload (read advanced))))))
+    (is (capture/fragment? (data/payload (read recovered))))
+    (is (contains? (datum/support-of (read recovered)) (first (premise 4 :active))))
+    (is (= recovered (runner/completed-network (runner/run-network tasks recovered))))))
+
+(deftest source-load-refresh-composes-observation-onto-new-declaring-parents
+  (let [root (ids/new-node-id) direction (ids/new-node-id) out (ids/new-node-id)
+        parent (ids/new-node-id) child (ids/new-node-id) leaf (ids/new-node-id)
+        [installed tasks _] (tracer/install-observer
+                             (-> net/empty-net (builder/install-cell root 1 1)
+                                 (builder/install-cell direction :both :both)) root direction out)
+        initial (runner/completed-network (runner/run-network tasks installed))
+        loaded (settle initial
+                       (patch/declare-propagator
+                        parent :loaded-parent [root] [leaf]
+                        (fn [& _]
+                          [(patch/declare-propagator child :loaded-child [root] [leaf]
+                                                     (fn [& _] [(message/message leaf 99)]))])))
+        [watches refreshed] (roots/refresh-roots loaded)
+        final (runner/completed-network (runner/run-network (conj (vec watches) parent) refreshed))]
+    (is (= 99 (net/network-cell-strongest final leaf)))
+    (is (> (second (capture/observation-id (data/payload (net/network-cell-strongest final out))))
+           (second (capture/observation-id (data/payload (net/network-cell-strongest initial out))))))
+    (is (capture/fragment? (data/payload (net/network-cell-strongest final out))))))
+
+(deftest a-declared-cell-without-a-new-propagator-retains-its-frozen-value
+  (let [root (ids/new-node-id) direction (ids/new-node-id) out (ids/new-node-id)
+        parent (ids/new-node-id) leaf (ids/new-node-id)
+        [_ base] ((prop/construct-propagator
+                   parent :cell-declarer
+                   (fn [& _] [(patch/declare-cell leaf) (message/message leaf 42)])
+                   [root] [])
+                  (-> net/empty-net (builder/install-cell root 1 1)
+                      (builder/install-cell direction :both :both)))
+        [installed tasks _] (tracer/install-observer base root direction out)
+        network (runner/completed-network (runner/run-network (conj tasks parent) installed))
+        captured (data/payload (net/network-cell-strongest network out))
+        request (first (filter #(= (capture/observation-id captured)
+                                  (get-in % [:boundary/payload :observation]))
+                               (effects/outbox-effects network)))
+        frozen (get-in request [:boundary/payload :source])]
+    (is (capture/fragment? captured))
+    (is (= 42 (observation/snapshot-value frozen leaf)))
+    (is (= network (runner/completed-network (runner/run-network [parent] network))))))

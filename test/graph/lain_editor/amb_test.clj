@@ -176,7 +176,7 @@
           (is (= initial (subvec frames 0 (count initial))))
           (is (some #(some (fn [row] (= "literals" (:key row))) (:valueGrid %))
                     (mapcat #(get-in % [:graph :nodes]) frames)))
-          (is (some #(seq (get-in % [:graph :contents])) captured))
+          (is (some #(seq (:contents (propagators.semantic-trace.capture/scope (:graph %) :root))) captured))
           (is (every? #(propagators.semantic-trace.capture/fragment? (:graph %)) captured))
           (is (some :semanticScope (mapcat #(get-in % [:graph :nodes]) frames)))
           (is (= frames (get-in (inspect editors "replay" "graph") [:replay :frames])))

@@ -1,5 +1,5 @@
 (ns experiments.recursive-semantic-views.step-triangle
-  "Bounded diagnostic driver over the owning session's existing iterator."
+  "Bounded diagnostic driver over the standard iterator."
   (:refer-clojure :exclude [run!])
   (:require [graph.lain-editor.runtime :as editor]
             [propagators.compiler-2.cps-core :as compiler]
@@ -60,7 +60,7 @@
             (flush))
           (if (or (>= step 20000) (> (- (System/nanoTime) started) 60000000000))
             (assoc (summary (:network state) environment step started) :status :bounded)
-            (let [selected (runner/selected-network-iterator (:network state))
+            (let [selected (runner/network-iterator)
                   advance (if profile? (runner/*advance-transform* selected) selected)
                   next (advance state {:done #(hash-map :status :completed :network %)
                                        :fail #(hash-map :status :failed :error %)
