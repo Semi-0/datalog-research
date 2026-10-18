@@ -97,6 +97,11 @@ explicit inspection. Panes without a display call retain their configured target
 A pending source stays pending, and later propagation updates the display.
 No host callback or extra global display registry is involved.
 
+The [AMB learning workspace](../../examples/lain/amb/editor/README.md) adds
+opt-in pane-local search bindings, an explicit no-good display view, and recorded
+learning playback through the existing history/reducer operators. The solver
+continues to own learning and repair; the visualizer only projects its values.
+
 ## Frontend dataflow
 
 The browser application is ClojureScript with Javelin 3.9.3. The compiler is
@@ -156,32 +161,55 @@ pane retained per desktop. Save/Open JSON includes all desktops and their progra
 Version 1 files import as Desktop 1; new saves use version 2 with a global `panes`
 array, `desktops` containing names/layouts/selection, and `activeDesktop`.
 
-The server prepares `graph.vijual.layout.nodes/create-balanced-layout` and uses
+The editor uses Standard Stress via
+`graph.vijual.layout.nodes/create-layout` with `:stress-method :standard`, and uses
 `graph.vijual.layout.nodes/layout-flow`, the documented core.async
 adapter over the existing incremental scan/emit state machine. There is one
 owned flow per pane's current generation and inspected call occurrence. Complete
 node upserts retain the last public positions. Edge additions/removals are sent
-as transactions; dragged nodes submit position upserts plus pins. Each command
-requests at most 300 relaxation iterations and returns Vijual's public revision,
+as transactions; released drags submit position upserts without persistent pins. Each command
+requests at most 300 relaxation iterations when node IDs, directed edge membership,
+or rendered node dimensions change. Size changes reuse cached graph distances.
+Dragging and label updates with unchanged dimensions use zero stress relaxation
+iterations. Hard clearance can reposition conflicting neighbors. Input reordering is not a layout
+change. Zero-iteration transactions still validate and update node metadata and
+report geometric diagnostics; they do not run stress sweeps. Commands return Vijual's public revision,
 nodes, signed deltas, and metrics. The HTTP client uses the full public snapshot
 so canceling an older reply cannot lose a delta. Distances and numeric caches are
-retained by Vijual; the browser does not implement a second solver. Balanced
-Stress uses the existing soft equal-edge-length, axis-alignment, inferred
-twin-node mirror, and clearance preferences. The editor uses a 28-pixel node gap,
-110-pixel edge target, 16-pixel edge clearance, and clearance weight 96. Other
-weights retain their defaults. New nodes start from Vijual’s layered ordering
+retained by Vijual; the browser does not implement a second solver. Standard
+Stress uses size-aware graph-distance targets without Balanced's extra
+equal-edge-length, axis-alignment, inferred mirror, or clearance preferences.
+Standard was retained after the user's visual comparison found its AMB graph
+output better than Balanced's; this is a workspace-specific observation, not a
+general benchmark result. Size-triggered relaxation responds to growing cards,
+but Standard's distance targets remain soft. A separate hard-clearance stage
+uses exact rendered rectangle dimensions and a 28-unit gap. It leaves clear
+positions unchanged and greedily relocates conflicts; it is independent of the
+stress method and camera, not a new stress objective. Corrected final positions
+are written back through public zero-iteration flow updates so later requests
+do not resurrect the pre-clearance geometry. `:exact-clearance-moves` reports
+corrections. This guarantees node separation, not crossing-free edges or optimal
+packing.
+The editor retains the same 28-pixel node gap, 110-pixel edge target and 0.05
+displacement tolerance for comparison. New nodes start from Vijual’s layered ordering
 before stress relaxation; existing nodes retain their positions and pins. The
 300-iteration budget is preserved. These are soft
-preferences, so conflicting topologies or pinned positions may retain crossings
+constraints, so conflicting topologies or pinned positions may retain crossings
 or tilted edges. See [the solver contract](../vijual/layout/README.md#balanced-stress).
 
 On graph mount, the server captures actual solver milestones in batches of up to
-10 iterations, within the same 300-iteration limit. The browser interpolates those
-samples over 1.1 seconds in a fixed camera, then settles into compact framing.
+10 iterations, within the same 300-iteration limit. Published milestones pass
+through hard clearance without changing the underlying stress solve. The browser interpolates those
+samples over 1.1 seconds without owning or changing the camera. Initial layout
+is framed once, unless the user has already interacted with the viewport.
 Node payload or relationship changes briefly fill affected nodes and fade out
 over 900 milliseconds. Unchanged polling preserves the mounted graph, camera,
-and positions without replaying hints. Dragging, zooming, or resizing ends an
-active layout animation; unmounting cancels animation resources. Reduced-motion
+and positions without replaying hints. Dragging or zooming ends an active layout
+animation without refitting; unmounting cancels animation resources. Every
+interpolated frame and initial/size-updated scene also passes through the same
+rectangle-clearance function. While dragging, only the held node is a temporary
+anchor; other nodes move out of its way. Pointer release/cancellation removes
+that local anchor, and later size/topology solves can move any node. Reduced-motion
 preferences skip layout motion and use a short static update hint.
 
 Layout streams survive desktop switching. Successful Run/Extend, changing the
@@ -198,8 +226,9 @@ Framing translates Vijual's coordinates without compressing distances or
 repacking nodes onto a grid, preserving the solver's clearances and crossings.
 It never stretches a sparse graph to fill a pane or changes node/text scale.
 When a pane cannot accommodate the geometry, the canvas grows and scrolls.
-ResizeObserver adapts the canvas to tile/code/detail resizing without rerunning
-the solver. The palette's **Compact topology** restores this framing after
+Tile/code/detail resizing does not refit the camera. Layout responses update only
+world coordinates and never reset pan, zoom, viewBox or canvas dimensions. The
+palette's **Compact topology** explicitly restores this framing after
 pan/zoom; deliberate zoom still scales the view. No frame-time guarantee is claimed.
 
 ## Display layers

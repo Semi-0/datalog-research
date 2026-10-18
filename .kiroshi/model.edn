@@ -1127,6 +1127,54 @@
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
+                   "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-host],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T14:59:34.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id
+                    :decision/amb-editor-learning-is-a-session-projection,
+                    :lifecycle :candidate,
+                    :motivated-by
+                    [:principle/propagator-compositional-extension
+                     :principle/propagator-message-boundaries],
+                    :preserves
+                    [:constraint/propagator-compound-access-composition
+                     :constraint/propagator-domain-policy
+                     :constraint/propagator-immutable-structure
+                     :constraint/propagator-session-extension],
+                    :rejects
+                    [:failure-mode/propagator-hidden-domain-state],
+                    :scope
+                    "Host visualization / pane-local AMB learning integration",
+                    :source "user-approved-amb-editor-plan",
+                    :status :active,
+                    :supported-by
+                    [:evidence/amb-editor-learning-display],
+                    :text
+                    "Install AMB capabilities per editor pane through the existing primitive-loader/session-extension boundary. Display solver-owned knowledge through an immutable tagged compound view, and compose published semantic observations through the existing recorder/reducer and replay UI. Presentation never owns search state or feeds repairs, and it never substitutes TTMS dominance for logical learning.",
+                    :type :decision},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T15:08:25.944-00:00",
+                     :tx/agent-session
+                     #:session{:id "amb-editor-evolution-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "703616c5423c2cb5fbf6081dc707e08c3146237f"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-consent:two-amb-candidates-and-commit-push",
+                     :tx/task
+                     #:task{:name
+                            "Record user-consented AMB editor learning projection"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
                    "73a8d2550188a7823ec0578e2262832abd51659d",
                    :memory
                    {:applies-to
@@ -1235,6 +1283,75 @@
                      :tx/task
                      #:task{:name
                             "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "a630e90df8e6bfed3e220d9487e16b6945803dc2",
+                     :commit
+                     "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                     :path
+                     "examples/lain/network_replay/collect-history.lain"}
+                    {:blob "ee29e80f546bbc6fd48742b156ef4d5b62bd4802",
+                     :commit
+                     "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                     :path "graph/lain_editor/runtime.clj"}
+                    {:blob "2286e1f12f9a9331114a8f1828f8bae3db62f97d",
+                     :commit
+                     "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                     :path "graph/lain_editor/value_grid.clj"}
+                    {:blob "e99f9c37d37feef6f124ed19649e118b1d5f2448",
+                     :commit
+                     "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                     :path "propagators/experimental/amb/learning.clj"}
+                    {:blob "2baaead6bffc544ac34f0c99df15eb43ea30ee53",
+                     :commit
+                     "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                     :path
+                     "propagators/experimental/amb/operators.clj"}
+                    {:blob "a64a39543dc37cdcb1c1c63f1c5259e8dcf883d4",
+                     :commit
+                     "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                     :path
+                     "propagators/experimental/network_history.clj"}],
+                   :introduced-by
+                   "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                   :memory
+                   {:applies-to [:component/propagator-host],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T14:59:34.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/amb-editor-learning-display,
+                    :implemented-in
+                    ["examples/lain/network_replay/collect-history.lain"
+                     "graph/lain_editor/runtime.clj"
+                     "graph/lain_editor/value_grid.clj"
+                     "propagators/experimental/amb/learning.clj"
+                     "propagators/experimental/amb/operators.clj"
+                     "propagators/experimental/network_history.clj"],
+                    :lifecycle :candidate,
+                    :scope
+                    "Host visualization / pane-local AMB learning integration",
+                    :source "user-approved-amb-editor-plan",
+                    :status :active,
+                    :text
+                    "The opt-in editor module composes existing TTMS and AMB session bindings with an immutable, slot-backed learning view. The host value-grid renders no-good literals and exact context/source information. Existing semantic-network recording and reduction retain published observations and captured values; they do not guarantee every learning operation is recorded. Four new tests passed 28 assertions, and a browser run scrubbed 14 observations from pending input through failed choice, no-good, withdrawal and accepted choice. Existing regressions passed 409 assertions with three independently reproduced historical-error characterization failures. The new implementation files remain uncommitted; formal committed evidence and receipts remain outstanding. Solver policy, scheduler, merge, compiler and compound transport were not modified by this change.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-18T14:59:34.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T15:08:25.051-00:00",
+                     :tx/agent-session
+                     #:session{:id "amb-editor-evolution-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "703616c5423c2cb5fbf6081dc707e08c3146237f"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-consent:two-amb-candidates-and-commit-push",
+                     :tx/task
+                     #:task{:name
+                            "Record user-consented AMB editor learning projection"}}]}
                   {:approved-at nil,
                    :file-snapshots
                    [{:blob "9f09b778e615585ffdaf7c0e886a7e56180457c5",
@@ -2169,6 +2286,55 @@
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
+                   "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-information
+                     :component/propagator-infrastructure
+                     :component/propagator-kernel
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T14:56:25.000-00:00",
+                    :direct-tags [:tag/propagation],
+                    :evidence-state :needs-verification,
+                    :id :principle/propagator-dependence-tracking,
+                    :lifecycle :candidate,
+                    :motivates
+                    [:constraint/propagator-compound-access-composition
+                     :constraint/propagator-domain-policy],
+                    :related-to
+                    [:principle/propagator-message-boundaries
+                     :principle/propagator-owned-policy
+                     :principle/propagator-partial-information],
+                    :scope
+                    "Information justification / support-preserving transport and retraction",
+                    :source
+                    "user-request:append-four-semantic-principles:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-information
+                     :evidence/propagator-structure],
+                    :text
+                    "Dependence tracking: Retain the justifications on which conclusions depend, and use domain-owned support and retraction semantics to determine which conclusions remain warranted. Dependency identity and validity come from information contributions, not the scheduler execution history. A retraction can change the readable conclusion while domain evidence is accumulated or compacted according to its information order. Existing TTMS and distributed TMS are explicit mechanisms, not proof of a universal dependence subsystem.",
+                    :type :principle},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T14:59:09.599-00:00",
+                     :tx/agent-session
+                     #:session{:id "semantic-principles-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "703616c5423c2cb5fbf6081dc707e08c3146237f"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-request:append-four-semantic-principles",
+                     :tx/task
+                     #:task{:name
+                            "Append four user-requested semantic foundations"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
                    "73a8d2550188a7823ec0578e2262832abd51659d",
                    :memory
                    {:applies-to
@@ -2223,6 +2389,56 @@
                      :tx/task
                      #:task{:name
                             "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-information
+                     :component/propagator-infrastructure
+                     :component/propagator-kernel
+                     :component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T14:56:25.000-00:00",
+                    :direct-tags [:tag/propagation],
+                    :evidence-state :needs-verification,
+                    :id :principle/propagator-fixpoint-evaluation,
+                    :lifecycle :candidate,
+                    :motivates
+                    [:constraint/propagator-idempotent-declaration
+                     :constraint/propagator-merge-laws],
+                    :related-to
+                    [:principle/propagator-explicit-coordination
+                     :principle/propagator-networked-semantics
+                     :principle/propagator-partial-information],
+                    :scope
+                    "Kernel evaluation / information-domain algebra and recursive declaration",
+                    :source
+                    "user-request:append-four-semantic-principles:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-information
+                     :evidence/propagator-infrastructure
+                     :evidence/propagator-kernel],
+                    :text
+                    "Fixpoint evaluation: Repeated local propagation refines information toward quiescence under the domain information order. Updates are monotone in that order, and merge is associative, commutative and idempotent under domain-defined semantic equality. Order-independent outcomes require compatible monotone rules and fair scheduling; termination additionally requires suitable convergence conditions. These are semantic requirements, not a claim that every implementation or arbitrary recursive network has been proved convergent.",
+                    :type :principle},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T14:59:15.611-00:00",
+                     :tx/agent-session
+                     #:session{:id "semantic-principles-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "703616c5423c2cb5fbf6081dc707e08c3146237f"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-request:append-four-semantic-principles",
+                     :tx/task
+                     #:task{:name
+                            "Append four user-requested semantic foundations"}}]}
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
@@ -2281,6 +2497,57 @@
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
+                   "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-infrastructure
+                     :component/propagator-kernel
+                     :component/propagator-recursion
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T14:56:25.000-00:00",
+                    :direct-tags [:tag/declaration :tag/propagation],
+                    :evidence-state :needs-verification,
+                    :id :principle/propagator-networked-semantics,
+                    :lifecycle :candidate,
+                    :motivates
+                    [:constraint/propagator-cross-network-runner
+                     :constraint/propagator-declaration-evaluation
+                     :constraint/propagator-immutable-structure],
+                    :related-to
+                    [:principle/propagator-compositional-extension
+                     :principle/propagator-explicit-coordination
+                     :principle/propagator-message-boundaries],
+                    :scope
+                    "Propagator infrastructure / network declaration and local coordination",
+                    :source
+                    "user-request:append-four-semantic-principles:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-infrastructure
+                     :evidence/propagator-kernel],
+                    :text
+                    "Networked semantics: Express computation as connected cells and local propagators over explicit topology. Cells share information, propagators emit messages, and network declarations remain inspectable data. Declaration, evaluation and projection are distinct operations.",
+                    :type :principle},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T14:58:57.516-00:00",
+                     :tx/agent-session
+                     #:session{:id "semantic-principles-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "703616c5423c2cb5fbf6081dc707e08c3146237f"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-request:append-four-semantic-principles",
+                     :tx/task
+                     #:task{:name
+                            "Append four user-requested semantic foundations"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
                    "73a8d2550188a7823ec0578e2262832abd51659d",
                    :memory
                    {:applies-to
@@ -2333,6 +2600,55 @@
                      :tx/task
                      #:task{:name
                             "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "703616c5423c2cb5fbf6081dc707e08c3146237f",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-information
+                     :component/propagator-infrastructure
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T14:56:25.000-00:00",
+                    :direct-tags [:tag/propagation],
+                    :evidence-state :needs-verification,
+                    :id :principle/propagator-partial-information,
+                    :lifecycle :candidate,
+                    :motivates
+                    [:constraint/propagator-compound-access-composition
+                     :constraint/propagator-domain-policy
+                     :constraint/propagator-merge-laws],
+                    :related-to
+                    [:principle/propagator-compositional-extension
+                     :principle/propagator-owned-policy],
+                    :scope
+                    "Information policy / compound partial-information structure",
+                    :source
+                    "user-request:append-four-semantic-principles:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-information
+                     :evidence/propagator-infrastructure
+                     :evidence/propagator-structure],
+                    :text
+                    "Partial information: A cell can hold incomplete, structured, conditional or conflicting knowledge rather than a single ground value. Merge combines contributions according to the information domain; strongest is a derived readable projection distinct from retained content. Preserve live slot/accessor relationships so later refinements propagate through structure. Evidence compaction must follow the explicit domain order rather than assuming a particular set representation.",
+                    :type :principle},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T14:59:03.431-00:00",
+                     :tx/agent-session
+                     #:session{:id "semantic-principles-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "703616c5423c2cb5fbf6081dc707e08c3146237f"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-request:append-four-semantic-principles",
+                     :tx/task
+                     #:task{:name
+                            "Append four user-requested semantic foundations"}}]}
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
@@ -2540,7 +2856,7 @@
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
-                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   "703616c5423c2cb5fbf6081dc707e08c3146237f",
                    :memory
                    {:confidence 0.5,
                     :created-at #inst "2026-10-17T22:12:13.000-00:00",
@@ -2581,7 +2897,34 @@
                      :tx/source "user-authorized-reviewed-proposal",
                      :tx/task
                      #:task{:name
-                            "Record user-reviewed propagator infrastructure model"}}]}],
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T14:58:57.516-00:00",
+                     :tx/agent-session
+                     #:session{:id "semantic-principles-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "703616c5423c2cb5fbf6081dc707e08c3146237f"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-request:append-four-semantic-principles",
+                     :tx/task
+                     #:task{:name
+                            "Append four user-requested semantic foundations"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T15:01:04.066-00:00",
+                     :tx/agent-session
+                     #:session{:id "semantic-principles-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "703616c5423c2cb5fbf6081dc707e08c3146237f"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "restore-existing-tag-metadata",
+                     :tx/task
+                     #:task{:name
+                            "Preserve prior propagation-tag lifecycle after automatic tag normalization"}}]}],
                  :receipts [],
                  :references [],
                  :version 1}

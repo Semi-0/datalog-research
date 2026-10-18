@@ -1,0 +1,52 @@
+{:evolution/version 1
+ :repository "/Users/pandilyn/Documents/ChatGPT/datalog research"
+ :source-head "703616c5423c2cb5fbf6081dc707e08c3146237f"
+ :created-at #inst "2026-10-18T14:59:34.000Z"
+ :state :synced-as-unapproved-candidates
+ :sync-source "user-consent:two-amb-candidates-and-commit-push"
+ :classification :implementation-within-existing-boundaries
+ :retained-components [:component/propagator-host :component/propagator-compiler
+                       :component/propagator-structure]
+ :hierarchy-changes []
+ :supersessions []
+ :implementation-paths
+ ["examples/lain/amb/web_editor.clj"
+  "examples/lain/amb/editor/search.lain"
+  "examples/lain/amb/editor/exhausted.lain"
+  "examples/lain/amb/editor/replay.lain"
+  "examples/lain/amb/editor/workspace.json"
+  "examples/lain/amb/editor/README.md"
+  "propagators/experimental/amb/learning_view.clj"
+  "graph/lain_editor/nogood_view.clj"
+  "test/graph/lain_editor/amb_test.clj"]
+ :facts
+ [{:id :evidence/amb-editor-learning-display
+   :type :evidence
+   :text "The opt-in editor module composes existing TTMS and AMB session bindings with an immutable, slot-backed learning view. The host value-grid renders no-good literals and exact context/source information. Existing semantic-network recording and reduction retain published observations and captured values; they do not guarantee every learning operation is recorded. Four new tests passed 28 assertions, and a browser run scrubbed 14 observations from pending input through failed choice, no-good, withdrawal and accepted choice. Existing regressions passed 409 assertions with three independently reproduced historical-error characterization failures. The new implementation files remain uncommitted; formal committed evidence and receipts remain outstanding. Solver policy, scheduler, merge, compiler and compound transport were not modified by this change."
+   :created-at #inst "2026-10-18T14:59:34.000Z"
+   :scope "Host visualization / pane-local AMB learning integration"
+   :source "user-approved-amb-editor-plan"
+   :status :active :lifecycle :candidate :evidence-state :needs-verification
+   :applies-to [:component/propagator-host]
+   :implemented-in ["graph/lain_editor/value_grid.clj"
+                    "graph/lain_editor/runtime.clj"
+                    "propagators/experimental/amb/operators.clj"
+                    "propagators/experimental/amb/learning.clj"
+                    "propagators/experimental/network_history.clj"
+                    "examples/lain/network_replay/collect-history.lain"]}
+  {:id :decision/amb-editor-learning-is-a-session-projection
+   :type :decision
+   :text "Install AMB capabilities per editor pane through the existing primitive-loader/session-extension boundary. Display solver-owned knowledge through an immutable tagged compound view, and compose published semantic observations through the existing recorder/reducer and replay UI. Presentation never owns search state or feeds repairs, and it never substitutes TTMS dominance for logical learning."
+   :created-at #inst "2026-10-18T14:59:34.000Z"
+   :scope "Host visualization / pane-local AMB learning integration"
+   :source "user-approved-amb-editor-plan"
+   :status :active :lifecycle :candidate :evidence-state :needs-verification
+   :applies-to [:component/propagator-host :component/propagator-compiler]
+   :motivated-by [:principle/propagator-compositional-extension
+                  :principle/propagator-message-boundaries]
+   :preserves [:constraint/propagator-session-extension
+               :constraint/propagator-compound-access-composition
+               :constraint/propagator-immutable-structure
+               :constraint/propagator-domain-policy]
+   :rejects [:failure-mode/propagator-hidden-domain-state]
+   :supported-by [:evidence/amb-editor-learning-display]}]}

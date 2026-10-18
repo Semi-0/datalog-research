@@ -3,6 +3,10 @@
 Experiment documentation is collected here. Runnable code and data remain in
 [`examples/lain/amb/`](../../examples/lain/amb/).
 
+The [block-editor learning gallery](../../examples/lain/amb/editor/README.md)
+loads AMB per pane, displays learned no-good literals/context, and replays
+published learning observations using the existing network-history recorder/reducer.
+
 Follow-up: [dependency-directed backtracking](../../propagators/doc/dependency-directed-backtracking.md)
 shows how an opt-in compiler adds file premises to ordinary Lain procedures,
 and how AMB selects a procedure file fitting a separately loaded target. The

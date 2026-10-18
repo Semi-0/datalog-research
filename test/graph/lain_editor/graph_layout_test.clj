@@ -1,6 +1,7 @@
 (ns graph.lain-editor.graph-layout-test
   (:require [clojure.test :refer [deftest is]]
             [graph.lain-editor.graph-layout :as layout]
+            [graph.lain-editor.node-clearance :as clearance]
             [graph.lain-editor.server :as server]
             [graph.lain-editor.runtime :as runtime]))
 
@@ -20,6 +21,13 @@
         (is (identical? (:input entry) (:input (get @registry "a"))))
         (is (< (:revision initial-result) (:revision second) (:revision moved) (:revision latest)))
         (is (= 0 (get-in second [:metrics :distance-sources-recomputed])))
+        (is (= 0 (get-in second [:metrics :iterations])))
+        (is (= 0 (get-in second [:metrics :pair-evaluations])))
+        (is (= 0 (get-in moved [:metrics :iterations])))
+        (is (= 0 (get-in moved [:metrics :pair-evaluations])))
+        (is (= (get-in (into {} (map (juxt :id identity)) (:nodes initial-result)) ["y" :position])
+               (get-in (into {} (map (juxt :id identity)) (:nodes moved)) ["y" :position]))
+            "A drag must not relax neighboring nodes")
         (is (= [50 60] (:position (first (filter #(= "x" (:id %)) (:nodes latest))))))
         (is (every? #(every? (fn [n] (Double/isFinite (double n))) (:position %)) (:nodes latest)))
         (let [before (:nodes (get @registry "a"))]
@@ -30,6 +38,66 @@
           (is (not (identical? (:input entry) (:input (get @registry "a")))))))
       (layout/close-pane! registry "a")
       (is (empty? @registry))
+      (finally (layout/close! registry)))))
+
+(deftest unchanged-layout-inputs-do-not-relax-or-replay-stress
+  (let [registry (atom {})]
+    (try
+      (let [initial (layout/compute! registry request)
+            positions #(into {} (map (juxt :id :position)) (:nodes %))
+            relabeled (assoc-in request [:nodes 0 :label] "renamed X")
+            result (layout/compute! registry (assoc relabeled :animate true))
+            reordered (layout/compute! registry (update relabeled :nodes #(vec (reverse %))))]
+        (doseq [unchanged [result reordered]]
+          (is (= (positions initial) (positions unchanged)))
+          (is (= 0 (get-in unchanged [:metrics :iterations])))
+          (is (= 0 (get-in unchanged [:metrics :pair-evaluations])))
+          (is (= 0 (get-in unchanged [:metrics :distance-sources-recomputed])))
+          (is (empty? (:frames unchanged))))
+        (is (= "renamed X" (:label (first (:nodes result)))))
+        (let [changed (layout/compute! registry (assoc relabeled :edges []))]
+          (is (pos? (get-in changed [:metrics :iterations])))))
+      (finally (layout/close! registry)))))
+
+(deftest released-drag-positions-are-not-permanent-pins
+  (let [registry (atom {})
+        position #(get (into {} (map (juxt :id :position)) (:nodes %)) "x")]
+    (try
+      (layout/compute! registry request)
+      (let [released (layout/compute! registry (assoc request :moves [{:id "x" :position [500 400]}]))
+            grown (layout/compute! registry (assoc-in request [:nodes 0 :size] [340 240]))]
+        (is (= [500 400] (position released)))
+        (is (not= (position released) (position grown)))
+        (is (pos? (get-in grown [:metrics :iterations])))
+        (is (not (apply clearance/conflict? (:nodes grown)))))
+      (finally (layout/close! registry)))))
+
+(deftest size-changes-relax-without-recomputing-topology
+  (let [registry (atom {})
+        separation (fn [result]
+                     (let [[[ax ay] [bx by]] (map :position (:nodes result))]
+                       (Math/hypot (- ax bx) (- ay by))))]
+    (try
+      (let [initial (layout/compute! registry request)
+            grown (assoc-in request [:nodes 0 :size] [240 180])
+            result (layout/compute! registry grown)
+            repeated (layout/compute! registry grown)
+            shrunk (layout/compute! registry request)]
+        (doseq [resized [result shrunk]]
+          (is (pos? (get-in resized [:metrics :iterations])))
+          (is (pos? (get-in resized [:metrics :pair-evaluations])))
+          (is (= 0 (get-in resized [:metrics :distance-sources-recomputed]))))
+        (is (= [240 180] (:size (first (:nodes result)))))
+        (is (> (separation result) (separation initial)))
+        (is (< (separation shrunk) (separation result)))
+        (let [[a b] (:nodes result)
+              [ax ay] (:position a) [bx by] (:position b)]
+          (is (or (>= (abs (- ax bx)) (/ (+ (first (:size a)) (first (:size b))) 2))
+                  (>= (abs (- ay by)) (/ (+ (second (:size a)) (second (:size b))) 2)))
+              "The two-node growth example must no longer overlap"))
+        (is (= (:nodes result) (:nodes repeated)))
+        (is (= 0 (get-in repeated [:metrics :iterations])))
+        (is (= 0 (get-in repeated [:metrics :pair-evaluations]))))
       (finally (layout/close! registry)))))
 
 (deftest topology-transactions-remove-incident-edges
@@ -96,6 +164,11 @@
         (is (> (count (:frames animated)) 2))
         (is (<= (:iterationsUsed animated) 300))
         (is (= (mapv :position (:nodes direct)) (mapv :position (:nodes animated))))
+        (is (every? (fn [frame]
+                      (let [nodes (:nodes frame)]
+                        (not-any? true? (for [a (range (count nodes)) b (range (inc a) (count nodes))]
+                                          (clearance/conflict? (nodes a) (nodes b))))))
+                    (:frames animated)))
         (is (thrown? Exception (layout/compute! registry (assoc request :animate "yes")))))
       (doseq [nodes [[] [{:id "only" :size [28 24]}]]]
         (let [result (layout/compute! registry (assoc request :generation (str (count nodes)) :nodes nodes :edges [] :animate true))]
@@ -103,17 +176,17 @@
           (is (= nodes (mapv #(dissoc % :position) (:nodes result))))))
       (finally (layout/close! registry) (layout/close! baseline)))))
 
-(deftest pane-flow-applies-balanced-preferences-without-changing-node-sizes
+(deftest pane-flow-uses-standard-stress-without-balanced-preferences
   (let [registry (atom {})
         diamond (assoc request
                        :nodes (mapv (fn [id] {:id id :size [60 24]}) ["a" "b" "c" "d"])
                        :edges [["a" "b"] ["a" "c"] ["b" "d"] ["c" "d"]])]
     (try
       (let [result (layout/compute! registry diamond)]
-        (is (pos? (get-in result [:metrics :preference-edge-evaluations])))
-        (is (pos? (get-in result [:metrics :conflict-checks])))
-        (is (= 0 (get-in result [:metrics :edge-crossings])))
-        (is (= 0 (get-in result [:metrics :node-overlaps])))
+        (is (pos? (get-in result [:metrics :pair-evaluations])))
+        (is (= 0 (get-in result [:metrics :preference-edge-evaluations])))
+        (is (= 0 (get-in result [:metrics :conflict-checks])))
+        (is (every? #(every? (fn [n] (Double/isFinite (double n))) (:position %)) (:nodes result)))
         (is (= (mapv :size (:nodes diamond)) (mapv :size (:nodes result))))
         (is (<= (get-in result [:metrics :iterations]) 300)))
       (finally (layout/close! registry)))))

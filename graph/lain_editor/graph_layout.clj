@@ -1,9 +1,10 @@
 (ns graph.lain-editor.graph-layout
-  "Pane-owned Vijual Balanced Stress flows. Only public session outputs are retained here."
+  "Pane-owned Vijual Standard Stress flows. Only public session outputs are retained here."
   (:require [clojure.core.async :as async]
             [clojure.set :as set]
             [graph.vijual.layout.nodes :as layout]
             [graph.vijual.layout.sugiyama :as sugiyama]
+            [graph.lain-editor.node-clearance :as clearance]
             [graph.lain-editor.workspace :as workspace]))
 
 (defn close-pane! [registry id]
@@ -16,8 +17,8 @@
   (doseq [id (keys @registry)] (close-pane! registry id)))
 
 (defn- create-entry [identity]
-  (let [initial (layout/create-balanced-layout [] [] {:gap 28 :edge-length 110 :tolerance 0.05
-                                                    :edge-clearance 16 :edge-overlap-weight 96})
+  (let [initial (layout/create-layout [] [] {:stress-method :standard
+                                           :gap 28 :edge-length 110 :tolerance 0.05})
         input (async/chan 1)]
     {:identity identity :input input :output ((layout/layout-flow initial 1) input)
      :nodes [] :edges #{}}))
@@ -57,10 +58,9 @@
     {:upsert-nodes (filterv #(not= % (get old (:id %))) fresh)
      :remove-node-ids (set/difference (set (keys old)) ids)
      :add-edges (vec (set/difference edges (:edges entry)))
-     :remove-edges (filterv #(every? ids %) (set/difference (:edges entry) edges))
-     :pin-ids (set (keys moved))}))
+     :remove-edges (filterv #(every? ids %) (set/difference (:edges entry) edges))}))
 
-(defn- step! [entry changes iterations]
+(defn- flow-step! [entry changes iterations]
   (workspace/ensure! (async/>!! (:input entry) {:changes changes :iterations iterations}) "Layout flow closed")
   (let [result (async/<!! (:output entry))]
     (workspace/ensure! result "Layout flow closed")
@@ -68,22 +68,47 @@
       (throw (ex-info (:message error) (:data error)))
       result)))
 
+(defn- net-deltas [deltas]
+  (let [weights (reduce (fn [m [node weight]] (update m node (fnil + 0) weight)) {} deltas)]
+    (vec (remove #(zero? (second %)) weights))))
+
+(defn- clear-result! [entry result]
+  (let [result (if (:frames result)
+                 (update result :frames #(mapv (fn [frame] (update frame :nodes clearance/separate)) %))
+                 result)
+        nodes (clearance/separate (:nodes result))
+        old (into {} (map (juxt :id identity)) (:nodes result))
+        corrections (filterv #(not= % (get old (:id %))) nodes)]
+    (if (seq corrections)
+      (let [projected (flow-step! entry {:upsert-nodes corrections} 0)]
+        (assoc result :nodes (:nodes projected) :revision (:revision projected)
+                      :deltas (net-deltas (into (:deltas result) (:deltas projected)))
+                      :metrics (assoc (:metrics result) :node-overlaps 0
+                                      :exact-clearance-moves (count corrections))))
+      (assoc result :metrics (assoc (:metrics result) :node-overlaps 0 :exact-clearance-moves 0)))))
+
 (defn- animated-solve! [entry changes]
-  (let [initial (step! entry changes 0)]
+  (let [initial (flow-step! entry changes 0)]
     (loop [used 0 frames [{:iteration 0 :nodes (:nodes initial)}] deltas (:deltas initial)]
       (let [budget (min 10 (- 300 used))
-            next (step! entry {} budget)
+            next (flow-step! entry {} budget)
             spent (get-in next [:metrics :iterations])
             used (+ used spent)
             frames (conj frames {:iteration used :nodes (:nodes next)})
             deltas (into deltas (:deltas next))]
         (if (or (>= used 300) (< spent budget) (<= (get-in next [:metrics :max-displacement]) 0.05))
-          (let [net-deltas (reduce (fn [m [node weight]] (update m node (fnil + 0) weight)) {} deltas)]
+          (let [deltas (net-deltas deltas)]
             (assoc next :frames frames :iterationsUsed used
-                   :deltas (vec (remove #(zero? (second %)) net-deltas))
+                   :deltas deltas
                    :metrics (assoc (:metrics next) :iterations used
                                    :distance-sources-recomputed (get-in initial [:metrics :distance-sources-recomputed]))))
           (recur used frames deltas))))))
+
+(defn- topology [nodes edges]
+  {:nodes (set (map :id nodes)) :edges (set edges)})
+
+(defn- node-sizes [nodes]
+  (into {} (map (juxt :id :size)) nodes))
 
 (defn compute! [registry {:keys [pane generation parent animate] :as request}]
   (let [request-data (normalize-request request)
@@ -93,6 +118,18 @@
         entry (or (get @registry pane) (create-entry identity))]
     (swap! registry assoc pane entry)
     (let [transaction (changes entry request-data)
-          result (if (true? animate) (animated-solve! entry transaction) (step! entry transaction 300))]
-      (swap! registry assoc pane (assoc entry :nodes (:nodes result) :edges (:edges request-data)))
+          topology (topology (:nodes request-data) (:directed-edges request-data))
+          topology-changed? (not= topology (:topology entry))
+          sizes-changed? (not= (node-sizes (:nodes request-data)) (node-sizes (:nodes entry)))
+          raw-result (cond
+                   (not (or topology-changed? sizes-changed?)) (flow-step! entry transaction 0)
+                   (true? animate) (animated-solve! entry transaction)
+                   :else (flow-step! entry transaction 300))
+          previous-positions (into {} (map (juxt :id :position)) (:nodes entry))
+          cleared (clear-result! entry raw-result)
+          result (update cleared :metrics assoc :changed-positions
+                         (count (filter #(not= (:position %) (get previous-positions (:id %)))
+                                        (:nodes cleared))))]
+      (swap! registry assoc pane (assoc entry :nodes (:nodes result) :edges (:edges request-data)
+                                       :topology topology))
       result)))

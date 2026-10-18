@@ -1,0 +1,13 @@
+(load-primitive-environment
+  "examples/lain/amb/web_editor.clj"
+  :examples.lain.amb.web-editor/primitive-bindings)
+
+(def-cells domain repairs decision)
+(define chosen (amb domain repairs decision))
+(define decisions (list decision))
+(define valid (= chosen 3))
+(define failure (require valid))
+(define knowledge (learn failure decisions))
+(-> (backtrack decisions knowledge) repairs)
+(define learning (amb:learning-view knowledge))
+(display learning)

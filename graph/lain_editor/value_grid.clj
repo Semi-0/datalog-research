@@ -3,6 +3,7 @@
   (:require [graph.lain-editor.call-inspection :as calls]
             [graph.lain-editor.value-labels :as labels]
             [graph.lain-editor.structural-value :as structure]
+            [graph.lain-editor.nogood-view :as nogoods]
             [propagators.cells.value :as value]
             [propagators.datastructures.event :as event]
             [propagators.ids :as ids]
@@ -68,6 +69,11 @@
       (into [{:key title :value "" :depth depth}] (event-rows v (inc depth) reader))
       (event-rows v depth reader))
     (calls/callable-inputs v) [{:key title :value (labels/datum-text v) :depth depth}]
+    (and (net/net? v) (nogoods/learning-view? v))
+    (if (seq title)
+      (into [{:key title :value "" :depth depth}]
+            (nogoods/rows v (inc depth) cell-token))
+      (nogoods/rows v depth cell-token))
     (or (net/net? v) (map? v)) (object-rows title v depth reader)
     (set? v) (collection-rows title (sort-by pr-str v) depth reader)
     (sequential? v) (collection-rows title v depth reader)

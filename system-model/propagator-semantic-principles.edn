@@ -1,0 +1,63 @@
+{:repository "/Users/pandilyn/Documents/ChatGPT/datalog research"
+ :operation :append-candidates
+ :source-documents ["propagators/doc/four-core-features.md"
+                    "propagators/doc/coordination-language-kernel.md"
+                    "propagators/doc/ttms.md"]
+ :required-checks [:candidate-shape :existing-relations :overlap-review
+                   :candidate-persistence :portable-export :human-view]
+ :retained-existing-principles [:principle/propagator-explicit-coordination
+                               :principle/propagator-owned-policy
+                               :principle/propagator-message-boundaries
+                               :principle/propagator-compositional-extension]
+ :facts
+ [{:type :principle
+ :id :principle/propagator-networked-semantics
+ :text "Networked semantics: Express computation as connected cells and local propagators over explicit topology. Cells share information, propagators emit messages, and network declarations remain inspectable data. Declaration, evaluation and projection are distinct operations."
+ :created-at #inst "2026-10-18T14:56:25.000Z"
+ :source "user-request:append-four-semantic-principles:2026-10-18"
+ :scope "Propagator infrastructure / network declaration and local coordination"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure :component/propagator-kernel :component/propagator-structure :component/propagator-recursion :component/propagator-compiler]
+ :supported-by [:evidence/propagator-infrastructure :evidence/propagator-kernel]
+ :related-to [:principle/propagator-explicit-coordination :principle/propagator-message-boundaries :principle/propagator-compositional-extension]
+ :motivates [:constraint/propagator-declaration-evaluation :constraint/propagator-immutable-structure :constraint/propagator-cross-network-runner]
+ :direct-tags [:tag/declaration :tag/propagation]}
+
+{:type :principle
+ :id :principle/propagator-fixpoint-evaluation
+ :text "Fixpoint evaluation: Repeated local propagation refines information toward quiescence under the domain information order. Updates are monotone in that order, and merge is associative, commutative and idempotent under domain-defined semantic equality. Order-independent outcomes require compatible monotone rules and fair scheduling; termination additionally requires suitable convergence conditions. These are semantic requirements, not a claim that every implementation or arbitrary recursive network has been proved convergent."
+ :created-at #inst "2026-10-18T14:56:25.000Z"
+ :source "user-request:append-four-semantic-principles:2026-10-18"
+ :scope "Kernel evaluation / information-domain algebra and recursive declaration"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure :component/propagator-kernel :component/propagator-information :component/propagator-recursion]
+ :supported-by [:evidence/propagator-infrastructure :evidence/propagator-kernel :evidence/propagator-information]
+ :related-to [:principle/propagator-networked-semantics :principle/propagator-partial-information :principle/propagator-explicit-coordination]
+ :motivates [:constraint/propagator-merge-laws :constraint/propagator-idempotent-declaration]
+ :direct-tags [:tag/propagation]}
+
+{:type :principle
+ :id :principle/propagator-partial-information
+ :text "Partial information: A cell can hold incomplete, structured, conditional or conflicting knowledge rather than a single ground value. Merge combines contributions according to the information domain; strongest is a derived readable projection distinct from retained content. Preserve live slot/accessor relationships so later refinements propagate through structure. Evidence compaction must follow the explicit domain order rather than assuming a particular set representation."
+ :created-at #inst "2026-10-18T14:56:25.000Z"
+ :source "user-request:append-four-semantic-principles:2026-10-18"
+ :scope "Information policy / compound partial-information structure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure :component/propagator-information :component/propagator-structure]
+ :supported-by [:evidence/propagator-information :evidence/propagator-structure :evidence/propagator-infrastructure]
+ :related-to [:principle/propagator-owned-policy :principle/propagator-compositional-extension]
+ :motivates [:constraint/propagator-domain-policy :constraint/propagator-compound-access-composition :constraint/propagator-merge-laws]
+ :direct-tags [:tag/propagation]}
+
+{:type :principle
+ :id :principle/propagator-dependence-tracking
+ :text "Dependence tracking: Retain the justifications on which conclusions depend, and use domain-owned support and retraction semantics to determine which conclusions remain warranted. Dependency identity and validity come from information contributions, not the scheduler execution history. A retraction can change the readable conclusion while domain evidence is accumulated or compacted according to its information order. Existing TTMS and distributed TMS are explicit mechanisms, not proof of a universal dependence subsystem."
+ :created-at #inst "2026-10-18T14:56:25.000Z"
+ :source "user-request:append-four-semantic-principles:2026-10-18"
+ :scope "Information justification / support-preserving transport and retraction"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure :component/propagator-information :component/propagator-structure :component/propagator-kernel]
+ :supported-by [:evidence/propagator-information :evidence/propagator-structure]
+ :related-to [:principle/propagator-partial-information :principle/propagator-owned-policy :principle/propagator-message-boundaries]
+ :motivates [:constraint/propagator-domain-policy :constraint/propagator-compound-access-composition]
+ :direct-tags [:tag/propagation]}]}

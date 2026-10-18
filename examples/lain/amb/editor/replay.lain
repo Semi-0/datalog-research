@@ -1,0 +1,16 @@
+(load-primitive-environment
+  "examples/lain/amb/web_editor.clj"
+  :examples.lain.amb.web-editor/primitive-bindings)
+(load-lain "examples/lain/network_replay/collect-history.lain")
+
+;; The existing recorder accumulates published semantic graphs and their values.
+;; It does not claim to capture every internal learning operation.
+(def-cells domain repairs decision)
+(define chosen (amb domain repairs decision))
+(define decisions (list decision))
+(define valid (= chosen 2))
+(define failure (require valid))
+(define knowledge (learn failure decisions))
+(-> (backtrack decisions knowledge) repairs)
+(define learning (amb:learning-view knowledge))
+(display (collect-semantic-history learning 0 600000))
