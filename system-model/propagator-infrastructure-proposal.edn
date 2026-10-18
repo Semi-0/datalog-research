@@ -1,0 +1,523 @@
+{:proposal/version 2
+ :previous-proposal "system-model/propagator-infrastructure-proposal-v1.edn"
+ :revised-at #inst "2026-10-18T09:34:18.000Z"
+ :repository "/Users/pandilyn/Documents/ChatGPT/datalog research"
+ :source-head "73a8d2550188a7823ec0578e2262832abd51659d"
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :model-state :empty-local-store
+ :approval :pending
+ :facts [
+{:type :architecture-component
+ :id :component/propagator-infrastructure
+ :text "Propagator infrastructure: Coordinates partial information through explicit immutable network declaration, evaluation and projections. Owns the composition of the six boundaries; excludes unrelated Datalog engines and application-specific UI policy."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :supported-by [:evidence/propagator-infrastructure]}
+
+{:type :architecture-component
+ :id :component/propagator-kernel
+ :text "Kernel execution: Owns Net topology/state access, cell-message absorption orchestration, declaration patch interpretation, task draining and structural ancestry. Accepts installers, messages and patches; returns tasks, immutable networks and explicit completion/failure. Excludes recursive, temporal, support and host-IO policy."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Kernel execution"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :supported-by [:evidence/propagator-kernel]}
+
+{:type :architecture-component
+ :id :component/propagator-information
+ :text "Partial-information policy: Owns merge, strongest and change predicates plus domain evidence algebras, including opt-in TTMS, event and behavior. Accepts information contributions; returns merged content and readable projections. Excludes scheduling, host clocks and global support/epoch registries."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Partial-information policy"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :supported-by [:evidence/propagator-information]}
+
+{:type :architecture-component
+ :id :component/propagator-structure
+ :text "Compound structure: Owns named slots, accessor topology, avatar/sync boundaries and structural transport of partial information. Accepts slot/accessor declarations and messages; returns network data, patches and messages. Excludes choosing TTMS freshness, behavior retention or compiler lexical meaning."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Compound structure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :supported-by [:evidence/propagator-structure]}
+
+{:type :architecture-component
+ :id :component/propagator-recursion
+ :text "Recursive declaration: Owns stable recursive application/frame identities and bounded declaration of recursive topology. Accepts closure/application declarations; emits generic network patches into the active Net through the flat GUR facade. Excludes scheduler-level recursion and host effect lifecycle."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Recursive declaration"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :supported-by [:evidence/propagator-recursion]}
+
+{:type :architecture-component
+ :id :component/propagator-compiler
+ :text "Compiler semantics: Owns parser/AST contracts, lexical environment meaning, closure/application declarations and CPS compilation. Accepts forms/source/AST plus explicit environment/options; returns compiled network, result and task identities. Excludes domain merge policy and host communication. Compiler-owned execution adapters under runtime/ are part of this boundary."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Compiler semantics"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :supported-by [:evidence/propagator-compiler]}
+
+{:type :architecture-component
+ :id :component/propagator-host
+ :text "Host runtime and projections: Owns serialized external input, session state, boundary outboxes/ledgers, IO handlers and projection delivery. Accepts source or external input and effect declarations; returns settled session state, receipts and client projections. Excludes bypassing ordinary cell propagation to publish asynchronous results. Graph transports and inspection are consumers/dependencies, not kernel responsibilities."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Host runtime and projections"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :supported-by [:evidence/propagator-host]}
+
+{:type :evidence
+ :id :evidence/propagator-infrastructure
+ :text "Inspected repository docs and public modules support the candidate ownership interpretation. Coordinates partial information through explicit immutable network declaration, evaluation and projections. Owns the composition of the six boundaries; excludes unrelated Datalog engines and application-specific UI policy. Source agreement is observational support, not human acceptance or behavioral proof."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure]
+ :implemented-in ["propagators/doc/coordination-language-kernel.md" "propagators/doc/README.md"]}
+
+{:type :evidence
+ :id :evidence/propagator-kernel
+ :text "Inspected repository docs and public modules support the candidate ownership interpretation. Owns Net topology/state access, cell-message absorption orchestration, declaration patch interpretation, task draining and structural ancestry. Accepts installers, messages and patches; returns tasks, immutable networks and explicit completion/failure. Excludes recursive, temporal, support and host-IO policy. Source agreement is observational support, not human acceptance or behavioral proof."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Kernel execution"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel]
+ :implemented-in ["propagators/network.clj" "propagators/runner.clj" "propagators/cell_evaluator.clj" "propagators/network_patch.clj" "test/propagators/runner_test.clj" "test/propagators/network_patch_test.clj"]}
+
+{:type :evidence
+ :id :evidence/propagator-information
+ :text "Inspected repository docs and public modules support the candidate ownership interpretation. Owns merge, strongest and change predicates plus domain evidence algebras, including opt-in TTMS, event and behavior. Accepts information contributions; returns merged content and readable projections. Excludes scheduling, host clocks and global support/epoch registries. Source agreement is observational support, not human acceptance or behavioral proof."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Partial-information policy"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-information]
+ :implemented-in ["propagators/cells/merge.clj" "propagators/datastructures/support_collection.clj" "propagators/doc/ttms.md" "test/propagators/support_collection_test.clj"]}
+
+{:type :evidence
+ :id :evidence/propagator-structure
+ :text "Inspected repository docs and public modules support the candidate ownership interpretation. Owns named slots, accessor topology, avatar/sync boundaries and structural transport of partial information. Accepts slot/accessor declarations and messages; returns network data, patches and messages. Excludes choosing TTMS freshness, behavior retention or compiler lexical meaning. Source agreement is observational support, not human acceptance or behavioral proof."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Compound structure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-structure]
+ :implemented-in ["propagators/datastructures/compound_object.clj" "propagators/boundary.clj" "propagators/doc/compound-object-slot-sync.md" "test/propagators/compound_object_network_slot_test.clj"]}
+
+{:type :evidence
+ :id :evidence/propagator-recursion
+ :text "Inspected repository docs and public modules support the candidate ownership interpretation. Owns stable recursive application/frame identities and bounded declaration of recursive topology. Accepts closure/application declarations; emits generic network patches into the active Net through the flat GUR facade. Excludes scheduler-level recursion and host effect lifecycle. Source agreement is observational support, not human acceptance or behavioral proof."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Recursive declaration"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-recursion]
+ :implemented-in ["propagators/gur.clj" "propagators/gur/flat.clj" "propagators/doc/flat-gur-compiler-2-application.md"]}
+
+{:type :evidence
+ :id :evidence/propagator-compiler
+ :text "Inspected repository docs and public modules support the candidate ownership interpretation. Owns parser/AST contracts, lexical environment meaning, closure/application declarations and CPS compilation. Accepts forms/source/AST plus explicit environment/options; returns compiled network, result and task identities. Excludes domain merge policy and host communication. Compiler-owned execution adapters under runtime/ are part of this boundary. Source agreement is observational support, not human acceptance or behavioral proof."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Compiler semantics"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-compiler]
+ :implemented-in ["propagators/compiler_2/main.clj" "propagators/compiler_2/cps_core.clj" "propagators/compiler_2/README.md" "test/propagators/compiler_2_functional_network_contract_test.clj"]}
+
+{:type :evidence
+ :id :evidence/propagator-host
+ :text "Inspected repository docs and public modules support the candidate ownership interpretation. Owns serialized external input, session state, boundary outboxes/ledgers, IO handlers and projection delivery. Accepts source or external input and effect declarations; returns settled session state, receipts and client projections. Excludes bypassing ordinary cell propagation to publish asynchronous results. Graph transports and inspection are consumers/dependencies, not kernel responsibilities. Source agreement is observational support, not human acceptance or behavioral proof."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Host runtime and projections"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-host]
+ :implemented-in ["propagators/compiler_2/runtime/session/input.clj" "propagators/compiler_2/runtime/boundary/effects.clj" "propagators/doc/boundary-effect-runtime.md" "test/propagators/compiler_2/runtime/boundary_test.clj"]}
+
+{:type :boundary-assignment
+ :id :boundary/propagator-kernel
+ :text "Place Kernel execution directly under the propagator infrastructure semantic boundary."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Kernel execution"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :child-component [:component/propagator-kernel]
+ :parent-component [:component/propagator-infrastructure]
+ :supported-by [:evidence/propagator-kernel]
+ :verification "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."}
+
+{:type :boundary-assignment
+ :id :boundary/propagator-information
+ :text "Place Partial-information policy directly under the propagator infrastructure semantic boundary."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Partial-information policy"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :child-component [:component/propagator-information]
+ :parent-component [:component/propagator-infrastructure]
+ :supported-by [:evidence/propagator-information]
+ :verification "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."}
+
+{:type :boundary-assignment
+ :id :boundary/propagator-structure
+ :text "Place Compound structure directly under the propagator infrastructure semantic boundary."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Compound structure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :child-component [:component/propagator-structure]
+ :parent-component [:component/propagator-infrastructure]
+ :supported-by [:evidence/propagator-structure]
+ :verification "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."}
+
+{:type :boundary-assignment
+ :id :boundary/propagator-recursion
+ :text "Place Recursive declaration directly under the propagator infrastructure semantic boundary."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Recursive declaration"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :child-component [:component/propagator-recursion]
+ :parent-component [:component/propagator-infrastructure]
+ :supported-by [:evidence/propagator-recursion]
+ :verification "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."}
+
+{:type :boundary-assignment
+ :id :boundary/propagator-compiler
+ :text "Place Compiler semantics directly under the propagator infrastructure semantic boundary."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Compiler semantics"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :child-component [:component/propagator-compiler]
+ :parent-component [:component/propagator-infrastructure]
+ :supported-by [:evidence/propagator-compiler]
+ :verification "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."}
+
+{:type :boundary-assignment
+ :id :boundary/propagator-host
+ :text "Place Host runtime and projections directly under the propagator infrastructure semantic boundary."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Host runtime and projections"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :child-component [:component/propagator-host]
+ :parent-component [:component/propagator-infrastructure]
+ :supported-by [:evidence/propagator-host]
+ :verification "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."}
+
+{:type :system
+ :id :system/propagator-infrastructure
+ :text "An inspectable coordination language infrastructure over partial information and immutable declared networks."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure]
+ :has-purpose [:purpose/propagator-coordination]
+ :governed-by [:principle/propagator-compositional-extension :principle/propagator-explicit-coordination :principle/propagator-owned-policy :principle/propagator-message-boundaries]
+ :constrained-by [:constraint/propagator-compound-access-composition :constraint/propagator-cross-network-runner :constraint/propagator-cps-extension :constraint/propagator-merge-laws :constraint/propagator-flat-gur-canonical :constraint/propagator-runtime-gc :constraint/propagator-session-extension :constraint/propagator-immutable-structure :constraint/propagator-declaration-evaluation :constraint/propagator-domain-policy :constraint/propagator-host-effect-boundary :constraint/propagator-idempotent-declaration]}
+
+{:type :purpose
+ :id :purpose/propagator-coordination
+ :text "Let shared partial information, declared topology and explicit projections coordinate computation while retaining inspectable structure and reproducible execution."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure]
+ :supported-by [:evidence/propagator-infrastructure]
+ :direct-tags [:tag/propagation]}
+
+{:type :principle
+ :id :principle/propagator-explicit-coordination
+ :text "Represent declaration, evaluation and projection explicitly so network structure and outcomes remain inspectable."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure :component/propagator-kernel :component/propagator-recursion :component/propagator-compiler]
+ :supported-by [:evidence/propagator-infrastructure :evidence/propagator-kernel]
+ :motivates [:constraint/propagator-declaration-evaluation :constraint/propagator-idempotent-declaration]
+ :direct-tags [:tag/declaration]}
+
+{:type :principle
+ :id :principle/propagator-owned-policy
+ :text "Each semantic domain owns its information and projection policy; the kernel supplies explicit composition mechanisms."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel :component/propagator-information :component/propagator-structure :component/propagator-compiler]
+ :supported-by [:evidence/propagator-infrastructure :evidence/propagator-information]
+ :motivates [:constraint/propagator-domain-policy]
+ :direct-tags [:tag/propagation]}
+
+{:type :principle
+ :id :principle/propagator-message-boundaries
+ :text "Cross execution and external-environment boundaries through declared values, patches and ordinary cell messages with explicit host interpretation."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure / host boundary"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel :component/propagator-structure :component/propagator-host]
+ :supported-by [:evidence/propagator-infrastructure :evidence/propagator-host]
+ :motivates [:constraint/propagator-host-effect-boundary]
+ :direct-tags [:tag/boundary-effects]}
+
+{:type :constraint
+ :id :constraint/propagator-declaration-evaluation
+ :text "Network declaration constructs inspectable data; evaluation explicitly interprets messages and bounded internal declaration patches and returns an immutable network or inspectable failure. Host IO is not an internal declaration patch."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Kernel execution / compiler composition"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel :component/propagator-compiler]
+ :supported-by [:evidence/propagator-kernel :evidence/propagator-compiler]
+ :verification "Run declaration/runner tests and contract examples; check installation before evaluation, effect-before-message ordering and failure results."
+ :direct-tags [:tag/declaration]}
+
+{:type :constraint
+ :id :constraint/propagator-domain-policy
+ :text "The scheduler orchestrates tasks and message absorption; merge/strongest and domain libraries own support, freshness, retention and projection decisions. Compound transport must preserve richer content without choosing these policies."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Kernel execution / information policy / compound structure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel :component/propagator-information :component/propagator-structure]
+ :supported-by [:evidence/propagator-information :evidence/propagator-structure]
+ :verification "Inspect runner/domain dependency boundaries and run support, compound-slot and TTMS transport tests; check raw content separately from strongest."
+ :direct-tags [:tag/propagation]}
+
+{:type :constraint
+ :id :constraint/propagator-host-effect-boundary
+ :text "Propagators declare external work as data. The host interprets boundary effects after propagation; incoming and asynchronous results must reenter ordinary cell-message evaluation. Shared source reads alone do not prove universal phase or retry guarantees."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Host runtime / kernel message boundary"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel :component/propagator-host]
+ :supported-by [:evidence/propagator-host :evidence/propagator-kernel]
+ :verification "Run runtime boundary tests; separately audit asynchronous trace completion, receipt delivery, ledger identity, serialization and next-round publication."
+ :direct-tags [:tag/boundary-effects]}
+
+{:type :constraint
+ :id :constraint/propagator-idempotent-declaration
+ :text "Repeating the same semantic declaration must reuse its cells, propagators and bindings rather than growing equivalent topology. Recursive identity policy belongs to the declaration layer."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Recursive declaration / kernel patch interpretation"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-recursion :component/propagator-kernel]
+ :supported-by [:evidence/propagator-recursion :evidence/propagator-kernel]
+ :verification "Run patch idempotence tests and repeated recursive/compiler application tests; compare topology identities and counts after equal declarations."
+ :direct-tags [:tag/declaration]}
+
+{:type :decision
+ :id :decision/propagator-flat-gur-candidate
+ :text "Describe the public flat-GUR facade as the recursive declaration dependency of the compiler; retain accumulating GUR as a separately selected alternative. This is a candidate description of inspected behavior."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Recursive declaration / compiler composition"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-recursion :component/propagator-compiler]
+ :motivated-by [:principle/propagator-explicit-coordination :principle/propagator-owned-policy]
+ :preserves [:constraint/propagator-declaration-evaluation :constraint/propagator-idempotent-declaration]
+ :rejects [:failure-mode/propagator-hidden-domain-state]
+ :supported-by [:evidence/propagator-recursion :evidence/propagator-compiler]
+ :direct-tags [:tag/declaration]}
+
+{:type :failure-mode
+ :id :failure-mode/propagator-hidden-domain-state
+ :text "Embedding recursive, support or host-effect semantics in scheduler-local hidden state makes declarations insufficient to explain behavior and repeated execution."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Kernel execution / domain composition"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel :component/propagator-recursion :component/propagator-host]
+ :violates [:constraint/propagator-domain-policy :constraint/propagator-declaration-evaluation]
+ :supported-by [:evidence/propagator-infrastructure]}
+
+{:type :assumption
+ :id :assumption/propagator-scope
+ :text "This proposal covers propagator infrastructure and its compiler/host integration, rather than modeling unrelated Datalog engines or every application and experiment. Semantic ownership is preserved across physical module paths."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure]
+ :supported-by [:evidence/propagator-infrastructure]}
+
+{:type :open-question
+ :id :open-question/propagator-historical-model
+ :text "Where is the prior canonical Kiroshi export? This checkout has an empty local store and no tracked portable model although documents cite earlier approved facts. Reconcile recovered identities before any persistence or supersession."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure / model provenance"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure]
+ :concerns [:system/propagator-infrastructure]
+ :supported-by [:evidence/propagator-information]}
+
+{:type :open-question
+ :id :open-question/propagator-document-drift
+ :text "Which historical descriptions should be retired? The index calls accumulating GUR canonical; the current facade selects flat GUR. Core/four-feature docs describe missing dependence handling while newer code includes opt-in TTMS and distributed TMS. These mechanisms do not establish a universal TMS."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Recursive declaration / partial-information documentation"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-recursion :component/propagator-information]
+ :concerns [:decision/propagator-flat-gur-candidate :constraint/propagator-domain-policy]
+ :supported-by [:evidence/propagator-recursion :evidence/propagator-information]}
+
+{:type :open-question
+ :id :open-question/propagator-phase-completeness
+ :text "How much of the documented common commit/propagate/effect loop is implemented for every trace, TUI, XR, receipt and file path? Dedicated adapters and effect ledgers exist; universal next-round, at-most-once and oscillation guarantees require a separate audit."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Host runtime and projections"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-host]
+ :concerns [:constraint/propagator-host-effect-boundary]
+ :supported-by [:evidence/propagator-host]}
+
+{:type :tag
+ :id :tag/propagation
+ :text "Canonical tag for propagation review context."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ }
+
+{:type :tag
+ :id :tag/declaration
+ :text "Canonical tag for declaration review context."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ }
+
+{:type :tag
+ :id :tag/boundary-effects
+ :text "Canonical tag for boundary-effects review context."
+ :created-at #inst "2026-10-17T22:12:13.000Z"
+ :scope "Propagator infrastructure"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ }
+
+{:type :constraint
+ :id :constraint/propagator-compound-access-composition
+ :text "Preserve compound objects as live partial-information structures; avoid materializing them into host maps, vectors or scalar snapshots for semantic evaluation. Prefer propagator composition over unwrapping. Access compound fields through slot-accessor propagators so later refinements remain connected. Explicit host serialization/projection remains a boundary operation, not an evaluator substitute."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Compound structure / compiler and library composition"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-structure :component/propagator-compiler :component/propagator-information]
+ :supported-by [:evidence/propagator-structure :evidence/propagator-compiler]
+ :verification "Run slot-accessor and compound/TTMS transport tests, including late slot arrival and retraction. Inspect semantic consumers for host materialization or unwrap chains that bypass declared accessors."}
+
+{:type :constraint
+ :id :constraint/propagator-cross-network-runner
+ :text "For cross-network communication, prefer extending or composing the network runner and its evaluator/patch boundaries. Transfer information through explicit messages and network boundaries; do not hide peer-network execution or mutable communication state inside propagator structures."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Kernel execution / compound network boundaries"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel :component/propagator-structure]
+ :supported-by [:evidence/propagator-runner-extension :evidence/propagator-structure]
+ :verification "Exercise generic-iterator cross-network tests, scoped routing and message delivery. Confirm runner extensions preserve task admission, failure reporting and immutable network transitions."}
+
+{:type :constraint
+ :id :constraint/propagator-cps-extension
+ :text "Extend compiler semantics by composing the CPS compiler combinators used by cps-core: on, compose-rules, transform-expr, call/continue and make-compiler. Delegate unmatched forms to the canonical compiler dispatcher and preserve continuation and stack-safety contracts. Prefer explicit compiler selection through options over global dispatcher changes."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Compiler semantics"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-compiler]
+ :supported-by [:evidence/propagator-compiler-composition]
+ :verification "Run CPS custom-rule, fall-through and deep-recursion tests. Compile a custom form using composed rules and the canonical fallback without modifying the global default compiler."}
+
+{:type :constraint
+ :id :constraint/propagator-merge-laws
+ :text "Cell merge must be commutative, idempotent and associative on valid domain contents under the domain-defined semantic equality. Normalize permissive external representations at the boundary; do not use representation differences to excuse order-dependent meaning. Strongest projection is a separate operation and must not replace raw content to manufacture these laws."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Partial-information policy"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-information :component/propagator-kernel]
+ :supported-by [:evidence/propagator-information]
+ :verification "Check merge(a,b)=merge(b,a), merge(a,a)=a, and merge(merge(a,b),c)=merge(a,merge(b,c)) across normalized domain values, duplicates, conflicts, partial values and support/retraction cases. State semantic equality and normalization explicitly; finite tests do not prove every domain."}
+
+{:type :constraint
+ :id :constraint/propagator-flat-gur-canonical
+ :text "Flat GUR is the canonical GUR for new recursive declaration and compiler composition. Accumulating and other GUR implementations are explicit alternatives or historical baselines and must not compete as the default semantic authority."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Recursive declaration / compiler composition"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-recursion :component/propagator-compiler]
+ :supported-by [:evidence/propagator-recursion :evidence/propagator-compiler]
+ :verification "Inspect public GUR exports and compiler declaration dependencies; run flat application/idempotence contract tests and flag documentation that names a different canonical default."}
+
+{:type :constraint
+ :id :constraint/propagator-runtime-gc
+ :text "Decouple garbage collection from propagator semantics and merge by composing it as a host-runtime extension. Keep root discovery, collection policy and scheduling outside propagator structures and the core scheduler. Collect only at explicitly safe runtime boundaries accounting for pending tasks, queued commits, subscriptions and in-flight effect references."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Host runtime lifecycle"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-host :component/propagator-kernel]
+ :supported-by [:evidence/propagator-host]
+ :verification "Review runtime-extension ownership and root contracts; when a collector exists, test idle eligibility, in-flight roots and semantic equivalence with collection disabled. Existing sources describe lifecycle requirements; they do not establish a completed collector or extension API."}
+
+{:type :constraint
+ :id :constraint/propagator-session-extension
+ :text "Use immutable session-extension declarations to install primitive propagator bindings and side-effect capabilities per session. A session owns its bindings, fixed handler registrations and effect ledger. Installing an extension must not change another session or globally redefine capabilities; effect handlers run at the host boundary, never inside propagation."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Host runtime / compiler environment extension"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-host :component/propagator-compiler]
+ :supported-by [:evidence/propagator-session-extension]
+ :verification "Run session-extension tests for immutable declarations, repeated-install idempotence, conflicting identities, fixed handlers, primitive bindings and isolation of independently created sessions."}
+
+{:type :constraint
+ :id :constraint/propagator-immutable-structure
+ :text "Propagator structures must remain immutable declarations of their name and activation behavior. Do not mutate fields or capture mutable domain/runtime state whose changes alter the same declaration meaning. Put execution cursors, queues, communication state and lifecycle state in explicit runner/runtime extensions; make semantic updates new values or declared messages."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Kernel propagator representation / execution extensions"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel :component/propagator-host :component/propagator-recursion]
+ :supported-by [:evidence/propagator-kernel :evidence/propagator-runner-extension]
+ :verification "Inspect constructors, activation composition and state capture; compare installed propagator declarations before/after execution and test that composed wrappers do not mutate the original structure. Persistent record fields alone do not prove captured activation state is immutable."}
+
+{:type :principle
+ :id :principle/propagator-compositional-extension
+ :text "Preserve immutable, inspectable domain declarations by extending behavior through propagator, runner, compiler and session/runtime composition at the boundary that owns the concern. This principle records the user-directed architecture requirements of 2026-10-18."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Propagator infrastructure"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-infrastructure :component/propagator-kernel :component/propagator-information :component/propagator-structure :component/propagator-recursion :component/propagator-compiler :component/propagator-host]
+ :supported-by [:evidence/propagator-infrastructure :evidence/propagator-runner-extension :evidence/propagator-compiler-composition :evidence/propagator-session-extension]
+ :motivates [:constraint/propagator-compound-access-composition :constraint/propagator-cross-network-runner :constraint/propagator-cps-extension :constraint/propagator-merge-laws :constraint/propagator-flat-gur-canonical :constraint/propagator-runtime-gc :constraint/propagator-session-extension :constraint/propagator-immutable-structure]
+ :direct-tags [:tag/declaration]}
+
+{:type :decision
+ :id :decision/propagator-flat-gur-canonical-v2
+ :text "Adopt flat GUR as the canonical recursive declaration substrate, as explicitly directed by the user. Retain accumulating and other GURs only as deliberately selected alternatives or historical baselines. This candidate strengthens the prior observational decision without deleting it."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Recursive declaration / compiler composition"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-recursion :component/propagator-compiler]
+ :supersedes [:decision/propagator-flat-gur-candidate]
+ :motivated-by [:principle/propagator-compositional-extension :principle/propagator-explicit-coordination]
+ :preserves [:constraint/propagator-flat-gur-canonical :constraint/propagator-idempotent-declaration :constraint/propagator-declaration-evaluation]
+ :rejects [:failure-mode/propagator-hidden-domain-state]
+ :supported-by [:evidence/propagator-recursion :evidence/propagator-compiler]
+ :direct-tags [:tag/declaration]}
+
+{:type :evidence
+ :id :evidence/propagator-runner-extension
+ :text "Runner constructors inject task policy and evaluators; the production runner exposes advance composition, and generic-iterator tests exercise compound cross-network and scoped-routing communication. Runner execution owns transient transitions; propagator declarations remain outside that state. These APIs support the requested extension preference but do not prove all activation closures lack mutable captures."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Kernel runner extension"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-kernel]
+ :implemented-in ["propagators/runner_constructor.clj" "propagators/runner.clj" "propagators/propagator.clj" "test/propagators/experimental/runner_constructor_test.clj"]}
+
+{:type :evidence
+ :id :evidence/propagator-compiler-composition
+ :text "cps-core assembles rules using compiler-common CPS combinators; explicit compile options carry a selected compiler. Existing custom-form and deep-recursion tests establish representative composition contracts. Compiler syntax, fallback and continuation policy remain compiler-owned; session capability installation is separate."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Compiler semantics"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-compiler]
+ :implemented-in ["propagators/compiler_2/cps_core.clj" "propagators/compiler_common/cps.clj" "test/propagators/compiler_2_cps_test.clj"]}
+
+{:type :evidence
+ :id :evidence/propagator-session-extension
+ :text "SessionExtension bundles freeze primitive bindings and effect declarations. install-session-extension returns a session with a child environment and session-owned fixed handlers; repeated identical installation is idempotent and conflicting identities fail. Host handlers and ledgers remain outside propagation. This evidence establishes session extension mechanisms, not a completed garbage collector."
+ :created-at #inst "2026-10-18T09:34:18.000Z"
+ :scope "Host runtime session capabilities"
+ :source "user-instruction:2026-10-18"
+ :status :active :lifecycle :candidate :evidence-state :needs-verification
+ :applies-to [:component/propagator-host]
+ :implemented-in ["propagators/compiler_2/runtime/session/extension.clj" "propagators/compiler_2/runtime/boundary/effects.clj" "propagators/doc/compiler-2-live-environment-io.md" "test/propagators/compiler_2/runtime/session_extension_test.clj"]}
+ ]}

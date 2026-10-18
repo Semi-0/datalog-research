@@ -1,0 +1,2587 @@
+#:kiroshi.export{:facts
+                 [{:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-infrastructure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :assumption/propagator-scope,
+                    :lifecycle :candidate,
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-infrastructure],
+                    :text
+                    "This proposal covers propagator infrastructure and its compiler/host integration, rather than modeling unrelated Datalog engines or every application and experiment. Semantic ownership is preserved across physical module paths.",
+                    :type :assumption},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:41:00.059-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:child-component [:component/propagator-compiler],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :boundary/propagator-compiler,
+                    :lifecycle :candidate,
+                    :parent-component
+                    [:component/propagator-infrastructure],
+                    :scope "Compiler semantics",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-compiler],
+                    :text
+                    "Place Compiler semantics directly under the propagator infrastructure semantic boundary.",
+                    :type :boundary-assignment,
+                    :verification
+                    "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.127-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:child-component [:component/propagator-host],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :boundary/propagator-host,
+                    :lifecycle :candidate,
+                    :parent-component
+                    [:component/propagator-infrastructure],
+                    :scope "Host runtime and projections",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-host],
+                    :text
+                    "Place Host runtime and projections directly under the propagator infrastructure semantic boundary.",
+                    :type :boundary-assignment,
+                    :verification
+                    "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.325-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:child-component
+                    [:component/propagator-information],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :boundary/propagator-information,
+                    :lifecycle :candidate,
+                    :parent-component
+                    [:component/propagator-infrastructure],
+                    :scope "Partial-information policy",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-information],
+                    :text
+                    "Place Partial-information policy directly under the propagator infrastructure semantic boundary.",
+                    :type :boundary-assignment,
+                    :verification
+                    "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:56.545-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:child-component [:component/propagator-kernel],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :boundary/propagator-kernel,
+                    :lifecycle :candidate,
+                    :parent-component
+                    [:component/propagator-infrastructure],
+                    :scope "Kernel execution",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-kernel],
+                    :text
+                    "Place Kernel execution directly under the propagator infrastructure semantic boundary.",
+                    :type :boundary-assignment,
+                    :verification
+                    "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:56.368-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:child-component [:component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :boundary/propagator-recursion,
+                    :lifecycle :candidate,
+                    :parent-component
+                    [:component/propagator-infrastructure],
+                    :scope "Recursive declaration",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-recursion],
+                    :text
+                    "Place Recursive declaration directly under the propagator infrastructure semantic boundary.",
+                    :type :boundary-assignment,
+                    :verification
+                    "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:56.933-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:child-component [:component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :boundary/propagator-structure,
+                    :lifecycle :candidate,
+                    :parent-component
+                    [:component/propagator-infrastructure],
+                    :scope "Compound structure",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-structure],
+                    :text
+                    "Place Compound structure directly under the propagator infrastructure semantic boundary.",
+                    :type :boundary-assignment,
+                    :verification
+                    "Independently check the proposed hierarchy for a single root, one parent per child, no cycles and no orphans; inspect public contracts and tests for the stated ownership."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:56.733-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :component/propagator-compiler,
+                    :lifecycle :candidate,
+                    :scope "Compiler semantics",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-compiler],
+                    :text
+                    "Compiler semantics: Owns parser/AST contracts, lexical environment meaning, closure/application declarations and CPS compilation. Accepts forms/source/AST plus explicit environment/options; returns compiled network, result and task identities. Excludes domain merge policy and host communication. Compiler-owned execution adapters under runtime/ are part of this boundary.",
+                    :type :architecture-component},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.695-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :component/propagator-host,
+                    :lifecycle :candidate,
+                    :scope "Host runtime and projections",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-host],
+                    :text
+                    "Host runtime and projections: Owns serialized external input, session state, boundary outboxes/ledgers, IO handlers and projection delivery. Accepts source or external input and effect declarations; returns settled session state, receipts and client projections. Excludes bypassing ordinary cell propagation to publish asynchronous results. Graph transports and inspection are consumers/dependencies, not kernel responsibilities.",
+                    :type :architecture-component},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.808-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :component/propagator-information,
+                    :lifecycle :candidate,
+                    :scope "Partial-information policy",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-information],
+                    :text
+                    "Partial-information policy: Owns merge, strongest and change predicates plus domain evidence algebras, including opt-in TTMS, event and behavior. Accepts information contributions; returns merged content and readable projections. Excludes scheduling, host clocks and global support/epoch registries.",
+                    :type :architecture-component},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.388-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :component/propagator-infrastructure,
+                    :lifecycle :candidate,
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-infrastructure],
+                    :text
+                    "Propagator infrastructure: Coordinates partial information through explicit immutable network declaration, evaluation and projections. Owns the composition of the six boundaries; excludes unrelated Datalog engines and application-specific UI policy.",
+                    :type :architecture-component},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.185-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :component/propagator-kernel,
+                    :lifecycle :candidate,
+                    :scope "Kernel execution",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-kernel],
+                    :text
+                    "Kernel execution: Owns Net topology/state access, cell-message absorption orchestration, declaration patch interpretation, task draining and structural ancestry. Accepts installers, messages and patches; returns tasks, immutable networks and explicit completion/failure. Excludes recursive, temporal, support and host-IO policy.",
+                    :type :architecture-component},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.295-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :component/propagator-recursion,
+                    :lifecycle :candidate,
+                    :scope "Recursive declaration",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-recursion],
+                    :text
+                    "Recursive declaration: Owns stable recursive application/frame identities and bounded declaration of recursive topology. Accepts closure/application declarations; emits generic network patches into the active Net through the flat GUR facade. Excludes scheduler-level recursion and host effect lifecycle.",
+                    :type :architecture-component},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.584-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :component/propagator-structure,
+                    :lifecycle :candidate,
+                    :scope "Compound structure",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-structure],
+                    :text
+                    "Compound structure: Owns named slots, accessor topology, avatar/sync boundaries and structural transport of partial information. Accepts slot/accessor declarations and messages; returns network data, patches and messages. Excludes choosing TTMS freshness, behavior retention or compiler lexical meaning.",
+                    :type :architecture-component},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.481-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-information
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id
+                    :constraint/propagator-compound-access-composition,
+                    :lifecycle :candidate,
+                    :scope
+                    "Compound structure / compiler and library composition",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-compiler
+                     :evidence/propagator-structure],
+                    :text
+                    "Preserve compound objects as live partial-information structures; avoid materializing them into host maps, vectors or scalar snapshots for semantic evaluation. Prefer propagator composition over unwrapping. Access compound fields through slot-accessor propagators so later refinements remain connected. Explicit host serialization/projection remains a boundary operation, not an evaluator substitute.",
+                    :type :constraint,
+                    :verification
+                    "Run slot-accessor and compound/TTMS transport tests, including late slot arrival and retraction. Inspect semantic consumers for host materialization or unwrap chains that bypass declared accessors."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:01.949-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-compiler],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-cps-extension,
+                    :lifecycle :candidate,
+                    :scope "Compiler semantics",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-compiler-composition],
+                    :text
+                    "Extend compiler semantics by composing the CPS compiler combinators used by cps-core: on, compose-rules, transform-expr, call/continue and make-compiler. Delegate unmatched forms to the canonical compiler dispatcher and preserve continuation and stack-safety contracts. Prefer explicit compiler selection through options over global dispatcher changes.",
+                    :type :constraint,
+                    :verification
+                    "Run CPS custom-rule, fall-through and deep-recursion tests. Compile a custom form using composed rules and the canonical fallback without modifying the global default compiler."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:02.522-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-kernel
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-cross-network-runner,
+                    :lifecycle :candidate,
+                    :scope
+                    "Kernel execution / compound network boundaries",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-runner-extension
+                     :evidence/propagator-structure],
+                    :text
+                    "For cross-network communication, prefer extending or composing the network runner and its evaluator/patch boundaries. Transfer information through explicit messages and network boundaries; do not hide peer-network execution or mutable communication state inside propagator structures.",
+                    :type :constraint,
+                    :verification
+                    "Exercise generic-iterator cross-network tests, scoped routing and message delivery. Confirm runner extensions preserve task admission, failure reporting and immutable network transitions."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:02.237-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-kernel],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/declaration],
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-declaration-evaluation,
+                    :lifecycle :candidate,
+                    :scope "Kernel execution / compiler composition",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-compiler
+                     :evidence/propagator-kernel],
+                    :text
+                    "Network declaration constructs inspectable data; evaluation explicitly interprets messages and bounded internal declaration patches and returns an immutable network or inspectable failure. Host IO is not an internal declaration patch.",
+                    :type :constraint,
+                    :verification
+                    "Run declaration/runner tests and contract examples; check installation before evaluation, effect-before-message ordering and failure results."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:58.577-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-information
+                     :component/propagator-kernel
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/propagation],
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-domain-policy,
+                    :lifecycle :candidate,
+                    :scope
+                    "Kernel execution / information policy / compound structure",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-information
+                     :evidence/propagator-structure],
+                    :text
+                    "The scheduler orchestrates tasks and message absorption; merge/strongest and domain libraries own support, freshness, retention and projection decisions. Compound transport must preserve richer content without choosing these policies.",
+                    :type :constraint,
+                    :verification
+                    "Inspect runner/domain dependency boundaries and run support, compound-slot and TTMS transport tests; check raw content separately from strongest."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:58.806-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-flat-gur-canonical,
+                    :lifecycle :candidate,
+                    :scope
+                    "Recursive declaration / compiler composition",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-compiler
+                     :evidence/propagator-recursion],
+                    :text
+                    "Flat GUR is the canonical GUR for new recursive declaration and compiler composition. Accumulating and other GUR implementations are explicit alternatives or historical baselines and must not compete as the default semantic authority.",
+                    :type :constraint,
+                    :verification
+                    "Inspect public GUR exports and compiler declaration dependencies; run flat application/idempotence contract tests and flag documentation that names a different canonical default."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:03.118-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-host
+                     :component/propagator-kernel],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/boundary-effects],
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-host-effect-boundary,
+                    :lifecycle :candidate,
+                    :scope "Host runtime / kernel message boundary",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-host
+                     :evidence/propagator-kernel],
+                    :text
+                    "Propagators declare external work as data. The host interprets boundary effects after propagation; incoming and asynchronous results must reenter ordinary cell-message evaluation. Shared source reads alone do not prove universal phase or retry guarantees.",
+                    :type :constraint,
+                    :verification
+                    "Run runtime boundary tests; separately audit asynchronous trace completion, receipt delivery, ledger identity, serialization and next-round publication."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:59.052-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-kernel
+                     :component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/declaration],
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-idempotent-declaration,
+                    :lifecycle :candidate,
+                    :scope
+                    "Recursive declaration / kernel patch interpretation",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-kernel
+                     :evidence/propagator-recursion],
+                    :text
+                    "Repeating the same semantic declaration must reuse its cells, propagators and bindings rather than growing equivalent topology. Recursive identity policy belongs to the declaration layer.",
+                    :type :constraint,
+                    :verification
+                    "Run patch idempotence tests and repeated recursive/compiler application tests; compare topology identities and counts after equal declarations."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:59.294-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-host
+                     :component/propagator-kernel
+                     :component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-immutable-structure,
+                    :lifecycle :candidate,
+                    :scope
+                    "Kernel propagator representation / execution extensions",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-kernel
+                     :evidence/propagator-runner-extension],
+                    :text
+                    "Propagator structures must remain immutable declarations of their name and activation behavior. Do not mutate fields or capture mutable domain/runtime state whose changes alter the same declaration meaning. Put execution cursors, queues, communication state and lifecycle state in explicit runner/runtime extensions; make semantic updates new values or declared messages.",
+                    :type :constraint,
+                    :verification
+                    "Inspect constructors, activation composition and state capture; compare installed propagator declarations before/after execution and test that composed wrappers do not mutate the original structure. Persistent record fields alone do not prove captured activation state is immutable."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:04.062-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-information
+                     :component/propagator-kernel],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-merge-laws,
+                    :lifecycle :candidate,
+                    :scope "Partial-information policy",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by [:evidence/propagator-information],
+                    :text
+                    "Cell merge must be commutative, idempotent and associative on valid domain contents under the domain-defined semantic equality. Normalize permissive external representations at the boundary; do not use representation differences to excuse order-dependent meaning. Strongest projection is a separate operation and must not replace raw content to manufacture these laws.",
+                    :type :constraint,
+                    :verification
+                    "Check merge(a,b)=merge(b,a), merge(a,a)=a, and merge(merge(a,b),c)=merge(a,merge(b,c)) across normalized domain values, duplicates, conflicts, partial values and support/retraction cases. State semantic equality and normalization explicitly; finite tests do not prove every domain."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:02.820-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-host
+                     :component/propagator-kernel],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-runtime-gc,
+                    :lifecycle :candidate,
+                    :scope "Host runtime lifecycle",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by [:evidence/propagator-host],
+                    :text
+                    "Decouple garbage collection from propagator semantics and merge by composing it as a host-runtime extension. Keep root discovery, collection policy and scheduling outside propagator structures and the core scheduler. Collect only at explicitly safe runtime boundaries accounting for pending tasks, queued commits, subscriptions and in-flight effect references.",
+                    :type :constraint,
+                    :verification
+                    "Review runtime-extension ownership and root contracts; when a collector exists, test idle eligibility, in-flight roots and semantic equivalence with collection disabled. Existing sources describe lifecycle requirements; they do not establish a completed collector or extension API."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:03.425-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-host],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :constraint/propagator-session-extension,
+                    :lifecycle :candidate,
+                    :scope
+                    "Host runtime / compiler environment extension",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-session-extension],
+                    :text
+                    "Use immutable session-extension declarations to install primitive propagator bindings and side-effect capabilities per session. A session owns its bindings, fixed handler registrations and effect ledger. Installing an extension must not change another session or globally redefine capabilities; effect handlers run at the host boundary, never inside propagation.",
+                    :type :constraint,
+                    :verification
+                    "Run session-extension tests for immutable declarations, repeated-install idempotence, conflicting identities, fixed handlers, primitive bindings and isolation of independently created sessions."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:03.747-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/declaration],
+                    :evidence-state :needs-verification,
+                    :id :decision/propagator-flat-gur-candidate,
+                    :lifecycle :superseded,
+                    :motivated-by
+                    [:principle/propagator-explicit-coordination
+                     :principle/propagator-owned-policy],
+                    :preserves
+                    [:constraint/propagator-declaration-evaluation
+                     :constraint/propagator-idempotent-declaration],
+                    :rejects
+                    [:failure-mode/propagator-hidden-domain-state],
+                    :scope
+                    "Recursive declaration / compiler composition",
+                    :source "agent",
+                    :status :superseded,
+                    :supported-by
+                    [:evidence/propagator-compiler
+                     :evidence/propagator-recursion],
+                    :text
+                    "Describe the public flat-GUR facade as the recursive declaration dependency of the compiler; retain accumulating GUR as a separately selected alternative. This is a candidate description of inspected behavior.",
+                    :type :decision},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:59.543-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:07.170-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :direct-tags [:tag/declaration],
+                    :evidence-state :needs-verification,
+                    :id :decision/propagator-flat-gur-canonical-v2,
+                    :lifecycle :candidate,
+                    :motivated-by
+                    [:principle/propagator-compositional-extension
+                     :principle/propagator-explicit-coordination],
+                    :preserves
+                    [:constraint/propagator-declaration-evaluation
+                     :constraint/propagator-flat-gur-canonical
+                     :constraint/propagator-idempotent-declaration],
+                    :rejects
+                    [:failure-mode/propagator-hidden-domain-state],
+                    :scope
+                    "Recursive declaration / compiler composition",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supersedes
+                    [:decision/propagator-flat-gur-candidate],
+                    :supported-by
+                    [:evidence/propagator-compiler
+                     :evidence/propagator-recursion],
+                    :text
+                    "Adopt flat GUR as the canonical recursive declaration substrate, as explicitly directed by the user. Retain accumulating and other GURs only as deliberately selected alternatives or historical baselines. This candidate strengthens the prior observational decision without deleting it.",
+                    :type :decision},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:41:04.739-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "9f09b778e615585ffdaf7c0e886a7e56180457c5",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/compiler_2/README.md"}
+                    {:blob "bdea796e0a2a51624bd93c75f75a63c42fb8076b",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/compiler_2/cps_core.clj"}
+                    {:blob "4843fba1c3996c4ec048d47549cf51579c0a8f01",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/compiler_2/main.clj"}
+                    {:blob "aa4509a2e4288a59f2d608d9d3bd98bf65f92ed5",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "test/propagators/compiler_2_functional_network_contract_test.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-compiler],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-compiler,
+                    :implemented-in
+                    ["propagators/compiler_2/README.md"
+                     "propagators/compiler_2/cps_core.clj"
+                     "propagators/compiler_2/main.clj"
+                     "test/propagators/compiler_2_functional_network_contract_test.clj"],
+                    :lifecycle :candidate,
+                    :scope "Compiler semantics",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Inspected repository docs and public modules support the candidate ownership interpretation. Owns parser/AST contracts, lexical environment meaning, closure/application declarations and CPS compilation. Accepts forms/source/AST plus explicit environment/options; returns compiled network, result and task identities. Excludes domain merge policy and host communication. Compiler-owned execution adapters under runtime/ are part of this boundary. Source agreement is observational support, not human acceptance or behavioral proof.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-17T22:12:13.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.695-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:55.976-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "bdea796e0a2a51624bd93c75f75a63c42fb8076b",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/compiler_2/cps_core.clj"}
+                    {:blob "86c5cb4e8fea7f5f4c0416118ba0460675e28578",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/compiler_common/cps.clj"}
+                    {:blob "b4368f254f8db143e7368e89684472e691d2a30b",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "test/propagators/compiler_2_cps_test.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-compiler],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-compiler-composition,
+                    :implemented-in
+                    ["propagators/compiler_2/cps_core.clj"
+                     "propagators/compiler_common/cps.clj"
+                     "test/propagators/compiler_2_cps_test.clj"],
+                    :lifecycle :candidate,
+                    :scope "Compiler semantics",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :text
+                    "cps-core assembles rules using compiler-common CPS combinators; explicit compile options carry a selected compiler. Existing custom-form and deep-recursion tests establish representative composition contracts. Compiler syntax, fallback and continuation policy remain compiler-owned; session capability installation is separate.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-18T09:34:18.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:41:02.522-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:05.550-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "fc3dd651b678283244b8401924cb2ae5c3730407",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/compiler_2/runtime/boundary/effects.clj"}
+                    {:blob "fc0aeea53ff6d3833cc804f19bc4ccc179a4eee8",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/compiler_2/runtime/session/input.clj"}
+                    {:blob "639d536f8b21e371f784f81fcc4ee7726477ba4d",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/doc/boundary-effect-runtime.md"}
+                    {:blob "9aaaa2b641cba59d717b2ef0b5279fee99db640d",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "test/propagators/compiler_2/runtime/boundary_test.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-host],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-host,
+                    :implemented-in
+                    ["propagators/compiler_2/runtime/boundary/effects.clj"
+                     "propagators/compiler_2/runtime/session/input.clj"
+                     "propagators/doc/boundary-effect-runtime.md"
+                     "test/propagators/compiler_2/runtime/boundary_test.clj"],
+                    :lifecycle :candidate,
+                    :scope "Host runtime and projections",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Inspected repository docs and public modules support the candidate ownership interpretation. Owns serialized external input, session state, boundary outboxes/ledgers, IO handlers and projection delivery. Accepts source or external input and effect declarations; returns settled session state, receipts and client projections. Excludes bypassing ordinary cell propagation to publish asynchronous results. Graph transports and inspection are consumers/dependencies, not kernel responsibilities. Source agreement is observational support, not human acceptance or behavioral proof.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-17T22:12:13.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.808-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:56.201-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "053f8be6d91d9159df7f409dd01310f69fc064b6",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/cells/merge.clj"}
+                    {:blob "9a74bcd18282f18aa3bf4b90dea2efc87fa02cf8",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/datastructures/support_collection.clj"}
+                    {:blob "a57640d3fd80a1b64698a263a8c3a2abad366abc",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/doc/ttms.md"}
+                    {:blob "f4c0289cc96bacd6c50a64465e1016e44044879a",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "test/propagators/support_collection_test.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-information],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-information,
+                    :implemented-in
+                    ["propagators/cells/merge.clj"
+                     "propagators/datastructures/support_collection.clj"
+                     "propagators/doc/ttms.md"
+                     "test/propagators/support_collection_test.clj"],
+                    :lifecycle :candidate,
+                    :scope "Partial-information policy",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Inspected repository docs and public modules support the candidate ownership interpretation. Owns merge, strongest and change predicates plus domain evidence algebras, including opt-in TTMS, event and behavior. Accepts information contributions; returns merged content and readable projections. Excludes scheduling, host clocks and global support/epoch registries. Source agreement is observational support, not human acceptance or behavioral proof.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-17T22:12:13.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.388-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:55.354-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "0fa0ec8d9043afb02756bd6d570f68d774c7d5e9",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/doc/README.md"}
+                    {:blob "24741205810af75d33395491314c8a71b584c2f3",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/doc/coordination-language-kernel.md"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-infrastructure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-infrastructure,
+                    :implemented-in
+                    ["propagators/doc/README.md"
+                     "propagators/doc/coordination-language-kernel.md"],
+                    :lifecycle :candidate,
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Inspected repository docs and public modules support the candidate ownership interpretation. Coordinates partial information through explicit immutable network declaration, evaluation and projections. Owns the composition of the six boundaries; excludes unrelated Datalog engines and application-specific UI policy. Source agreement is observational support, not human acceptance or behavioral proof.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-17T22:12:13.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.185-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:54.948-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "22fa547c19b5396a4840eabd195160fb65667aea",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/cell_evaluator.clj"}
+                    {:blob "0b06f6616f20f72c689e349253e450d4b3c191b6",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/network.clj"}
+                    {:blob "3c26260ef3849bf99463ab9165054aa4465b7362",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/network_patch.clj"}
+                    {:blob "b262de071a2e81053c06e55f424cfd5f3fe5cd78",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/runner.clj"}
+                    {:blob "6d26a7f17f7731dd7e87c53dc1a6966112e288ce",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "test/propagators/network_patch_test.clj"}
+                    {:blob "17456afc539d26a1c6c200e3ae480113ed3451d1",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "test/propagators/runner_test.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-kernel],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-kernel,
+                    :implemented-in
+                    ["propagators/cell_evaluator.clj"
+                     "propagators/network.clj"
+                     "propagators/network_patch.clj"
+                     "propagators/runner.clj"
+                     "test/propagators/network_patch_test.clj"
+                     "test/propagators/runner_test.clj"],
+                    :lifecycle :candidate,
+                    :scope "Kernel execution",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Inspected repository docs and public modules support the candidate ownership interpretation. Owns Net topology/state access, cell-message absorption orchestration, declaration patch interpretation, task draining and structural ancestry. Accepts installers, messages and patches; returns tasks, immutable networks and explicit completion/failure. Excludes recursive, temporal, support and host-IO policy. Source agreement is observational support, not human acceptance or behavioral proof.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-17T22:12:13.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.295-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:55.164-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "945698fa582b59ed5d85b6b85eaeb3a265cc2e6d",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/doc/flat-gur-compiler-2-application.md"}
+                    {:blob "88bcb0bd343b33d01de37983510d80c1293083c1",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/gur.clj"}
+                    {:blob "7bf070df3487c1d8a209cfeac818204c809bb55f",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/gur/flat.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-recursion,
+                    :implemented-in
+                    ["propagators/doc/flat-gur-compiler-2-application.md"
+                     "propagators/gur.clj"
+                     "propagators/gur/flat.clj"],
+                    :lifecycle :candidate,
+                    :scope "Recursive declaration",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Inspected repository docs and public modules support the candidate ownership interpretation. Owns stable recursive application/frame identities and bounded declaration of recursive topology. Accepts closure/application declarations; emits generic network patches into the active Net through the flat GUR facade. Excludes scheduler-level recursion and host effect lifecycle. Source agreement is observational support, not human acceptance or behavioral proof.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-17T22:12:13.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.584-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:55.763-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "a713ad7f32a94d2e93045692de81d9b8ad6075c1",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/propagator.clj"}
+                    {:blob "b262de071a2e81053c06e55f424cfd5f3fe5cd78",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/runner.clj"}
+                    {:blob "8ac328891072058876a8d04e79391d681c21b128",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/runner_constructor.clj"}
+                    {:blob "fa4f61929808b830c1d532fe12d2f2d30308bada",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "test/propagators/experimental/runner_constructor_test.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-kernel],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-runner-extension,
+                    :implemented-in
+                    ["propagators/propagator.clj"
+                     "propagators/runner.clj"
+                     "propagators/runner_constructor.clj"
+                     "test/propagators/experimental/runner_constructor_test.clj"],
+                    :lifecycle :candidate,
+                    :scope "Kernel runner extension",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :text
+                    "Runner constructors inject task policy and evaluators; the production runner exposes advance composition, and generic-iterator tests exercise compound cross-network and scoped-routing communication. Runner execution owns transient transitions; propagator declarations remain outside that state. These APIs support the requested extension preference but do not prove all activation closures lack mutable captures.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-18T09:34:18.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:41:02.237-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:05.146-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "fc3dd651b678283244b8401924cb2ae5c3730407",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/compiler_2/runtime/boundary/effects.clj"}
+                    {:blob "1d477cb336bf698ea830c3d44793fba004f0d4de",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/compiler_2/runtime/session/extension.clj"}
+                    {:blob "129086965009913c98ead06d4de00c0b64efce4f",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/doc/compiler-2-live-environment-io.md"}
+                    {:blob "6dbab0c4131a3bf9366353268e5943f263a3a8c0",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "test/propagators/compiler_2/runtime/session_extension_test.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-host],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-session-extension,
+                    :implemented-in
+                    ["propagators/compiler_2/runtime/boundary/effects.clj"
+                     "propagators/compiler_2/runtime/session/extension.clj"
+                     "propagators/doc/compiler-2-live-environment-io.md"
+                     "test/propagators/compiler_2/runtime/session_extension_test.clj"],
+                    :lifecycle :candidate,
+                    :scope "Host runtime session capabilities",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :text
+                    "SessionExtension bundles freeze primitive bindings and effect declarations. install-session-extension returns a session with a child environment and session-owned fixed handlers; repeated identical installation is idempotent and conflicting identities fail. Host handlers and ledgers remain outside propagation. This evidence establishes session extension mechanisms, not a completed garbage collector.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-18T09:34:18.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:41:03.747-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:05.971-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "0ec0a312d053556afa63404f7799888a3f798c84",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path "propagators/boundary.clj"}
+                    {:blob "73c3f126090b3bd0bf3f3200d46fd9e229120f7d",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/datastructures/compound_object.clj"}
+                    {:blob "65a0ce59a7d8f47ad43d61ea595303f3898b92a0",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "propagators/doc/compound-object-slot-sync.md"}
+                    {:blob "f7c1786503f24d627f51262d2284dcd85dff44f4",
+                     :commit
+                     "73a8d2550188a7823ec0578e2262832abd51659d",
+                     :path
+                     "test/propagators/compound_object_network_slot_test.clj"}],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :evidence/propagator-structure,
+                    :implemented-in
+                    ["propagators/boundary.clj"
+                     "propagators/datastructures/compound_object.clj"
+                     "propagators/doc/compound-object-slot-sync.md"
+                     "test/propagators/compound_object_network_slot_test.clj"],
+                    :lifecycle :candidate,
+                    :scope "Compound structure",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Inspected repository docs and public modules support the candidate ownership interpretation. Owns named slots, accessor topology, avatar/sync boundaries and structural transport of partial information. Accepts slot/accessor declarations and messages; returns network data, patches and messages. Excludes choosing TTMS freshness, behavior retention or compiler lexical meaning. Source agreement is observational support, not human acceptance or behavioral proof.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-17T22:12:13.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:54.481-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:55.559-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-host
+                     :component/propagator-kernel
+                     :component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :failure-mode/propagator-hidden-domain-state,
+                    :lifecycle :candidate,
+                    :scope "Kernel execution / domain composition",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-infrastructure],
+                    :text
+                    "Embedding recursive, support or host-effect semantics in scheduler-local hidden state makes declarations insufficient to explain behavior and repeated execution.",
+                    :type :failure-mode,
+                    :violates
+                    [:constraint/propagator-declaration-evaluation
+                     :constraint/propagator-domain-policy]},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:59.543-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:59.801-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-information
+                     :component/propagator-recursion],
+                    :concerns
+                    [:constraint/propagator-domain-policy
+                     :decision/propagator-flat-gur-candidate],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :open-question/propagator-document-drift,
+                    :lifecycle :candidate,
+                    :scope
+                    "Recursive declaration / partial-information documentation",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-information
+                     :evidence/propagator-recursion],
+                    :text
+                    "Which historical descriptions should be retired? The index calls accumulating GUR canonical; the current facade selects flat GUR. Core/four-feature docs describe missing dependence handling while newer code includes opt-in TTMS and distributed TMS. These mechanisms do not establish a universal TMS.",
+                    :type :open-question},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:41:00.581-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-infrastructure],
+                    :concerns [:system/propagator-infrastructure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :open-question/propagator-historical-model,
+                    :lifecycle :candidate,
+                    :scope
+                    "Propagator infrastructure / model provenance",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-information],
+                    :text
+                    "Where is the prior canonical Kiroshi export? This checkout has an empty local store and no tracked portable model although documents cite earlier approved facts. Reconcile recovered identities before any persistence or supersession.",
+                    :type :open-question},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:41:00.317-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-host],
+                    :concerns
+                    [:constraint/propagator-host-effect-boundary],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :open-question/propagator-phase-completeness,
+                    :lifecycle :candidate,
+                    :scope "Host runtime and projections",
+                    :source "agent",
+                    :status :active,
+                    :supported-by [:evidence/propagator-host],
+                    :text
+                    "How much of the documented common commit/propagate/effect loop is implemented for every trace, TUI, XR, receipt and file path? Dedicated adapters and effect ledgers exist; universal next-round, at-most-once and oscillation guarantees require a separate audit.",
+                    :type :open-question},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:41:00.847-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-host
+                     :component/propagator-information
+                     :component/propagator-infrastructure
+                     :component/propagator-kernel
+                     :component/propagator-recursion
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-18T09:34:18.000-00:00",
+                    :direct-tags [:tag/declaration],
+                    :evidence-state :needs-verification,
+                    :id :principle/propagator-compositional-extension,
+                    :lifecycle :candidate,
+                    :motivates
+                    [:constraint/propagator-compound-access-composition
+                     :constraint/propagator-cps-extension
+                     :constraint/propagator-cross-network-runner
+                     :constraint/propagator-flat-gur-canonical
+                     :constraint/propagator-immutable-structure
+                     :constraint/propagator-merge-laws
+                     :constraint/propagator-runtime-gc
+                     :constraint/propagator-session-extension],
+                    :scope "Propagator infrastructure",
+                    :source "user-instruction:2026-10-18",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-compiler-composition
+                     :evidence/propagator-infrastructure
+                     :evidence/propagator-runner-extension
+                     :evidence/propagator-session-extension],
+                    :text
+                    "Preserve immutable, inspectable domain declarations by extending behavior through propagator, runner, compiler and session/runtime composition at the boundary that owns the concern. This principle records the user-directed architecture requirements of 2026-10-18.",
+                    :type :principle},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:04.398-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-infrastructure
+                     :component/propagator-kernel
+                     :component/propagator-recursion],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/declaration],
+                    :evidence-state :needs-verification,
+                    :id :principle/propagator-explicit-coordination,
+                    :lifecycle :candidate,
+                    :motivates
+                    [:constraint/propagator-declaration-evaluation
+                     :constraint/propagator-idempotent-declaration],
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-infrastructure
+                     :evidence/propagator-kernel],
+                    :text
+                    "Represent declaration, evaluation and projection explicitly so network structure and outcomes remain inspectable.",
+                    :type :principle},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:57.917-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-host
+                     :component/propagator-kernel
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/boundary-effects],
+                    :evidence-state :needs-verification,
+                    :id :principle/propagator-message-boundaries,
+                    :lifecycle :candidate,
+                    :motivates
+                    [:constraint/propagator-host-effect-boundary],
+                    :scope "Propagator infrastructure / host boundary",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-host
+                     :evidence/propagator-infrastructure],
+                    :text
+                    "Cross execution and external-environment boundaries through declared values, patches and ordinary cell messages with explicit host interpretation.",
+                    :type :principle},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:58.349-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to
+                    [:component/propagator-compiler
+                     :component/propagator-information
+                     :component/propagator-kernel
+                     :component/propagator-structure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/propagation],
+                    :evidence-state :needs-verification,
+                    :id :principle/propagator-owned-policy,
+                    :lifecycle :candidate,
+                    :motivates [:constraint/propagator-domain-policy],
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-information
+                     :evidence/propagator-infrastructure],
+                    :text
+                    "Each semantic domain owns its information and projection policy; the kernel supplies explicit composition mechanisms.",
+                    :type :principle},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:58.132-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-infrastructure],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :direct-tags [:tag/propagation],
+                    :evidence-state :needs-verification,
+                    :id :purpose/propagator-coordination,
+                    :lifecycle :candidate,
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :supported-by
+                    [:evidence/propagator-infrastructure],
+                    :text
+                    "Let shared partial information, declared topology and explicit projections coordinate computation while retaining inspectable structure and reproducible execution.",
+                    :type :purpose},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:40:57.718-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:applies-to [:component/propagator-infrastructure],
+                    :confidence 0.5,
+                    :constrained-by
+                    [:constraint/propagator-compound-access-composition
+                     :constraint/propagator-cps-extension
+                     :constraint/propagator-cross-network-runner
+                     :constraint/propagator-declaration-evaluation
+                     :constraint/propagator-domain-policy
+                     :constraint/propagator-flat-gur-canonical
+                     :constraint/propagator-host-effect-boundary
+                     :constraint/propagator-idempotent-declaration
+                     :constraint/propagator-immutable-structure
+                     :constraint/propagator-merge-laws
+                     :constraint/propagator-runtime-gc
+                     :constraint/propagator-session-extension],
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :governed-by
+                    [:principle/propagator-compositional-extension
+                     :principle/propagator-explicit-coordination
+                     :principle/propagator-message-boundaries
+                     :principle/propagator-owned-policy],
+                    :has-purpose [:purpose/propagator-coordination],
+                    :id :system/propagator-infrastructure,
+                    :lifecycle :candidate,
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "An inspectable coordination language infrastructure over partial information and immutable declared networks.",
+                    :type :system},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.518-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :tag/boundary-effects,
+                    :lifecycle :candidate,
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Canonical tag for boundary-effects review context.",
+                    :type :tag},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:58.349-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:01.669-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 1.0,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :supported,
+                    :id :tag/declaration,
+                    :lifecycle :current,
+                    :scope "Propagator infrastructure",
+                    :source "canonical-tag",
+                    :status :active,
+                    :text
+                    "Canonical tag for declaration review context.",
+                    :type :tag},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.917-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:01.390-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:04.398-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "73a8d2550188a7823ec0578e2262832abd51659d",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-17T22:12:13.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :tag/propagation,
+                    :lifecycle :candidate,
+                    :scope "Propagator infrastructure",
+                    :source "agent",
+                    :status :active,
+                    :text
+                    "Canonical tag for propagation review context.",
+                    :type :tag},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-18T09:40:57.718-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}
+                    {:db/txInstant
+                     #inst "2026-10-18T09:41:01.117-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "propagator-infrastructure-2026-10-18"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "73a8d2550188a7823ec0578e2262832abd51659d"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source "user-authorized-reviewed-proposal",
+                     :tx/task
+                     #:task{:name
+                            "Record user-reviewed propagator infrastructure model"}}]}],
+                 :receipts [],
+                 :references [],
+                 :version 1}
