@@ -1,6 +1,7 @@
 (ns propagators.experimental.ttms-view-test
   (:require [clojure.test :refer [deftest is]]
             [propagators.cells.value :as value]
+            [propagators.cells.error-layer :as errors]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.datastructures.layered-value :as datum]
@@ -47,6 +48,32 @@
 
 (defn- values [s]
   (mapv :payload (:items (views/result s 'result))))
+
+(deftest legacy-tracked-operators-preserve-retained-ttms-inputs
+  (let [initial @(loader/load-session-from-source
+                  "(define seed) (define flag)
+                   (define sum (tracked+ seed 1))
+                   (define accepted (tracked-or flag false))"
+                  {:extensions [tracked/session-extension extension/extension]})
+        payload #(dependency/dependency-value % #{:tracked-origin})
+        first (-> initial (publish 'seed (payload 4) 1) (publish 'flag (payload true) 1))
+        changed (-> first (publish 'seed (payload 8) 2) (publish 'flag (payload false) 2))
+        off (-> changed (withdraw 'seed 3) (withdraw 'flag 3))
+        recovered (-> off (publish 'seed (payload 10) 4) (publish 'flag (payload true) 4))]
+    (doseq [[state symbol expected epoch]
+            [[first 'sum 5 1] [first 'accepted true 1]
+             [changed 'sum 9 2] [changed 'accepted false 2]
+             [recovered 'sum 11 4] [recovered 'accepted true 4]]]
+      (let [id (fixture/binding-id state symbol)
+            result (net/network-cell-strongest (:program/net state) id)
+            source (fixture/binding-id state (if (= symbol 'sum) 'seed 'flag))]
+        (is (= expected (data/payload result)))
+        (is (= #{(premise source epoch :active)} (datum/support-of result)))
+        (is (contains? (dependency/sources (data/evidence-value result)) :tracked-origin))))
+    (doseq [symbol '[sum accepted]]
+      (is (value/nothing? (data/payload
+                           (net/network-cell-strongest (:program/net off)
+                             (fixture/binding-id off symbol))))))))
 
 (deftest publication-identity-does-not-serialize-the-raw-payload
   (let [raw (proxy [Object] []
@@ -180,11 +207,23 @@
         corrected (publish bad 'graph (trace/graph-union {}) 2)
         current (net/network-cell-strongest (:program/net corrected) output)]
     (is (value/contradiction? (data/payload result)))
-    (is (some #(= "relationship:dataflow expects a relationship graph" (:reason %))
-              (value/contradiction-provenance (data/payload result))))
-    (is (= #{(premise (fixture/binding-id bad 'graph) 1 :active)} (datum/support-of result)))
+    (is (= #{{:operation :relationship/trace :mode :dataflow
+              :exception/class "clojure.lang.ExceptionInfo"
+              :exception/message "relationship:dataflow expects a relationship graph"
+              :exception/data {:value :not-a-graph}}}
+           (errors/errors-of (data/payload result))))
+    (let [support (datum/support-of result)]
+      (is (= 1 (count support)))
+      (is (= output (:source (first support))))
+      (is (= :active (:premises-status (first support))))
+      (is (pos-int? (:timestamp (first support)))))
     (is (trace/semantic-trace-graph? (data/payload current)))
-    (is (= #{(premise (fixture/binding-id bad 'graph) 2 :active)} (datum/support-of current)))))
+    (let [support (datum/support-of current)]
+      (is (= 1 (count support)))
+      (is (= output (:source (first support))))
+      (is (= :active (:premises-status (first support))))
+      (is (< (:timestamp (first (datum/support-of result)))
+             (:timestamp (first support)))))))
 
 (deftest complete-trace-source-stamping-is-idempotent
   (let [initial (session "(define a) (define b) (define raw) (define projected)

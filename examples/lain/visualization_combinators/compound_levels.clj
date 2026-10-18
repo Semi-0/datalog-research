@@ -30,7 +30,7 @@
     [['cell-ref? cell-reference?]
      ['body-snapshot
       (observation/value-operator
-       ::body-snapshot 2
+       'relationship:children 2
        (fn [network [reference _completed-result]]
          (dataflow/child-dataflow-graph
           network [(:source/path reference) (:source/cell reference)])))]]

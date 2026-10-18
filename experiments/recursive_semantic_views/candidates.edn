@@ -1,0 +1,61 @@
+[{:id :evidence/recursive-semantic-view-plan
+  :type :evidence
+  :created-at #inst "2026-10-18T18:31:05.000Z"
+  :source "user-request:recursive-semantic-view-boundary-review"
+  :status :active
+  :lifecycle :candidate
+  :evidence-state :needs-verification
+  :scope "Semantic capture publication and browser assessment"
+  :text "Review reproduced capture identity loss when supported-value projection invokes legacy semantic graph union. The attempted global strongest extension was reverted. A separate executable proposal composes capture-domain publication projection using existing support collection and compound APIs, retaining evidence and preserving the fragment through the existing evaluator. Focused proposal checks cover identity, support, ACI, freshness, retraction, immutable recording and unchanged sampling. Safari assessment of the saved AMB replay showed a stale-generation error and, after refresh/run, THE NOTHING with no recursive view. Source inspection found a fixed two-circle preview affordance rather than actual scope geometry. Production integration and browser acceptance remain unverified; proposal artifacts and related working-tree changes are uncommitted."
+  :applies-to [:component/propagator-kernel
+               :component/propagator-information
+               :component/propagator-structure
+               :component/propagator-host
+               :component/propagator-compiler]
+  :implemented-in ["propagators/cell_evaluator.clj"
+                   "propagators/runner_constructor.clj"
+                   "propagators/datastructures/support_collection.clj"
+                   "propagators/semantic_trace/snapshot.clj"
+                   "propagators/compiler_common/cps.clj"
+                   "graph/lain_editor/inspection.clj"
+                   "graph/lain_editor/frontend/graph.cljs"]}
+ {:id :decision/tracer-owned-partial-semantic-capture
+  :type :decision
+  :created-at #inst "2026-10-18T18:31:05.000Z"
+  :source "user-request:recursive-semantic-view-boundary-review"
+  :status :active
+  :lifecycle :candidate
+  :evidence-state :needs-verification
+  :scope "Partial capture and session-scoped publication composition"
+  :text "The tracer owns same-observation capture and refinement and publishes captured semantic values directly through ordinary cells. The information domain owns capture ACI join and an evidence-preserving capture-publication adapter composed from public support collection and compound APIs. Its readable base is derived explicitly while original evidence remains retained. Only the owning session runner installs this behavior through the already accepted explicit merge evaluator seam. Global cell-merge, strongest projection, task policy, compound merge and recorder/reducer stay fixed. Session runtime retains original frozen sources and owns capability lifecycle. New refinements retain original observation identity and append immutable publications; unavailable historical sources remain missing."
+  :applies-to [:component/propagator-kernel
+               :component/propagator-information
+               :component/propagator-structure
+               :component/propagator-host]
+  :motivated-by [:principle/propagator-owned-policy
+                :principle/propagator-partial-information
+                :principle/propagator-compositional-extension]
+  :preserves [:constraint/propagator-merge-laws
+              :constraint/propagator-session-extension
+              :constraint/propagator-compound-access-composition
+              :constraint/propagator-immutable-structure
+              :constraint/propagator-domain-policy]
+  :rejects [:failure-mode/propagator-hidden-domain-state]
+  :supported-by [:evidence/recursive-semantic-view-plan]}
+ {:id :decision/pure-recursive-semantic-scene-compilation
+  :type :decision
+  :created-at #inst "2026-10-18T18:31:05.000Z"
+  :source "user-request:recursive-semantic-view-boundary-review"
+  :status :active
+  :lifecycle :candidate
+  :evidence-state :needs-verification
+  :scope "Host semantic scene compilation and browser acceptance"
+  :text "The host composes existing CPS primitives to compile published captured semantic scopes through public accessors into immutable scenes. Compact previews display actual scene nodes and edges using the same canonical scope geometry and layout-provider contract as detail views. Scope navigation preserves semantic identities and per-scope camera state. Compilation acquires no runtime information and selects no layout algorithm. Browser assessment must demonstrate fresh AMB recording, recursive preview/detail navigation, historical slot correctness, shared references and cycles, geometry clearance, preserved camera and lifecycle cleanup before completion."
+  :applies-to [:component/propagator-host :component/propagator-compiler]
+  :motivated-by [:principle/propagator-compositional-extension
+                :principle/propagator-message-boundaries]
+  :preserves [:constraint/propagator-cps-extension
+              :constraint/propagator-compound-access-composition
+              :constraint/propagator-immutable-structure]
+  :rejects [:failure-mode/propagator-hidden-domain-state]
+  :supported-by [:evidence/recursive-semantic-view-plan]}]

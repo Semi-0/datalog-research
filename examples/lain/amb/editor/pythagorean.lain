@@ -1,0 +1,24 @@
+(load-primitive-environment
+  "examples/lain/amb/web_editor.clj"
+  :examples.lain.amb.web-editor/primitive-bindings)
+
+(load-lain "examples/lain/network_replay/collect-history.lain")
+
+;; Find positive integer sides with a <= b <= c and a*a + b*b = c*c.
+;; Extend with (-> (list 3 4 5) domain) to start; at most 3*3*3 combinations.
+(def-cells domain repairs choice-a choice-b choice-c)
+(define a (amb domain repairs choice-a))
+(define b (amb domain repairs choice-b))
+(define c (amb domain repairs choice-c))
+(define choices (list choice-a choice-b choice-c))
+(define valid (and (<= a b)
+                   (<= b c)
+                   (= (+ (* a a) (* b b)) (* c c))))
+(define failure (require valid))
+(define knowledge (learn failure choices))
+(-> (backtrack choices knowledge) repairs)
+;; Gate scalar sides separately; keep the result an ordinary compound list.
+(define triangle (list (switch a valid) (switch b valid) (switch c valid)))
+;; Root at the constraint's dataflow, not the list container's structure.
+;; The three selected side values remain available in a, b, c and triangle.
+(display (collect-semantic-history valid 0 600000))

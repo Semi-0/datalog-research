@@ -17,40 +17,54 @@
         (requiring-resolve 'propagators.scoped-routing/maybe-register-subenv)]
     (register network id strongest)))
 
-(defn evaluate-cell
-  [id cell-message network]
-  (let [old (net/env-get (net/net-env network) id)
-        update (message/message-value cell-message)]
-    (if (and (cell/cell? old)
-             (= update (cell/cell-content old)))
-      [tq/empty-queue network]
-      (let [old-strongest (cell/cell-strongest old)
-            content (merge/cell-merge (cell/cell-content old) update network)
-            strongest (merge/strongest-value content network)
-            updated-network
-            (-> network
-                (net/assoc-net-cell id (cell/cell (cell/cell-name old)
-                                                  content
-                                                  strongest))
-                (maybe-register-subenv id strongest))
-            node (graph/get-node (net/net-graph updated-network) id)
-            next-tasks
-            (tq/enqueue-all tq/empty-queue (graph/node-output-ids node))]
-        (if (merge/cell-updated? strongest old-strongest network)
-          (if (value/contradiction? strongest)
-            (let [[tasks env]
-                  (merge/handle-contradiction
-                   next-tasks id (net/net-env updated-network))]
-              [tasks (net/net-with-env updated-network env)])
-            [next-tasks updated-network])
-          [tq/empty-queue updated-network])))))
+(defn make-direct-cell-evaluator
+  "Construct direct cell refinement around an explicit content merge."
+  [merge-content]
+  (fn [id cell-message network]
+    (let [old (net/env-get (net/net-env network) id)
+          update (message/message-value cell-message)]
+      (if (and (cell/cell? old)
+               (= update (cell/cell-content old)))
+        [tq/empty-queue network]
+        (let [old-strongest (cell/cell-strongest old)
+              content (merge-content (cell/cell-content old) update network)
+              strongest (merge/strongest-value content network)
+              updated-network
+              (-> network
+                  (net/assoc-net-cell id (cell/cell (cell/cell-name old)
+                                                    content
+                                                    strongest))
+                  (maybe-register-subenv id strongest))
+              node (graph/get-node (net/net-graph updated-network) id)
+              next-tasks
+              (tq/enqueue-all tq/empty-queue (graph/node-output-ids node))]
+          (if (merge/cell-updated? strongest old-strongest network)
+            (if (value/contradiction? strongest)
+              (let [[tasks env]
+                    (merge/handle-contradiction
+                     next-tasks id (net/net-env updated-network))]
+                [tasks (net/net-with-env updated-network env)])
+              [next-tasks updated-network])
+            [tq/empty-queue updated-network]))))))
 
-(defn evaluate
-  "Apply a message, routing scoped targets through their owner cell."
-  [cell-message network]
-  (let [dispatch
-        (requiring-resolve 'propagators.scoped-routing/evaluate)]
-    (dispatch (net/net-dict-or-empty network) cell-message network)))
+(def evaluate-cell
+  (make-direct-cell-evaluator merge/cell-merge))
+
+(defn make-cell-evaluator
+  "Construct scoped message evaluation around an explicit content merge."
+  [merge-content]
+  (let [evaluate-cell (make-direct-cell-evaluator merge-content)]
+    (fn [cell-message network]
+      (let [dispatch
+            (requiring-resolve 'propagators.scoped-routing/evaluate-with)]
+        (dispatch evaluate-cell
+                  (net/net-dict-or-empty network)
+                  cell-message
+                  network)))))
+
+(def evaluate
+  "Apply a message with the default cell merge and scoped routing."
+  (make-cell-evaluator merge/cell-merge))
 
 (defn evaluate-all
   [messages network]

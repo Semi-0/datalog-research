@@ -18,21 +18,25 @@
   [_emitter patch _network]
   (= accessor-declaration-op (:op patch)))
 
-(defn apply-accessor-patch
-  [emitter patch network]
-  (let [collection-id (message/message-id patch)
-        [tasks updated-network]
-        (cell-evaluator/evaluate patch network)
-        updated
-        (reduce
-         (fn [current child-id]
-           (net/update-net-relationship
-            current
-            relationship/relate
-            emitter
-            (relationship/node-key
-             [:outer [:cell collection-id]]
-             child-id)))
-         updated-network
-         (:child-ids patch))]
-    [tasks updated]))
+(defn make-accessor-patch-applier
+  [evaluate-cell-message]
+  (fn [emitter patch network]
+    (let [collection-id (message/message-id patch)
+          [tasks updated-network]
+          (evaluate-cell-message patch network)
+          updated
+          (reduce
+           (fn [current child-id]
+             (net/update-net-relationship
+              current
+              relationship/relate
+              emitter
+              (relationship/node-key
+               [:outer [:cell collection-id]]
+               child-id)))
+           updated-network
+           (:child-ids patch))]
+      [tasks updated])))
+
+(def apply-accessor-patch
+  (make-accessor-patch-applier cell-evaluator/evaluate))

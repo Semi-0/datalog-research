@@ -10,6 +10,132 @@
    :nodes [{:id "x" :label "X" :size [80 22]} {:id "y" :label "Y" :size [80 22]}]
    :edges [["x" "y"]] :moves []})
 
+(deftest node-spacing-increases-distances-without-changing-cards-or-topology
+  (let [registry (atom {})
+        separation (fn [result]
+                     (let [[[ax ay] [bx by]] (map :position (:nodes result))]
+                       (Math/hypot (- ax bx) (- ay by))))]
+    (try
+      (let [normal (layout/compute! registry request)
+            roomy (layout/compute! registry (assoc request :spacing 2))
+            repeated (layout/compute! registry (assoc request :spacing 2))
+            restored (layout/compute! registry request)]
+        (is (> (separation roomy) (* 1.5 (separation normal))))
+        (is (= (mapv #(dissoc % :position) (:nodes normal))
+               (mapv #(dissoc % :position) (:nodes roomy))))
+        (is (not (apply #(clearance/conflict? %1 %2 56) (:nodes roomy))))
+        (is (= #{["x" "y"]} (:edges (get @registry "a"))))
+        (is (= 2 (:spacing roomy)))
+        (is (pos? (:iterationsUsed roomy)))
+        (is (= 0 (:iterationsUsed repeated)))
+        (is (= (:nodes roomy) (:nodes repeated)))
+        (is (< (separation restored) (separation roomy)))
+        (is (= 1 (:spacing restored))))
+      (finally (layout/close! registry)))))
+
+(deftest spacing-validation-preserves-the-existing-flow
+  (let [registry (atom {})]
+    (try
+      (layout/compute! registry request)
+      (let [entry (get @registry "a")]
+        (doseq [spacing [0 -1 5 "2" nil ##NaN ##Inf]]
+          (is (thrown? Exception (layout/compute! registry (assoc request :spacing spacing)))))
+        (is (thrown? Exception (layout/compute! registry
+                                (-> request (assoc :spacing 2) (assoc-in [:nodes 0 :size] [-1 22])))))
+        (is (identical? (:input entry) (:input (get @registry "a")))))
+      (finally (layout/close! registry)))))
+
+(deftest spacing-also-increases-separation-for-large-expanded-value-cards
+  (let [registry (atom {})
+        cards (update request :nodes #(mapv (fn [node] (assoc node :size [160 1000])) %))
+        distance (fn [result]
+                   (let [[[ax ay] [bx by]] (map :position (:nodes result))]
+                     (Math/hypot (- ax bx) (- ay by))))]
+    (try
+      (let [normal (layout/compute! registry cards)
+            wide (layout/compute! registry (assoc cards :spacing 2))]
+        (is (> (distance wide) (* 1.5 (distance normal))))
+        (is (= [[160 1000] [160 1000]] (mapv :size (:nodes wide)))))
+      (finally (layout/close! registry)))))
+
+(deftest time-budget-and-explicit-refinement-have-distinct-stop-reasons
+  (let [registry (atom {}) ticks (atom -1)
+        clock #(* 1000000 (swap! ticks inc))]
+    (try
+      (let [bounded (layout/compute! registry (assoc request :budgetMs 1 :animate true) clock)
+            input (:input (get @registry "a"))
+            untouched (layout/compute! registry (assoc request :budgetMs 10000))
+            refined (layout/compute! registry (assoc request :refine true :budgetMs 1000) (constantly 0))]
+        (is (= "budget" (:stopReason bounded)))
+        (is (false? (:converged bounded)))
+        (is (= 0 (:iterationsUsed bounded)))
+        (is (= 1 (count (:frames bounded))))
+        (is (= "unchanged" (:stopReason untouched)))
+        (is (= 0 (:iterationsUsed untouched)) "A budget setting alone does not start work")
+        (is (identical? input (:input (get @registry "a"))))
+        (is (pos? (:iterationsUsed refined)))
+        (is (= "converged" (:stopReason refined)))
+        (is (true? (:converged refined)))
+        (is (<= (get-in refined [:metrics :max-displacement]) 0.05))
+        (is (= 0 (get-in refined [:metrics :distance-sources-recomputed])))
+        (is (not (apply clearance/conflict? (:nodes refined)))))
+      (finally (layout/close! registry)))))
+
+(deftest refinement-budget-is-validated-before-touching-owned-state
+  (let [registry (atom {})]
+    (try
+      (layout/compute! registry request)
+      (let [before (get @registry "a")]
+        (doseq [budget [0 -1 10001 1.5 "1000" nil]]
+          (is (thrown? Exception (layout/compute! registry (assoc request :budgetMs budget)))))
+        (is (thrown? Exception (layout/compute! registry (assoc request :refine "yes"))))
+        (is (= before (get @registry "a"))))
+      (finally (layout/close! registry)))))
+
+(deftest convergence-can-continue-beyond-the-former-300-iteration-ceiling
+  (let [registry (atom {}) ids (mapv str (range 100))
+        chain (assoc request :nodes (mapv #(hash-map :id % :label % :size [80 22]) ids)
+                     :edges (mapv vec (partition 2 1 ids)) :animate true)]
+    (try
+      ;; A non-advancing test clock isolates convergence from machine speed.
+      (let [result (layout/compute! registry chain (constantly 0))]
+        (is (> (:iterationsUsed result) 300))
+        (is (= "converged" (:stopReason result)))
+        (is (<= (count (:frames result)) 64))
+        (is (= (:iterationsUsed result) (:iteration (last (:frames result)))))
+        (is (= (:nodes result) (:nodes (last (:frames result))))))
+      (finally (layout/close! registry)))))
+
+(deftest refinement-starts-from-the-latest-released-drag-position
+  (let [registry (atom {})]
+    (try
+      (layout/compute! registry request)
+      (let [moved (layout/compute! registry (assoc request :moves [{:id "x" :position [500 400]}]))
+            refined (layout/compute! registry (assoc request :refine true :animate true))
+            first-frame (:nodes (first (:frames refined)))
+            position #(->> % (filter (fn [node] (= "x" (:id node)))) first :position)]
+        (is (= [500 400] (position (:nodes moved))))
+        (is (= [500 400] (position first-frame)))
+        (is (not= [500 400] (position (:nodes refined))))
+        (is (pos? (:iterationsUsed refined))))
+      (finally (layout/close! registry)))))
+
+(deftest semantic-scopes-share-preview-detail-geometry-and-own-their-lifecycle
+  (let [registry (atom {})
+        root (assoc request :semanticScope "root")
+        child (assoc request :semanticScope "child")]
+    (try
+      (let [preview (layout/compute! registry child)
+            detail (layout/compute! registry child)]
+        (is (= (:nodes preview) (:nodes detail)))
+        (is (= 0 (get-in detail [:metrics :iterations])))
+        (layout/compute! registry root)
+        (layout/compute! registry (assoc child :pane "b"))
+        (is (= 3 (count @registry)))
+        (layout/close-pane! registry "a")
+        (is (= #{["b" "one" "child"]} (set (keys @registry)))))
+      (finally (layout/close! registry)))))
+
 (deftest vijual-stream-retains-work-and-closes-owned-flows
   (let [registry (atom {})]
     (try

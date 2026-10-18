@@ -11,7 +11,8 @@
             [propagators.network :as net]
             [propagators.network-patch :as patch]
             [propagators.propagator :as prop]
-            [propagators.relationship-observer :as observer]))
+            [propagators.relationship-observer :as observer]
+            [propagators.semantic-trace.facts :as facts]))
 
 (defn application-propagator [a]
   (:id (gur/apply-closure-effect (:operator-id a)
@@ -35,13 +36,24 @@
             ports (take n (:argument-ids a))]
         (set (map #(data/reference path % []) ports))))))
 
+(defn- definition-targets
+  "Follow only definition aliases; downstream computations are not output ports."
+  [network path outputs]
+  (let [copies (filter #(= :definition (:kind %)) (facts/copies network path))
+        successors (group-by :source copies)]
+    (loop [pending (set (map #(vector path %) outputs)) seen #{}]
+      (if (empty? pending)
+        seen
+        (recur (into #{} (comp (mapcat successors) (map :target) (remove seen)) pending)
+               (into seen pending))))))
+
 (defn- graph-outputs [network reference]
   (let [path (:source/path reference)
         owner (observer/network-at-path network path)
         selected (:source/cell reference)]
     (if (prop/prop? (get (net/net-env owner) selected))
-      (set (map #(data/reference path % [])
-                (:outputs (get (net/net-graph owner) selected))))
+      (set (map (fn [[path id]] (data/reference path id []))
+                (definition-targets owner path (:outputs (get (net/net-graph owner) selected)))))
       (throw (ex-info "Output interface requires a propagator reference"
                       {:reference reference})))))
 

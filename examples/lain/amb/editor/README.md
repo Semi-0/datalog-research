@@ -1,5 +1,46 @@
 # AMB learning in the block editor
 
+## Pythagorean triangle
+
+Load `examples/lain/amb/editor/pythagorean.lain` in an editor block, then use
+**Extend this running block** with:
+
+```clojure
+(-> (list 3 4 5) domain)
+```
+
+Three AMB choices search for positive integer sides satisfying `a <= b <= c`
+and `a*a + b*b = c*c`, with at most 27 combinations. The result is `(3 4 5)`. The `choice-a`, `choice-b`
+and `choice-c` cells contain the corresponding decision records; `knowledge`
+contains the actual learned no-good set. No presentation wrapper is required.
+The display uses `collect-semantic-history valid 0 600000`, so its topology
+and captured values can be scrubbed through the existing replay timeline.
+The root is the constraint's dataflow: the compound `triangle` container alone
+does not expose its members' producing computations as topology edges.
+The final number is a selection-window endpoint in milliseconds, not a frame
+limit or a delay. It does not bound recorder retention.
+
+For headless progress checks with the same three alternatives per side:
+
+```sh
+clojure -M -m experiments.recursive-semantic-views.step-triangle
+```
+
+Append `profile` to compose the existing activation profiler around the selected
+session iterator, including nested runner work, without changing merge policy.
+
+This diagnostic drives the session-selected iterator one transition at a time
+and prints the sides and recorded-frame count every 100 steps. Its outer-step
+and elapsed-time bounds are cooperative; a nested activation is not preempted.
+The topology must show each AMB call producing both its side and its choice
+record. Change the domain only by rerunning a fresh block, not by extending an
+already-started search with a different domain.
+
+Current value presentation is structural: public slots and collection entries
+are annotated automatically, with menu and inline tree folding as view state.
+The old custom no-good renderer described in the historical notes below has
+been removed; it is not required to visualize learning.
+
 Start the existing editor from the repository root:
 
 ```sh

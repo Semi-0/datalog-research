@@ -12,8 +12,13 @@
             [propagators.semantic-trace.logic :as logic]))
 
 (def instrumentation #{'xr:io 'io:xr 'display 'relationship:dataflow 'relationship:roots 'relationship:semantic 'relationship:roots-semantic 'relationship:children 'relationship:with-values 'relationship:caller-view
-                       'observe-network 'observe-network-retained 'semantic-snapshot 'traverse
+                       'observe-network 'observe-network-retained 'observe-semantic-captured 'semantic-snapshot 'traverse
                        'history:record 'history:between 'history:empty 'history:append})
+
+(def observation-adapters
+  "Inspection calls remain visible in full graphs, but caller views cut them."
+  #{'xr-io 'call-graph
+    :propagators.experimental.visualization.observation/occurrence-of})
 
 (defn routing [network app]
   (let [callable (application/callable-declaration
@@ -36,6 +41,7 @@
               {:id (qualify (gur/stable-node-id [(:application-id app) :apply-prop]))
                :application-id (:application-id app) :routing role
                :observable? observable?
+               :observation? (boolean (or (instrumentation name) (observation-adapters name)))
                :eligible? (and observable? (not (value/unusable? operator-value)))
                :inputs (mapv qualify (:inputs interface)) :outputs (mapv qualify (:outputs interface))
                :operator (qualify (:operator-id app)) :arguments (mapv qualify (:argument-ids app))

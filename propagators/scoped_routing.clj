@@ -198,7 +198,7 @@
   (net/update-net-dict-entry child external-messages-key
                              #(conj (set %) cell-message)))
 
-(declare evaluate)
+(declare evaluate-with)
 
 (defn- route-through-owner
   [evaluate-cell parent owner-id routed-message child-update]
@@ -218,11 +218,10 @@
                                         (queue-child-props updated-child tasks))
                        parent)))))
 
-(defn evaluate
-  [directory cell-message parent]
-  (let [evaluate-cell
-        (requiring-resolve 'propagators.cell-evaluator/evaluate-cell)
-        route (resolve-dispatch directory (message/message-id cell-message) parent)]
+(defn evaluate-with
+  "Route one message with the supplied direct cell evaluator."
+  [evaluate-cell directory cell-message parent]
+  (let [route (resolve-dispatch directory (message/message-id cell-message) parent)]
     (case (first route)
       :dispatch/local
       (let [[_ id] route]
@@ -246,7 +245,10 @@
         (route-through-owner
          evaluate-cell parent owner-id child-message
          (fn [child]
-           (evaluate (net/net-dict-or-empty child) child-message child))))
+           (evaluate-with evaluate-cell
+                          (net/net-dict-or-empty child)
+                          child-message
+                          child))))
 
       :dispatch/external
       (let [[_ target] route]
@@ -255,3 +257,9 @@
           parent (message/message target (message/message-value cell-message)))])
 
       (throw (ex-info "unknown scoped dispatch route" {:route route})))))
+
+(defn evaluate
+  [directory cell-message parent]
+  (let [evaluate-cell
+        (requiring-resolve 'propagators.cell-evaluator/evaluate-cell)]
+    (evaluate-with evaluate-cell directory cell-message parent)))

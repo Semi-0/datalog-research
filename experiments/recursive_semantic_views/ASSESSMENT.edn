@@ -1,0 +1,58 @@
+{:kind :planning-assessment
+ :started-at #inst "2026-10-18T18:25:19.281Z"
+ :finished-at #inst "2026-10-18T18:37:11.000Z"
+ :head "2419e6de84e204ba695f47aba74f92e8376c51d1"
+ :working-tree :dirty
+ :formal-verification-receipt false
+ :production-integration-implemented false
+ :required-checks [:capture-loss-reproduction
+                   :publication-projection-compatibility
+                   :publication-algebra-freshness-retraction
+                   :history-immutability
+                   :unchanged-acquisition
+                   :component-hierarchy
+                   :candidate-proposals
+                   :browser-baseline
+                   :full-default-parity
+                   :session-lifecycle-and-asynchronous-isolation
+                   :recursive-browser-and-layout-acceptance]
+ :checks
+ [{:id :capture-loss-reproduction :outcome :passed
+   :notes "Probe reproduces loss under current global supported-value projection."}
+  {:id :publication-projection-compatibility :outcome :passed
+   :notes "Proposed compound publication preserves capture, support and retained evidence through the existing evaluator and strongest; reconstructed equivalent publication does not trigger cell-updated?."}
+  {:id :publication-algebra-freshness-retraction :outcome :passed
+   :notes "Representative ACI and nothing-identity cases compare retained evidence and projected meaning; freshness and withdrawal use public support collection operations. Not exhaustive proof."}
+  {:id :history-immutability :outcome :passed
+   :notes "Existing recording function retains original and refined immutable fragments with the same original observation identity."}
+  {:id :unchanged-acquisition :outcome :passed
+   :notes "Proposed root publisher emits a capture message and retention request initially, and no effects for unchanged evidence."}
+  {:id :component-hierarchy :outcome :passed
+   :notes "Queried six actual boundary assignments. Six distinct children each have one parent, propagator-infrastructure, with no self edge, cycle or orphan."}
+  {:id :candidate-proposals :outcome :passed
+   :notes "Three separate kiroshi propose calls returned distinct-candidate and persisted false. Installed CLI takes one candidate map. An initial nested invocation hit a Clojure cache permission error; direct approved Kiroshi invocations completed."}
+  {:id :browser-baseline :outcome :failed
+   :notes "Safari at 127.0.0.1:4780, AMB replay pane 3: initial stale-generation error; refresh/run showed THE NOTHING and a single Inspect cell, without recursive preview/detail or timeline. Loaded server classes were not fingerprinted."}
+  {:id :full-default-parity :outcome :not-run
+   :notes "Only focused scalar delegation and unchanged evaluator compatibility were checked in the proposal probe."}
+  {:id :session-lifecycle-and-asynchronous-isolation :outcome :not-run
+   :notes "Required before implementation can be accepted."}
+  {:id :recursive-browser-and-layout-acceptance :outcome :not-run
+   :notes "Revised production path is not installed; require real preview geometry, deep navigation, original-source history, camera preservation, clearance and released anchors."}]
+ :probe
+ {:path "experiments/recursive_semantic_views/review_probe.clj"
+  :command "JAVA_HOME=/opt/homebrew/opt/openjdk clojure -M -m experiments.recursive-semantic-views.review-probe"
+  :tests 5 :assertions 28 :failures 0 :errors 0
+  :committed false}
+ :committed-dependencies
+ [{:path "propagators/cells/merge.clj"
+   :blob "053f8be6d91d9159df7f409dd01310f69fc064b6"}
+  {:path "propagators/datastructures/support_collection.clj"
+   :blob "9a74bcd18282f18aa3bf4b90dea2efc87fa02cf8"}
+  {:path "propagators/experimental/network_history.clj"
+   :blob "a64a39543dc37cdcb1c1c63f1c5259e8dcf883d4"}
+  {:path "propagators/compiler_common/cps.clj"
+   :blob "86c5cb4e8fea7f5f4c0416118ba0460675e28578"}]
+ :model-facts-persisted false
+ :approvals []
+ :supersessions []}

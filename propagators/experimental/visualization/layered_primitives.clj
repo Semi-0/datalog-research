@@ -8,8 +8,9 @@
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.scope-source :as scope]
-            [propagators.datastructures.tms.core :as tms]
             [propagators.experimental.ttms-primitives :as ttms]
+            [propagators.experimental.visualization.data :as data]
+            [propagators.experimental.visualization.ttms :as publication]
             [propagators.ids :as ids]
             [propagators.layered :as layered]
             [propagators.layered.procedure :as layer-procedure]
@@ -17,12 +18,13 @@
             [propagators.network :as net]
             [propagators.propagator :as prop]
             [propagators.stdlib.arithmetic.base :as base]
+            [propagators.stdlib.supported-procedure :as supported]
             [propagators.stdlib.prop :as standard]))
 
 (defn- input-value
   "Expose the arithmetic base and dependency layer, without source write-back."
   [v]
-  (let [unwrapped (tms/distributed-base-value (scope/unwrap v))]
+  (let [unwrapped (data/evidence-value v)]
     (cond
       (value/unusable? unwrapped) unwrapped
       :else
@@ -59,10 +61,10 @@
   ;; Readiness is owned by the enclosing concrete-propagator, not this adapter.
   (let [result (net/network-cell-strongest network layered-result)
         contents (mapv #(net/network-cell-content network %) arguments)
-        payload (dependency/dependency-value
-                 (dependency/unwrap result) (dependency/sources result))
-        update (tms/distributed-result-update [::result output] payload contents)]
-    [(message output (if (some? update) update payload))]))
+        update (data/supported [::result output]
+                               (dependency/unwrap result)
+                               (dependency/sources result) contents)]
+    [(message output update)]))
 
 (defn- concrete-layered-call
   "Scalar observations wait for arguments; generic layered procedures need not."
@@ -78,7 +80,7 @@
                   (fn [_inputs _outputs current]
                     (activate arguments [result] current))))])))
 
-(defn install-call
+(defn- install-base-call
   "Declare input adapters -> layered application -> support-preserving output.
   Argument adapters are one-way. All persistent state lives in ordinary cells."
   [network arguments output base-closure]
@@ -108,6 +110,34 @@
                   [prepared props] installers)]
       [installed props output])))
 
+(defn install-call
+  "Compose tracked arithmetic with version-aware input evaluation and publication."
+  [network arguments output base-closure]
+  (when-not (= 2 (count arguments))
+    (throw (ex-info "Tracked arithmetic expects two arguments" {:arguments arguments})))
+  (let [result (ids/new-node-id)
+        base {:net net/empty-net
+              :f (fn [_ inputs outputs current]
+                   (first (install-base-call current inputs (first outputs) base-closure)))}
+        [installed props _] (supported/install base network arguments result)
+        [publisher installed]
+        ((prop/construct-propagator
+          ::publish
+          (fn [_ _ current]
+            (let [contents (mapv #(net/network-cell-content current %) arguments)
+                  content (net/network-cell-content current result)
+                  datum (net/network-cell-strongest current result)]
+              (cond
+                (some publication/supported? contents) [(message output content)]
+                (value/unusable? datum) []
+                :else
+                (let [base (data/evidence-value datum)]
+                  [(message output (data/supported [::result output]
+                                     (dependency/unwrap base)
+                                     (dependency/sources base) contents))]))))
+          [result] [output]) installed)]
+    [installed (conj props publisher) output]))
+
 (def tracked-plus
   (operator/operator-closure
    {:name ::tracked-plus
@@ -132,7 +162,7 @@
    name
    {:net net/empty-net
     :f (fn [_ inputs outputs network]
-         (first (install-call network inputs (first outputs) base-closure)))}))
+         (first (install-base-call network inputs (first outputs) base-closure)))}))
 
 (def ttms-extension
   (extension/extension-bundle

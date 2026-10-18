@@ -1,6 +1,8 @@
 (ns propagators.compiler-2.runtime.application-ports
-  "Read the primary return and ordered member ports from connected topology."
+  "Read declared call roles and ordered returned members from connected topology."
   (:require [propagators.compiler-2.runtime.returned-outputs :as outputs]
+            [propagators.compiler-2.runtime.application :as application]
+            [propagators.compiler-2.model.operator-value :as operator]
             [propagators.gur :as gur]
             [propagators.network :as net]))
 
@@ -17,12 +19,22 @@
         status (if status-id
                  (:status (net/network-cell-strongest network status-id))
                  :pending)
-        result (:result-id application)]
-    (when-not (every? #(contains? graph-outputs %) (into [result] members))
+        result (:result-id application)
+        ;; Observation can run while an application declaration is still partial.
+        callable (when-let [operator-id (:operator-id application)]
+                   (application/callable-declaration
+                    (net/network-cell-strongest network operator-id)))
+        interface (if (operator/operator-closure? callable)
+                    (operator/operator-call callable (:argument-ids application)
+                                            result (:context-id application))
+                    {:inputs (vec (:argument-ids application)) :outputs [result]})
+        declared-outputs (vec (distinct (concat (:outputs interface) members)))]
+    (when-not (every? #(contains? graph-outputs %) declared-outputs)
       (throw (ex-info "Application output names require graph connections"
-                      {:application-id id :return result :members members})))
-    {:inputs (vec (:argument-ids application))
-     :outputs (into [result] members)
+                      {:application-id id :return result :members members
+                       :outputs declared-outputs :connected-outputs graph-outputs})))
+    {:inputs (:inputs interface)
+     :outputs declared-outputs
      :return-id result
      :member-outputs members
      :output-status (or status :pending)

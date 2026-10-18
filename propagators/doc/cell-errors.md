@@ -28,3 +28,9 @@ identity and sync links without losing error evidence.
 An error contradiction stored as a TTMS observation's base remains governed by
 that observation's support: a newer source contribution can supersede it.
 A bare error contradiction remains absorbing, like a bare contradiction.
+
+Retained relationship projections use the same structured error fields, with
+`:operation :relationship/trace` and the projection `:mode`. Their results are
+published under the output cell's own support identity and local positive epoch,
+rather than inheriting the observed input's identity or epoch. A changed result
+advances that publication epoch, allowing a corrected graph to replace an error.

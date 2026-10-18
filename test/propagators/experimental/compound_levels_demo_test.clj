@@ -29,10 +29,12 @@
     (is (= [6 5 5] (mapv #(count (get-in % [:graph :nodes])) children)))
     (let [graph (:graph (first children))
           labels (into {} (map (juxt :id :label) (:nodes graph)))]
-      (is (= #{["2" "source"] ["source" "stage"] ["stage" "prepared"]
+      (is (= #{["CONSTANT" "source"] ["source" "stage"] ["stage" "prepared"]
                ["prepared" "pipeline"] ["pipeline" "result"]}
              (set (map (fn [{:keys [from to]}] [(labels from) (labels to)])
-                       (:edges graph))))))))
+                       (:edges graph)))))
+      (let [literal (first (for [node (:nodes graph) :when (= "CONSTANT" (:label node))] node))]
+        (is (= "2" (get-in literal [:value :value])))))))
 
 (deftest child-cells-compose-through-list-and-value-projections
   (let [state @(loader/load-session-from-file demo/example demo/options)
@@ -67,5 +69,8 @@
            (set (map (juxt :call/path :call/operator) potential))))
     (is (= #{"shift" "square" "->"} (set (map :call/operator potential))))
     (is (seq realized))
-    (is (= 3 (count (filter #(= "call shift" %) (vals (:nodes graph))))))
-    (is (= 3 (count (filter #(= "call square" %) (vals (:nodes graph))))))))
+    (doseq [label ["shift" "square"]]
+      (is (= 3 (count (filter (fn [[id info]]
+                               (and (= :realized (:call/status info))
+                                    (= label (get-in graph [:nodes id]))))
+                             (:values graph))))))))

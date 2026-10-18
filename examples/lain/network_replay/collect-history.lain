@@ -19,6 +19,6 @@
   (network (root start end)
     (collect-history
       (relationship:with-values
-        (observe-semantic root :both))
+        (observe-semantic-captured root :both))
       start
       end)))

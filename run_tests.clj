@@ -57,6 +57,7 @@
     propagators.observation-transport-test
     propagators.reducer-cell-test
     propagators.runner-test
+    propagators.semantic-trace.capture-test
     propagators.structural-records-test
     propagators.support-test
     propagators.support-collection-test
@@ -71,6 +72,10 @@
 
 (def graph-test-namespaces
   '[graph.lain-editor.retained-relationship-test
+    graph.lain-editor.semantic-scene-test
+    graph.lain-editor.recursive-semantic-test
+    graph.lain-editor.amb-test
+    graph.lain-editor.graph-layout-test
     graph.ttms-view-live-test
     graph.vijual.math-test
     propagators.compiler-2.runtime.tui.version-history-test

@@ -41,7 +41,7 @@
 
 (relationship:roots source relationships)
 
-(relationship:dataflow relationships whole-chain)
+(-> (relationship:caller-view (relationship:dataflow relationships)) whole-chain)
 
 (define stage-body
   (body-snapshot (occurrence-of stage source) result))

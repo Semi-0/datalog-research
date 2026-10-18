@@ -15,7 +15,7 @@ mobile controls and live inspectors. See [interactive windows](INTERACTIVE_WINDO
 
 The juxtaposed cards, left to right:
 
-1. Outer chain: literal `2` → `source` → `stage` → `prepared` (9) →
+1. Outer caller view: a `CONSTANT` cell containing `2` → `source` → `stage` → `prepared` (9) →
    `pipeline` → `result` (10201).
 2. Selected pipeline body: `x` → `stage` → `middle` → `stage` → `out`.
 3. Selected stage body: `x` → `shift` → intermediate → `square` → `out`.
@@ -24,6 +24,10 @@ The juxtaposed cards, left to right:
    not execution order).
 6. `call-graph stage`: potential calls from its retained body AST, alongside
    realized calls from all three stage invocations.
+
+The outer card explicitly composes `relationship:caller-view` with
+`relationship:dataflow`. It cuts inspection branches from the rooted graph;
+the full dataflow graph remains available without that modifier.
 
 The third card selects the **outer stage occurrence**, not either nested stage
 inside the pipeline. It demonstrates the same stage definition's internal
@@ -56,9 +60,9 @@ edges; the original graph remains reachable through the collection's graph sourc
 This reuses the existing `call-graph` primitive, not a new compiler or tracer.
 `closure-value/closure-body` retains the slot-backed AST. `call-graph/call-sites`
 reads its syntax paths; `potential-call-graph` projects declared calls;
-`p:application-call` records realized calls. `potential shift` and `potential
-square` describe syntax; `call shift` and `call square` describe instantiations.
-The test checks three realized calls of each because this program invokes stage
+`p:application-call` records realized calls. Nodes use the operator labels
+`shift` and `square`; `:call/status` distinguishes `:potential` syntax sites
+from `:realized` applications. The test checks three realized calls of each because this program invokes stage
 three times. Definition-level call relations are not occurrence-level dataflow.
 
 This is a retained-syntax **call graph**, not the entire lowering graph, an AST

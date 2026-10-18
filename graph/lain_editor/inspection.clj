@@ -5,6 +5,8 @@
             [graph.lain-editor.display :as display]
             [graph.lain-editor.call-inspection :as calls]
             [graph.lain-editor.retained-inspection :as retained-inspection]
+            [graph.lain-editor.semantic-capture :as semantic-capture]
+            [graph.lain-editor.semantic-scene :as semantic-scene]
             [graph.lain-editor.value-labels :as value-labels]
             [graph.lain-editor.value-grid :as value-grid]
             [graph.lain-editor.structural-value :as structure]
@@ -12,6 +14,7 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.one-time-network :as projection]
+            [propagators.compiler-2.runtime.operators.network-observation :as network-observation]
             [propagators.datastructures.compound-object :as compound]
             [propagators.datastructures.layered-value :as datum]
             [propagators.experimental.visualization.data :as data]
@@ -23,6 +26,7 @@
             [propagators.relationship-dataflow :as dataflow]
             [propagators.relationship-observer :as observer]
             [propagators.semantic-trace :as trace]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.semantic-trace.directions :as directions]
             [propagators.semantic-trace.modifiers :as modifiers]))
 
@@ -92,19 +96,29 @@
 
 (defn graph-json
   ([graph] (graph-json graph nil))
-  ([graph network]
+  ([graph network] (graph-json graph network :root))
+  ([semantic network scope-id]
+  (let [captured? (capture/fragment? semantic)
+        graph (if captured? (or (capture/scope semantic scope-id) {}) semantic)
+        scene (semantic-scene/compile-scene semantic scope-id)
+        scene-nodes (into {} (map (juxt :id identity)) (:scene/nodes scene))]
   {:nodes (mapv (fn [[id label]]
                   (let [label (node-label graph id label)
+                        semantic-node (get scene-nodes id)
                         captured (get (:values graph) id value/nothing)
                         rendered (render-value captured)
                         path (if (vector? id) (first id) [:outer])
-                        reader (if network
+                        reader (if (and network (not captured?))
                                  (structure/network-reader (observer/network-at-path network path))
                                  (structure/snapshot-reader graph path))]
                     (cond-> {:id (pr-str id) :label label
                              :kind (name (get (:node-kinds graph) id :cell))
                              :value (if (contains? (:values graph) id) rendered "")
                              :referenceTokens (reference-tokens graph id)}
+                      (:nested-scope semantic-node)
+                      (assoc :semanticScope (pr-str (:nested-scope semantic-node)))
+                      (:diagnostic semantic-node)
+                      (assoc :semanticDiagnostic (:diagnostic semantic-node))
                       (and (= :cell (get (:node-kinds graph) id :cell))
                            (contains? (:graph/modifiers graph) :cell-values))
                       (assoc :valueLines (vec (str/split-lines rendered))
@@ -120,11 +134,16 @@
                            [(pr-str source) (mapv pr-str (sort-by pr-str targets))])) (:node-aliases graph))
    :projection (some-> (:dataflow/projection graph) name)
    :representation (some-> (:dataflow/representation graph) name)
+   :semanticScope (pr-str (:scene/scope scene))
+   :semanticObservation (when captured?
+                          (pr-str (capture/observation-id semantic)))
+   :partial (:scene/partial? scene)
+   :diagnostics (:scene/diagnostics scene)
    :scope (let [scope (:dataflow/scope graph)]
             (cond (= :root scope) {:kind "root"}
                   (= :mixed scope) {:kind "mixed"}
                   (vector? scope) {:kind "child" :parent (pr-str scope)}
-                  :else nil))}))
+                  :else nil))})))
 
 (defn semantic-graph [network id]
   (let [payload (data/payload (net/network-cell-strongest network id))]
@@ -134,12 +153,45 @@
                                :dataflow/seeds #{[[:outer] id]})]
          (dataflow/dataflow-graph network operational)))))
 
+(defn- retain-semantic-graph
+  [session generation network id graph supported]
+  (if (or (not (trace/semantic-trace-graph? graph))
+          (capture/fragment? graph))
+    graph
+    (let [observation-id [:lain-editor generation id
+                          (System/identityHashCode network)
+                          (hash network)
+                          (hash graph)]
+          source (network-observation/frozen-snapshot
+                  network {:observation/id observation-id})
+          captured (capture/capture-fragment
+                    source
+                    {:observation observation-id
+                     :graph graph
+                     :scope :root
+                     :support (datum/support-of supported)
+                     :refinement :initial})]
+      (semantic-capture/retain! session observation-id source captured)
+      captured)))
+
 (defn replay-json [payload]
   {:frames (mapv (fn [frame]
                    {:sequence (:sequence frame) :time (:time frame) :elapsedMs (:elapsedMs frame)
                     :graph (graph-json (:graph frame))
                     :provenance (printed (:source-support frame))})
                  (history/field payload :replay/frames))})
+
+(defn- captured-node
+  [captured requested]
+  (let [matches (distinct
+                 (for [[_ graph] (capture/scopes captured)
+                       id (keys (:nodes graph))
+                       :when (= requested (pr-str id))]
+                   id))]
+    (if (= 1 (count matches))
+      (first matches)
+      (throw (ex-info "Recorded semantic node is absent or ambiguous"
+                      {:node requested :matches (count matches)})))))
 
 (defn resolve-node [network requested]
   ;; Match known runtime identities; never parse user-supplied tagged EDN.
@@ -148,7 +200,7 @@
             (keys (net/net-env network)))
       (throw (ex-info "Unknown node in this pane" {}))))
 
-(defn inspect [editors {:keys [pane generation display parent node chase]}]
+(defn inspect [editors {:keys [pane generation display parent node chase recordedObservation]}]
   (when-not (contains? #{nil true false} chase)
     (throw (ex-info "chase must be a boolean" {:chase chase})))
   (let [editor (editor/require-pane editors pane)
@@ -161,14 +213,49 @@
              (env/resolve-binding-id network (:program/env state) binding))]
     (when-not id (throw (ex-info (str "No binding named " binding) {})))
     (let [key [[:outer] id]
-          result {:generation generation :cell (describe network key)
+          supported (net/network-cell-strongest network id)
+          replay-value? (history/replay? (data/payload supported))
+          historical-scope? (and parent recordedObservation)
+          semantic (when (and (not historical-scope?)
+                              (or parent (and (= "graph" (:mode display))
+                                              (not replay-value?))))
+                     (retain-semantic-graph (:session editor)
+                                            generation network id
+                                            (semantic-graph network id)
+                                            supported))
+          result (if historical-scope?
+                   {:generation generation}
+                   {:generation generation :cell (describe network key)
                   :value (display-value network id)
                   :status (cond
                             (value/nothing? (net/network-cell-strongest network id)) "waiting"
                             (value/contradiction? (net/network-cell-strongest network id)) "contradiction"
                             :else "ready")
-                  :runtimeNodes (count (net/net-env network))}]
+                  :runtimeNodes (count (net/net-env network))})]
        (cond
+         (and parent recordedObservation)
+         (let [recorded (some (fn [frame]
+                               (let [captured (:graph frame)]
+                                 (when (and (capture/fragment? captured)
+                                            (= recordedObservation (pr-str (capture/observation-id captured))))
+                                   captured)))
+                             (reverse (history/field (data/payload supported) :replay/frames)))
+               [observation entry]
+               (or (some (fn [[observation entry]]
+                           (when (= recordedObservation (pr-str observation))
+                             [observation entry]))
+                         @(semantic-capture/storage (:session editor)))
+                   (when recorded [(capture/observation-id recorded) {:capture recorded}])
+                   (throw (ex-info "The recorded frozen observation is no longer available"
+                                   {:observation recordedObservation})))
+               known (if recorded (capture/join (:capture entry) recorded nil) (:capture entry))
+               selected (captured-node known parent)
+               scope-id [observation selected]
+               refined (semantic-capture/publish-refinement!
+                        (:session editor) known
+                        {:parent selected :scope scope-id})]
+           (assoc result :graph (graph-json refined nil scope-id)))
+
          (history/replay? (data/payload (net/network-cell-strongest network id)))
          (let [timeline (replay-json (data/payload (net/network-cell-strongest network id)))]
            (assoc result :value (str (count (:frames timeline)) " recorded observations")
@@ -176,15 +263,22 @@
          node (let [selected (resolve-node network node)]
                (assoc result :selected (describe network selected)
                              :call (calls/inspect-call network selected (true? chase))))
-        parent (assoc result :graph
-                      (graph-json (modifiers/inherit
-                                   (if (= :network (:dataflow/representation (semantic-graph network id)))
-                                     (retained-inspection/child-graph (:session editor) (resolve-node network parent))
-                                     (dataflow/child-dataflow-graph network (resolve-node network parent)))
-                                   (semantic-graph network id)) network))
+        parent (let [selected (resolve-node network parent)]
+                 (if (capture/fragment? semantic)
+                   (let [scope-id [(capture/observation-id semantic) selected]
+                         refined (semantic-capture/publish-refinement!
+                                  (:session editor) semantic
+                                  {:parent selected :scope scope-id})]
+                     (assoc result :graph (graph-json refined nil scope-id)))
+                   (assoc result :graph
+                          (graph-json (modifiers/inherit
+                                       (if (= :network (:dataflow/representation semantic))
+                                         (retained-inspection/child-graph (:session editor) selected)
+                                         (dataflow/child-dataflow-graph network selected))
+                                       semantic) network))))
         (= "graph" (:mode display))
         (let [direction (keyword (:direction display))
-              graph (semantic-graph network id)
+              graph semantic
               graph-value? (trace/semantic-trace-graph?
                             (data/payload (net/network-cell-strongest network id)))]
           (when-not (contains? #{:upstream :downstream :both} direction)

@@ -64,6 +64,13 @@
 (defn runtime-base-net []
   (install-runtime-protocols net/empty-net))
 
+(defn session-network
+  "Select the owning session's runner whenever a fresh network is constructed."
+  [state network]
+  (if-let [iterator (get-in state [:runtime/options :runner/network-iterator])]
+    (runner/with-network-iterator network iterator)
+    network))
+
 (defn runtime-root
   [network]
   (let [env-id (stable-node-id :compiler-2 :runtime :root-environment)
@@ -133,6 +140,21 @@
   (when-not (initialized-state? @session)
     (reset! session (repair-partial-state @session)))
   @session)
+
+(defn install-network-iterator
+  "Select a runner for every immutable network owned by this session."
+  [state iterator]
+  (-> state
+      (update :network runner/with-network-iterator iterator)
+      (update :program/net runner/with-network-iterator iterator)
+      (assoc-in [:runtime/options :runner/network-iterator] iterator)))
+
+(defn remove-network-iterator
+  [state]
+  (-> state
+      (update :network runner/without-network-iterator)
+      (update :program/net runner/without-network-iterator)
+      (update :runtime/options dissoc :runner/network-iterator)))
 
 (defn- preserve-xr-traces
   [old-state new-state]

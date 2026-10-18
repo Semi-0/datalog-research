@@ -333,3 +333,13 @@
     (is (= {:semantic-trace/value :graph} (get-in sampled [:values key])))
     (is (= {:semantic-trace/value :graph} (get-in sampled [:contents key])))
     (is (identical? graph (net/network-cell-content network id)))))
+
+(deftest nested-semantic-publications-are-summaries-not-raw-data-topology
+  (let [graph (trace/graph-union {:nodes {:a 'a} :edges []})
+        replay {:replay/type :semantic :replay/frames [{:graph graph}]}
+        content (object/compound-object {:base replay})]
+    (is (= [{:key "base" :value "1 recorded observations" :depth 0}]
+           (grid/rows content)))
+    (is (= [{:key "base" :value "semantic topology · 1 nodes" :depth 0}]
+           (grid/rows (object/compound-object {:base graph}))))
+    (is (= "{:base 1 recorded observations}" (labels/datum-text content)))))

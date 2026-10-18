@@ -110,7 +110,7 @@
                    (nb/ensure-cell
                     (topology/seed-program-topology
                      state
-                     (program/runtime-base-net))
+                     (state/session-network state (program/runtime-base-net)))
                     (program/boundary-outbox-id))
                    :program/epoch
                    epoch)

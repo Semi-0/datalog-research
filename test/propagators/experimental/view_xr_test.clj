@@ -9,6 +9,7 @@
             [propagators.experimental.visualization.data :as data]
             [propagators.experimental.visualization.interaction :as interaction]
             [propagators.experimental.visualization.layered-primitives :as primitives]
+            [propagators.experimental.visualization.observation :as observation]
             [propagators.experimental.view-collections-test :as collections]
             [propagators.experimental.visualization-composition-test :as fixture]
             [propagators.network :as net]
@@ -33,11 +34,19 @@
    (xr:io (juxtapose (selectable values selection) zoom))")
 
 (defn command [session index]
-  (let [view (first (filter :view/selection-cell (interaction/published-views @session)))
-        json (xr/view->json view)]
-    {:op :xr/view-select :view-id (:id json) :epoch (:epoch json)
-     :generation (:generation json)
-     :revision (:revision json) :item-id (:id (nth (:items json) index))}))
+  (let [views (interaction/published-views @session)
+        view (first (filter :view/selection-cell views))]
+    (when-not view
+      (throw (ex-info "No selectable view was published"
+                      {:views (mapv #(select-keys % [:view/id :view/type :view/status]) views)})))
+    (let [json (xr/view->json view)
+          items (:items json)]
+      (when-not (and (integer? index) (<= 0 index) (< index (count items)))
+        (throw (ex-info "Selection index is outside the published items"
+                        {:index index :view-id (:id json) :items items})))
+      {:op :xr/view-select :view-id (:id json) :epoch (:epoch json)
+       :generation (:generation json)
+       :revision (:revision json) :item-id (:id (nth items index))})))
 
 (deftest published-view-is-still-composable
   (let [session (loader/load-session-from-source source options)
@@ -76,6 +85,32 @@
                          (xr/handle-command! session old-command)))
     (xr/handle-command! session (command session 1))
     (is (= [3] (mapv :payload (:items (collections/result @session 'zoom)))))))
+
+(deftest declared-outputs-include-definition-targets-without-downstream-computation
+  (let [session (loader/load-session-from-source
+                 "(define input 4) (define f (network [x] (+ x 1)))
+                  (define answer (f input)) (define downstream (+ answer 10))
+                  (define selected (occurrence-of f input))" options)
+        state @session
+        network (:program/net state)
+        reference (data/payload (net/network-cell-strongest
+                                  network (fixture/binding-id state 'selected)))
+        outputs (observation/declared-interface network reference :outputs)]
+    (is (contains? outputs (data/reference (fixture/binding-id state 'answer))))
+    (is (not (contains? outputs (data/reference (fixture/binding-id state 'downstream)))))
+    (is (= #{(data/reference (fixture/binding-id state 'input))}
+           (observation/declared-interface network reference :inputs)))
+    (is (identical? network (:program/net @session)))))
+
+(deftest invalid-selection-index-reports-published-items
+  (let [session (loader/load-session-from-source source options)]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"outside the published items"
+                         (command session 2)))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"outside the published items"
+                         (command session -1))))
+  (let [session (loader/load-session-from-source "1" options)]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"No selectable view"
+                         (command session 0)))))
 
 (deftest executable-chain-example
   (let [session (loader/load-session-from-file

@@ -4,12 +4,18 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.operator-value :as operator-value]
+            [propagators.datastructures.compound-object :as object]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support :as support]
+            [propagators.experimental.visualization.data :as visualization-data]
             [propagators.graph :as graph]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]
+            [propagators.relationship :as relationship]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.semantic-trace.snapshot :as semantic]
             [propagators.relationship-dataflow :as dataflow]
             [propagators.relationship-observer :as relationships]
@@ -28,6 +34,46 @@
   (snapshot-roots [snapshot roots])
   (snapshot-children [snapshot parent]))
 
+(defn- captured-slot-values
+  "Retain reachable public accessor cells without adding them to scene topology."
+  [graph source-net]
+  (loop [pending (seq (:values graph))
+         captured (:values graph)
+         seen (set (keys (:values graph)))
+         missing []]
+    (if (nil? pending)
+      (cond-> (assoc graph :values captured)
+        (seq missing)
+        (assoc :semantic-capture/diagnostics
+               (mapv (fn [id]
+                       {:kind :missing
+                        :message "A captured public slot is unavailable"
+                        :cell id})
+                     missing)))
+      (let [[[node-key candidate] & more] pending
+            path (if (and (vector? node-key) (vector? (first node-key)))
+                   (first node-key)
+                   [:outer])
+            owner (relationships/network-at-path source-net path)
+            candidate (visualization-data/payload candidate)]
+        (if (object/accessor-network? candidate)
+          (let [parent-keys
+                (for [slot-key (object/accessor-slot-keys candidate)
+                      parent-id (object/accessor-parent-ids candidate slot-key)]
+                  [path parent-id])
+                fresh (remove seen parent-keys)
+                available
+                (keep (fn [[_ id :as key]]
+                        (when (and owner (contains? (net/net-env owner) id))
+                          [key (net/network-cell-strongest owner id)]))
+                      fresh)
+                available-keys (set (map first available))]
+            (recur (concat more available)
+                   (into captured available)
+                   (into seen fresh)
+                   (into missing (remove available-keys fresh))))
+          (recur more captured seen missing))))))
+
 (defn- node-kind
   [entry]
   (cond
@@ -36,6 +82,49 @@
     :else :unknown))
 
 (deftype FrozenNetworkSnapshot [source-net observation]
+  capture/SemanticCaptureSource
+  (capture-fragment [_ request]
+    (let [requested-observation (:observation request)
+          observation-id (:observation/id observation)
+          root (:root request)
+          parent (:parent request)
+          supplied-graph (:graph request)
+          scope-id (or (:scope request)
+                       (when parent [observation-id parent])
+                       :root)]
+      (cond
+        (and requested-observation
+             (not= requested-observation observation-id))
+        (throw (ex-info "Capture request belongs to another observation"
+                        {:requested requested-observation
+                         :available observation-id}))
+
+        (and (nil? root) (nil? parent) (nil? supplied-graph))
+        (throw (ex-info "Semantic capture request requires a graph, root, or parent" {}))
+
+        :else
+        (let [graph (-> (cond
+                          supplied-graph supplied-graph
+                          parent (dataflow/child-semantic-network-graph source-net parent)
+                          :else (semantic/root-graph source-net root observation))
+                        (captured-slot-values source-net))
+              nested (into {}
+                           (keep (fn [[node-id kind]]
+                                   (when (and (= :propagator kind)
+                                              (seq (relationship/children
+                                                    (net/net-relationship source-net)
+                                                    node-id)))
+                                     [node-id [observation-id node-id]])))
+                           (:node-kinds graph))
+              graph (assoc graph :semantic-capture/nested-scopes nested)]
+          (capture/fragment
+           {:observation observation-id
+            :scopes {scope-id graph}
+            :support (apply support/combine
+                            (or (:support request) #{})
+                            (map datum/support-of (vals (:values graph))))
+            :provenance [{:capture/refinement (or (:refinement request) :initial)
+                          :capture/scope scope-id}]})))))
   NetworkSnapshot
   (snapshot-neighbors [_ node-id]
     (let [node (graph/get-node (net/net-graph source-net) node-id)]
@@ -73,8 +162,12 @@
     (dataflow/child-semantic-network-graph source-net parent)))
 
 (defn frozen-snapshot
-  ([network] (FrozenNetworkSnapshot. network {}))
-  ([network observation] (FrozenNetworkSnapshot. network observation)))
+  ([network] (frozen-snapshot network {}))
+  ([network observation]
+   (FrozenNetworkSnapshot.
+    network
+    (assoc observation :observation/id
+           (or (:observation/id observation) (random-uuid))))))
 
 (defn frozen-snapshot?
   [candidate]

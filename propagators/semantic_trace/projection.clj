@@ -33,7 +33,8 @@
         ancestors (facts/enclosing-applications (net/net-relationship network) discovered
                                               (:dataflow/observer-outputs operational))
         enclosing (into (:dataflow/observer-applications operational #{})
-                        (filter (set (map :id (filter :observable? discovered)))) ancestors)
+                        (concat (map :id (filter :observation? discovered))
+                                (filter (set (map :id (filter :observable? discovered))) ancestors)))
         apps discovered
         records (mapcat #(facts/copies (observer/network-at-path network %) %) paths)
         scopes (facts/scope (net/net-relationship network) apps opened (map :id records))
@@ -114,7 +115,11 @@
                 :node-kinds (merge (zipmap cells (repeat :cell))
                                    (zipmap (set/intersection (:nodes selected) (set (keys operations))) (repeat :propagator)))
                 :values (select-keys (:values sampled) cells)
-                :contents (select-keys (:contents sampled) cells) :edges (:edges selected)})]
+                :contents (select-keys (:contents sampled) cells)
+                :node-aliases (into {} (for [[source target] aliases
+                                            :when (contains? (:nodes selected) target)]
+                                        [source #{target}]))
+                :edges (:edges selected)})]
     {:edb evidence :derived derived :ownership scopes :aliases aliases
      :graph (observation-context
              (assoc graph :dataflow/scope (or opened :root) :dataflow/projection :leapfrog)
