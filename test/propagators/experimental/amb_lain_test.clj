@@ -2,10 +2,43 @@
   (:require [clojure.test :refer [deftest is]]
             [clojure.string :as str]
             [examples.lain.amb.experiment :as example]
+            [propagators.experimental.amb.learning :as learning]
             [propagators.experimental.amb.observation :as observation]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.runner :as runner]))
+
+(deftest dependency-directed-repair-eliminates-an-entire-independent-subtree
+  (let [run (example/run
+             "(let-cell [repairs ca cb cc]
+                (define a (amb (list 1 2) repairs ca))
+                (define b (amb (list 1 2) repairs cb))
+                (define c (amb (list 1 2) repairs cc))
+                (define valid (= a 2))
+                (define failure (require valid))
+                (define known (learn failure (list ca cb cc)))
+                (-> (backtrack (list ca cb cc) known) repairs)
+                (list (switch a valid) (switch b valid) (switch c valid)))")
+        network (get-in run [:result :network])
+        records (example/choice-records network)
+        changed (filter #(= 1 (:index %)) records)
+        a (:source (first changed))
+        independent (remove #(= a (:source %)) records)
+        known #{{:literals #{[a 0]} :context #{}}}]
+    (is (= :completed (get-in run [:result :status])))
+    (is (= [2 1 1] (:solution run)))
+    (is (= 3 (count records)))
+    (is (= 1 (count changed)))
+    (is (= 3 (:timestamp (first changed))) "one withdraw/choose handshake")
+    (is (= 2 (count independent)))
+    (is (every? #(and (= 0 (:index %)) (= 1 (:timestamp %))) independent)
+        "repair jumps over the two later independent choices")
+    (is (some #{known} (example/cell-bases network))
+        "the real learned no-good contains only the failing dependency")
+    (let [[b c] (map :source independent)]
+      (doseq [bi (range 2) ci (range 2)]
+        (is (learning/blocked? known #{[a 0] [b bi] [c ci]} #{}))
+        (is (not (learning/blocked? known #{[a 1] [b bi] [c ci]} #{})))))))
 
 (deftest declaration-finds-a-source-linked-triple-and-reruns-idempotently
   (let [run (example/run example/source)

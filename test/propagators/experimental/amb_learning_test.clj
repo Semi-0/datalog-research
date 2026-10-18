@@ -44,6 +44,22 @@
            (l/closure (conj closed (nogood [[a 1]])) [(record a) (record b)])))
     (is (= #{} (l/resolve-choice #{(nogood [[a 0] [b 0]])} (record b))))))
 
+(deftest finite-domain-resolution-preserves-the-forbidden-assignments
+  (let [[a b] (repeatedly 2 ids/new-node-id)
+        assignments (vec (for [x (range 2) y (range 2)] #{[a x] [b y]}))
+        atomic-nogoods (mapv nogood assignments)]
+    ;; Exhaust every subset of the four complete assignments, and every possible
+    ;; assignment against it. Minimization may shrink storage, never its meaning.
+    (doseq [mask (range 16)
+            :let [known (into #{} (keep-indexed
+                                   (fn [i n] (when (bit-test mask i) n)) atomic-nogoods))
+                  closed (l/closure known [(record a) (record b)])]]
+      (is (= closed (l/closure closed [(record a) (record b)])))
+      (doseq [assignment assignments]
+        (is (= (l/blocked? known assignment #{})
+               (l/blocked? closed assignment #{}))
+            (pr-str {:known known :closed closed :assignment assignment}))))))
+
 (deftest repair-handshake-replay-and-unrelated-choice
   (let [[a b other] (repeatedly 3 ids/new-node-id)
         records [(record a) (record b) (record other)]
