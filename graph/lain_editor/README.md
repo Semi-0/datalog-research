@@ -19,6 +19,15 @@ Use Open JSON with `graph/lain_editor/example-workspace.json` for a three-pane d
 - **Cmd/Ctrl+Enter** runs the selected block. Run prepares a complete replacement;
   a failed compilation keeps the previous running program. **Load Lain file…**
   in the palette reads a local file into that editor before execution.
+- **Save block to file…** in the palette, or **Cmd/Ctrl+S**, saves the selected
+  block as a project-local `.lain` file. Choose a path relative to the repository
+  root; the suggested folder is `examples/lain/saved/`. Missing directories are
+  created. Existing files require selecting **Replace existing file**. The saved
+  text includes current source, edited applied extensions and the pending
+  extension draft in order, including code that has not been run. Saving does
+  not run code or replace the current session. The success message gives the
+  path, so another tool or agent can read that specific block directly from the
+  project. Files outside the project and paths through symbolic links are rejected.
 - **Split side by side / Split stacked** subdivide the selected tile with a new
   independent empty block. **Spawn new block** adds an empty block beside the
   entire layout. **Close block** closes the selection; the final block is kept.
@@ -73,6 +82,15 @@ clojure -M:test graph.lain-editor-test graph.lain-editor.graph-layout-test graph
 clojure -M:editor/cljs-test
 node target/lain-editor/tests.js
 ```
+
+Block-file saving is covered by
+`clojure -M:test graph.lain-editor.source-files-test graph.lain-editor.frontend-model-test graph.lain-editor.desktop-test`
+(13 tests / 89 assertions), plus the frontend suite (69 tests / 652 assertions).
+The HTTP tests require localhost socket access. The optimized frontend build
+also passes. The broader `graph.lain-editor-test` currently has one existing
+failure in `real-semantic-topology-and-child-inspection`: child topology includes
+`copy` and `->` in addition to `shift` and `square`. This also reproduces with the
+pre-save-feature server loaded from Git; its expectation was left unchanged.
 
 ## Program-driven display
 

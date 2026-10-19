@@ -1,0 +1,93 @@
+(ns graph.lain-editor.source-files-test
+  (:require [clojure.test :refer [deftest is]]
+            [graph.json :as json]
+            [graph.lain-editor.server :as server]
+            [graph.lain-editor.source-files :as files])
+  (:import [java.nio.file Files Path FileVisitOption]
+           [java.nio.file.attribute FileAttribute]
+           [java.nio.charset StandardCharsets]
+           [java.net URI]
+           [java.net.http HttpClient HttpRequest HttpRequest$BodyPublishers HttpResponse$BodyHandlers]))
+
+(defn- with-directory [test]
+  (let [root (Files/createTempDirectory "lain-source-save-" (make-array FileAttribute 0))]
+    (try (test root)
+         (finally
+           (with-open [paths (Files/walk root (make-array FileVisitOption 0))]
+             (doseq [path (reverse (sort-by #(.getNameCount ^Path %) (iterator-seq (.iterator paths))))]
+               (Files/deleteIfExists path)))))))
+
+(deftest creates-project-files-with-exact-draft-text-and-explicit-replacement
+  (with-directory
+    (fn [^Path root]
+      (let [source "; 未実行の draft\n(unfinished"
+            command {:path "nested/block.lain" :source source}
+            saved (files/save-block! root command)
+            target (.resolve root "nested/block.lain")]
+        (is (= (:path command) (:path saved)))
+        (is (= (alength (.getBytes source StandardCharsets/UTF_8)) (:bytes saved)))
+        (is (= source (Files/readString target)))
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo #"already exists"
+                              (files/save-block! root (assoc command :source "replacement"))))
+        (is (= source (Files/readString target)))
+        (files/save-block! root (assoc command :source "replacement" :replace true))
+        (is (= "replacement" (Files/readString target)))
+        (files/save-block! root {:path "empty.lain" :source ""})
+        (is (= "" (Files/readString (.resolve root "empty.lain"))))))))
+
+(deftest rejects-invalid-paths-and-data-before-writing
+  (with-directory
+    (fn [root]
+      (doseq [path [nil "" "../escape.lain" (str (.resolve ^Path root "absolute.lain")) "code.clj"]]
+        (is (thrown? clojure.lang.ExceptionInfo (files/save-block! root {:path path :source "draft"}))))
+      (doseq [command [{:path "code.lain" :source nil}
+                       {:path "code.lain" :source "draft" :replace "yes"}]]
+        (is (thrown? clojure.lang.ExceptionInfo (files/save-block! root command))))
+      (with-open [paths (Files/list root)] (is (zero? (.count paths)))))))
+
+(deftest refuses-symbolic-link-directories-and-targets
+  (with-directory
+    (fn [^Path root]
+      (with-directory
+        (fn [^Path outside]
+          (Files/createSymbolicLink (.resolve root "linked") outside (make-array FileAttribute 0))
+          (Files/createSymbolicLink (.resolve root "file.lain") (.resolve outside "file.lain")
+                                   (make-array FileAttribute 0))
+          (doseq [path ["linked/block.lain" "file.lain"] replace [false true]]
+            (is (thrown-with-msg? clojure.lang.ExceptionInfo #"symbolic links"
+                                  (files/save-block! root {:path path :source "draft" :replace replace}))))
+          (with-open [paths (Files/list outside)] (is (zero? (.count paths)))))))))
+
+(deftest saving-a-block-does-not-require-or-change-runtime-sessions
+  (let [editors (atom {"running" {:generation "keep"}}) layouts (atom {:keep "layout"})
+        calls (atom []) command {:op "save-block" :pane "unrun" :path "draft.lain" :source "invalid (draft"}]
+    (with-redefs [files/save-block! (fn [root request] (swap! calls conj [root request]) {:path (:path request)})]
+      (is (= {:path "draft.lain"} (server/command! editors layouts command))))
+    (is (= [[(System/getProperty "user.dir") command]] @calls))
+    (is (= {"running" {:generation "keep"}} @editors))
+    (is (= {:keep "layout"} @layouts))))
+
+(defn- post [base origin command]
+  (let [request (-> (HttpRequest/newBuilder (URI. (str base "/api")))
+                    (.header "Content-Type" "application/json") (.header "Origin" origin)
+                    (.POST (HttpRequest$BodyPublishers/ofString (json/write-json command))) .build)]
+    (with-open [client (HttpClient/newHttpClient)]
+      (let [response (.send client request (HttpResponse$BodyHandlers/ofString StandardCharsets/UTF_8))]
+        {:status (.statusCode response) :body (json/read-json (.body response))}))))
+
+(deftest http-save-writes-the-selected-draft-and-rejects-cross-origin-requests
+  (with-directory
+    (fn [^Path root]
+      (let [service (server/start! 0) base (str "http://127.0.0.1:" (:port service))
+            save files/save-block! command {:op "save-block" :pane "unrun" :path "draft.lain" :source "unfinished (code"}]
+        (try
+          (with-redefs [files/save-block! (fn [_ request] (save root request))]
+            (let [response (post base base command)]
+              (is (= 200 (:status response)))
+              (is (true? (get-in response [:body :ok])))
+              (is (= "draft.lain" (get-in response [:body :result :path])))
+              (is (= (:source command) (Files/readString (.resolve root "draft.lain"))))
+              (is (empty? @(:editors service))))
+            (is (= 400 (:status (post base "http://another-origin.test" (assoc command :path "blocked.lain")))))
+            (is (not (Files/exists (.resolve root "blocked.lain") (make-array java.nio.file.LinkOption 0)))))
+          (finally ((:close service))))))))

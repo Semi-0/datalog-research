@@ -4,6 +4,7 @@
             [graph.json :as json]
             [graph.lain-editor.inspection :as inspection]
             [graph.lain-editor.graph-layout :as graph-layout]
+            [graph.lain-editor.source-files :as source-files]
             [graph.lain-editor.runtime :as editor])
   (:import [com.sun.net.httpserver HttpServer HttpHandler]
            [java.net InetSocketAddress]
@@ -30,6 +31,7 @@
          "restore" (let [result (editor/restore! editors (:workspace command))] (graph-layout/close! layouts) result)
          "close" (do (graph-layout/close-pane! layouts id) (editor/remove! editors id))
          "inspect" (inspection/inspect editors command)
+         "save-block" (source-files/save-block! (System/getProperty "user.dir") command)
          (throw (ex-info "Unknown editor operation" {})))))))
 
 (defn respond! [exchange status content-type body]

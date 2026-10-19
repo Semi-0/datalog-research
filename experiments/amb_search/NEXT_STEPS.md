@@ -60,6 +60,16 @@ Initially preserve the existing write-through behavior or explicitly scope the
 new view to reads; arbitrary bidirectional aliasing requires its own conflict
 and rebinding semantics.
 
+**Dictionary symlink variation.** A slot accessor could return a stable logical
+path whose current dictionary target is resolved on read. A missing target reads
+as `nothing` without allocating a cell. Consumers must subscribe both to binding
+changes and to the current target: creating, removing or retargeting the link
+must wake them even if an earlier read found no cell. Resolving a link must still
+include its owning premise context, and snapshots must resolve against their
+own immutable network version. Initially limit this experiment to reads;
+missing-link writes need an explicit creation/error/pending-contribution policy.
+This proposal has not been implemented or benchmarked.
+
 Required checks before claiming general premised-compound support:
 
 - Parent-only, child-only and combined dependencies; independent parents sharing
