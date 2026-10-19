@@ -33,7 +33,7 @@
                          (nb/install-cells [c a b out other])
                          (map vector [c a b] inputs))
         args (case kind
-               if [c a b]
+               select [c a b]
                switch [a c]
                branch [c a out b other])
         [network tasks output] ((operator/operator-install (get (into {} (bindings)) kind))
@@ -55,7 +55,7 @@
   (let [[c a b] (repeatedly 3 ids/new-node-id)
         cp (premise c 1 :active) ap (premise a 1 :active) bp (premise b 1 :active)]
     (doseq [condition [true false nil 0]]
-      (let [fixture (install 'if [(supported condition cp) (supported 10 ap) (supported 20 bp)])
+      (let [fixture (install 'select [(supported condition cp) (supported 10 ap) (supported 20 bp)])
             result (get (emitted fixture) (:output fixture))]
         (is (= {:base (if condition 10 20)
                 :support (if condition #{cp ap} #{cp bp})} result))))
@@ -79,15 +79,15 @@
                        (supported value/contradiction cp)
                        (supported true cr)
                        (supported true cp (premise c 2 :active))]]
-      (let [fixture (install 'if [condition (supported 10 ap) (supported 20 br)])]
+      (let [fixture (install 'select [condition (supported 10 ap) (supported 20 br)])]
         (is (= {:base (datum/layer-value condition :base)
                 :support (datum/support-of condition)}
                (get (emitted fixture) (:output fixture))))))
     (doseq [base [value/nothing value/contradiction]]
-      (let [fixture (install 'if [(supported true cp) (supported base ap) (supported 20 br)])]
+      (let [fixture (install 'select [(supported true cp) (supported base ap) (supported 20 br)])]
         (is (= {:base base :support #{cp ap}}
                (get (emitted fixture) (:output fixture))))))
-    (let [fixture (install 'if [true 10 20])]
+    (let [fixture (install 'select [true 10 20])]
       (is (= {:base 10 :support #{}} (get (emitted fixture) (:output fixture)))))))
 
 (deftest compiled-if-and-cond-use-the-extension
@@ -115,7 +115,7 @@
 
 (deftest selected-retraction-then-switching-to-healthy-branch
   (let [{:keys [network tasks condition a b output] :as fixture}
-        (install 'if [value/nothing value/nothing value/nothing])
+        (install 'select [value/nothing value/nothing value/nothing])
         c1 (premise condition 1 :active) c2 (premise condition 2 :active)
         a1 (premise a 1 :active) a2 (premise a 2 :retracted)
         b1 (premise b 1 :active)

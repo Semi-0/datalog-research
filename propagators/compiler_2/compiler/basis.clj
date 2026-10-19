@@ -6,6 +6,7 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.context :as context]
             [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
+            [propagators.compiler-2.compiler.rewrite :as rewrite]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.operators.call-graph :as call-graph]
@@ -21,8 +22,10 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.compiler-2.runtime.declaration-effects :as nb]
+            [propagators.compiler-2.runtime.supported-application.runtime]
             [propagators.propagator :as prop]
             [propagators.stdlib.observation :as observation]
+            [propagators.stdlib.conditional :as conditional]
             [propagators.datastructures.behavior.core :as behavior]
             [propagators.datastructures.behavior.arithmetic :as behavior-arithmetic])
   (:import [java.nio.charset StandardCharsets]
@@ -744,36 +747,37 @@
                       [out-id] outputs]
                   (switch-messages current-net value-id condition-id out-id)))}))
 
-(defn if-operator []
-  (operator-value/propagator-operator
-   {:name 'if
+(defn select-operator []
+  (operator-value/operator-closure
+   {:name 'select
     :output-selector (fn [arg-ids fallback-id]
                        (let [[_condition-id _then-id _else-id explicit-out-id]
                              (vec arg-ids)]
                          [(or explicit-out-id fallback-id)]))
     :input-selector (fn [arg-ids _fallback-id _context-id]
                       (when-not (<= 3 (count arg-ids) 4)
-                        (throw (ex-info "if expects condition, then, else, and optional output"
+                        (throw (ex-info "select expects condition, then, else, and optional output"
                                         {:arg-ids arg-ids})))
                       (subvec (vec arg-ids) 0 3))
-    :activate (fn [current-net inputs outputs _context-id]
-                (let [[condition-id then-id else-id] inputs
-                      [out-id] outputs
-                      condition (unwrap-compiler-value
-                                 (net/network-cell-strongest current-net
-                                                            condition-id))]
-                  (cond
-                    (value/contradiction? condition)
-                    [(message out-id value/contradiction)]
+    :install (fn [network arguments fallback]
+               (let [[condition then-input else-input explicit] arguments]
+                 (conditional/install network condition then-input else-input (or explicit fallback))))}))
 
-                    (value/unusable? condition)
-                    []
+(defn conditional-compiler-operands
+  [selector compile-k state operands _out-id continuation]
+  (when-not (= 3 (count operands))
+    (throw (ex-info "if expects condition, then expression, and else expression"
+                    {:operands operands})))
+  (let [[condition then-expression else-expression] operands]
+    (fn []
+      (compile-k (child state :conditional)
+                 (rewrite/conditional->application selector condition then-expression else-expression)
+                 continuation))))
 
-                    condition
-                    (forward-sync-messages current-net then-id out-id)
-
-                    :else
-                    (forward-sync-messages current-net else-id out-id))))}))
+(defn if-operator []
+  (operator-value/operator-closure
+   {:name 'if
+    :compiler-operands (partial conditional-compiler-operands (select-operator))}))
 
 (defn branch-operator []
   (operator-value/propagator-operator
@@ -890,6 +894,7 @@
     ['str (operator-builder core/str)]
     ['switch (switch-operator)]
     ['if (if-operator)]
+    ['select (select-operator)]
     ['branch (branch-operator)]
     ['nothing? (predicate-operator 'nothing? :nothing)]
     ['contradiction? (predicate-operator 'contradiction? :contradiction)]

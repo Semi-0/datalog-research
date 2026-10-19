@@ -179,7 +179,7 @@
                     (publish n id (collection/merge-content (observed base (p id 1 :active)) (state-update))))
                   (nb/install-cells [c a b]) [[c true] [a 10] [b 20]])
         compiled (compiler/compile-expr-with-bindings
-                  (parser/parse-string "(+ (if c a b) 1)")
+                  (parser/parse-string "(+ (select c a b) 1)")
                   (into (vec (basis/default-bindings))
                         (concat (extension/extension-bindings primitives/session-extension)
                                 [['c (env/cell-binding c)] ['a (env/cell-binding a)] ['b (env/cell-binding b)]]))

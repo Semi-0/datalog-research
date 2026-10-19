@@ -4,6 +4,7 @@
   Functional networks use the ordinary reader and named CPS handlers."
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
+            [propagators.cells.value :as value]
             [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.rest-parameters :as rest-parameters])
   (:import [java.io PushbackReader StringReader]))
@@ -137,9 +138,10 @@
                          (build more))
 
                 :else
-                (ast/app (ast/sym 'switch)
+                (ast/app (ast/sym 'if)
+                         (parse-form condition)
                          (parse-form expr)
-                         (parse-form condition)))))]
+                         (ast/lit value/nothing)))))]
     (build (partition 2 clauses))))
 
 (defn- parse-application [forms]

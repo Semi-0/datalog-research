@@ -7,6 +7,14 @@
   (ast/let* (mapv (fn [name] [name nil]) (ast/names expr))
             (ast/body expr)))
 
+(defn conditional->application
+  "Select a suspended branch, then invoke only that branch's body."
+  [selector condition then-expression else-expression]
+  (ast/app
+   (ast/app (ast/lit selector) condition
+            (ast/network [] then-expression)
+            (ast/network [] else-expression))))
+
 (defn compound->network
   [expr]
   (ast/network (ast/inputs expr) (ast/output expr) (ast/body expr)))

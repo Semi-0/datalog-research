@@ -1,8 +1,8 @@
 (ns propagators.experimental.ttms-application
-  "Opt-in supported callable application. Requiring this namespace registers the
-  Net handler; compiler options and production distributed-TMS bindings do not change."
+  "Compatibility extension for the explicit ttms-premise-closure constructor.
+  Supported callable application is shared with the ordinary compiler runtime."
   (:require [propagators.compiler-2.runtime.session.extension :as extension]
-            [propagators.experimental.ttms-application.runtime]
+            [propagators.compiler-2.runtime.supported-application.runtime]
             [propagators.experimental.ttms-primitives :as primitives]
             [propagators.propagator :as prop]))
 

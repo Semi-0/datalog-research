@@ -174,13 +174,13 @@
 (deftest flag-dependents-include-branch-values-without-their-producers
   (let [pane (prepare
               "(define flag true) (define x 7)
-               (define result (if flag (+ x 1) (* x 2)))
+               (define result (select flag (+ x 1) (* x 2)))
                (display (observe-dependents flag))")]
     (try
       (let [g (graph pane)
             calls (set (for [[id label] (:nodes g) :when (= :propagator (get (:node-kinds g) id))]
                          (str label)))]
-        (is (= #{"if"} calls))
+        (is (= #{"select"} calls))
         (is (contains? (labels g) "flag"))
         (is (not (contains? (labels g) "x"))))
       (finally (editor/close-session! (:session pane))))))

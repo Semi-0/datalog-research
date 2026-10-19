@@ -32,3 +32,34 @@ graph-owned inspection dependency.
 Current implementation status, unresolved correctness issues, and their
 dependency order are tracked in
 [`../doc/compiler-2-progress-and-priorities.md`](../doc/compiler-2-progress-and-priorities.md).
+
+## Conditional expressions
+
+`if` and `cond` suspend their branch bodies. Only a selected body builds its
+application topology; `cond` also defers later predicates until earlier ones
+are false. An unknown condition waits. A `cond` without a matching clause or
+`else` returns nothing. Recursive branches need no manual `network` wrapper:
+
+```clojure
+(define sum-to
+  (network [n acc]
+    (cond [(<= n 0) acc
+           else (sum-to (- n 1) (+ acc n))])))
+```
+
+The compiler rewrites both forms to suspended zero-argument networks selected
+through the shared conditional propagator and invoked by ordinary callable
+application. Supported application gates each candidate's output with the
+current selection support. Changing or retracting the condition withdraws the
+old result; selecting a previously built branch reuses its topology. Declared
+topology remains in the monotone network even when its result is inactive.
+
+`select` is the eager value selector: `(select condition then-value else-value)`.
+Use it when both argument computations should exist independently, or to select
+already-declared callable values explicitly. Passing a callable to another
+network does not defer construction of that network's argument expressions;
+the lazy operand rewrite belongs to a statically resolved `if` expression.
+
+`runtime/supported_application/` owns supported callable ports, candidate frames
+and output publication. The experimental `ttms-application` extension retains
+the `ttms-premise-closure` constructor and uses this same runtime.

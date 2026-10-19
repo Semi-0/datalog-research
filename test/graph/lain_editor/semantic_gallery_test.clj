@@ -7,12 +7,16 @@
             [graph.lain-editor.runtime :as runtime]
             [graph.lain-editor.display :as display]
             [graph.lain-editor.inspection :as inspection]
+            [graph.lain-editor.semantic-capture :as retained]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
+            [propagators.compiler-2.compiler.declarations :as declarations]
+            [propagators.compiler-2.language.ast :as ast]
             [propagators.relationship-dataflow :as dataflow]
             [propagators.compiler-2.runtime.application :as application]
             [propagators.compiler-2.runtime.application-ports :as ports]
             [propagators.gur.flat :as gur]
             [propagators.semantic-trace :as trace]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.network :as net]
             [propagators.experimental.visualization.data :as data]))
 
@@ -25,10 +29,8 @@
   {"01-unary" {"not" [#{"flag"} #{"result"}]}
    "02-binary" {"+" [#{"left" "right"} #{"result"}]}
    "03-three-inputs" {"combine" [#{"a" "b" "c"} #{"result"}]}
-    "04-branch-true" {"if" [#{"flag" "8" "14"} #{"result"}]
-                        "+" [#{"x" "1"} #{"8"}] "*" [#{"x" "2"} #{"14"}]}
-    "05-branch-false" {"if" [#{"flag" "8" "14"} #{"result"}]
-                         "+" [#{"x" "1"} #{"8"}] "*" [#{"x" "2"} #{"14"}]}
+   "04-branch-true" {":propagator/anonymous" nil}
+   "05-branch-false" {":propagator/anonymous" nil}
    "06-recursion" {"sum-to" [#{"input" "0"} #{"result"}]}
    "07-two-outputs" {"+" [#{"sum" "product"} #{"result"}]
                       "stats" [#{"3" "4" "sum" "product"} #{"cell" "7" "12"}]}
@@ -45,7 +47,9 @@
                                    [(pr-str [[:outer] (gur/stable-node-id [(:application-id app) :apply-prop])]) app]))
                          (application/application-topologies network))
         kinds (into {} (map (juxt :id :kind)) (:nodes graph))]
-    (is (= (frequencies (keys (get root-contracts pane))) (frequencies (map :label semantic-calls))))
+    (is (= (cond-> (frequencies (keys (get root-contracts pane)))
+             (contains? #{"04-branch-true" "05-branch-false"} pane)
+             (assoc ":propagator/anonymous" 2)) (frequencies (map :label semantic-calls))))
     (is (= 1 (count (filter #(= "->" (:label %)) calls))))
     (is (not-any? #(= "define" (:label %)) calls))
     (is (every? #(= #{"cell" "propagator"} #{(kinds (:from %)) (kinds (:to %))}) (:edges graph)))
@@ -53,7 +57,10 @@
     (doseq [{:keys [id label]} semantic-calls]
       (let [app (get topologies id)
             inputs (cond-> (set (:argument-ids app))
-                     (= "add-ten" label) (conj (:operator-id app)))
+                     (or (= "add-ten" label)
+                         (and (= ":propagator/anonymous" label)
+                              (empty? (:argument-ids app))))
+                     (conj (:operator-id app)))
             outputs (:outputs (ports/application-ports network app))
             qualify (fn [node]
                       (let [id (pr-str [[:outer] node]) targets (get (:aliases graph) id)]
@@ -128,8 +135,9 @@
             (is (= "leapfrog" (:projection graph)))
             (is (= {:kind "root"} (:scope graph)))
              (is (= "network" (:representation graph)))
-             (is (not-any? #(= "cell" (:label %)) (:nodes graph))
-                 "Compiler names every visible literal, return and output port")
+             (is (every? #(= "network []" (:value %))
+                         (filter #(= "cell" (:label %)) (:nodes graph)))
+                 "Anonymous cells are suspended branch closures")
             (assert-root-contract (:id pane) graph (:program/net @(:session (get @editors (:id pane)))))
             (let [session (:session (get @editors (:id pane))) network (:program/net @session)]
               (doseq [node (:nodes graph)]
@@ -146,8 +154,24 @@
                (is (= :root (:dataflow/scope published)))
                (is (= :downstream (:traversal/direction published)))
               (is (identical? published (inspection/semantic-graph network id)))
-              (is (= (inspection/graph-json published network) graph)
-                  "Render the returned tracer cell with the same live slot context"))
+              (let [session (:session (get @editors (:id pane)))
+                    observation (some #(when (= (pr-str %) (:semanticObservation graph)) %)
+                                      (keys @(retained/storage session)))
+                    captured (:capture (retained/retained session observation))
+                    sources @(retained/storage session)]
+                (is (some? observation) "Display identifies its retained observation")
+                (is (capture/fragment? captured))
+                (is (= published
+                       (-> (select-keys (capture/root-graph captured) (keys published))
+                           (update :values select-keys (keys (:values published)))))
+                    "Retention preserves the tracer's published topology and values")
+                (is (= (inspection/graph-json captured) graph)
+                    "Display renders the retained capture with its frozen slot context")
+                (is (:partial (inspection/graph-json published network))
+                    "Legacy flat graphs remain explicitly partial")
+                (is (= graph (:graph (inspect-published-trace editors request))))
+                (is (= sources @(retained/storage session))
+                    "Repeated display sampling does not create another observation")))
             (is (= (get expected (:id pane))
                    (:value (inspection/inspect editors (assoc request :display {:cell "result" :mode "value"})))))
             (is (= "ready" (:status result)))
@@ -167,7 +191,7 @@
                   (case (:label call)
                     "combine" (is (every? incoming ["a" "b" "c"]))
                     "stats" (is (every? (reachable-labels graph (:id call)) ["sum" "product"]))
-                    "sum-to" (is (every? child-calls ["if" "<="]))
+                    "sum-to" (is (every? child-calls [":propagator/anonymous" "<="]))
                     "add-ten" (is (some #(= "10" (:value %)) (:nodes child)))
                     (is false "Unrecognized example call")))
                 (println "  body" (:label call) "calls"
@@ -186,32 +210,68 @@
           (println "accumulator n" input "runtime nodes" (:runtimeNodes result))))
       (finally (runtime/close! editors)))))
 
+(defn selected-branch [editors request body]
+  (let [calls (filter #(= ":propagator/anonymous" (:label %)) (:nodes body))]
+    (first
+     (for [chooser calls
+           selected calls
+           :when (not= (:id chooser) (:id selected))
+           :let [chosen (set (for [edge (:edges body)
+                                  :when (= (:id chooser) (:from edge))] (:to edge)))
+                 used (set (for [edge (:edges body)
+                                :when (= (:id selected) (:to edge))] (:from edge)))]
+           :when (some chosen used)]
+       {:chooser chooser :selected selected
+        :graph (:graph (inspection/inspect editors (assoc request :parent (:id selected))))}))))
+
 (deftest accumulator-occurrences-and-selected-operator-connectivity
   (let [editors (atom {})]
     (try
-      (let [{:keys [generation]} (runtime/run! editors {:pane "tail" :source (slurp "examples/lain/semantic_tracing/06-recursion.lain")})
+      (let [{:keys [generation]} (runtime/run! editors {:pane "tail" :source (slurp (str directory "06-recursion.lain"))})
             request {:pane "tail" :generation generation :display {:cell "@display" :mode "graph" :direction "upstream"}}
             root (:graph (inspection/inspect editors request))
             first-call (first (filter #(= "sum-to" (:label %)) (:nodes root)))]
         (loop [call first-call expected-n 4 expected-acc 0 seen #{}]
-          (is (some? call)) (is (not (contains? seen (:id call))))
-          (let [body (:graph (inspection/inspect editors (assoc request :parent (:id call))))
-                n (first (filter #(= "n" (:label %)) (:nodes body)))
-                acc (first (filter #(= "acc" (:label %)) (:nodes body)))
-                chooser (first (filter #(= "if" (:label %)) (:nodes body)))
-                selected (first (filter #(= ":propagator/anonymous" (:label %)) (:nodes body)))
-                chosen (set (for [edge (:edges body) :when (= (:id chooser) (:from edge))] (:to edge)))
-                used (set (for [edge (:edges body) :when (= (:id selected) (:to edge))] (:from edge)))
-                branch (:graph (inspection/inspect editors (assoc request :parent (:id selected))))
-                branch-calls (filter #(and (= "propagator" (:kind %))
-                                          (not (contains? #{"->" "<->" "define" "copy"} (:label %))))
-                                     (:nodes branch))
-                next-call (first (filter #(= "sum-to" (:label %)) branch-calls))]
-            (is (= (str expected-n) (:value n)))
-            (is (= (str expected-acc) (:value acc)))
-            (is (some chosen used) "if-selected callable feeds the dynamic application")
-            (if (pos? expected-n)
-              (do (is (= #{"-" "+" "sum-to"} (set (map :label branch-calls))))
-                  (recur next-call (dec expected-n) (+ expected-acc expected-n) (conj seen (:id call))))
-              (do (is (empty? branch-calls)) (is (nil? next-call)))))))
+          (is (some? call))
+          (is (not (contains? seen (:id call))))
+          (when call
+            (let [body (:graph (inspection/inspect editors (assoc request :parent (:id call))))
+                  n (first (filter #(= "n" (:label %)) (:nodes body)))
+                  branch (selected-branch editors request body)
+                  acc (first (filter #(= "acc" (:label %)) (:nodes (:graph branch))))
+                  branch-calls (filter #(and (= "propagator" (:kind %))
+                                            (not (contains? #{"->" "<->" "define" "copy"} (:label %))))
+                                       (:nodes (:graph branch)))
+                  next-call (first (filter #(= "sum-to" (:label %)) branch-calls))]
+              (is (= (str expected-n) (:value n)))
+              (is (= (str expected-acc) (:value acc)))
+              (is (some? branch) "The selected closure feeds its dynamic application")
+              (if (pos? expected-n)
+                (do (is (= #{"-" "+" "sum-to"} (set (map :label branch-calls))))
+                    (recur next-call (dec expected-n) (+ expected-acc expected-n) (conj seen (:id call))))
+                (do (is (empty? branch-calls)) (is (nil? next-call))))))))
       (finally (runtime/close! editors)))))
+
+(deftest gallery-branches-build-only-selected-arithmetic
+  (doseq [[filename chosen rejected result]
+          [["04-branch-true.lain" '+ '* "8"]
+           ["05-branch-false.lain" '* '+ "14"]]]
+    (testing filename
+      (let [calls (atom []) declare declarations/declare-application-context
+            editors (atom {})]
+        (try
+          (with-redefs [declarations/declare-application-context
+                        (fn [state expression]
+                          (swap! calls conj (ast/name (ast/operator expression)))
+                          (declare state expression))]
+            (let [{:keys [generation]} (runtime/run! editors {:pane "branch" :source (slurp (str directory filename))})
+                  request {:pane "branch" :generation generation :display {:cell "@display" :mode "graph" :direction "both"}}
+                  root (:graph (inspection/inspect editors request))
+                  branch (selected-branch editors request root)
+                  arithmetic (filter #(contains? #{"+" "*"} (:label %)) (:nodes (:graph branch)))]
+              (is (= result (:value (inspection/inspect editors (assoc request :display {:cell "result" :mode "value"})))))
+              (is (= 1 (count (filter #{chosen} @calls))))
+              (is (not-any? #{rejected} @calls) "Unselected body is never declared")
+              (is (some? branch))
+              (is (= [(str chosen)] (mapv :label arithmetic)))))
+          (finally (runtime/close! editors)))))))

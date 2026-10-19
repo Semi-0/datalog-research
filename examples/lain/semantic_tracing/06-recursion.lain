@@ -5,12 +5,8 @@
 ; (4,0) -> (3,4) -> (2,7) -> (1,9) -> (0,10)
 (define sum-to
   (network [n acc]
-    ((if (<= n 0)
-       (network [n acc]
-         acc)
-       (network [n acc]
-         (sum-to (- n 1) (+ acc n))))
-     n acc)))
+    (cond [(<= n 0) acc
+           else (sum-to (- n 1) (+ acc n))])))
 
 (define input 4)
 (def-cells result)

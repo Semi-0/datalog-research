@@ -10,7 +10,7 @@
 
 (define semantic)
 
-(-> (if condition a b) result)
+(-> (select condition a b) result)
 
 (relationship:roots condition raw)
 

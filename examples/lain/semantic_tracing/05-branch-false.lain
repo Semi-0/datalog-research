@@ -12,4 +12,4 @@
     result)
 
 (display
-  (observe-dependents-retained x))
+  (observe-dependents-retained flag))

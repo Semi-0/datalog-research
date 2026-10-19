@@ -34,7 +34,7 @@
    {:file "bidirectional" :seeds {'c 2} :result ['a 2]
     :edges [['a 'b] ['b 'a] ['b 'c] ['c 'b]]}
    {:file "conditional" :seeds {'condition true 'a 10 'b 20} :result ['result 10]
-    :applications [['if ['condition 'a 'b] ['condition 'a 'b] ['result]]]}])
+    :applications [['select ['condition 'a 'b] ['condition 'a 'b] ['result]]]}])
 
 (defn binding-id [state symbol]
   (env/resolve-binding-id (:program/net state) (:program/env state) symbol))

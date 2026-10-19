@@ -75,7 +75,6 @@
        (install network arguments output context))}))
 
 (defn layered-environment
-  "Explicit opt-in for version-aware arithmetic, branching and callable application."
+  "Explicit opt-in for version-aware arithmetic and branching bindings."
   []
-  (require 'propagators.experimental.ttms-application.runtime)
   (extension/extension-bindings primitives/session-extension))

@@ -27,6 +27,7 @@
     propagators.compiler-2-block-premise-test
     propagators.compiler-2-composition-test
     propagators.compiler-2-cps-test
+    propagators.compiler-2-lazy-conditional-test
     propagators.compiler-2-rest-parameters-test
     propagators.compiler-2-network-observation-test
     propagators.compiler-2.runtime.semantic-traversal-test
@@ -74,6 +75,7 @@
   '[graph.lain-editor.retained-relationship-test
     graph.lain-editor.source-files-test
     graph.lain-editor.semantic-scene-test
+    graph.lain-editor.semantic-gallery-test
     graph.lain-editor.recursive-semantic-test
     graph.lain-editor.amb-test
     graph.lain-editor.graph-layout-test

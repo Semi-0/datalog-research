@@ -33,9 +33,9 @@ values. An explicitly enabled Result layer uses plain text rather than a box.
 | 01-unary.lain | One input to `not` | true |
 | 02-binary.lain | Two inputs to `+` | 7 |
 | 03-three-inputs.lain | Three inputs to `combine` | 10 |
-| 04-branch-true.lain | `if` chooses addition | 8 |
-| 05-branch-false.lain | `if` chooses multiplication | 14 |
-| 06-recursion.lain | Accumulate 4 + 3 + 2 + 1 | 10 |
+| 04-branch-true.lain | Lazy `if` builds addition | 8 |
+| 05-branch-false.lain | Lazy `if` builds multiplication | 14 |
+| 06-recursion.lain | Lazy `cond` accumulates 4 + 3 + 2 + 1 | 10 |
 | 07-two-outputs.lain | `stats` writes sum 7 and product 12 | 19 |
 | 08-captured-closure.lain | Returned closure retains bias 10 | 15 |
 
@@ -60,15 +60,24 @@ Reachability traversal is in
 `propagators/semantic_trace.clj`.
 
 The projection retains a computed callable as a data input to the call that
-uses it. This connects `if -> selected network -> dynamic application`.
-It also preserves actual returned-member copy edges into caller cells, keeping
-both cell identities. Static operator declarations remain implicit.
-Arithmetic `if` branches are installed eagerly. Observing `flag` downstream shows
-the `if` call and both branch values as input context, without walking upstream
-into the arithmetic that produced them. Use `:both` to include both arithmetic
-paths. These gallery examples observe `x`, so both arithmetic consumers are
-downstream and remain visible. The recursion example instead selects a network
-before calling it.
+uses it. Lazy `if` and `cond` select a suspended branch and invoke it automatically.
+The branch examples observe `flag`, so the root shows the selection and dynamic
+application. Open the selected application to see `+` for the true example or `*`
+for the false example. The other arithmetic body is never built. Anonymous closure
+cells display `network []`; generated selection and branch calls currently display
+`:propagator/anonymous`.
+
+The recursion example uses `cond` directly, without manual branch networks:
+
+```clojure
+(define sum-to
+  (network [n acc]
+    (cond [(<= n 0) acc
+           else (sum-to (- n 1) (+ acc n))])))
+```
+
+Actual return-copy edges connect branch results to caller cells, retaining their
+separate identities. Static operator declarations remain implicit.
 
 `sum-to(n, acc)` recurses with `(n - 1, acc + n)` and returns the recursive
 result without further arithmetic. Its source call is in tail position, but
@@ -99,14 +108,16 @@ clojure -M:test graph.lain-editor.semantic-gallery-test propagators.relationship
 ```
 
 Gallery checks require every `.lain` file in both workspace variants, require the
-final expression to display `observe-dependents`, and require every pane
+final expression to display `observe-dependents-retained`, and require every pane
 to target `@display`. Runtime checks require a published Leapfrog root graph,
 compare its JSON with the display verbatim, and disable re-projection during root
 inspection so an editor fallback cannot satisfy the check. They also verify
 operation ports, actual node identities, and that repeated inspection leaves
 the program Net identical. The accumulator test follows
 `(4,0) -> (3,4) -> (2,7) -> (1,9) -> (0,10)` and checks the chosen operator feeds
-the dynamic call. These fixture checks do not prove arbitrary Lain programs.
+the dynamic call. Branch tests also spy on application declarations to require
+exactly the chosen arithmetic operation and no declaration of the other body.
+These fixture checks do not prove arbitrary Lain programs.
 
 The default graph stays at the top-level chain. The captured-closure example
 shows the application of `add-ten` downstream from `input`, including the callable

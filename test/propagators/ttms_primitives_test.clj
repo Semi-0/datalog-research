@@ -13,7 +13,8 @@
             [propagators.ids :as ids]
             [propagators.message :as message]
             [propagators.network :as net]
-            [propagators.network-builder :as nb]))
+            [propagators.network-builder :as nb]
+            [propagators.stdlib.premise-state :as state]))
 
 (defn- publish [network source epoch status base]
   (let [content (collection/content
@@ -67,7 +68,17 @@
                                          [restored 4 :active 8]]]
         (let [v (net/network-cell-strongest n output)]
           (is (= expected (datum/layer-value v :base)))
-          (is (= #{{:source source :timestamp epoch :premises-status status}}
-                 (datum/support-of v)))))
-      (is (= (set (keys (net/net-env network))) (set (keys (net/net-env restored)))))
+          (if (and (= code "(if (<= x 10) (+ x 1) (* x 2))") (= status :retracted))
+            (do (is (= #{} (datum/support-of v)))
+                (is (= #{{:source source :timestamp epoch :premises-status status}}
+                       (state/states-of v))))
+            (is (= #{{:source source :timestamp epoch :premises-status status}}
+                   (datum/support-of v))))))
+      (if (= code "(if (<= x 10) (+ x 1) (* x 2))")
+        (do
+          (is (every? (set (keys (net/net-env updated))) (keys (net/net-env network)))
+              "Selecting another branch extends topology monotonically")
+          (is (= (set (keys (net/net-env updated))) (set (keys (net/net-env restored))))
+              "Once both branches have been selected, recovery reuses their topology"))
+        (is (= (set (keys (net/net-env network))) (set (keys (net/net-env restored))))))
       (is (= (net/net-env restored) (net/net-env (nb/run-propagators restored tasks)))))))
