@@ -56,11 +56,14 @@ Use Open JSON with `graph/lain_editor/example-workspace.json` for a three-pane d
   scroll to zoom. **Compact topology** is available in the command palette. Select a node for actual runtime metadata. Select
   a call and **Open this call body** to inspect that occurrence. **Return to root topology** in the palette returns to
   the display cell's trace. Display panels refresh every two seconds while visible.
-- **Save JSON / Open JSON**, inside the workspace **…** menu, round-trip all desktop split trees and ratios, pane titles,
+- **Save workspace / Save workspace as… / Open workspace JSON…**, inside the workspace **…** menu, round-trip all desktop split trees and ratios, pane titles,
   file names, drafts, display targets/modes, last executed source, and ordered
   successful extensions. Import validates and prepares all programs before
-  replacing the current sessions. Drafts are separate from executed source.
-  Browser local storage uses the same document for recovery after page reload.
+  replacing the current sessions. **Save workspace as…** chooses a project-relative
+  `.json` target and makes it current; later **Save workspace** overwrites that target.
+  A browser-imported file does not reveal its original path, so its first save opens
+  **Save workspace as…** rather than guessing. Drafts are separate from executed source.
+  Browser local storage keeps both the recovery document and its established project path.
 
 JSON is a **source replay document**, not a serialized JVM or heap snapshot.
 Clock timestamps, external effects, and transient runtime inputs are not frozen.

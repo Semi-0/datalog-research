@@ -1,8 +1,10 @@
 (ns graph.lain-editor.source-files-test
   (:require [clojure.test :refer [deftest is]]
             [graph.json :as json]
+            [graph.lain-editor.frontend.model :as model]
             [graph.lain-editor.server :as server]
-            [graph.lain-editor.source-files :as files])
+            [graph.lain-editor.source-files :as files]
+            [graph.lain-editor.workspace-files :as workspace-files])
   (:import [java.nio.file Files Path FileVisitOption]
            [java.nio.file.attribute FileAttribute]
            [java.nio.charset StandardCharsets]
@@ -63,6 +65,48 @@
         calls (atom []) command {:op "save-block" :pane "unrun" :path "draft.lain" :source "invalid (draft"}]
     (with-redefs [files/save-block! (fn [root request] (swap! calls conj [root request]) {:path (:path request)})]
       (is (= {:path "draft.lain"} (server/command! editors layouts command))))
+    (is (= [[(System/getProperty "user.dir") command]] @calls))
+    (is (= {"running" {:generation "keep"}} @editors))
+    (is (= {:keep "layout"} @layouts))))
+
+(deftest workspace-save-creates-a-current-json-target-and-requires-explicit-replacement
+  (with-directory
+    (fn [^Path root]
+      (let [document (model/initial-workspace)
+            path "examples/lain/saved/workspace.json"
+            target (.resolve root path)
+            saved (workspace-files/save-workspace!
+                   root {:path path :workspace document :replace false})]
+        (is (= path (:path saved)))
+        (is (= document (json/read-json (Files/readString target))))
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo #"already exists"
+                              (workspace-files/save-workspace!
+                               root {:path path :workspace document :replace false})))
+        (let [changed (assoc-in document [:panes 0 :title] "updated")]
+          (workspace-files/save-workspace!
+           root {:path path :workspace changed :replace true})
+          (is (= changed (json/read-json (Files/readString target)))))))))
+
+(deftest workspace-save-rejects-invalid-documents-and-unsafe-targets
+  (with-directory
+    (fn [root]
+      (doseq [request [{:path "../workspace.json" :workspace (model/initial-workspace)}
+                       {:path "workspace.txt" :workspace (model/initial-workspace)}
+                       {:path "workspace.json" :workspace {:format "wrong"}}
+                       {:path "workspace.json" :workspace (model/initial-workspace) :replace "yes"}]]
+        (is (thrown? clojure.lang.ExceptionInfo
+                     (workspace-files/save-workspace! root request))))
+      (with-open [paths (Files/list root)] (is (zero? (.count paths)))))))
+
+(deftest workspace-save-command-does-not-change-runtime-sessions
+  (let [editors (atom {"running" {:generation "keep"}}) layouts (atom {:keep "layout"})
+        calls (atom []) command {:op "save-workspace" :path "workspace.json"
+                                :workspace (model/initial-workspace) :replace true}]
+    (with-redefs [workspace-files/save-workspace!
+                  (fn [root request]
+                    (swap! calls conj [root request])
+                    {:path (:path request)})]
+      (is (= {:path "workspace.json"} (server/command! editors layouts command))))
     (is (= [[(System/getProperty "user.dir") command]] @calls))
     (is (= {"running" {:generation "keep"}} @editors))
     (is (= {:keep "layout"} @layouts))))
