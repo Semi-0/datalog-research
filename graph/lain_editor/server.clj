@@ -31,7 +31,9 @@
          "run" (let [result (editor/run! editors command)] (graph-layout/close-pane! layouts id) result)
          "extend" (let [result (editor/extend! editors command)] (graph-layout/close-pane! layouts id) result)
          "restore" (let [result (editor/restore! editors (:workspace command))] (graph-layout/close! layouts) result)
-         "close" (do (graph-layout/close-pane! layouts id) (editor/remove! editors id))
+         "close" (let [result (editor/remove! editors id)]
+                   (graph-layout/close-pane! layouts id)
+                   result)
          "inspect" (inspection/inspect editors command)
          "save-block" (source-files/save-block! (System/getProperty "user.dir") command)
          "save-workspace" (workspace-files/save-workspace! (System/getProperty "user.dir") command)

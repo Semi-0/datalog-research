@@ -93,6 +93,13 @@ late operator cell later receives a closure, that publisher reactively refines
 the same graph. Recursive calls point back to the caller closure ID and appear
 as graph cycles. No tracer, TUI, or scheduler hook is required.
 
+The publisher retains normalized `:graph/facts`; positive Leapfrog rules derive
+`:calls`, inverse `:called-by`, callable-environment, and application-frame
+relations. Call occurrence values expose `:call/from`, `:call/to`,
+`:call/called-by`, and `:call/environment`. The graph renders captured lexical
+environments and realized call frames through explicit `captures` and `extends`
+relationship nodes, preserving the cell/propagator topology invariant.
+
 Runtime node topology can also be inspected by a loaded Lain program. See
 [Compiler 2 One-Time Network Tracing](compiler-2-one-time-network-tracing.md).
 That tracer runs flat-GUR topology in a disposable network snapshot and is

@@ -261,6 +261,18 @@
         (is (empty? @editors)))
       (finally (layout/close! layouts) (runtime/close! editors)))))
 
+(deftest failed-runtime-close-does-not-retire-layout-state
+  (let [editors (atom {"a" :runtime-pane})
+        layouts (atom {"a" :layout-state})
+        layout-closes (atom [])]
+    (with-redefs [runtime/remove! (fn [_ _] (throw (ex-info "runtime close failed" {})))
+                  layout/close-pane! (fn [_ id] (swap! layout-closes conj id))]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"runtime close failed"
+                            (server/command! editors layouts {:op "close" :pane "a"})))
+      (is (= {"a" :runtime-pane} @editors))
+      (is (= {"a" :layout-state} @layouts))
+      (is (empty? @layout-closes)))))
+
 (deftest startup-frames-are-real-ordered-vijual-states
   (let [registry (atom {}) baseline (atom {})]
     (try

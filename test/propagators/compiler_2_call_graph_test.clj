@@ -8,6 +8,7 @@
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.operators.call-graph :as call-graph]
+            [propagators.compiler-2.operators.call-graph-relations :as call-relations]
             [propagators.compiler-2.runtime.application :as application]
             [propagators.datastructures.compound-object :as obj]
             [propagators.ids :as ids]
@@ -56,6 +57,25 @@
     (is (contains? (set (vals (:nodes graph))) "+"))
     (is (contains? prop-names 'call-graph))))
 
+(deftest call-relations-derive-both-directions-and-environment
+  (let [facts (call-relations/facts
+               [:call-from :occurrence :caller]
+               [:call-to :occurrence :callee]
+               [:call-status :occurrence :realized]
+               [:call-application :occurrence :application]
+               [:application-frame :application :frame]
+               [:frame-environment :frame :environment]
+               [:closure-environment :callee :environment])
+        derived (call-relations/derive-relations facts)]
+    (is (contains? (:calls derived)
+                   [:caller :callee :occurrence :realized]))
+    (is (contains? (:called-by derived)
+                   [:callee :caller :occurrence :realized]))
+    (is (contains? (:call-environment derived)
+                   [:occurrence :environment]))
+    (is (contains? (:environment-frame derived)
+                   [:environment :frame]))))
+
 (deftest potential-call-graph-represents-recursion-as-a-cycle
   (let [compiled (compiler/compile-source
                   "(let-cell [self graph] (define self (network [x out] (-> (self x out) out) (list out))) (call-graph self graph) graph)")
@@ -86,10 +106,21 @@
   (let [compiled (compiler/compile-source
                   "(let-cell [f out graph] (define f (network [x out] (-> (+ x 1) out) (list out))) (f 2 out) (call-graph f graph) graph)")
         network (run-compiled compiled)
-        graph (strongest network (:cell compiled))]
+        graph (strongest network (:cell compiled))
+        realized (for [[id info] (:values graph)
+                       :when (= :realized (:call/status info))]
+                   [id info])]
     (is (contains? (graph-statuses graph) :potential))
     (is (contains? (graph-statuses graph) :realized))
     (is (some (fn [[id info]] (and (= :realized (:call/status info)) (= "+" (get-in graph [:nodes id])))) (:values graph)))
+    (is (every? (fn [[_ info]]
+                  (and (:call/path info) (:call/from info) (:call/to info)
+                       (:call/called-by info)))
+                realized))
+    (is (seq (get-in graph [:graph/relations :calls])))
+    (is (seq (get-in graph [:graph/relations :called-by])))
+    (is (some #(= "central environment" %) (vals (:nodes graph))))
+    (is (some #(= "captures" %) (vals (:nodes graph))))
     (is (some #{:compiler-2/call-graph-application}
               (keep (fn [[_ entry]]
                       (when (prop/prop? entry) (prop/prop-name entry)))

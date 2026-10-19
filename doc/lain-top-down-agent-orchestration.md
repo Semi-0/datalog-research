@@ -84,6 +84,9 @@ hierarchy transformation and example domains, with orchestration in the entry.
 The same accepted source files, not a second prose-only workflow, must be used
 when later filling obligations and checking integration.
 
+The concrete incremental-development protocol and machine-readable run records
+live in [`experiments/top_down_constraints`](../experiments/top_down_constraints/README.md).
+
 Define the high-level transformations before filling in their lower-level
 operations. Express orchestration decisions in the same way: what information
 is required, which work depends on it, what candidate action is proposed, and

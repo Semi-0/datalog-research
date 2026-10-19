@@ -1,0 +1,25 @@
+;; Observe cell identities even when their values are unavailable.
+;; These are declared obligations, not a task inferred from every empty cell.
+(load-lain "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+(load-primitive-environment
+  "examples/lain/top_down/scanner.clj"
+  :examples.lain.top-down.scanner/primitive-bindings)
+(define inspect-obligation
+  (network (snapshot node label role)
+    (top-down:scan-node snapshot node label role)))
+(define scan-pred-or (observe-network pred-or inspect-obligation "pred-or" :implementation))
+(define scan-cell-name (observe-network cell-name-eq? inspect-obligation "cell-name-eq?" :implementation))
+(define scan-pred-not (observe-network pred-not inspect-obligation "pred-not" :implementation))
+(define scan-layers-view (observe-network layers-view inspect-obligation "layers-view" :implementation))
+(define scan-neighbor (observe-network direct-neighbor-of? inspect-obligation "direct-neighbor-of?" :implementation))
+(define scan-any (observe-network any? inspect-obligation "any?" :implementation))
+(define scan-juxapose (observe-network juxapose inspect-obligation "juxapose" :implementation))
+(define scan-target (observe-network target? inspect-obligation "target?" :derived))
+(define scan-rest (observe-network rest-nodes? inspect-obligation "rest-nodes?" :derived))
+(define scan-layered (observe-network layered-view inspect-obligation "layered-view" :derived))
+(define scan-view (observe-network view inspect-obligation "view" :derived))
+(define scan-input (observe-network traced-network inspect-obligation "traced-network" :input))
+(define top-down-report
+  (list scan-pred-or scan-cell-name scan-pred-not scan-layers-view scan-neighbor
+        scan-any scan-juxapose scan-target scan-rest scan-layered scan-view scan-input))
+(display top-down-report)

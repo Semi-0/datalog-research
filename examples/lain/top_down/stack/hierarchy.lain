@@ -1,31 +1,44 @@
-;; Requires structure.lain. Reads frozen captures, never newer live state.
-;; root-compound-occurrence: unique root; ambiguity is an explicit error.
-;; content-of-scope: actual semantic nodes and dataflow edges of this occurrence.
-;; direct-compound-children: immediate compound occurrences, not raw value shapes.
-;; occurrence-on-path?: compare occurrence identities, not function names.
-(def-cells root-compound-occurrence content-of-scope
-           direct-compound-children occurrence-on-path?)
+;; Requires structure.lain and traversal-state.lain. All reads are qualified by
+;; the frozen observation; no operation may fall back to a newer live runtime.
+(def-cells root-compound-occurrence occurrence-identity content-of-scope
+           direct-compound-children)
 
-;; High-level transformation, with mutually recursive network declarations.
-;; Missing readers stay unresolved instead of returning dummy empty hierarchies.
-(define child-stacks
-  (network [observation children path]
-    (if (= children :compiler-2/list-empty)
-      (list)
-      (cons
-        (scope->stack observation (car children) path)
-        (child-stacks observation (cdr children) path)))))
+(define expand-pending
+  (network [observation state out]
+    (when (traversal-empty? state)
+      (-> (finish-traversal state) out))
+    (->
+      (when (not (traversal-empty? state))
+        (let-cell [work remaining occurrence identity next registered connected]
+          (take-pending state work remaining)
+          (pending-occurrence work occurrence)
+          (occurrence-identity observation occurrence identity)
+
+          ;; Known occurrences connect through explicit references and are never
+          ;; expanded twice. Registration precedes child discovery for cycles.
+          (when (discovered-occurrence? remaining identity)
+            (connect-reference remaining work (stack-ref identity) next))
+          (when (not (discovered-occurrence? remaining identity))
+            (let-cell [content children owned]
+              (content-of-scope observation occurrence content)
+              (direct-compound-children observation occurrence children)
+              (register-occurrence remaining work identity content owned registered)
+              (connect-child-outputs registered identity children connected)
+              (enqueue-child-work connected identity children next)))
+
+          ;; Construction and scheduling precede this tail-position loop call.
+          (expand-pending observation next out)))
+      out)
+    (list out)))
 
 (define scope->stack
-  (network [observation occurrence path]
-    (if (occurrence-on-path? occurrence path)
-      (stack-ref occurrence)
-      (stack occurrence
-        (content-of-scope observation occurrence)
-        (child-stacks observation
-          (direct-compound-children observation occurrence)
-          (cons occurrence path))))))
-
-(define hierarchy->stacks
   (network [observation root]
-    (scope->stack observation root (list))))
+    (let-cell [initial completed]
+      (begin-traversal observation root initial)
+      (expand-pending observation initial completed)
+      (traversal-result completed))))
+
+;; Convenience discovery requires unique, complete root-membership evidence.
+(define hierarchy->stacks
+  (network [observation]
+    (scope->stack observation (root-compound-occurrence observation))))

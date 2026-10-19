@@ -4,7 +4,8 @@
             [graph.lain-editor.project-files :as files])
   (:import [java.nio.file Files Path]))
 
-(def operations #{"workspace-poll" "workspaces" "load-file" "load-status"})
+(def operations #{"workspace-poll" "workspaces" "load-file" "load-status"
+                  "closed-blocks" "reopen-closed" "reopen-status"})
 (def lease-ms 60000)
 
 (defn- require-client [state id]
@@ -15,6 +16,24 @@
     (when (> (Files/size target) (* 1024 1024))
       (throw (ex-info "Lain source exceeds the 1 MiB load limit" {})))
     {:source (Files/readString target) :filename (str (.getFileName target)) :path path}))
+
+(defn- pending-requests [client]
+  (filterv #(contains? #{"queued" "delivered"} (:status %)) (:requests client)))
+
+(defn- enqueue! [registry workspace client item]
+  (let [pending (pending-requests client)]
+    (when (>= (count pending) 16) (throw (ex-info "Workspace command queue is full" {})))
+    (let [history (take-last 48 (remove #(contains? #{"queued" "delivered"} (:status %))
+                                        (:requests client)))]
+      (swap! registry assoc-in [workspace :requests] (conj (into (vec history) pending) item))
+      item)))
+
+(defn- request-status [registry workspace request kind]
+  (let [client (require-client @registry workspace)
+        item (some #(when (= request (:request %)) %) (:requests client))]
+    (when-not (and item (= kind (:kind item)))
+      (throw (ex-info "Unknown or expired workspace request" {})))
+    (select-keys item [:request :pane :path :archive :status :error])))
 
 (defn- acknowledge [client ack]
   (if (nil? ack)
@@ -38,7 +57,8 @@
         "workspace-poll"
         (do
           (when-not (and (string? workspace) (not (str/blank? workspace))
-                         (map? snapshot) (string? (:desktop snapshot)) (vector? (:panes snapshot)))
+                         (map? snapshot) (string? (:desktop snapshot)) (vector? (:panes snapshot))
+                         (or (nil? (:closedBlocks snapshot)) (vector? (:closedBlocks snapshot))))
             (throw (ex-info "Invalid workspace heartbeat" {})))
           (let [existing (get @registry workspace)
                 client (-> (or existing {:requests []})
@@ -50,20 +70,36 @@
 
         "load-file"
         (let [client (require-client @registry workspace)
-              pending (filterv #(contains? #{"queued" "delivered"} (:status %)) (:requests client))]
-          (when (>= (count pending) 16) (throw (ex-info "Workspace load queue is full" {})))
-          (let [source (read-source root path)
-                id (str (random-uuid))
-                item (merge source {:request id :pane id :status "queued"
-                                    :desktop (get-in client [:snapshot :desktop])})
-                history (take-last 48 (remove #(contains? #{"queued" "delivered"} (:status %)) (:requests client)))]
-            (swap! registry assoc-in [workspace :requests] (conj (into (vec history) pending) item))
-            (select-keys item [:request :pane :status :path])))
+              source (read-source root path)
+              id (str (random-uuid))
+              item (merge source {:request id :pane id :kind "load-file" :status "queued"
+                                  :desktop (get-in client [:snapshot :desktop])})]
+          (select-keys (enqueue! registry workspace client item)
+                       [:request :pane :status :path]))
+
+        "closed-blocks"
+        (let [client (require-client @registry workspace)]
+          {:closedBlocks (get-in client [:snapshot :closedBlocks] [])})
+
+        "reopen-closed"
+        (let [client (require-client @registry workspace)
+              archive (:archive command)
+              desktop (:desktop command)
+              entries (get-in client [:snapshot :closedBlocks] [])]
+          (when-not (and (string? archive) (some #(= archive (:id %)) entries))
+            (throw (ex-info "Unknown closed block" {})))
+          (when-not (= desktop (get-in client [:snapshot :desktop]))
+            (throw (ex-info "Target desktop is not active in this workspace" {})))
+          (let [id (str (random-uuid))
+                item {:request id :pane id :archive archive :kind "reopen-closed"
+                      :status "queued" :desktop desktop}]
+            (select-keys (enqueue! registry workspace client item)
+                         [:request :pane :archive :status])))
 
         "load-status"
-        (let [client (require-client @registry workspace)
-              item (some #(when (= request (:request %)) %) (:requests client))]
-          (when-not item (throw (ex-info "Unknown or expired file-load request" {})))
-          (select-keys item [:request :pane :path :status :error]))
+        (request-status registry workspace request "load-file")
+
+        "reopen-status"
+        (request-status registry workspace request "reopen-closed")
 
         (throw (ex-info "Unknown workspace operation" {:op (:op command)}))))))

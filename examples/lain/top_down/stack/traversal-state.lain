@@ -1,0 +1,13 @@
+;; Generic explicit work-state boundary for tail-recursive expansion.
+;; These are primitive obligations, not opaque stack-building shortcuts.
+;;
+;; begin-traversal creates one pending root and no discoveries. take-pending
+;; returns stable first work and remaining state. discovered-occurrence? is
+;; support-sensitive and false only with complete membership. Registration is
+;; atomic and precedes children. Child positions are stable; incomplete tails
+;; remain pending. finish-traversal completes only with complete membership and
+;; no work. None of these operations acquires or executes source.
+(def-cells begin-traversal traversal-empty? take-pending pending-occurrence
+           discovered-occurrence? register-occurrence connect-reference
+           connect-child-outputs enqueue-child-work finish-traversal
+           traversal-result)

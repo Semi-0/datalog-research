@@ -173,6 +173,11 @@
   [application-id direction position]
   [:compiler-2/application application-id direction position])
 
+(defn lexical-frame-id
+  "Stable lexical frame identity for a closure application."
+  [application-id]
+  (gur/stable-node-id [application-id :lexical-frame]))
+
 (defn concrete-boundary
   [application-id direction position]
   (fn [source-id target-id]
@@ -441,7 +446,7 @@
         application-id (:app-key gur-context)
         {:keys [parameters input-ids outputs]}
         (closure-call closure-info argument-ids result-id)
-        frame-id (gur/stable-node-id [application-id :lexical-frame])
+        frame-id (lexical-frame-id application-id)
         base (nb/begin (:network gur-context))
         compiled
         (-> (frame-topology base application-id lexical-env-id frame-id

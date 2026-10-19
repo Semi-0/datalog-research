@@ -1,0 +1,17 @@
+;; Pinned acceptance declarations for stack-spec-2026-10-20-r1.
+;; Each row is (fixture-id expected-outcome required-observations).
+(define stack-fixture-expectations
+  (list
+    (list :distinct-calls :satisfied (list :complete-roots :complete-children))
+    (list :sibling-sharing :satisfied (list :complete-roots :complete-children))
+    (list :reference-cycle :satisfied (list :complete-roots :complete-children))
+    (list :deep-tail-expansion :satisfied (list :complete-roots :complete-children))
+    (list :partial-child-tail :pending (list :incomplete-children))
+    (list :conflicting-child-facts :contradictory (list :complete-roots))
+    (list :ambiguous-roots :violated (list :complete-roots))
+    (list :withdrawn-source :inactive (list :withdrawn-support))
+    (list :late-refinement :satisfied (list :complete-roots :complete-children))))
+
+(define stack-edit-sequence
+  (list :initial-pending :install-reader :unrelated-edit :replace-reader
+        :withdraw-reader :restore-reader :failed-commit :no-op-edit))

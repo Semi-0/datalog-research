@@ -4,18 +4,24 @@
 (define import load-lain)
 (import "examples/lain/top_down/stack/structure.lain")
 (import "examples/lain/top_down/stack/constraints.lain")
+(import "examples/lain/top_down/stack/traversal-state.lain")
 (import "examples/lain/top_down/stack/hierarchy.lain")
+(import "examples/lain/top_down/stack/fixtures.lain")
 (import "examples/lain/top_down/stack/example.lain")
+
+(define stack-specification-revision :stack-spec-2026-10-20-r1)
 
 ;; High-level orchestration stays in Lain; imported domains own their contracts.
 ;; Capture is real, but its hierarchy readers and struct are explicit holes.
 (define captured (observe-semantic-captured example-result :both))
 (define root-occurrence (root-compound-occurrence captured))
-(define stacks (hierarchy->stacks captured root-occurrence))
+(define stacks (scope->stack captured root-occurrence))
 (define checks (stack-constraints captured stacks))
 (define design
   (list
     (list :example-result example-result)
+    (list :specification-revision stack-specification-revision)
+    (list :fixture-expectations stack-fixture-expectations)
     (list :data stacks)
     (list :constraints checks)))
 

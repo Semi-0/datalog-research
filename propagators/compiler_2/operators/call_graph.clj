@@ -3,6 +3,7 @@
   (:require [propagators.cells.value :as value]
             [propagators.cells.cell :as cell]
             [propagators.compiler-2.operators.call-graph-syntax :as syntax]
+            [propagators.compiler-2.operators.call-graph-relations :as relations]
             [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
@@ -64,33 +65,53 @@
       (str (cell/cell-name entry))
       fallback)))
 
+(defn- callable-environment [candidate]
+  (when (application/compiler-callable? candidate)
+    (get candidate application/captured-environment-key)))
+
+(defn- network-callable-environment [network id]
+  (let [candidate (net/network-cell-strongest network id)]
+    (when-not (value/unusable? candidate)
+      (callable-environment candidate))))
+
 (defn potential-call-graph
   "Build the potential call graph stored in one closure body."
   [network closure-id closure-info]
-  (reduce
-   (fn [graph {:keys [path operator-label] :as site}]
-     (let [call-id (stable-node-id :potential closure-id path)
-           callee-id (potential-callee-id network closure-id closure-info site)
-           callee-label (if (= closure-id callee-id)
-                          (closure-label closure-info)
-                          operator-label)]
-       (semantic-trace/graph-union
-        graph
-        {:nodes (assoc {closure-id (callable-name network closure-id (closure-label closure-info))
-                        call-id operator-label}
-                       callee-id callee-label)
-         :node-kinds (assoc {closure-id :cell call-id :propagator} callee-id :cell)
-         :dataflow/representation :callgraph
-         :values {call-id {:call/status :potential
-                           :call/path path
-                           :call/operator operator-label}}
-         :edges [[closure-id call-id] [call-id callee-id]]})))
-   (semantic-trace/graph-union
-    {:nodes {closure-id (callable-name network closure-id (closure-label closure-info))}
-     :node-kinds {closure-id :cell}
-     :dataflow/representation :callgraph})
-   (call-sites (closure-value/closure-body closure-info)
-               (set (closure-value/closure-inputs closure-info)))))
+  (relations/project
+   (reduce
+    (fn [graph {:keys [path operator-label] :as site}]
+      (let [call-id (stable-node-id :potential closure-id path)
+            callee-id (potential-callee-id network closure-id closure-info site)
+            callee-label (if (= closure-id callee-id)
+                           (closure-label closure-info)
+                           operator-label)]
+        (semantic-trace/graph-union
+         graph
+         {:nodes (assoc {closure-id (callable-name network closure-id (closure-label closure-info))
+                         call-id operator-label}
+                        callee-id callee-label)
+          :node-kinds (assoc {closure-id :cell call-id :propagator} callee-id :cell)
+          :dataflow/representation :callgraph
+          :values {call-id {:call/status :potential
+                            :call/path path
+                            :call/operator operator-label}}
+          :graph/facts
+          (relations/facts
+           [:call-from call-id closure-id]
+           [:call-to call-id callee-id]
+           [:call-status call-id :potential]
+           [:call-path call-id path]
+           [:closure-environment closure-id (closure-value/closure-env closure-info)]
+           [:closure-environment callee-id
+            (network-callable-environment network callee-id)]
+           [:central-environment (closure-value/closure-env closure-info)])
+          :edges [[closure-id call-id] [call-id callee-id]]})))
+    (semantic-trace/graph-union
+     {:nodes {closure-id (callable-name network closure-id (closure-label closure-info))}
+      :node-kinds {closure-id :cell}
+      :dataflow/representation :callgraph})
+    (call-sites (closure-value/closure-body closure-info)
+                (set (closure-value/closure-inputs closure-info))))))
 
 (defn- realized-callee-label
   [operator]
@@ -110,6 +131,9 @@
   ([caller-id application-id operator-id operator]
    (realized-call-graph caller-id application-id operator-id operator nil))
   ([caller-id application-id operator-id operator call-label]
+   (realized-call-graph caller-id application-id operator-id operator call-label {}))
+  ([caller-id application-id operator-id operator call-label
+    {:keys [path caller-environment-id callee-environment-id frame-id]}]
    (let [callee-label (cond
                         (= caller-id operator-id)
                         "closure"
@@ -128,25 +152,54 @@
                     operator-id callee-label)
       :node-kinds (assoc {caller-id :cell application-id :propagator} operator-id :cell)
       :dataflow/representation :callgraph
-      :values {application-id {:call/status :realized
-                               :call/application application-id
-                               :call/operator operator-id}}
+      :values {application-id (cond-> {:call/status :realized
+                                       :call/application application-id
+                                       :call/operator operator-id}
+                                path (assoc :call/path path))}
+      :graph/facts
+      (relations/facts
+       [:call-from application-id caller-id]
+       [:call-to application-id operator-id]
+       [:call-status application-id :realized]
+       [:call-path application-id path]
+       [:call-application application-id application-id]
+       [:application-frame application-id frame-id]
+       [:frame-environment frame-id callee-environment-id]
+       [:closure-environment caller-id caller-environment-id]
+       [:closure-environment operator-id callee-environment-id]
+       [:central-environment caller-environment-id])
       :edges [[caller-id application-id]
               [application-id operator-id]]}))))
 
 (defn- application-call-messages
-  [caller-id application-id operator-id call-label graph-id network]
+  [caller-id application-id operator-id call-label path graph-id network]
   (let [operator (net/network-cell-strongest network operator-id)]
     (if (value/unusable? operator)
       []
-      [(message graph-id
-                (realized-call-graph caller-id application-id
-                                     operator-id operator call-label))])))
+      (let [caller (net/network-cell-strongest network caller-id)
+            topology (application/application-topology network application-id)
+            closure-application?
+            (closure-value/closure-info?
+             (application/callable-declaration operator))]
+        [(message graph-id
+                  (realized-call-graph
+                   caller-id application-id operator-id operator call-label
+                   {:path path
+                    :caller-environment-id (callable-environment caller)
+                    :callee-environment-id
+                    (or (:captured-environment-id topology)
+                        (callable-environment operator))
+                    :frame-id (or (:frame-id topology)
+                                  (when closure-application?
+                                    (application/lexical-frame-id
+                                     application-id)))}))]))))
 
 (defn p:application-call
   "Publish one connected application into its caller's stable graph cell."
-  [caller-id application-id operator-id call-label]
-  (let [graph-id (graph-cell-id caller-id)]
+  ([caller-id application-id operator-id call-label]
+   (p:application-call caller-id application-id operator-id call-label nil))
+  ([caller-id application-id operator-id call-label path]
+   (let [graph-id (graph-cell-id caller-id)]
     (fn [network]
       (let [network (reduce nb/ensure-cell network
                             [caller-id operator-id graph-id])
@@ -156,12 +209,12 @@
               :compiler-2/call-graph-application
               (fn [_inputs _outputs current-net]
                 (application-call-messages caller-id application-id operator-id
-                                           call-label
+                                           call-label path
                                            graph-id current-net))
-              [operator-id]
+              [caller-id operator-id]
               [graph-id])
              network)]
-        [prop-id network]))))
+        [prop-id network])))))
 
 (defn- call-graph-messages
   [closure-id graph-id out-id network]
@@ -171,9 +224,10 @@
     (if-not (closure-value/closure-info? closure-info)
       []
       [(message out-id
-                (semantic-trace/graph-union
-                 (potential-call-graph network closure-id closure-info)
-                 realized))])))
+                (relations/project
+                 (semantic-trace/graph-union
+                  (potential-call-graph network closure-id closure-info)
+                  realized)))])))
 
 (defn p:call-graph
   "Construct a named propagator exposing potential and realized closure calls."

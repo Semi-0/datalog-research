@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+if [[ -d "$script_dir/.repo" ]]; then
+  workspace_dir=$script_dir
+  manifest_template="$script_dir/.manifest-source/default.xml"
+else
+  source_dir=$(CDPATH= cd -- "$script_dir/.." && pwd -P)
+  workspace_dir="$(dirname -- "$source_dir")/lain-workspace"
+  manifest_template="$source_dir/multi-repo/default.xml"
+fi
+
+usage() {
+  echo "Usage: $0 [--workspace PATH] init|sync|status|list|test|forall [repo arguments]"
+  echo "  init                  Create a separate workspace and local Git manifest"
+  echo "  sync [projects...]    Fetch/check out manifest revisions; defaults to all"
+  echo "  status [projects...]  Show repository status; defaults to all"
+  echo "  list [projects...]    List managed repositories"
+  echo "  test [projects...]    Run clojure -M:test in every selected repository"
+  echo "  forall [args...]      Dispatch through repo forall, e.g. -c 'git status --short'"
+}
+
+if [[ ${1:-} == --workspace ]]; then
+  if [[ $# -lt 2 || -z $2 ]]; then
+    usage >&2
+    exit 2
+  fi
+  workspace_dir=$2
+  shift 2
+fi
+
+command=${1:-help}
+if [[ $# -gt 0 ]]; then
+  shift
+fi
+
+case "$command" in
+  help|-h|--help)
+    usage
+    exit 0
+    ;;
+  init|sync|status|list|test|forall) ;;
+  *)
+    echo "Unknown workspace command: $command" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+if ! command -v repo >/dev/null 2>&1; then
+  echo "Google repo is required. On macOS: brew install repo" >&2
+  exit 1
+fi
+
+if [[ $command == init ]]; then
+  if [[ $# -ne 0 ]]; then
+    echo "init takes no additional arguments" >&2
+    exit 2
+  fi
+  if [[ -d "$workspace_dir/.repo" ]]; then
+    echo "Workspace already initialized: $workspace_dir"
+    exit 0
+  fi
+  if [[ ! -f "$manifest_template" ]]; then
+    echo "Manifest template is missing: $manifest_template" >&2
+    exit 1
+  fi
+  if [[ -d "$workspace_dir" && -n $(find "$workspace_dir" -mindepth 1 -maxdepth 1 -print -quit) ]]; then
+    echo "Refusing to initialize a nonempty directory: $workspace_dir" >&2
+    exit 1
+  fi
+  mkdir -p "$workspace_dir/.manifest-source"
+  workspace_dir=$(CDPATH= cd -- "$workspace_dir" && pwd -P)
+  cp "$manifest_template" "$workspace_dir/.manifest-source/default.xml"
+  cp "$0" "$workspace_dir/workspace"
+  chmod +x "$workspace_dir/workspace"
+  git -C "$workspace_dir/.manifest-source" init -b main
+  git -C "$workspace_dir/.manifest-source" add -- default.xml
+  git -C "$workspace_dir/.manifest-source" \
+    -c user.name='Repo workspace bootstrap' \
+    -c user.email='repo-workspace@localhost' \
+    commit --no-gpg-sign -m 'Initialize local workspace manifest'
+  cd -- "$workspace_dir"
+  repo init -u "$workspace_dir/.manifest-source" -b main -m default.xml --no-clone-bundle
+  echo "Initialized $workspace_dir. Run: $workspace_dir/workspace sync"
+  exit 0
+fi
+
+if [[ ! -d "$workspace_dir/.repo" ]]; then
+  echo "Workspace is not initialized: $workspace_dir. Run $0 init first." >&2
+  exit 1
+fi
+
+cd -- "$workspace_dir"
+case "$command" in
+  sync) exec repo sync -c -j2 "$@" ;;
+  status) exec repo status "$@" ;;
+  list) exec repo list "$@" ;;
+  test) exec repo forall -p -j1 "$@" -c 'clojure -M:test' ;;
+  forall) exec repo forall -p "$@" ;;
+esac

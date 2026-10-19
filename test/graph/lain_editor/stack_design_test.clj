@@ -20,7 +20,7 @@
         session (:session (editor/prepare source []))]
     (try
       (doseq [name '[stack stack-ref stack-identity stack-content stack-children
-                    stack-constraints child-stacks scope->stack hierarchy->stacks
+                    stack-constraints expand-pending scope->stack hierarchy->stacks
                     example-stage example-pipeline]]
         (is (closure/closure-info?
              (application/callable-declaration (binding-value session name)))
@@ -29,9 +29,16 @@
           "The concrete compound network evaluates independently of design holes")
       (is (capture/fragment? (binding-value session 'captured))
           "The example uses an actual frozen semantic capture")
+      (is (= :stack-spec-2026-10-20-r1
+             (binding-value session 'stack-specification-revision)))
+      (is (not (value/nothing? (binding-value session 'stack-fixture-expectations))))
       (doseq [name '[struct stack-shape? scope-content? direct-children?
                     reference-integrity? root-compound-occurrence content-of-scope
-                    direct-compound-children occurrence-on-path?]]
+                    direct-compound-children occurrence-identity begin-traversal
+                    traversal-empty? take-pending pending-occurrence
+                    discovered-occurrence? register-occurrence connect-reference
+                    connect-child-outputs enqueue-child-work finish-traversal
+                    traversal-result]]
         (is (value/nothing? (binding-value session name))
             (str name " remains an explicit implementation obligation")))
       (is (value/nothing? (binding-value session 'root-occurrence)))

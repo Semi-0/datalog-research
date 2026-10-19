@@ -10,7 +10,7 @@ demonstrate the public tracing layers against independent, current pane sessions
 | Scope | `04-roots-semantic.lain`, `05-children.lain` | Root shorthand and one explicit child-call body |
 | Observers | `06-downstream.lain`, `07-both.lain`, `10-live-observer.lain` | Lain-defined retained traversal and the non-retained live sampler |
 | Presentation | `08-caller-view.lain`, `09-replay.lain` | Caller projection, values, recording, range selection, reduction, and playback |
-| Call graph | `12-call-graph.lain` | Potential call sites combined with applications realized by the live execution |
+| Call graph | `12-call-graph.lain` | Datalog-derived calls/called-by relations, potential and realized calls, and their lexical environment and call frames |
 
 The gallery is one editor workspace session: importing `workspace.json` restores
 its desktops, panes, sources, and displays, then runs each pane in its own live
@@ -25,7 +25,11 @@ remain focused regression and teaching examples.
 The call-graph pane runs `pipeline` before displaying `(call-graph pipeline)`.
 Its `callgraph` semantic representation therefore distinguishes what the
 closure declares from the applications that were actually connected, while
-remaining compatible with the editor's ordinary graph renderer.
+remaining compatible with the editor's ordinary graph renderer. The call
+occurrence values name their `:call/from`, `:call/to`, and inverse
+`:call/called-by` relationships. `captures` and `extends` nodes connect the
+closures and realized call frames to the central lexical environment without
+breaking the runtime graph's cell/propagator alternation.
 
 `semantic-snapshot` and `traverse` are the lower-level primitives composed by
 `semantic_traversal.lain`; the gallery exercises them through its public

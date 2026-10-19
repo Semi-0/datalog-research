@@ -12,6 +12,8 @@
 
 ; Realize the pipeline once so the graph contains both declared call sites
 ; and the applications connected by this execution.
+; Datalog derives calls/called-by relationships and connects each closure and
+; realized call frame to the shared central lexical environment.
 (define result
   (pipeline 4))
 

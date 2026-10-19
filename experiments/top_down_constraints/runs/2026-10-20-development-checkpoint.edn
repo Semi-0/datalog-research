@@ -1,0 +1,29 @@
+{:run/id "2026-10-20-development-checkpoint"
+ :repository/revision "ff382f3ec7ec42f254716b91699e569c086948c8"
+ :specification/revision :stack-spec-2026-10-20-r1
+ :dirty-source/hashes
+ {"doc/stack-editor-constraint-first-plan.md" "ea6e0aafaa19529afdcd8d75e6de844beaa127ae3b7b9b7e239b1b5278ac06d4"
+  "examples/lain/top_down/stack-design.lain" "b68a6b7422d7bc5bd0bc1d875965ae8f9042cea35e46c3af09d00657020da48e"
+  "examples/lain/top_down/stack/hierarchy.lain" "5dae573064a855f1a07a1f1de31cb2090ca0399cb0e87428a876c20b76a04c69"
+  "graph/lain_editor/frontend/model.cljc" "6759ec39c2ac8764bbe8955189e22e67eae6c90a379b4c5bd47d943382e6be06"
+  "graph/lain_editor/constraint_checkpoint.clj" "6c115f103aa1a275cb5f6ad8603a6ae3b6b92c8f3c0eeb5945c2e164e651b93c"}
+ :implementation-premise/versions []
+ :fixtures [:distinct-calls :sibling-sharing :reference-cycle
+            :deep-tail-expansion :partial-child-tail :conflicting-child-facts
+            :ambiguous-roots :withdrawn-source :late-refinement]
+ :edit-sequence [:initial-pending :install-reader :unrelated-edit :replace-reader
+                 :withdraw-reader :restore-reader :failed-commit :no-op-edit]
+ :environment {:os "Darwin 25.6.0 arm64" :java "OpenJDK 27"
+               :clojure-cli "1.12.6.1673"}
+ :budgets {:sample-timeout-ms 60000 :warmups 3 :measured-repetitions 5}
+ :instrumentation {:checkpoint-capture true :activation-profiling false
+                   :browser-latency false}
+ :verification [{:command "clojure -M:test" :passed 6419 :failed 0 :errors 0}
+                {:command "clojure -M:editor/cljs-test; node target/lain-editor/tests.js"
+                 :tests 73 :passed 671 :failed 0 :errors 0}
+                {:command "cargo test --locked" :tests 2 :failed 0}]
+ :samples []
+ :outcome {:status :development-checkpoint
+           :membership-complete? false
+           :benchmark-complete? false
+           :semantic-acceptance :pending}}

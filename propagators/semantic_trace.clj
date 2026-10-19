@@ -125,6 +125,13 @@
       (assoc :bidirectional-edges (set (mapcat :bidirectional-edges graphs)))
       (some #(contains? % :graph/modifiers) graphs)
       (assoc :graph/modifiers (set (mapcat :graph/modifiers graphs)))
+      (some #(contains? % :graph/facts) graphs)
+      (assoc :graph/facts
+             (apply merge-with set/union (map #(or (:graph/facts %) {}) graphs)))
+      (some #(contains? % :graph/relations) graphs)
+      (assoc :graph/relations
+             (apply merge-with set/union
+                    (map #(or (:graph/relations %) {}) graphs)))
       scope (assoc :dataflow/scope scope)
       projection (assoc :dataflow/projection projection)
        representation (assoc :dataflow/representation representation)

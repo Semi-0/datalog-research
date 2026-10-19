@@ -115,6 +115,29 @@ retain the existing loopback-only and same-origin HTTP policy. Workspace
 snapshots expose pane names and identifiers, not unsaved source. This is a local
 development API, not an authenticated remote-control service.
 
+Closing a block archives its exact editable source descriptor in the workspace
+after runtime shutdown succeeds. Use the **Reopen closed block** entries in the
+workspace menu or command palette. Reopening creates a fresh pane in **Not run**
+state; Run explicitly replays the archived base source and extension sequence.
+Archives are saved in workspace JSON, hold at most 64 entries, and contain no
+runtime session or generation capability.
+
+The same acknowledged channel exposes metadata-only listing and reopen requests:
+
+```sh
+curl -sS -H 'Content-Type: application/json' \
+  --data '{"op":"closed-blocks","workspace":"WORKSPACE-ID"}' \
+  http://127.0.0.1:4782/api
+
+curl -sS -H 'Content-Type: application/json' \
+  --data '{"op":"reopen-closed","workspace":"WORKSPACE-ID","archive":"ARCHIVE-ID","desktop":"DESKTOP-ID"}' \
+  http://127.0.0.1:4782/api
+```
+
+Query completion with `reopen-status`. Lost deliveries are idempotent under the
+request's assigned fresh pane identity. Metadata listing includes title,
+filename, archive identity, and close order, never archived draft text.
+
 Use one browser workspace per server process: tabs connected to the same process
 share its editor-session registry. Closing a tile stops its clocks and traces;
 closing the server releases all owned sessions. Closing only the tab leaves the

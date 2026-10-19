@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="github" alias="origin" fetch="https://github.com/Semi-0/" />
+  <default remote="github" revision="refs/heads/main" sync-j="2" />
+
+  <project name="lain-infrastructure" path="lain-infrastructure" groups="infrastructure" />
+  <project name="lain-compiler" path="lain-compiler" groups="compiler" />
+  <project name="lain-runtime-clojure" path="lain-runtime-clojure" groups="runtime" />
+  <project name="wired" path="wired" revision="refs/heads/codex/xr-regression-followup" groups="ui" />
+  <project name="datalog-research" path="datalog-research" groups="research" />
+</manifest>

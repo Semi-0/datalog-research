@@ -24,7 +24,8 @@
    "09-replay" ["collect-semantic-history"]
    "10-live-observer" ["observe-semantic" ":upstream"]
    "11-clock-history" ["clock-in 500" "collect-semantic-history"]
-   "12-call-graph" ["call-graph pipeline" "pipeline 4"]})
+   "12-call-graph" ["call-graph pipeline" "pipeline 4"
+                    "Datalog derives calls/called-by"]})
 
 (defn- inspect-pane [editors pane]
   (inspection/inspect
@@ -88,6 +89,20 @@
                     statuses (set (keep :call/status (vals (:values graph))))]
                 (is (= "callgraph" (get-in result [:graph :representation])))
                 (is (= #{:potential :realized} statuses))
+                (is (seq (get-in graph [:graph/relations :calls])))
+                (is (seq (get-in graph [:graph/relations :called-by])))
+                (is (some (fn [[_ value]]
+                            (and (:call/from value) (:call/to value)
+                                 (:call/called-by value)))
+                          (:values graph)))
+                (is (some #(= "central environment" (:label %))
+                          (get-in result [:graph :nodes])))
+                (is (some #(= "captures" (:label %))
+                          (get-in result [:graph :nodes])))
+                (is (some #(= "extends" (:label %))
+                          (get-in result [:graph :nodes])))
+                (is (some #(= "call frame" (:label %))
+                          (get-in result [:graph :nodes])))
                 (is (some #(= "shift" (:label %))
                           (get-in result [:graph :nodes])))
                 (is (some #(= "square" (:label %))

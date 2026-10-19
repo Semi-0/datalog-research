@@ -1,0 +1,13 @@
+;; Independent view-development block: the graph is an intentionally open input.
+;; No AMB/replay program or dummy implementation is needed to inspect these holes.
+(def-cells traced-network)
+(define target?
+  (pred-or (cell-name-eq? 'result)
+           (cell-name-eq? 'valid)))
+(define rest-nodes? (pred-not target?))
+(define layered-view
+  (layers-view target?
+               (direct-neighbor-of? (list '<= '= '+ '*))
+               (direct-neighbor-of? (list 'amv))
+               any?))
+(define view (juxapose (layered-view traced-network) traced-network))

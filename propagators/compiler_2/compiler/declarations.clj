@@ -104,7 +104,8 @@
     (let [[prop-id network]
           ((call-graph/p:application-call
             caller-id app-id operator-id
-            (application-operator-label operator-ast))
+            (application-operator-label operator-ast)
+            (:path state))
            (:net state))]
       (-> state
           (assoc :net network)
