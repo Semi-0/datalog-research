@@ -29,6 +29,26 @@
 (defn- base [content]
   (datum/layer-value (strongest content) :base))
 
+(deftest explicit-retirement-preserves-projection-and-alternative-recovery
+  (let [a1 (premise :A 1 :active) a2 (premise :A 2 :retracted)
+        b1 (premise :B 1 :active)
+        original (collection/content {:base 21 :support #{a1 b1} :premise-state #{a1 b1}})
+        withdrawn (collection/merge-content original (collection/content {:premise-state #{a2}}))
+        retired (collection/retire-superseded withdrawn)
+        recovered (collection/merge-content retired
+                                            (collection/content {:base 21 :support #{b1}
+                                                                 :premise-state #{a2 b1}}))
+        conflict (collection/merge-content original
+                                           (collection/content {:premise-state #{(premise :A 1 :retracted)}}))]
+    (is (= (strongest withdrawn) (strongest retired)))
+    (is (= retired (collection/retire-superseded retired)))
+    (is (= #{(:source a1) (:source b1)} (collection/referenced-sources retired)))
+    (is (= 21 (base recovered)))
+    (is (= #{b1} (datum/support-of (strongest recovered))))
+    (is (= conflict (collection/retire-superseded conflict)))
+    (is (= 21 (base original)))
+    (is (= value/nothing (collection/retire-superseded value/nothing)))))
+
 (deftest normalization-and-validation
   (let [a (premise :A 1 :active)
         raw {:base {:unwrapped? false} :support #{a}}

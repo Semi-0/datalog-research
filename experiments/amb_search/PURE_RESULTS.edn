@@ -1,0 +1,2004 @@
+{:measured-on "2026-10-19",
+ :java "27",
+ :protocol
+ {:pure-warmups 1,
+  :pure-samples 3,
+  :transitive-warmups 1,
+  :transitive-samples 2,
+  :cache :disabled,
+  :setup :excluded,
+  :measured-jvms :sequential},
+ :pure
+ {:domain 5,
+  :modes
+  {:checkpoint-dfs
+   {:samples
+    [{:status :solution,
+      :solution [3 4 5],
+      :run-ms 559.466042,
+      :allocated-bytes 725068624,
+      :metrics
+      {:withdrawals 0,
+       :predicate-checks 70,
+       :decisions 87,
+       :activations 6946,
+       :peak-env 33,
+       :resolution-calls 0,
+       :restores 84,
+       :leaves 70,
+       :max-depth 3}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 492.812042,
+      :allocated-bytes 724947016,
+      :metrics
+      {:withdrawals 0,
+       :predicate-checks 70,
+       :decisions 87,
+       :activations 6946,
+       :peak-env 33,
+       :resolution-calls 0,
+       :restores 84,
+       :leaves 70,
+       :max-depth 3}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 510.003959,
+      :allocated-bytes 724912608,
+      :metrics
+      {:withdrawals 0,
+       :predicate-checks 70,
+       :decisions 87,
+       :activations 6946,
+       :peak-env 33,
+       :resolution-calls 0,
+       :restores 84,
+       :leaves 70,
+       :max-depth 3}}],
+    :median-allocated-bytes 724947016,
+    :min-ms 492.812042,
+    :max-ms 559.466042,
+    :median-ms 510.003959,
+    :status :solution,
+    :setup-ms 62.866458,
+    :solution [3 4 5],
+    :metrics
+    {:withdrawals 0,
+     :predicate-checks 70,
+     :decisions 87,
+     :activations 6946,
+     :peak-env 33,
+     :resolution-calls 0,
+     :restores 84,
+     :leaves 70,
+     :max-depth 3}},
+   :withdrawal-dfs
+   {:samples
+    [{:status :solution,
+      :solution [3 4 5],
+      :run-ms 1047.280125,
+      :allocated-bytes 1366853296,
+      :metrics
+      {:withdrawals 84,
+       :predicate-checks 70,
+       :decisions 87,
+       :activations 13582,
+       :peak-env 33,
+       :resolution-calls 0,
+       :restores 0,
+       :leaves 70,
+       :max-depth 3}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 1015.500333,
+      :allocated-bytes 1367347376,
+      :metrics
+      {:withdrawals 84,
+       :predicate-checks 70,
+       :decisions 87,
+       :activations 13582,
+       :peak-env 33,
+       :resolution-calls 0,
+       :restores 0,
+       :leaves 70,
+       :max-depth 3}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 944.862916,
+      :allocated-bytes 1367366144,
+      :metrics
+      {:withdrawals 84,
+       :predicate-checks 70,
+       :decisions 87,
+       :activations 13582,
+       :peak-env 33,
+       :resolution-calls 0,
+       :restores 0,
+       :leaves 70,
+       :max-depth 3}}],
+    :median-allocated-bytes 1367347376,
+    :min-ms 944.862916,
+    :max-ms 1047.280125,
+    :median-ms 1015.500333,
+    :status :solution,
+    :setup-ms 62.866458,
+    :solution [3 4 5],
+    :metrics
+    {:withdrawals 84,
+     :predicate-checks 70,
+     :decisions 87,
+     :activations 13582,
+     :peak-env 33,
+     :resolution-calls 0,
+     :restores 0,
+     :leaves 70,
+     :max-depth 3}},
+   :learning-amb
+   {:samples
+    [{:status :solution,
+      :solution [3 4 5],
+      :run-ms 1035.306208,
+      :allocated-bytes 1410689288,
+      :metrics
+      {:activations 12223,
+       :peak-env 55,
+       :nogoods 6,
+       :predicate-checks 55,
+       :resolution-calls 384}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 1090.587458,
+      :allocated-bytes 1410804568,
+      :metrics
+      {:activations 12223,
+       :peak-env 55,
+       :nogoods 6,
+       :predicate-checks 55,
+       :resolution-calls 384}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 951.237792,
+      :allocated-bytes 1411275368,
+      :metrics
+      {:activations 12223,
+       :peak-env 55,
+       :nogoods 6,
+       :predicate-checks 55,
+       :resolution-calls 384}}],
+    :median-allocated-bytes 1410804568,
+    :min-ms 951.237792,
+    :max-ms 1090.587458,
+    :median-ms 1035.306208,
+    :status :solution,
+    :setup-ms 17.377375,
+    :solution [3 4 5],
+    :metrics
+    {:activations 12223,
+     :peak-env 55,
+     :nogoods 6,
+     :predicate-checks 55,
+     :resolution-calls 384}},
+   :incremental-learning
+   {:samples
+    [{:status :solution,
+      :solution [3 4 5],
+      :run-ms 991.759625,
+      :allocated-bytes 1415539088,
+      :metrics
+      {:activations 12114,
+       :peak-env 55,
+       :nogoods 6,
+       :predicate-checks 55,
+       :resolution-calls 190}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 1018.796958,
+      :allocated-bytes 1415594648,
+      :metrics
+      {:activations 12114,
+       :peak-env 55,
+       :nogoods 6,
+       :predicate-checks 55,
+       :resolution-calls 190}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 948.358125,
+      :allocated-bytes 1415695176,
+      :metrics
+      {:activations 12114,
+       :peak-env 55,
+       :nogoods 6,
+       :predicate-checks 55,
+       :resolution-calls 190}}],
+    :median-allocated-bytes 1415594648,
+    :min-ms 948.358125,
+    :max-ms 1018.796958,
+    :median-ms 991.759625,
+    :status :solution,
+    :setup-ms 16.374916,
+    :solution [3 4 5],
+    :metrics
+    {:activations 12114,
+     :peak-env 55,
+     :nogoods 6,
+     :predicate-checks 55,
+     :resolution-calls 190}},
+   :network-checkpoint
+   {:samples
+    [{:status :solution,
+      :solution [3 4 5],
+      :run-ms 585.390166,
+      :allocated-bytes 832373064,
+      :metrics
+      {:activations 7211,
+       :peak-env 33,
+       :decisions 87,
+       :leaves 70,
+       :peak-frontier 13,
+       :predicate-checks 70,
+       :resolution-calls 0}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 612.223084,
+      :allocated-bytes 831341184,
+      :metrics
+      {:activations 7211,
+       :peak-env 33,
+       :decisions 87,
+       :leaves 70,
+       :peak-frontier 13,
+       :predicate-checks 70,
+       :resolution-calls 0}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 555.470833,
+      :allocated-bytes 831370608,
+      :metrics
+      {:activations 7211,
+       :peak-env 33,
+       :decisions 87,
+       :leaves 70,
+       :peak-frontier 13,
+       :predicate-checks 70,
+       :resolution-calls 0}}],
+    :median-allocated-bytes 831370608,
+    :min-ms 555.470833,
+    :max-ms 612.223084,
+    :median-ms 585.390166,
+    :status :solution,
+    :setup-ms 72.105541,
+    :solution [3 4 5],
+    :metrics
+    {:activations 7211,
+     :peak-env 33,
+     :decisions 87,
+     :leaves 70,
+     :peak-frontier 13,
+     :predicate-checks 70,
+     :resolution-calls 0}},
+   :domain-network
+   {:samples
+    [{:status :solution,
+      :solution [3 4 5],
+      :run-ms 1.549125,
+      :allocated-bytes 1503520,
+      :metrics
+      {:activations 6,
+       :peak-env 6,
+       :decisions 0,
+       :leaves 1,
+       :peak-frontier 1,
+       :predicate-checks 127,
+       :resolution-calls 0}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 1.327417,
+      :allocated-bytes 1502416,
+      :metrics
+      {:activations 6,
+       :peak-env 6,
+       :decisions 0,
+       :leaves 1,
+       :peak-frontier 1,
+       :predicate-checks 127,
+       :resolution-calls 0}}
+     {:status :solution,
+      :solution [3 4 5],
+      :run-ms 1.308708,
+      :allocated-bytes 1502888,
+      :metrics
+      {:activations 6,
+       :peak-env 6,
+       :decisions 0,
+       :leaves 1,
+       :peak-frontier 1,
+       :predicate-checks 127,
+       :resolution-calls 0}}],
+    :median-allocated-bytes 1502888,
+    :min-ms 1.308708,
+    :max-ms 1.549125,
+    :median-ms 1.327417,
+    :status :solution,
+    :setup-ms 2.8192500000000003,
+    :solution [3 4 5],
+    :metrics
+    {:activations 6,
+     :peak-env 6,
+     :decisions 0,
+     :leaves 1,
+     :peak-frontier 1,
+     :predicate-checks 127,
+     :resolution-calls 0}}}},
+ :pure-profiles
+ [{:predicate-checks 55,
+   :retained-widths {3 4, 1 2},
+   :unique-failure-reasons 54,
+   :mode :learning,
+   :blocked-unchecked-tuples 0,
+   :blocked-complete-tuples 54,
+   :elapsed-ms 1118.841542,
+   :solution [3 4 5],
+   :profile
+   {:steps
+    {:transitions 12223,
+     :node-additions 2,
+     :max-nodes 55,
+     :max-pending 21},
+    :timings
+    [{:label :runner/patches,
+      :calls 12223,
+      :total-ms 617.62854,
+      :self-ms 617.62854,
+      :max-ms 4.499459}
+     {:label [:activation :propagator/anonymous],
+      :calls 2616,
+      :total-ms 471.90481,
+      :self-ms 243.407803,
+      :max-ms 4.803458}
+     {:label [:activation :layered/apply],
+      :calls 327,
+      :total-ms 775.290128,
+      :self-ms 99.55535,
+      :max-ms 6.916209}
+     {:label
+      [:activation
+       [:propagators.experimental.ttms-branching/branching :switch]],
+      :calls 109,
+      :total-ms 202.886708,
+      :self-ms 30.238716,
+      :max-ms 2.50825}
+     {:label [:activation [:compound-object/network-slot :base]],
+      :calls 876,
+      :total-ms 54.747832,
+      :self-ms 15.07347,
+      :max-ms 0.44675}
+     {:label
+      [:activation :propagators.experimental.amb.primitives/learn],
+      :calls 109,
+      :total-ms 25.690998,
+      :self-ms 10.530658,
+      :max-ms 0.881625}
+     {:label
+      [:activation [:compound-object/network-slot :premise-state]],
+      :calls 876,
+      :total-ms 54.504866,
+      :self-ms 9.851823,
+      :max-ms 0.311541}
+     {:label [:activation [:compound-object/network-slot :support]],
+      :calls 876,
+      :total-ms 54.597636,
+      :self-ms 8.976136,
+      :max-ms 0.24975}
+     {:label
+      [:activation :propagators.experimental.amb.primitives/amb],
+      :calls 330,
+      :total-ms 43.56183,
+      :self-ms 8.55692,
+      :max-ms 0.539792}
+     {:label [:activation [:layered/arguments :premise-state]],
+      :calls 436,
+      :total-ms 13.173998,
+      :self-ms 8.185529,
+      :max-ms 0.087583}
+     {:label :amb/learn,
+      :calls 218,
+      :total-ms 16.317343,
+      :self-ms 7.188639,
+      :max-ms 0.441042}
+     {:label
+      [:activation :propagators.experimental.amb.primitives/require],
+      :calls 109,
+      :total-ms 20.306207,
+      :self-ms 6.838164,
+      :max-ms 0.30025}
+     {:label [:activation :layered/assemble],
+      :calls 436,
+      :total-ms 20.597923,
+      :self-ms 6.21164,
+      :max-ms 0.11725}
+     {:label :amb/minimize,
+      :calls 955,
+      :total-ms 5.950587,
+      :self-ms 5.950587,
+      :max-ms 0.061292}
+     {:label
+      [:activation
+       [:propagators.experimental.amb.primitives/watch
+        :propagators.experimental.amb.primitives/learn]],
+      :calls 109,
+      :total-ms 11.639704,
+      :self-ms 5.749069,
+      :max-ms 0.364833}
+     {:label
+      [:activation :propagators.experimental.amb.primitives/backtrack],
+      :calls 109,
+      :total-ms 31.825044,
+      :self-ms 5.500544,
+      :max-ms 0.597875}
+     {:label :amb/decide,
+      :calls 218,
+      :total-ms 4.403704,
+      :self-ms 4.403704,
+      :max-ms 0.136875}
+     {:label
+      [:activation
+       [:propagators.experimental.amb.primitives/watch
+        :propagators.experimental.amb.primitives/backtrack]],
+      :calls 109,
+      :total-ms 5.402877,
+      :self-ms 4.139715,
+      :max-ms 0.1735}
+     {:label [:activation [:layered/arguments :support]],
+      :calls 436,
+      :total-ms 7.658585,
+      :self-ms 3.1657,
+      :max-ms 0.078167}
+     {:label [:activation :examples.lain.amb.builder/choices],
+      :calls 109,
+      :total-ms 38.369754,
+      :self-ms 2.417215,
+      :max-ms 0.453875}
+     {:label :amb/resolve,
+      :calls 384,
+      :total-ms 6.03288,
+      :self-ms 2.357416,
+      :max-ms 0.075875}
+     {:label [:activation :boundary/fast-bi-sync-a->b],
+      :calls 1308,
+      :total-ms 150.440062,
+      :self-ms 2.34045,
+      :max-ms 4.503625}
+     {:label [:activation :examples.lain.amb.builder/constraint],
+      :calls 109,
+      :total-ms 3.192912,
+      :self-ms 2.279207,
+      :max-ms 0.37975}
+     {:label [:activation :stdlib/effect-tap],
+      :calls 1308,
+      :total-ms 3.317669,
+      :self-ms 1.987229,
+      :max-ms 0.060333}
+     {:label [:activation :boundary/fast-bi-sync-b->a],
+      :calls 1308,
+      :total-ms 4.694814,
+      :self-ms 1.691533,
+      :max-ms 0.045}
+     {:label [:activation :examples.lain.amb.builder/tuple],
+      :calls 109,
+      :total-ms 12.969163,
+      :self-ms 0.891412,
+      :max-ms 0.300666}
+     {:label :amb/closure,
+      :calls 108,
+      :total-ms 9.128704,
+      :self-ms 0.820701,
+      :max-ms 0.310375}
+     {:label
+      [:activation :propagators.experimental.ttms-branching/last-base],
+      :calls 109,
+      :total-ms 1.309999,
+      :self-ms 0.752418,
+      :max-ms 0.215917}]},
+   :distinct-tuples 55,
+   :failure-widths {3 54}}
+  {:predicate-checks 55,
+   :retained-widths {1 2, 3 4},
+   :unique-failure-reasons 54,
+   :mode :incremental,
+   :blocked-unchecked-tuples 0,
+   :blocked-complete-tuples 54,
+   :elapsed-ms 1190.867042,
+   :solution [3 4 5],
+   :profile
+   {:steps
+    {:transitions 12114,
+     :node-additions 1,
+     :max-nodes 55,
+     :max-pending 21},
+    :timings
+    [{:label :runner/patches,
+      :calls 12114,
+      :total-ms 663.682301,
+      :self-ms 663.682301,
+      :max-ms 5.324417}
+     {:label [:activation :propagator/anonymous],
+      :calls 2616,
+      :total-ms 490.10491,
+      :self-ms 258.212307,
+      :max-ms 12.150875}
+     {:label [:activation :layered/apply],
+      :calls 327,
+      :total-ms 809.624591,
+      :self-ms 106.38166,
+      :max-ms 7.599042}
+     {:label
+      [:activation
+       [:propagators.experimental.ttms-branching/branching :switch]],
+      :calls 109,
+      :total-ms 234.685206,
+      :self-ms 35.531338,
+      :max-ms 14.290375}
+     {:label [:activation [:compound-object/network-slot :base]],
+      :calls 876,
+      :total-ms 59.565157,
+      :self-ms 17.604228,
+      :max-ms 0.32025}
+     {:label
+      [:activation :propagators.experimental.amb.primitives/learn],
+      :calls 109,
+      :total-ms 38.204206,
+      :self-ms 16.882528,
+      :max-ms 0.866291}
+     {:label
+      [:activation [:compound-object/network-slot :premise-state]],
+      :calls 876,
+      :total-ms 58.635176,
+      :self-ms 11.031364,
+      :max-ms 0.812292}
+     {:label [:activation [:layered/arguments :premise-state]],
+      :calls 436,
+      :total-ms 15.085284,
+      :self-ms 9.646914,
+      :max-ms 0.320625}
+     {:label [:activation [:compound-object/network-slot :support]],
+      :calls 876,
+      :total-ms 65.006645,
+      :self-ms 9.593435,
+      :max-ms 5.34025}
+     {:label
+      [:activation :propagators.experimental.amb.primitives/amb],
+      :calls 330,
+      :total-ms 44.023379,
+      :self-ms 9.049917,
+      :max-ms 0.671916}
+     {:label
+      [:activation :propagators.experimental.amb.primitives/require],
+      :calls 109,
+      :total-ms 22.720997,
+      :self-ms 7.917537,
+      :max-ms 0.626833}
+     {:label [:activation :layered/assemble],
+      :calls 436,
+      :total-ms 22.911661,
+      :self-ms 6.977868,
+      :max-ms 0.22925}
+     {:label
+      [:activation :propagators.experimental.amb.primitives/backtrack],
+      :calls 109,
+      :total-ms 33.544673,
+      :self-ms 6.477341,
+      :max-ms 0.482125}
+     {:label :amb/decide,
+      :calls 218,
+      :total-ms 4.417798,
+      :self-ms 4.417798,
+      :max-ms 0.099167}
+     {:label
+      [:activation
+       [:propagators.experimental.amb.primitives/watch
+        :propagators.experimental.amb.primitives/backtrack]],
+      :calls 109,
+      :total-ms 5.680123,
+      :self-ms 4.380031,
+      :max-ms 0.189291}
+     {:label [:activation [:layered/arguments :support]],
+      :calls 436,
+      :total-ms 8.304045,
+      :self-ms 3.523663,
+      :max-ms 0.067375}
+     {:label [:activation :examples.lain.amb.builder/choices],
+      :calls 109,
+      :total-ms 44.672293,
+      :self-ms 2.691462,
+      :max-ms 4.841542}
+     {:label :amb/minimize,
+      :calls 410,
+      :total-ms 2.665826,
+      :self-ms 2.665826,
+      :max-ms 0.156834}
+     {:label [:activation :boundary/fast-bi-sync-a->b],
+      :calls 1308,
+      :total-ms 147.248882,
+      :self-ms 2.41186,
+      :max-ms 0.773667}
+     {:label [:activation :stdlib/effect-tap],
+      :calls 1308,
+      :total-ms 3.763399,
+      :self-ms 2.240301,
+      :max-ms 0.049542}
+     {:label [:activation :examples.lain.amb.builder/constraint],
+      :calls 109,
+      :total-ms 2.991127,
+      :self-ms 2.084374,
+      :max-ms 0.088083}
+     {:label :amb/resolve,
+      :calls 208,
+      :total-ms 4.32609,
+      :self-ms 1.660264,
+      :max-ms 0.211042}
+     {:label [:activation :boundary/fast-bi-sync-b->a],
+      :calls 1308,
+      :total-ms 4.992033,
+      :self-ms 1.64264,
+      :max-ms 0.044959}
+     {:label [:activation :examples.lain.amb.builder/tuple],
+      :calls 109,
+      :total-ms 13.211922,
+      :self-ms 0.994213,
+      :max-ms 0.28675}
+     {:label
+      [:activation :propagators.experimental.ttms-branching/last-base],
+      :calls 109,
+      :total-ms 1.48008,
+      :self-ms 0.88367,
+      :max-ms 0.224958}]},
+   :distinct-tuples 55,
+   :failure-widths {3 54}}],
+ :failure-boundary-ablation
+ [{:mode :gated,
+   :answers 24,
+   :profile
+   {:run-ms 1491.04,
+    :allocated-bytes 1794953104,
+    :metrics {:activations 14459, :peak-env 702, :predicate-checks 0},
+    :thread "main"},
+   :observed-failure-widths {3 40},
+   :retained-failure-widths {1 2, 2 3},
+   :shape :prefix}
+  {:mode :required-result,
+   :answers 24,
+   :profile
+   {:run-ms 841.365416,
+    :allocated-bytes 1057768872,
+    :metrics {:activations 8700, :peak-env 704, :predicate-checks 0},
+    :thread "main"},
+   :observed-failure-widths {2 10},
+   :retained-failure-widths {1 2, 2 3},
+   :shape :prefix}
+  {:mode :gated,
+   :answers 24,
+   :profile
+   {:run-ms 2087.28975,
+    :allocated-bytes 2600490536,
+    :metrics {:activations 21458, :peak-env 702, :predicate-checks 0},
+    :thread "main"},
+   :observed-failure-widths {3 40},
+   :retained-failure-widths {2 3, 1 2},
+   :shape :suffix}
+  {:mode :required-result,
+   :answers 24,
+   :profile
+   {:run-ms 967.959584,
+    :allocated-bytes 1349129328,
+    :metrics {:activations 11385, :peak-env 704, :predicate-checks 0},
+    :thread "main"},
+   :observed-failure-widths {2 10},
+   :retained-failure-widths {2 3, 1 2},
+   :shape :suffix}],
+ :transitive
+ [{:shape :prefix,
+   :domain [1 2 3 4],
+   :edges [[1 2] [2 3] [3 4]],
+   :setup
+   {:inference-compile-ms 1911.819083,
+    :inference-ms 25.078042,
+    :query-compile-ms 177.0275,
+    :prepare-ms 34.048},
+   :expected
+   [[1 2 1]
+    [1 2 2]
+    [1 2 3]
+    [1 2 4]
+    [1 3 1]
+    [1 3 2]
+    [1 3 3]
+    [1 3 4]
+    [1 4 1]
+    [1 4 2]
+    [1 4 3]
+    [1 4 4]
+    [2 3 1]
+    [2 3 2]
+    [2 3 3]
+    [2 3 4]
+    [2 4 1]
+    [2 4 2]
+    [2 4 3]
+    [2 4 4]
+    [3 4 1]
+    [3 4 2]
+    [3 4 3]
+    [3 4 4]],
+   :modes
+   {:repair
+    {:samples
+     [{:allocated-bytes 1784908344,
+       :search {},
+       :status :completed,
+       :nogood-widths {1 2, 2 3},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples
+       [{:literals [[:a 2] [:b 2]], :context-size 0}
+        {:literals [[:a 3] [:b 2]], :context-size 0}
+        {:literals [[:a 3] [:b 3]], :context-size 0}],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 14590, :peak-env 702, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 1419.83525}
+      {:allocated-bytes 1784764216,
+       :search {},
+       :status :completed,
+       :nogood-widths {1 2, 2 3},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples
+       [{:literals [[:a 2] [:b 2]], :context-size 0}
+        {:literals [[:a 3] [:b 2]], :context-size 0}
+        {:literals [[:a 3] [:b 3]], :context-size 0}],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 14590, :peak-env 702, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 1259.538083}],
+     :median-allocated-bytes 1.78483628E9,
+     :min-ms 1259.538083,
+     :max-ms 1419.83525,
+     :median-ms 1339.6866665,
+     :status :completed,
+     :answers
+     [[1 2 1]
+      [1 2 2]
+      [1 2 3]
+      [1 2 4]
+      [1 3 1]
+      [1 3 2]
+      [1 3 3]
+      [1 3 4]
+      [1 4 1]
+      [1 4 2]
+      [1 4 3]
+      [1 4 4]
+      [2 3 1]
+      [2 3 2]
+      [2 3 3]
+      [2 3 4]
+      [2 4 1]
+      [2 4 2]
+      [2 4 3]
+      [2 4 4]
+      [3 4 1]
+      [3 4 2]
+      [3 4 3]
+      [3 4 4]],
+     :solution nil,
+     :metrics
+     {:activations 14590, :peak-env 702, :execution-threads 1}},
+    :checkpoint
+    {:samples
+     [{:allocated-bytes 1068709928,
+       :search {:decisions 84, :leaves 64},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples [],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 9121, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 765.770459}
+      {:allocated-bytes 1069822032,
+       :search {:decisions 84, :leaves 64},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples [],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 9121, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 771.50475}],
+     :median-allocated-bytes 1.06926598E9,
+     :min-ms 765.770459,
+     :max-ms 771.50475,
+     :median-ms 768.6376045,
+     :status :completed,
+     :answers
+     [[1 2 1]
+      [1 2 2]
+      [1 2 3]
+      [1 2 4]
+      [1 3 1]
+      [1 3 2]
+      [1 3 3]
+      [1 3 4]
+      [1 4 1]
+      [1 4 2]
+      [1 4 3]
+      [1 4 4]
+      [2 3 1]
+      [2 3 2]
+      [2 3 3]
+      [2 3 4]
+      [2 4 1]
+      [2 4 2]
+      [2 4 3]
+      [2 4 4]
+      [3 4 1]
+      [3 4 2]
+      [3 4 3]
+      [3 4 4]],
+     :solution nil,
+     :metrics
+     {:activations 9121, :peak-env 680, :execution-threads 1}},
+    :concurrent
+    {:samples
+     [{:allocated-bytes 1069173128,
+       :search {:decisions 84, :leaves 64},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples [],
+       :partitions
+       [{:range [1],
+         :answers 12,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-4"}
+        {:range [2],
+         :answers 8,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-3"}
+        {:range [3],
+         :answers 4,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-2"}
+        {:range [4],
+         :answers 0,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-1"}],
+       :solver-calls 1,
+       :metrics
+       {:activations 9120, :peak-env 680, :execution-threads 4},
+       :sound-nogoods? true,
+       :run-ms 243.687}
+      {:allocated-bytes 1070943824,
+       :search {:decisions 84, :leaves 64},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples [],
+       :partitions
+       [{:range [1],
+         :answers 12,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-1"}
+        {:range [2],
+         :answers 8,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-2"}
+        {:range [3],
+         :answers 4,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-3"}
+        {:range [4],
+         :answers 0,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-4"}],
+       :solver-calls 1,
+       :metrics
+       {:activations 9120, :peak-env 680, :execution-threads 4},
+       :sound-nogoods? true,
+       :run-ms 240.947084}],
+     :median-allocated-bytes 1.070058476E9,
+     :min-ms 240.947084,
+     :max-ms 243.687,
+     :median-ms 242.31704200000001,
+     :status :completed,
+     :answers
+     [[1 2 1]
+      [1 2 2]
+      [1 2 3]
+      [1 2 4]
+      [1 3 1]
+      [1 3 2]
+      [1 3 3]
+      [1 3 4]
+      [1 4 1]
+      [1 4 2]
+      [1 4 3]
+      [1 4 4]
+      [2 3 1]
+      [2 3 2]
+      [2 3 3]
+      [2 3 4]
+      [2 4 1]
+      [2 4 2]
+      [2 4 3]
+      [2 4 4]
+      [3 4 1]
+      [3 4 2]
+      [3 4 3]
+      [3 4 4]],
+     :solution nil,
+     :metrics
+     {:activations 9120, :peak-env 680, :execution-threads 4}},
+    :early-checkpoint
+    {:samples
+     [{:allocated-bytes 713205432,
+       :search
+       {:decisions 44,
+        :leaves 34,
+        :evaluations 45,
+        :pruned-jobs 0,
+        :early-failures 10,
+        :propagated-leaves 24,
+        :covered-assignments 64,
+        :nogood-count 0},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples [],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 5715, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 510.467833}
+      {:allocated-bytes 714397216,
+       :search
+       {:decisions 44,
+        :leaves 34,
+        :evaluations 45,
+        :pruned-jobs 0,
+        :early-failures 10,
+        :propagated-leaves 24,
+        :covered-assignments 64,
+        :nogood-count 0},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples [],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 5715, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 529.297667}],
+     :median-allocated-bytes 7.13801324E8,
+     :min-ms 510.467833,
+     :max-ms 529.297667,
+     :median-ms 519.88275,
+     :status :completed,
+     :answers
+     [[1 2 1]
+      [1 2 2]
+      [1 2 3]
+      [1 2 4]
+      [1 3 1]
+      [1 3 2]
+      [1 3 3]
+      [1 3 4]
+      [1 4 1]
+      [1 4 2]
+      [1 4 3]
+      [1 4 4]
+      [2 3 1]
+      [2 3 2]
+      [2 3 3]
+      [2 3 4]
+      [2 4 1]
+      [2 4 2]
+      [2 4 3]
+      [2 4 4]
+      [3 4 1]
+      [3 4 2]
+      [3 4 3]
+      [3 4 4]],
+     :solution nil,
+     :metrics
+     {:activations 5715, :peak-env 680, :execution-threads 1}},
+    :learning-checkpoint
+    {:samples
+     [{:allocated-bytes 713837272,
+       :search
+       {:decisions 44,
+        :leaves 34,
+        :evaluations 45,
+        :pruned-jobs 0,
+        :early-failures 10,
+        :propagated-leaves 24,
+        :covered-assignments 64,
+        :nogood-count 10},
+       :status :completed,
+       :nogood-widths {2 10},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples
+       [{:literals [[:a 1] [:b 1]], :context-size 0}
+        {:literals [[:a 2] [:b 1]], :context-size 0}
+        {:literals [[:a 2] [:b 2]], :context-size 0}],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 5725, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 517.86}
+      {:allocated-bytes 715823072,
+       :search
+       {:decisions 44,
+        :leaves 34,
+        :evaluations 45,
+        :pruned-jobs 0,
+        :early-failures 10,
+        :propagated-leaves 24,
+        :covered-assignments 64,
+        :nogood-count 10},
+       :status :completed,
+       :nogood-widths {2 10},
+       :answers
+       [[1 2 1]
+        [1 2 2]
+        [1 2 3]
+        [1 2 4]
+        [1 3 1]
+        [1 3 2]
+        [1 3 3]
+        [1 3 4]
+        [1 4 1]
+        [1 4 2]
+        [1 4 3]
+        [1 4 4]
+        [2 3 1]
+        [2 3 2]
+        [2 3 3]
+        [2 3 4]
+        [2 4 1]
+        [2 4 2]
+        [2 4 3]
+        [2 4 4]
+        [3 4 1]
+        [3 4 2]
+        [3 4 3]
+        [3 4 4]],
+       :proof-examples
+       [{:literals [[:a 1] [:b 1]], :context-size 0}
+        {:literals [[:a 2] [:b 1]], :context-size 0}
+        {:literals [[:a 2] [:b 2]], :context-size 0}],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 5725, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 527.773084}],
+     :median-allocated-bytes 7.14830172E8,
+     :min-ms 517.86,
+     :max-ms 527.773084,
+     :median-ms 522.816542,
+     :status :completed,
+     :answers
+     [[1 2 1]
+      [1 2 2]
+      [1 2 3]
+      [1 2 4]
+      [1 3 1]
+      [1 3 2]
+      [1 3 3]
+      [1 3 4]
+      [1 4 1]
+      [1 4 2]
+      [1 4 3]
+      [1 4 4]
+      [2 3 1]
+      [2 3 2]
+      [2 3 3]
+      [2 3 4]
+      [2 4 1]
+      [2 4 2]
+      [2 4 3]
+      [2 4 4]
+      [3 4 1]
+      [3 4 2]
+      [3 4 3]
+      [3 4 4]],
+     :solution nil,
+     :metrics
+     {:activations 5725, :peak-env 680, :execution-threads 1}}}}
+  {:shape :suffix,
+   :domain [1 2 3 4],
+   :edges [[1 2] [2 3] [3 4]],
+   :setup
+   {:inference-compile-ms 63.969875,
+    :inference-ms 4.666542,
+    :query-compile-ms 93.049541,
+    :prepare-ms 10.422917},
+   :expected
+   [[1 1 2]
+    [1 1 3]
+    [1 1 4]
+    [1 2 3]
+    [1 2 4]
+    [1 3 4]
+    [2 1 2]
+    [2 1 3]
+    [2 1 4]
+    [2 2 3]
+    [2 2 4]
+    [2 3 4]
+    [3 1 2]
+    [3 1 3]
+    [3 1 4]
+    [3 2 3]
+    [3 2 4]
+    [3 3 4]
+    [4 1 2]
+    [4 1 3]
+    [4 1 4]
+    [4 2 3]
+    [4 2 4]
+    [4 3 4]],
+   :modes
+   {:repair
+    {:samples
+     [{:allocated-bytes 2597162640,
+       :search {},
+       :status :completed,
+       :nogood-widths {2 3, 1 2},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples
+       [{:literals [[:b 2] [:c 2]], :context-size 0}
+        {:literals [[:b 3] [:c 2]], :context-size 0}
+        {:literals [[:b 3] [:c 3]], :context-size 0}],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 21589, :peak-env 702, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 1810.354375}
+      {:allocated-bytes 2604542776,
+       :search {},
+       :status :completed,
+       :nogood-widths {2 3, 1 2},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples
+       [{:literals [[:b 2] [:c 2]], :context-size 0}
+        {:literals [[:b 3] [:c 2]], :context-size 0}
+        {:literals [[:b 3] [:c 3]], :context-size 0}],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 21589, :peak-env 702, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 1923.018167}],
+     :median-allocated-bytes 2.600852708E9,
+     :min-ms 1810.354375,
+     :max-ms 1923.018167,
+     :median-ms 1866.686271,
+     :status :completed,
+     :answers
+     [[1 1 2]
+      [1 1 3]
+      [1 1 4]
+      [1 2 3]
+      [1 2 4]
+      [1 3 4]
+      [2 1 2]
+      [2 1 3]
+      [2 1 4]
+      [2 2 3]
+      [2 2 4]
+      [2 3 4]
+      [3 1 2]
+      [3 1 3]
+      [3 1 4]
+      [3 2 3]
+      [3 2 4]
+      [3 3 4]
+      [4 1 2]
+      [4 1 3]
+      [4 1 4]
+      [4 2 3]
+      [4 2 4]
+      [4 3 4]],
+     :solution nil,
+     :metrics
+     {:activations 21589, :peak-env 702, :execution-threads 1}},
+    :checkpoint
+    {:samples
+     [{:allocated-bytes 1644073384,
+       :search {:decisions 84, :leaves 64},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples [],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 14869, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 1248.039292}
+      {:allocated-bytes 1644692776,
+       :search {:decisions 84, :leaves 64},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples [],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 14869, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 1225.154459}],
+     :median-allocated-bytes 1.64438308E9,
+     :min-ms 1225.154459,
+     :max-ms 1248.039292,
+     :median-ms 1236.5968755,
+     :status :completed,
+     :answers
+     [[1 1 2]
+      [1 1 3]
+      [1 1 4]
+      [1 2 3]
+      [1 2 4]
+      [1 3 4]
+      [2 1 2]
+      [2 1 3]
+      [2 1 4]
+      [2 2 3]
+      [2 2 4]
+      [2 3 4]
+      [3 1 2]
+      [3 1 3]
+      [3 1 4]
+      [3 2 3]
+      [3 2 4]
+      [3 3 4]
+      [4 1 2]
+      [4 1 3]
+      [4 1 4]
+      [4 2 3]
+      [4 2 4]
+      [4 3 4]],
+     :solution nil,
+     :metrics
+     {:activations 14869, :peak-env 680, :execution-threads 1}},
+    :concurrent
+    {:samples
+     [{:allocated-bytes 1643957056,
+       :search {:decisions 84, :leaves 64},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples [],
+       :partitions
+       [{:range [1],
+         :answers 6,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-1"}
+        {:range [2],
+         :answers 6,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-2"}
+        {:range [3],
+         :answers 6,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-4"}
+        {:range [4],
+         :answers 6,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-3"}],
+       :solver-calls 1,
+       :metrics
+       {:activations 14868, :peak-env 680, :execution-threads 4},
+       :sound-nogoods? true,
+       :run-ms 333.235084}
+      {:allocated-bytes 1642825576,
+       :search {:decisions 84, :leaves 64},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples [],
+       :partitions
+       [{:range [1],
+         :answers 6,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-3"}
+        {:range [2],
+         :answers 6,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-4"}
+        {:range [3],
+         :answers 6,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-1"}
+        {:range [4],
+         :answers 6,
+         :search {:decisions 21, :leaves 16},
+         :nogoods 0,
+         :thread "pool-1-thread-2"}],
+       :solver-calls 1,
+       :metrics
+       {:activations 14868, :peak-env 680, :execution-threads 4},
+       :sound-nogoods? true,
+       :run-ms 333.41575}],
+     :median-allocated-bytes 1.643391316E9,
+     :min-ms 333.235084,
+     :max-ms 333.41575,
+     :median-ms 333.325417,
+     :status :completed,
+     :answers
+     [[1 1 2]
+      [1 1 3]
+      [1 1 4]
+      [1 2 3]
+      [1 2 4]
+      [1 3 4]
+      [2 1 2]
+      [2 1 3]
+      [2 1 4]
+      [2 2 3]
+      [2 2 4]
+      [2 3 4]
+      [3 1 2]
+      [3 1 3]
+      [3 1 4]
+      [3 2 3]
+      [3 2 4]
+      [3 3 4]
+      [4 1 2]
+      [4 1 3]
+      [4 1 4]
+      [4 2 3]
+      [4 2 4]
+      [4 3 4]],
+     :solution nil,
+     :metrics
+     {:activations 14868, :peak-env 680, :execution-threads 4}},
+    :early-checkpoint
+    {:samples
+     [{:allocated-bytes 1748168144,
+       :search
+       {:decisions 84,
+        :leaves 64,
+        :evaluations 85,
+        :pruned-jobs 0,
+        :early-failures 0,
+        :propagated-leaves 64,
+        :covered-assignments 64,
+        :nogood-count 0},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples [],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 15063, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 1298.412125}
+      {:allocated-bytes 1749376184,
+       :search
+       {:decisions 84,
+        :leaves 64,
+        :evaluations 85,
+        :pruned-jobs 0,
+        :early-failures 0,
+        :propagated-leaves 64,
+        :covered-assignments 64,
+        :nogood-count 0},
+       :status :completed,
+       :nogood-widths {},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples [],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 15063, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 1247.9995}],
+     :median-allocated-bytes 1.748772164E9,
+     :min-ms 1247.9995,
+     :max-ms 1298.412125,
+     :median-ms 1273.2058124999999,
+     :status :completed,
+     :answers
+     [[1 1 2]
+      [1 1 3]
+      [1 1 4]
+      [1 2 3]
+      [1 2 4]
+      [1 3 4]
+      [2 1 2]
+      [2 1 3]
+      [2 1 4]
+      [2 2 3]
+      [2 2 4]
+      [2 3 4]
+      [3 1 2]
+      [3 1 3]
+      [3 1 4]
+      [3 2 3]
+      [3 2 4]
+      [3 3 4]
+      [4 1 2]
+      [4 1 3]
+      [4 1 4]
+      [4 2 3]
+      [4 2 4]
+      [4 3 4]],
+     :solution nil,
+     :metrics
+     {:activations 15063, :peak-env 680, :execution-threads 1}},
+    :learning-checkpoint
+    {:samples
+     [{:allocated-bytes 1185400432,
+       :search
+       {:decisions 84,
+        :leaves 64,
+        :evaluations 55,
+        :pruned-jobs 30,
+        :early-failures 0,
+        :propagated-leaves 34,
+        :covered-assignments 64,
+        :nogood-count 10},
+       :status :completed,
+       :nogood-widths {2 10},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples
+       [{:literals [[:b 1] [:c 1]], :context-size 0}
+        {:literals [[:b 2] [:c 1]], :context-size 0}
+        {:literals [[:b 2] [:c 2]], :context-size 0}],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 9733, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 853.950291}
+      {:allocated-bytes 1185248344,
+       :search
+       {:decisions 84,
+        :leaves 64,
+        :evaluations 55,
+        :pruned-jobs 30,
+        :early-failures 0,
+        :propagated-leaves 34,
+        :covered-assignments 64,
+        :nogood-count 10},
+       :status :completed,
+       :nogood-widths {2 10},
+       :answers
+       [[1 1 2]
+        [1 1 3]
+        [1 1 4]
+        [1 2 3]
+        [1 2 4]
+        [1 3 4]
+        [2 1 2]
+        [2 1 3]
+        [2 1 4]
+        [2 2 3]
+        [2 2 4]
+        [2 3 4]
+        [3 1 2]
+        [3 1 3]
+        [3 1 4]
+        [3 2 3]
+        [3 2 4]
+        [3 3 4]
+        [4 1 2]
+        [4 1 3]
+        [4 1 4]
+        [4 2 3]
+        [4 2 4]
+        [4 3 4]],
+       :proof-examples
+       [{:literals [[:b 1] [:c 1]], :context-size 0}
+        {:literals [[:b 2] [:c 1]], :context-size 0}
+        {:literals [[:b 2] [:c 2]], :context-size 0}],
+       :partitions [],
+       :solver-calls 1,
+       :metrics
+       {:activations 9733, :peak-env 680, :execution-threads 1},
+       :sound-nogoods? true,
+       :run-ms 869.077167}],
+     :median-allocated-bytes 1.185324388E9,
+     :min-ms 853.950291,
+     :max-ms 869.077167,
+     :median-ms 861.513729,
+     :status :completed,
+     :answers
+     [[1 1 2]
+      [1 1 3]
+      [1 1 4]
+      [1 2 3]
+      [1 2 4]
+      [1 3 4]
+      [2 1 2]
+      [2 1 3]
+      [2 1 4]
+      [2 2 3]
+      [2 2 4]
+      [2 3 4]
+      [3 1 2]
+      [3 1 3]
+      [3 1 4]
+      [3 2 3]
+      [3 2 4]
+      [3 3 4]
+      [4 1 2]
+      [4 1 3]
+      [4 1 4]
+      [4 2 3]
+      [4 2 4]
+      [4 3 4]],
+     :solution nil,
+     :metrics
+     {:activations 9733, :peak-env 680, :execution-threads 1}}}}]}

@@ -70,6 +70,14 @@
 (defn- bottom? [observation]
   (and (value/nothing? (:base observation)) (empty? (:support observation))))
 
+(defn referenced-sources
+  "Source identities referenced by retained evidence or transported state.
+  Includes currently inactive evidence, so indexes also cover recovery."
+  [content]
+  (into #{} (map :source)
+        (concat (mapcat :support (observations content))
+                (state-set (get content :support/states #{})))))
+
 (defn- dominates? [newer older]
   (if (bottom? older)
     (not (bottom? newer))
@@ -103,6 +111,20 @@
   ;; versions inside a still-current observation remain attached, not repaired.
   (every? (fn [[source rank]] (= rank (get current-ranks source)))
           (source-ranks (:support observation))))
+
+(defn retire-superseded
+  "Retire evidence with strictly obsolete source versions after a state update.
+  Preserve state knowledge and equal-version conflicts. Earlier immutable
+  contents are untouched; recovery at a newer version requires fresh evidence.
+  This is an explicit operation, not a change to ordinary merge semantics."
+  [content]
+  (let [retained (observations content)
+        states (apply support/join (state-set (get content :support/states #{}))
+                      (map :support retained))
+        current (into #{} (filter #(current-observation? (source-ranks states) %)) retained)]
+    (if (= retained current)
+      content
+      {:support/observations current :support/states states})))
 
 (defn- slot-id [layer]
   (ids/->NodeId

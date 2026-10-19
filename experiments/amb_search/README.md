@@ -1,5 +1,23 @@
 # AMB search cost and branch elimination
 
+For builder-level `p:amb` and transitive-query costs without replay, see
+[the pure search investigation](PURE_ANALYSIS.md).
+
+The [concurrent worker experiment](CONCURRENT_REPORT.md) tests one shared AMB
+network with conflict-free admission and no reevaluation.
+
+The [indexed-withdrawal experiment](INDEXED_REPORT.md) directly reprojects cells
+through an inverse premise index and measures the remaining costs.
+
+The [larger constraint graph comparison](LARGER_CONSTRAINT_REPORT.md) tests
+decomposed arithmetic and queens networks with the same two runners.
+
+The [shared slot-cell experiment](SHARED_SLOT_REPORT.md) makes slot paths return
+existing cells and measures the two slot synchronization boundaries separately.
+
+[Follow-up ideas and required invariants](NEXT_STEPS.md) records the premised
+compound boundary, contextual slot references, topology reuse and further probes.
+
 Measured on 2026-10-19 against `e8a77ea`, using the editor Pythagorean example
 and the extension `(-> (list 3 4 5) domain)`. Both variants return `[3 4 5]`.
 The plain variant changes only the display expression to `(display valid)`;

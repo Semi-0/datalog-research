@@ -1,0 +1,287 @@
+{:samples 5,
+ :date "2026-10-19",
+ :admission :conflict-free,
+ :commit-order :fifo,
+ :warmups-per-mode 1,
+ :modes
+ {:ordinary
+  {:median-ms 989.7625,
+   :min-ms 929.863416,
+   :max-ms 1017.41125,
+   :metrics
+   {:commits 1323,
+    :batches 0,
+    :parallel-batches 0,
+    :max-batch 1,
+    :total-activations 12223,
+    :activation-dispatches 1323},
+   :samples
+   [{:mode :ordinary,
+     :run-ms 1004.853291,
+     :metrics
+     {:commits 1323,
+      :batches 0,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}
+    {:mode :ordinary,
+     :run-ms 936.521417,
+     :metrics
+     {:commits 1323,
+      :batches 0,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}
+    {:mode :ordinary,
+     :run-ms 929.863416,
+     :metrics
+     {:commits 1323,
+      :batches 0,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}
+    {:mode :ordinary,
+     :run-ms 1017.41125,
+     :metrics
+     {:commits 1323,
+      :batches 0,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}
+    {:mode :ordinary,
+     :run-ms 989.7625,
+     :metrics
+     {:commits 1323,
+      :batches 0,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}]},
+  :direct
+  {:median-ms 989.452833,
+   :min-ms 936.618666,
+   :max-ms 1015.818083,
+   :metrics
+   {:commits 1323,
+    :batches 1323,
+    :parallel-batches 0,
+    :max-batch 1,
+    :total-activations 12223,
+    :activation-dispatches 1323},
+   :samples
+   [{:mode :direct,
+     :run-ms 989.452833,
+     :metrics
+     {:commits 1323,
+      :batches 1323,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}
+    {:mode :direct,
+     :run-ms 936.618666,
+     :metrics
+     {:commits 1323,
+      :batches 1323,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}
+    {:mode :direct,
+     :run-ms 943.921667,
+     :metrics
+     {:commits 1323,
+      :batches 1323,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}
+    {:mode :direct,
+     :run-ms 1015.818083,
+     :metrics
+     {:commits 1323,
+      :batches 1323,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}
+    {:mode :direct,
+     :run-ms 1002.167792,
+     :metrics
+     {:commits 1323,
+      :batches 1323,
+      :parallel-batches 0,
+      :max-batch 1,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main"}}]},
+  :pool-2
+  {:median-ms 979.831667,
+   :min-ms 948.025583,
+   :max-ms 1082.5105,
+   :metrics
+   {:commits 1323,
+    :batches 1213,
+    :parallel-batches 110,
+    :max-batch 2,
+    :total-activations 12223,
+    :activation-dispatches 1323},
+   :samples
+   [{:mode :pool-2,
+     :run-ms 979.831667,
+     :metrics
+     {:commits 1323,
+      :batches 1213,
+      :parallel-batches 110,
+      :max-batch 2,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main" "pool-1-thread-1" "pool-1-thread-2"}}
+    {:mode :pool-2,
+     :run-ms 952.921125,
+     :metrics
+     {:commits 1323,
+      :batches 1213,
+      :parallel-batches 110,
+      :max-batch 2,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main" "pool-1-thread-1" "pool-1-thread-2"}}
+    {:mode :pool-2,
+     :run-ms 948.025583,
+     :metrics
+     {:commits 1323,
+      :batches 1213,
+      :parallel-batches 110,
+      :max-batch 2,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main" "pool-1-thread-1" "pool-1-thread-2"}}
+    {:mode :pool-2,
+     :run-ms 1082.5105,
+     :metrics
+     {:commits 1323,
+      :batches 1213,
+      :parallel-batches 110,
+      :max-batch 2,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main" "pool-1-thread-1" "pool-1-thread-2"}}
+    {:mode :pool-2,
+     :run-ms 995.176083,
+     :metrics
+     {:commits 1323,
+      :batches 1213,
+      :parallel-batches 110,
+      :max-batch 2,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads #{"main" "pool-1-thread-1" "pool-1-thread-2"}}]},
+  :pool-4
+  {:median-ms 995.479958,
+   :min-ms 940.56825,
+   :max-ms 1075.975667,
+   :metrics
+   {:commits 1323,
+    :batches 1103,
+    :parallel-batches 110,
+    :max-batch 3,
+    :total-activations 12223,
+    :activation-dispatches 1323},
+   :samples
+   [{:mode :pool-4,
+     :run-ms 960.276209,
+     :metrics
+     {:commits 1323,
+      :batches 1103,
+      :parallel-batches 110,
+      :max-batch 3,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads
+     #{"pool-2-thread-2"
+       "pool-2-thread-1"
+       "main"
+       "pool-2-thread-4"
+       "pool-2-thread-3"}}
+    {:mode :pool-4,
+     :run-ms 940.56825,
+     :metrics
+     {:commits 1323,
+      :batches 1103,
+      :parallel-batches 110,
+      :max-batch 3,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads
+     #{"pool-2-thread-2"
+       "pool-2-thread-1"
+       "main"
+       "pool-2-thread-4"
+       "pool-2-thread-3"}}
+    {:mode :pool-4,
+     :run-ms 1075.975667,
+     :metrics
+     {:commits 1323,
+      :batches 1103,
+      :parallel-batches 110,
+      :max-batch 3,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads
+     #{"pool-2-thread-2"
+       "pool-2-thread-1"
+       "main"
+       "pool-2-thread-4"
+       "pool-2-thread-3"}}
+    {:mode :pool-4,
+     :run-ms 1006.907709,
+     :metrics
+     {:commits 1323,
+      :batches 1103,
+      :parallel-batches 110,
+      :max-batch 3,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads
+     #{"pool-2-thread-2"
+       "pool-2-thread-1"
+       "main"
+       "pool-2-thread-4"
+       "pool-2-thread-3"}}
+    {:mode :pool-4,
+     :run-ms 995.479958,
+     :metrics
+     {:commits 1323,
+      :batches 1103,
+      :parallel-batches 110,
+      :max-batch 3,
+      :total-activations 12223,
+      :activation-dispatches 1323},
+     :threads
+     #{"pool-2-thread-2"
+       "pool-2-thread-1"
+       "main"
+       "pool-2-thread-4"
+       "pool-2-thread-3"}}]}},
+ :scope :one-shared-pure-network,
+ :metric-labels :normalized-from-raw-dispatch-counter,
+ :java "27",
+ :cache :disabled,
+ :domain 5,
+ :solution [3 4 5],
+ :pool-creation :outside-timing,
+ :reevaluations 0}
