@@ -1,0 +1,34 @@
+;; Proposed named-field struct contract, not a successful implementation stub.
+;; Known fields must remain readable while other fields are missing.
+;; Equal field evidence is idempotent; incompatible evidence conflicts locally.
+;; Later field refinements must reach existing p:slot readers.
+(def-cells struct)
+
+;; Identity includes the original observation and compound occurrence.
+;; Children are direct child stacks or explicit references, never invented edges.
+;; Empty means known complete and empty; unavailable children remain missing.
+(define stack
+  (network [identity content children]
+    (struct
+      (list
+        (list :type :stack)
+        (list :identity identity)
+        (list :content content)
+        (list :children children)))))
+
+(define stack-ref
+  (network [identity]
+    (struct
+      (list
+        (list :type :stack-ref)
+        (list :identity identity)))))
+
+(define stack-identity
+  (network [value]
+    (p:slot :identity value)))
+(define stack-content
+  (network [value]
+    (p:slot :content value)))
+(define stack-children
+  (network [value]
+    (p:slot :children value)))

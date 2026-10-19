@@ -68,6 +68,53 @@ Use Open JSON with `graph/lain_editor/example-workspace.json` for a three-pane d
 JSON is a **source replay document**, not a serialized JVM or heap snapshot.
 Clock timestamps, external effects, and transient runtime inputs are not frozen.
 Loading a file stores its source and name; it does not create a file watcher.
+
+Each block has **Hide visualizer / Show visualizer**, **Fill block / Restore
+block**, and **Full screen** controls. They apply to the current value, topology,
+or cell-details output. Fullscreen hides the code temporarily; Escape restores
+the previous presentation. These controls reuse mounted views and do not change
+source, runtime state, saved layer preferences, or graph camera. Presentation is
+temporary and resets when the pane is remounted.
+
+### Open editor files through POST requests
+
+The running browser polls a tab-scoped command channel. List connected tabs:
+
+```sh
+curl -sS -H 'Content-Type: application/json' \
+  --data '{"op":"workspaces"}' http://127.0.0.1:4782/api
+```
+
+Copy the target `workspace` identifier, then submit a project-relative file:
+
+```sh
+curl -sS -H 'Content-Type: application/json' \
+  --data '{"op":"load-file","workspace":"WORKSPACE-ID","path":"examples/lain/top_down/stack-design.lain"}' \
+  http://127.0.0.1:4782/api
+```
+
+This adds a **new pane** in that tab's current desktop, with the same source/name
+transition used by the file picker. Existing drafts and runtime sessions are
+preserved. It does **not execute** the source; Run remains explicit. The response
+is only `queued`, not proof of display. Query the returned request identifier:
+
+```sh
+curl -sS -H 'Content-Type: application/json' \
+  --data '{"op":"load-status","workspace":"WORKSPACE-ID","request":"REQUEST-ID"}' \
+  http://127.0.0.1:4782/api
+```
+
+Statuses are `queued`, `delivered`, `applied`, or `failed` with an explanation.
+`applied` means the browser acknowledged the source insertion, not evaluation.
+Changing desktop before delivery rejects the request rather than inserting it
+elsewhere. Disconnected tabs expire after 60 seconds without polling; refresh
+creates a new identifier. The queue allows 16 outstanding requests per tab and
+retains the most recent 48 completed requests on subsequent submissions. Loads
+allow only project-local `.lain` files up to 1 MiB, reject symlink traversal, and
+retain the existing loopback-only and same-origin HTTP policy. Workspace
+snapshots expose pane names and identifiers, not unsaved source. This is a local
+development API, not an authenticated remote-control service.
+
 Use one browser workspace per server process: tabs connected to the same process
 share its editor-session registry. Closing a tile stops its clocks and traces;
 closing the server releases all owned sessions. Closing only the tab leaves the

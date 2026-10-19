@@ -1,0 +1,27 @@
+;; Lain-first partial specification, not an implemented 3D renderer.
+;; import is an ordinary alias of the existing project-relative file loader.
+;; Imports share this program environment; order is explicit, with no module cache.
+(define import load-lain)
+(import "examples/lain/top_down/stack/structure.lain")
+(import "examples/lain/top_down/stack/constraints.lain")
+(import "examples/lain/top_down/stack/hierarchy.lain")
+(import "examples/lain/top_down/stack/example.lain")
+
+;; High-level orchestration stays in Lain; imported domains own their contracts.
+;; Capture is real, but its hierarchy readers and struct are explicit holes.
+(define captured (observe-semantic-captured example-result :both))
+(define root-occurrence (root-compound-occurrence captured))
+(define stacks (hierarchy->stacks captured root-occurrence))
+(define checks (stack-constraints captured stacks))
+(define design
+  (list
+    (list :example-result example-result)
+    (list :data stacks)
+    (list :constraints checks)))
+
+;; Review this data before implementing its spatial interpretation.
+;; Future view: one scope per plane, root above children; primitives stay inside.
+;; Children express hierarchy, not additional dataflow edges.
+;; Acquire missing scope information only from the original observation.
+;; Camera, depth visibility and layer spacing are view state, not struct fields.
+(display design)

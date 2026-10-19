@@ -1,0 +1,17 @@
+;; Requires structure.lain. Checks remain implementation obligations.
+;; shape: marker, fields and child-entry forms; partial tails stay unknown.
+;; scope-content: captured graph belongs to this original occurrence.
+;; direct-children: actual immediate compound scopes; primitives are leaves.
+;; references: preserve sharing and cycles without incompatible occurrence IDs.
+;; Unknown is not success; contradictory evidence is distinct from false.
+(def-cells stack-shape? scope-content? direct-children? reference-integrity?)
+
+(define stack-constraints
+  (network [observation value]
+    (list
+      (list :shape (stack-shape? value))
+      (list :scope-content
+        (scope-content? observation (stack-identity value) (stack-content value)))
+      (list :direct-children
+        (direct-children? observation (stack-identity value) (stack-children value)))
+      (list :references (reference-integrity? value)))))

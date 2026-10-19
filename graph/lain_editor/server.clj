@@ -6,6 +6,7 @@
             [graph.lain-editor.graph-layout :as graph-layout]
             [graph.lain-editor.source-files :as source-files]
             [graph.lain-editor.workspace-files :as workspace-files]
+            [graph.lain-editor.workspace-commands :as workspace-commands]
             [graph.lain-editor.runtime :as editor])
   (:import [com.sun.net.httpserver HttpServer HttpHandler]
            [java.net InetSocketAddress]
@@ -45,7 +46,7 @@
     (.sendResponseHeaders exchange status (alength bytes))
     (with-open [out (.getResponseBody exchange)] (.write out bytes))))
 
-(defn api! [editors layouts exchange]
+(defn api! [editors layouts commands exchange]
   (when-not (= "POST" (.getRequestMethod exchange))
     (throw (ex-info "API requires POST" {})))
   ;; Local files may be loaded explicitly by Lain. Browser requests are same-origin.
@@ -54,14 +55,17 @@
     (when (and origin (not= origin (str "http://" host)))
       (throw (ex-info "Cross-origin request rejected" {}))))
   (let [body (slurp (.getRequestBody exchange))
-        result (command! editors layouts (json/read-json body))]
+        command (json/read-json body)
+        result (if (workspace-commands/operations (:op command))
+                 (workspace-commands/command! commands (System/getProperty "user.dir") command)
+                 (command! editors layouts command))]
     (respond! exchange 200 "application/json" (json/write-json {:ok true :result result}))))
 
-(defn handle! [editors layouts exchange]
+(defn handle! [editors layouts commands exchange]
   (try
     (let [path (.getPath (.getRequestURI exchange))]
       (cond
-        (= path "/api") (api! editors layouts exchange)
+        (= path "/api") (api! editors layouts commands exchange)
         (and (= "GET" (.getRequestMethod exchange)) (contains? assets path))
         (let [[file mime] (get assets path)]
           (respond! exchange 200 mime (slurp (io/resource (str "graph/lain_editor_static/" file)))))
@@ -72,15 +76,15 @@
     (finally (.close exchange))))
 
 (defn start! [port]
-  (let [editors (atom {}) layouts (atom {})
+  (let [editors (atom {}) layouts (atom {}) commands (atom {})
         server (HttpServer/create (InetSocketAddress. "127.0.0.1" (int port)) 0)
         executor (Executors/newCachedThreadPool)]
     (.createContext server "/" (reify HttpHandler
-                                  (handle [_ exchange] (handle! editors layouts exchange))))
+                                  (handle [_ exchange] (handle! editors layouts commands exchange))))
     (.setExecutor server executor)
     (.start server)
     {:port (.getPort (.getAddress server)) :editors editors :layouts layouts
-     :close (fn [] (.stop server 0) (.shutdownNow executor) (graph-layout/close! layouts) (editor/close! editors))}))
+     :close (fn [] (.stop server 0) (.shutdownNow executor) (reset! commands {}) (graph-layout/close! layouts) (editor/close! editors))}))
 
 (defn -main [& args]
   (let [port (if (seq args) (Long/parseLong (first args)) 4780)

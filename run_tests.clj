@@ -74,6 +74,8 @@
 (def graph-test-namespaces
   '[graph.lain-editor.retained-relationship-test
     graph.lain-editor.source-files-test
+    graph.lain-editor.workspace-commands-test
+    graph.lain-editor.block-display-test
     graph.lain-editor.semantic-scene-test
     graph.lain-editor.semantic-gallery-test
     graph.lain-editor.recursive-semantic-test

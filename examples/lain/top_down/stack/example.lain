@@ -1,0 +1,11 @@
+;; Independent concrete network: pipeline -> two distinct stage occurrences.
+;; Each stage contains primitive * and +. Sharing a definition does not identify
+;; the two stage occurrences. They share depth, not occurrence identity.
+(define example-stage
+  (network [x]
+    (+ (* x 2) 1)))
+(define example-pipeline
+  (network [x]
+    (example-stage (example-stage x))))
+(define example-input 3)
+(define example-result (example-pipeline example-input))
