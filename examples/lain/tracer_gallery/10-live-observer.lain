@@ -1,0 +1,11 @@
+(load-lain
+  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+
+(define input 4)
+(def-cells shifted result)
+
+(-> (+ input 1) shifted)
+(-> (* shifted shifted) result)
+
+(display
+  (observe-semantic shifted :upstream))

@@ -60,6 +60,7 @@
   (let [previous (get @editors id)]
     (try
       (runtime/schedule-clock-subscriptions! (:session candidate))
+      (runtime/refresh-trace-subscriptions! (:session candidate))
       (swap! editors assoc id candidate)
       (when previous (close-session! (:session previous)))
       (cond-> (select-keys candidate [:generation])
@@ -106,7 +107,8 @@
           (swap! candidates assoc (:id pane)
                  (prepare (:executedSource pane) (:extensions pane)))))
       (doseq [pane (vals @candidates)]
-        (runtime/schedule-clock-subscriptions! (:session pane)))
+        (runtime/schedule-clock-subscriptions! (:session pane))
+        (runtime/refresh-trace-subscriptions! (:session pane)))
       (let [previous @editors]
         (reset! editors @candidates)
         (doseq [pane (vals previous)] (close-session! (:session pane))))

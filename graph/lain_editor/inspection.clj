@@ -46,7 +46,7 @@
       :else (value-labels/format-value v))))
 
 (defn- display-candidate [network id]
-  (let [v (data/payload (net/network-cell-strongest network id))]
+  (let [v (display/payload (net/network-cell-strongest network id))]
     (if (and (compound/accessor-network? v)
              (not (capture/fragment? v))
              (not (datum/layer-present? v :base)))
@@ -148,9 +148,10 @@
                   :else nil))})))
 
 (defn semantic-graph [network id]
-  (let [payload (data/payload (net/network-cell-strongest network id))]
+  (let [payload (display-candidate network id)]
     (if (capture/semantic-graph? payload)
-      payload
+      (cond-> payload
+        (nil? (:dataflow/scope payload)) (assoc :dataflow/scope :root))
       (let [operational (assoc (observer/snapshot network ((observer/connected-root-node-keys [id]) network))
                                :dataflow/seeds #{[[:outer] id]})]
          (dataflow/dataflow-graph network operational)))))
@@ -282,7 +283,7 @@
         (let [direction (keyword (:direction display))
               graph semantic
               graph-value? (capture/semantic-graph?
-                            (data/payload (net/network-cell-strongest network id)))]
+                            (display-candidate network id))]
           (when-not (contains? #{:upstream :downstream :both} direction)
             (throw (ex-info "Unknown trace direction" {})))
           (assoc result :graph

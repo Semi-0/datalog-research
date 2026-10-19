@@ -1,0 +1,19 @@
+(define shift
+  (network [x]
+    (+ x 1)))
+
+(define square
+  (network [x]
+    (* x x)))
+
+(define pipeline
+  (network [x]
+    (square (shift x))))
+
+; Realize the pipeline once so the graph contains both declared call sites
+; and the applications connected by this execution.
+(define result
+  (pipeline 4))
+
+(display
+  (call-graph pipeline))

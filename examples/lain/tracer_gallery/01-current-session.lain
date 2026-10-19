@@ -1,0 +1,9 @@
+(define input 4)
+(def-cells result traced)
+
+(-> (+ input 1) result)
+
+; trace reads this pane's current runtime-session graph.
+(trace result :both traced)
+
+(display traced)

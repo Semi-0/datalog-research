@@ -12,6 +12,15 @@
 
 (def cell-id (gur/stable-node-id [:lain-editor :display]))
 
+(defn payload
+  "Project one current event value for display without changing retained event content."
+  [candidate]
+  (let [value (data/payload candidate)]
+    (if (event/event-projection? value)
+      (let [values (distinct (vals (event/active-values value)))]
+        (if (= 1 (count values)) (first values) value))
+      value)))
+
 (defn- source-ids [arg-ids _fallback-id _context-id]
   (when-not (= 1 (count arg-ids))
     (throw (ex-info "display expects one result cell" {:argument-ids arg-ids})))
@@ -35,7 +44,7 @@
 
 (defn mode [network]
   (when (contains? (net/net-env network) cell-id)
-    (if (let [payload (data/payload (net/network-cell-strongest network cell-id))]
+    (if (let [payload (payload (net/network-cell-strongest network cell-id))]
           (or (capture/semantic-graph? payload) (history/replay? payload)))
       "graph"
       "value")))

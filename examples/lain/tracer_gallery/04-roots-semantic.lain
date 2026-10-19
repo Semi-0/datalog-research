@@ -1,0 +1,8 @@
+(define input 4)
+(def-cells result)
+
+(-> (+ input 1) result)
+
+(display
+  (relationship:with-values
+    (relationship:roots-semantic input)))

@@ -326,6 +326,9 @@ The semantic-tracing gallery contains explicit `relationship:roots` and
 `relationship:dataflow` expressions and publishes the `semantic` graph-valued cell
 with `display`.
 This displays the published Lain tracer output without editor augmentation.
+For a consolidated tour of the built-in current-session trace, retained
+relationship projections, directional observers, modifiers, and replay, open
+[`examples/lain/tracer_gallery/workspace.json`](../../examples/lain/tracer_gallery/workspace.json).
 For ordinary non-graph display cells, the editor uses the same shared projection
 of the current runtime graph and its actual boundary copies.
 Choosing **Show topology** hides the separate scalar Result layer; Layers can

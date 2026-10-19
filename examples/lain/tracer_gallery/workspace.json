@@ -1,0 +1,147 @@
+{
+  "format": "lain-tiled-editor",
+  "version": 2,
+  "panes": [
+    {
+      "id": "01-current-session",
+      "title": "Current session trace",
+      "filename": "01-current-session.lain",
+      "source": "(define input 4)\n(def-cells result traced)\n\n(-> (+ input 1) result)\n\n; trace reads this pane's current runtime-session graph.\n(trace result :both traced)\n\n(display traced)\n",
+      "executedSource": "(define input 4)\n(def-cells result traced)\n\n(-> (+ input 1) result)\n\n; trace reads this pane's current runtime-session graph.\n(trace result :both traced)\n\n(display traced)\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "02-semantic",
+      "title": "Retained semantic root",
+      "filename": "02-semantic.lain",
+      "source": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (combine left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:semantic left)))\n",
+      "executedSource": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (combine left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:semantic left)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "03-roots-dataflow",
+      "title": "Roots then dataflow",
+      "filename": "03-roots-dataflow.lain",
+      "source": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (combine left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:dataflow\n      (relationship:roots left))))\n",
+      "executedSource": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (combine left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:dataflow\n      (relationship:roots left))))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "04-roots-semantic",
+      "title": "Roots semantic shorthand",
+      "filename": "04-roots-semantic.lain",
+      "source": "(define input 4)\n(def-cells result)\n\n(-> (+ input 1) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "executedSource": "(define input 4)\n(def-cells result)\n\n(-> (+ input 1) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "05-children",
+      "title": "Child call body",
+      "filename": "05-children.lain",
+      "source": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (combine left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:children result)))\n",
+      "executedSource": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (combine left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:children result)))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "06-downstream",
+      "title": "Retained downstream observer",
+      "filename": "06-downstream.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n(define input 4)\n(def-cells shifted result)\n\n(-> (+ input 1) shifted)\n(-> (* shifted shifted) result)\n\n(display\n  (observe-dependents-retained input))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n(define input 4)\n(def-cells shifted result)\n\n(-> (+ input 1) shifted)\n(-> (* shifted shifted) result)\n\n(display\n  (observe-dependents-retained input))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "07-both",
+      "title": "Retained bidirectional observer",
+      "filename": "07-both.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n(define input 4)\n(def-cells shifted result)\n\n(-> (+ input 1) shifted)\n(-> (* shifted shifted) result)\n\n(display\n  (observe-semantic-retained shifted :both))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n(define input 4)\n(def-cells shifted result)\n\n(-> (+ input 1) shifted)\n(-> (* shifted shifted) result)\n\n(display\n  (observe-semantic-retained shifted :both))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "08-caller-view",
+      "title": "Caller-view modifier",
+      "filename": "08-caller-view.lain",
+      "source": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (combine left right) result)\n\n(display\n  (relationship:caller-view\n    (relationship:with-values\n      (relationship:semantic left))))\n",
+      "executedSource": "(define combine\n  (network [a b]\n    (+ (* a 2) b)))\n\n(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (combine left right) result)\n\n(display\n  (relationship:caller-view\n    (relationship:with-values\n      (relationship:semantic left))))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "09-replay",
+      "title": "Recorded semantic replay",
+      "filename": "09-replay.lain",
+      "source": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(define input 4)\n(def-cells result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "executedSource": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(define input 4)\n(def-cells result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "10-live-observer",
+      "title": "Live non-retained observer",
+      "filename": "10-live-observer.lain",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n(define input 4)\n(def-cells shifted result)\n\n(-> (+ input 1) shifted)\n(-> (* shifted shifted) result)\n\n(display\n  (observe-semantic shifted :upstream))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")\n\n(define input 4)\n(def-cells shifted result)\n\n(-> (+ input 1) shifted)\n(-> (* shifted shifted) result)\n\n(display\n  (observe-semantic shifted :upstream))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "11-clock-history",
+      "title": "Live clock history",
+      "filename": "11-clock-history.lain",
+      "source": "(load-primitive-environment\n  \"extensions/runtime_clock.clj\"\n  :extensions.runtime-clock/primitive-bindings)\n\n(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n; The runtime publishes a new event value every 500 ms.\n(define time\n  (clock-in 500))\n\n(display\n  (collect-semantic-history time 0 60000))\n",
+      "executedSource": "(load-primitive-environment\n  \"extensions/runtime_clock.clj\"\n  :extensions.runtime-clock/primitive-bindings)\n\n(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n; The runtime publishes a new event value every 500 ms.\n(define time\n  (clock-in 500))\n\n(display\n  (collect-semantic-history time 0 60000))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "12-call-graph",
+      "title": "Potential and realized calls",
+      "filename": "12-call-graph.lain",
+      "source": "(define shift\n  (network [x]\n    (+ x 1)))\n\n(define square\n  (network [x]\n    (* x x)))\n\n(define pipeline\n  (network [x]\n    (square (shift x))))\n\n; Realize the pipeline once so the graph contains both declared call sites\n; and the applications connected by this execution.\n(define result\n  (pipeline 4))\n\n(display\n  (call-graph pipeline))\n",
+      "executedSource": "(define shift\n  (network [x]\n    (+ x 1)))\n\n(define square\n  (network [x]\n    (* x x)))\n\n(define pipeline\n  (network [x]\n    (square (shift x))))\n\n; Realize the pipeline once so the graph contains both declared call sites\n; and the applications connected by this execution.\n(define result\n  (pipeline 4))\n\n(display\n  (call-graph pipeline))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    }
+  ],
+  "activeDesktop": "call-graph",
+  "desktops": [
+    {"id": "live-session", "name": "Live session", "selectedPane": "11-clock-history", "layout": {"type": "split", "axis": "row", "ratio": 0.5, "first": {"type": "pane", "id": "01-current-session"}, "second": {"type": "pane", "id": "11-clock-history"}}},
+    {"id": "relationships", "name": "Relationships", "selectedPane": "02-semantic", "layout": {"type": "split", "axis": "row", "ratio": 0.5, "first": {"type": "pane", "id": "02-semantic"}, "second": {"type": "pane", "id": "03-roots-dataflow"}}},
+    {"id": "scope", "name": "Scope", "selectedPane": "04-roots-semantic", "layout": {"type": "split", "axis": "row", "ratio": 0.5, "first": {"type": "pane", "id": "04-roots-semantic"}, "second": {"type": "pane", "id": "05-children"}}},
+    {"id": "observers", "name": "Observers", "selectedPane": "06-downstream", "layout": {"type": "split", "axis": "row", "ratio": 0.5, "first": {"type": "pane", "id": "06-downstream"}, "second": {"type": "split", "axis": "column", "ratio": 0.5, "first": {"type": "pane", "id": "07-both"}, "second": {"type": "pane", "id": "10-live-observer"}}}},
+    {"id": "presentation", "name": "Presentation", "selectedPane": "08-caller-view", "layout": {"type": "split", "axis": "row", "ratio": 0.5, "first": {"type": "pane", "id": "08-caller-view"}, "second": {"type": "pane", "id": "09-replay"}}},
+    {"id": "call-graph", "name": "Call graph", "selectedPane": "12-call-graph", "layout": {"type": "pane", "id": "12-call-graph"}}
+  ]
+}
