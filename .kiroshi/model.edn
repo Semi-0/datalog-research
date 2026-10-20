@@ -259,6 +259,56 @@
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
+                   "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                   :memory
+                   {:confidence 0.5,
+                    :created-at #inst "2026-10-20T08:55:31.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :component/lain-editor-reactive-frontend,
+                    :lifecycle :candidate,
+                    :scope "Lain editor browser frontend",
+                    :source
+                    "user-authorized-architecture-evolution-2026-10-20",
+                    :status :active,
+                    :supported-by
+                    [:evidence/lain-editor-reactive-development-slices],
+                    :text
+                    "Lain editor reactive frontend: Owns portable editor and development models, feature-local Javelin transitions, transient view state, declarative DOM projections and browser effect declarations. Accepts browser intents and server projections; emits declared HTTP or storage effects and DOM updates. Excludes JVM semantic propagation, live runtime capabilities and server policy.",
+                    :type :architecture-component},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-20T08:56:56.986-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "frontend-reactive-evolution-2026-10-20"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "f808b7a8d6cc360d36372fafedfcb49e71dc3f66"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-authorized-architecture-evolution-2026-10-20",
+                     :tx/task
+                     #:task{:name
+                            "Record reactive frontend evolution and first two slices"}}
+                    {:db/txInstant
+                     #inst "2026-10-20T08:57:07.985-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "frontend-reactive-evolution-2026-10-20"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "f808b7a8d6cc360d36372fafedfcb49e71dc3f66"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-authorized-architecture-evolution-2026-10-20",
+                     :tx/task
+                     #:task{:name
+                            "Record reactive frontend evolution and first two slices"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
                    "73a8d2550188a7823ec0578e2262832abd51659d",
                    :memory
                    {:confidence 0.5,
@@ -481,6 +531,45 @@
                      :tx/task
                      #:task{:name
                             "Record user-reviewed propagator infrastructure model"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
+                   "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                   :memory
+                   {:applies-to
+                    [:component/lain-editor-reactive-frontend],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-20T08:55:31.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :constraint/lain-editor-view-dispatch-boundary,
+                    :lifecycle :candidate,
+                    :scope "Lain editor browser interaction boundary",
+                    :source
+                    "user-authorized-architecture-evolution-2026-10-20",
+                    :status :active,
+                    :supported-by
+                    [:evidence/lain-editor-reactive-development-slices],
+                    :text
+                    "Views consume derived view models and dispatch intents only. HTTP, storage and runtime mutation belong to effect interpreters or owning adapters; the durable editor model excludes transient view state, generations and live capabilities.",
+                    :type :constraint,
+                    :verification
+                    "Inspect event handlers, transition functions, effect interpreters and workspace serialization; run focused CLJ and CLJS transition and round-trip tests."},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-20T08:57:19.227-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "frontend-reactive-evolution-2026-10-20"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "f808b7a8d6cc360d36372fafedfcb49e71dc3f66"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-authorized-architecture-evolution-2026-10-20",
+                     :tx/task
+                     #:task{:name
+                            "Record reactive frontend evolution and first two slices"}}]}
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
@@ -1175,6 +1264,55 @@
                   {:approved-at nil,
                    :file-snapshots [],
                    :introduced-by
+                   "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                   :memory
+                   {:applies-to
+                    [:component/lain-editor-reactive-frontend
+                     :component/propagator-host],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-20T08:55:31.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id :decision/lain-editor-javelin-feature-dataflow,
+                    :lifecycle :candidate,
+                    :motivated-by
+                    [:principle/propagator-compositional-extension
+                     :principle/propagator-explicit-coordination
+                     :principle/propagator-message-boundaries],
+                    :preserves
+                    [:constraint/lain-editor-view-dispatch-boundary
+                     :constraint/propagator-host-effect-boundary
+                     :constraint/propagator-immutable-structure
+                     :constraint/propagator-session-extension],
+                    :rejects
+                    [:failure-mode/propagator-hidden-domain-state],
+                    :scope "Lain editor frontend evolution",
+                    :source
+                    "user-authorized-architecture-evolution-2026-10-20",
+                    :status :active,
+                    :supported-by
+                    [:evidence/lain-editor-reactive-development-slices],
+                    :text
+                    "Keep Javelin as the browser reactive substrate and the premise-versioned propagator network on the JVM. Organize each migrated frontend feature as a pure transition returning state plus effect declarations, a feature-owned Javelin state cell and derived view model, an effect interpreter, and an event-only declarative view. Begin with opt-in development mode while preserving ordinary editor behavior.",
+                    :type :decision},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-20T08:57:29.764-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "frontend-reactive-evolution-2026-10-20"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "f808b7a8d6cc360d36372fafedfcb49e71dc3f66"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-authorized-architecture-evolution-2026-10-20",
+                     :tx/task
+                     #:task{:name
+                            "Record reactive frontend evolution and first two slices"}}]}
+                  {:approved-at nil,
+                   :file-snapshots [],
+                   :introduced-by
                    "73a8d2550188a7823ec0578e2262832abd51659d",
                    :memory
                    {:applies-to
@@ -1352,6 +1490,98 @@
                      :tx/task
                      #:task{:name
                             "Record user-consented AMB editor learning projection"}}]}
+                  {:approved-at nil,
+                   :file-snapshots
+                   [{:blob "a4efbd88b2e1066e9c824c0b8aed861176638012",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path "doc/lain-editor-reactive-architecture.md"}
+                    {:blob "ed810c22f57d7a1d81104a21439e81e4a6d002a6",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path "graph/lain_editor/development_runtime.clj"}
+                    {:blob "5bc9f2b51d63352c80380feef7be089393d794a4",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path "graph/lain_editor/experiment_baseline.clj"}
+                    {:blob "ad95432eb551a4be80a18ec3ba8a87da27c8a484",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path
+                     "graph/lain_editor/frontend/development/dataflow.cljs"}
+                    {:blob "44c01ee820da4b3ed0555802823c2d94bfb88c4d",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path
+                     "graph/lain_editor/frontend/development/effects.cljs"}
+                    {:blob "22fccc704510cf56aba6f795a352cb607d1f9b40",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path
+                     "graph/lain_editor/frontend/development/model.cljc"}
+                    {:blob "f2a98929f215ee70dffe757658fbee3abd40717f",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path
+                     "graph/lain_editor/frontend/development/view.cljs"}
+                    {:blob "f7b439ea5bea931607615b9a669f93e2284fc634",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path
+                     "test/graph/lain_editor/development_runtime_test.clj"}
+                    {:blob "00cf42d98b7391afa1ef4596d86ae06799267843",
+                     :commit
+                     "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                     :path
+                     "test/graph/lain_editor/frontend_reactive_test.cljs"}],
+                   :introduced-by
+                   "f808b7a8d6cc360d36372fafedfcb49e71dc3f66",
+                   :memory
+                   {:applies-to
+                    [:component/lain-editor-reactive-frontend
+                     :component/propagator-host],
+                    :confidence 0.5,
+                    :created-at #inst "2026-10-20T08:55:31.000-00:00",
+                    :evidence-state :needs-verification,
+                    :id
+                    :evidence/lain-editor-reactive-development-slices,
+                    :implemented-in
+                    ["doc/lain-editor-reactive-architecture.md"
+                     "graph/lain_editor/development_runtime.clj"
+                     "graph/lain_editor/experiment_baseline.clj"
+                     "graph/lain_editor/frontend/development/dataflow.cljs"
+                     "graph/lain_editor/frontend/development/effects.cljs"
+                     "graph/lain_editor/frontend/development/model.cljc"
+                     "graph/lain_editor/frontend/development/view.cljs"
+                     "test/graph/lain_editor/development_runtime_test.clj"
+                     "test/graph/lain_editor/frontend_reactive_test.cljs"],
+                    :lifecycle :candidate,
+                    :scope
+                    "Lain editor reactive frontend and development runtime",
+                    :source
+                    "user-authorized-architecture-evolution-2026-10-20",
+                    :status :active,
+                    :text
+                    "Local uncommitted implementation adds a pinned constraint baseline and an opt-in premise-versioned editor path with portable replay, generation-qualified atomic commits, feature-local Javelin transition/effect/view composition and a declarative runtime projection. Verification observed 6419 full-suite JVM assertions, 92 focused JVM assertions, 688 ClojureScript assertions, two Rust tests, a production bundle build, a visible Safari enable-and-commit flow, and direct API rejection of an invalid commit while retaining the prior valid export.",
+                    :type :evidence,
+                    :verified-at
+                    #inst "2026-10-20T08:55:31.000-00:00"},
+                   :provenance
+                   [{:db/txInstant
+                     #inst "2026-10-20T08:56:56.986-00:00",
+                     :tx/agent-session
+                     #:session{:id
+                               "frontend-reactive-evolution-2026-10-20"},
+                     :tx/git-commit
+                     #:commit{:sha
+                              "f808b7a8d6cc360d36372fafedfcb49e71dc3f66"},
+                     :tx/repository
+                     "/Users/pandilyn/Documents/ChatGPT/datalog research",
+                     :tx/source
+                     "user-authorized-architecture-evolution-2026-10-20",
+                     :tx/task
+                     #:task{:name
+                            "Record reactive frontend evolution and first two slices"}}]}
                   {:approved-at nil,
                    :file-snapshots
                    [{:blob "9f09b778e615585ffdaf7c0e886a7e56180457c5",

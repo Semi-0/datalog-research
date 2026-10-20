@@ -2,33 +2,42 @@
 ;; Known fields must remain readable while other fields are missing.
 ;; Equal field evidence is idempotent; incompatible evidence conflicts locally.
 ;; Later field refinements must reach existing p:slot readers.
-(def-cells struct)
+;; `struct` and `stack-slot` are versioned definitions owned by the dedicated
+;; implementation slot. The pending and concrete versions have one stable
+;; signature, so replacing that slot reactivates these retained callers.
 
 ;; Identity includes the original observation and compound occurrence.
 ;; Children are direct child stacks or explicit references, never invented edges.
 ;; Empty means known complete and empty; unavailable children remain missing.
 (define stack
-  (network [identity content children]
+  (network [identity content children out]
     (struct
       (list
         (list :type :stack)
         (list :identity identity)
         (list :content content)
-        (list :children children)))))
+        (list :children children))
+      out)
+    (list out)))
 
 (define stack-ref
-  (network [identity]
+  (network [identity out]
     (struct
       (list
         (list :type :stack-ref)
-        (list :identity identity)))))
+        (list :identity identity))
+      out)
+    (list out)))
 
 (define stack-identity
-  (network [value]
-    (p:slot :identity value)))
+  (network [value out]
+    (stack-slot :identity value out)
+    (list out)))
 (define stack-content
-  (network [value]
-    (p:slot :content value)))
+  (network [value out]
+    (stack-slot :content value out)
+    (list out)))
 (define stack-children
-  (network [value]
-    (p:slot :children value)))
+  (network [value out]
+    (stack-slot :children value out)
+    (list out)))

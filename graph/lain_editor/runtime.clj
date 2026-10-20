@@ -5,6 +5,7 @@
             [graph.lain-editor.display :as display]
             [graph.lain-editor.retained-inspection :as retained-inspection]
             [graph.lain-editor.semantic-capture :as semantic-capture]
+            [graph.lain-editor.stack-primitives :as stack-primitives]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.operators.network-history :as history]
@@ -38,6 +39,7 @@
       (runtime/install-session-extension! session display/extension {})
       (runtime/install-session-extension! session history/extension {})
       (runtime/install-session-extension! session capture-observation/extension {})
+      (runtime/install-session-extension! session stack-primitives/extension {})
       (load-checked! session source)
       (doseq [extension extensions] (load-checked! session extension))
       (swap! session assoc

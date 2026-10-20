@@ -1,4 +1,4 @@
-;; Pinned acceptance declarations for stack-spec-2026-10-20-r1.
+;; Pinned acceptance declarations for stack-spec-2026-10-20-r4.
 ;; Each row is (fixture-id expected-outcome required-observations).
 (define stack-fixture-expectations
   (list

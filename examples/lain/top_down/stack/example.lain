@@ -6,6 +6,11 @@
     (+ (* x 2) 1)))
 (define example-pipeline
   (network [x]
-    (example-stage (example-stage x))))
+    ;; Keep the observed nested calls in one versioned definition. Cross-block
+    ;; calls remain supported for callers, while this lexical closure ensures
+    ;; both compound occurrences share one frozen definition version.
+    (let-cell []
+      (define stage (network [value] (+ (* value 2) 1)))
+      (stage (stage x)))))
 (define example-input 3)
 (define example-result (example-pipeline example-input))

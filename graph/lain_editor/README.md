@@ -226,6 +226,25 @@ transaction consistency, disposal, stable layout projections, graph physics,
 and delayed/stale inspection responses. Backend tests cover isolated sessions,
 failed replacement, extension identity, JSON replay rollback, and real tracing.
 
+### Premise-versioned development mode
+
+Each pane includes an opt-in **Incremental development** panel. The ordinary
+isolated-session path remains the default. Enabling the panel starts a separate
+`:versioned-premise` compiler session and persists only its portable source and
+commit ledger in workspace JSON. **Commit current source**, or Cmd/Ctrl+Enter
+while the mode is active, replaces that block's premise version while retaining
+the running network. Failed or stale commits retain the last successful ledger
+and generation. Returning to ordinary mode releases the live development
+session; reopening or restarting reconstructs it by replay rather than restoring
+JVM capabilities.
+
+The feature is the first use of the boundary described in
+[`doc/lain-editor-reactive-architecture.md`](../../doc/lain-editor-reactive-architecture.md):
+pure model transitions declare effects, a feature-local Javelin dataflow owns
+state, the view only dispatches intents and renders derived state, and a focused
+effect interpreter owns HTTP. The existing editor migrates incrementally rather
+than through a whole-application rewrite.
+
 ## Semantic tracing examples
 
 Open `examples/lain/semantic_tracing/workspace.json` for eight runnable panels:

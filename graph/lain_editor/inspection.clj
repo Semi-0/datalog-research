@@ -7,6 +7,7 @@
             [graph.lain-editor.retained-inspection :as retained-inspection]
             [graph.lain-editor.semantic-capture :as semantic-capture]
             [graph.lain-editor.semantic-scene :as semantic-scene]
+            [graph.lain-editor.stack-scene :as stack-scene]
             [graph.lain-editor.value-labels :as value-labels]
             [graph.lain-editor.value-grid :as value-grid]
             [graph.lain-editor.structural-value :as structure]
@@ -156,6 +157,22 @@
                                :dataflow/seeds #{[[:outer] id]})]
          (dataflow/dataflow-graph network operational)))))
 
+(defn stack-scene-json [candidate]
+  (let [compiled (stack-scene/compile-scene candidate)]
+    {:root (pr-str (:root compiled))
+     :planes (mapv (fn [{:keys [identity content depth order]}]
+                     {:identity (pr-str identity)
+                      :depth depth
+                      :order order
+                      :graph (graph-json content nil)})
+                   (:planes compiled))
+     :edges (mapv #(-> %
+                       (update :from pr-str)
+                       (update :to pr-str)
+                       (update :kind name))
+                  (:edges compiled))
+     :diagnostics (:diagnostics compiled)}))
+
 (defn- retain-semantic-graph
   [session generation network id graph supported]
   (if (or (not (capture/semantic-graph? graph))
@@ -217,9 +234,12 @@
     (when-not id (throw (ex-info (str "No binding named " binding) {})))
     (let [key [[:outer] id]
           supported (net/network-cell-strongest network id)
-          replay-value? (history/replay? (data/payload supported))
+          candidate (data/payload supported)
+          replay-value? (history/replay? candidate)
+          stack-value? (stack-scene/stack-value? candidate)
           historical-scope? (and parent recordedObservation)
-          semantic (when (and (not historical-scope?)
+          semantic (when (and (not stack-value?)
+                              (not historical-scope?)
                               (or parent (and (= "graph" (:mode display))
                                               (not replay-value?))))
                      (retain-semantic-graph (:session editor)
@@ -279,6 +299,9 @@
                                          (retained-inspection/child-graph (:session editor) selected)
                                          (dataflow/child-dataflow-graph network selected))
                                        semantic) network))))
+        (and stack-value? (= "graph" (:mode display)))
+        (assoc result :stackScene (stack-scene-json candidate))
+
         (= "graph" (:mode display))
         (let [direction (keyword (:direction display))
               graph semantic

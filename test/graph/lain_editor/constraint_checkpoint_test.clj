@@ -3,7 +3,7 @@
             [graph.lain-editor.constraint-checkpoint :as checkpoint]
             [propagators.compiler-2.runtime :as runtime]))
 
-(def revision :stack-spec-2026-10-20-r1)
+(def revision :stack-spec-2026-10-20-r4)
 
 (defn outcome [id status required?]
   {:constraint/id id :specification/revision revision :status status

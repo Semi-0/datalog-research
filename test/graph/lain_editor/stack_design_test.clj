@@ -16,7 +16,13 @@
     (data/payload (net/network-cell-strongest network id))))
 
 (deftest struct-stack-design-is-an-executable-partial-specification
-  (let [source (slurp "examples/lain/top_down/stack-design.lain")
+  (let [source (str "(def-cells struct stack-slot stack-shape? scope-content? direct-children? "
+                    "reference-integrity? root-compound-occurrence content-of-scope "
+                    "direct-compound-children occurrence-identity begin-traversal "
+                    "traversal-empty? take-pending pending-occurrence discovered-occurrence? "
+                    "register-occurrence connect-reference connect-child-outputs "
+                    "enqueue-child-work finish-traversal traversal-result)\n"
+                    (slurp "examples/lain/top_down/stack-design.lain"))
         session (:session (editor/prepare source []))]
     (try
       (doseq [name '[stack stack-ref stack-identity stack-content stack-children
@@ -29,10 +35,10 @@
           "The concrete compound network evaluates independently of design holes")
       (is (capture/fragment? (binding-value session 'captured))
           "The example uses an actual frozen semantic capture")
-      (is (= :stack-spec-2026-10-20-r1
+      (is (= :stack-spec-2026-10-20-r4
              (binding-value session 'stack-specification-revision)))
       (is (not (value/nothing? (binding-value session 'stack-fixture-expectations))))
-      (doseq [name '[struct stack-shape? scope-content? direct-children?
+      (doseq [name '[struct stack-slot stack-shape? scope-content? direct-children?
                     reference-integrity? root-compound-occurrence content-of-scope
                     direct-compound-children occurrence-identity begin-traversal
                     traversal-empty? take-pending pending-occurrence

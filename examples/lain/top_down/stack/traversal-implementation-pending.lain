@@ -1,0 +1,23 @@
+;; Pending traversal implementation slot for stack-spec-2026-10-20-r4.
+(define begin-traversal
+  (network [observation root out] (-> (when false :pending) out) (list out)))
+(define traversal-empty?
+  (network [state out] (-> (when false :pending) out) (list out)))
+(define take-pending (network [state work remaining] (list work remaining)))
+(define pending-occurrence
+  (network [work out] (-> (when false :pending) out) (list out)))
+(define discovered-occurrence?
+  (network [state identity out] (-> (when false :pending) out) (list out)))
+(define register-occurrence
+  (network [state work identity content owned registered]
+    (list owned registered)))
+(define connect-reference
+  (network [state work reference out] (-> (when false :pending) out) (list out)))
+(define connect-child-outputs
+  (network [state identity children out] (-> (when false :pending) out) (list out)))
+(define enqueue-child-work
+  (network [state identity children out] (-> (when false :pending) out) (list out)))
+(define finish-traversal
+  (network [state out] (-> (when false :pending) out) (list out)))
+(define traversal-result
+  (network [state out] (-> (when false :pending) out) (list out)))

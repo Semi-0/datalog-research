@@ -1,0 +1,82 @@
+{:run/id :stack-baseline-r1-cold-1
+ :run/kind :revision-pinned-semantic-baseline
+ :recorded-at "2026-10-20T06:59:34Z"
+ :repository/revision "f808b7a8d6cc360d36372fafedfcb49e71dc3f66"
+ :specification/revision :stack-spec-2026-10-20-r1
+ :dirty-source-hashes {}
+ :source/manifest
+ [{:path "examples/lain/top_down/stack-design.lain"
+   :sha256 "b68a6b7422d7bc5bd0bc1d875965ae8f9042cea35e46c3af09d00657020da48e"}
+  {:path "examples/lain/top_down/stack/structure.lain"
+   :sha256 "d76c96455eff04ea65073afe82004100a9f6db21288f467a7d4f29a27e509388"}
+  {:path "examples/lain/top_down/stack/constraints.lain"
+   :sha256 "a30f8920def42a0885ec9a1b3fe315e1d22c73521f40c9232ae7534ded77976f"}
+  {:path "examples/lain/top_down/stack/traversal-state.lain"
+   :sha256 "3bff0d42f04b49663de110cdd0c7e45008f7738a7b0c9e7f1d45975b0842b13e"}
+  {:path "examples/lain/top_down/stack/hierarchy.lain"
+   :sha256 "5dae573064a855f1a07a1f1de31cb2090ca0399cb0e87428a876c20b76a04c69"}
+  {:path "examples/lain/top_down/stack/fixtures.lain"
+   :sha256 "fc6ca9aa3758be61073d3c684b645225d0312fc2117c83ab8ad949842f4aa09d"}
+  {:path "examples/lain/top_down/stack/example.lain"
+   :sha256 "a7fae17d4d99b02ab706e4b4d1602d52d525690b4b4c04e22c8f34e1f33df668"}]
+ :runtime/instance
+ {:schema "compiler-2/versioned-instance"
+  :schema-version 1
+  :clients [{:client-id "stack-baseline-r1" :mode :versioned-premise}]
+  :commits
+  [{:commit-id "10000000-0000-0000-0000-000000000001"
+    :client-id "stack-baseline-r1"
+    :index 0
+    :expected-version nil
+    :text "(load-lain \"examples/lain/top_down/stack-design.lain\")"}]}
+ :fixture/expectations
+ {:distinct-calls :satisfied
+  :sibling-sharing :satisfied
+  :reference-cycle :satisfied
+  :deep-tail-expansion :satisfied
+  :partial-child-tail :pending
+  :conflicting-child-facts :contradictory
+  :ambiguous-roots :violated
+  :withdrawn-source :inactive
+  :late-refinement :satisfied}
+ :edit/sequence
+ [:initial-pending :install-reader :unrelated-edit :replace-reader
+  :withdraw-reader :restore-reader :failed-commit :no-op-edit]
+ :environment
+ {:os "Darwin 25.6.0 arm64"
+  :cpu "Apple M1 Pro"
+  :memory-bytes 17179869184
+  :java "OpenJDK 27 Homebrew"
+  :comparison-order :not-applicable-cold-baseline}
+ :budgets {:sample-limit-ms 60000}
+ :instrumentation
+ {:activation-profile false
+  :constraint-evaluation-index false
+  :overhead-measured false
+  :note "Cold semantic baseline only; warmed comparative instrumentation is a later gate."}
+ :raw-samples
+ [{:sample 1
+   :kind :cold
+   :commit-admission-compilation-and-propagation-ns 2671398000
+   :checkpoint-capture-ns 2259583
+   :outcome :completed}]
+ :checkpoint
+ {:runtime/commit-tick 1
+  :network/retained {:nodes 6147 :cells 3434 :propagators 2713}
+  :constraint/summary
+  {:required-count 8
+   :membership-complete? true
+   :satisfied 0 :violated 0 :pending 8 :contradictory 0
+   :inactive-or-withdrawn 1
+   :required-constraint-satisfaction 0}
+  :fixture/summary
+  {:checked 9 :declared 9 :agreements 2
+   :fixture-expectation-agreement 2/9}
+  :diagnostics
+  [{:kind :baseline/pending
+    :message "Primitive obligations are intentionally unresolved"}]}
+ :limitations
+ [:initial-network-construction-not-measured-separately
+  :commit-compilation-and-propagation-not-yet-separated
+  :instrumentation-overhead-not-measured
+  :not-a-performance-comparison]}

@@ -1,0 +1,35 @@
+;; Separately versioned bindings for generic compound traversal-state mechanics.
+;; The tail-recursive loop, discovery decision, reference policy, and frozen
+;; observation orchestration remain in hierarchy.lain.
+
+(define begin-traversal
+  (network [observation root out]
+    (stack.raw:begin-traversal observation root out) (list out)))
+(define traversal-empty?
+  (network [state out] (stack.raw:traversal-empty? state out) (list out)))
+(define take-pending
+  (network [state work remaining]
+    (stack.raw:take-pending state work remaining)
+    (list work remaining)))
+(define pending-occurrence
+  (network [work out] (stack.raw:pending-occurrence work out) (list out)))
+(define discovered-occurrence?
+  (network [state identity out]
+    (stack.raw:discovered-occurrence? state identity out) (list out)))
+(define register-occurrence
+  (network [state work identity content owned registered]
+    (stack.raw:register-occurrence state work identity content owned registered)
+    (list owned registered)))
+(define connect-reference
+  (network [state work reference out]
+    (stack.raw:connect-reference state work reference out) (list out)))
+(define connect-child-outputs
+  (network [state identity children out]
+    (stack.raw:connect-child-outputs state identity children out) (list out)))
+(define enqueue-child-work
+  (network [state identity children out]
+    (stack.raw:enqueue-child-work state identity children out) (list out)))
+(define finish-traversal
+  (network [state out] (stack.raw:finish-traversal state out) (list out)))
+(define traversal-result
+  (network [state out] (stack.raw:traversal-result state out) (list out)))

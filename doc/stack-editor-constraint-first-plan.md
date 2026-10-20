@@ -1,8 +1,9 @@
 # Constraint-first plan: recoverable blocks and executable semantic stacks
 
 Status: implementation checkpoint, 2026-10-20. Gates A and B are pinned as
-`stack-spec-2026-10-20-r1`; recoverable blocks and read-only checkpoint
-aggregation are implemented. Frozen hierarchy readers, traversal primitives,
+`stack-spec-2026-10-20-r4`; recoverable blocks, read-only checkpoint aggregation,
+a clean revision-pinned semantic baseline, and the opt-in premise-versioned
+editor path are implemented. Frozen hierarchy readers, traversal primitives,
 recursive validation, comparative measurements, and spatial rendering remain
 open. See `experiments/top_down_constraints/` for evidence and limitations.
 No commit, push, or model sync is implied.

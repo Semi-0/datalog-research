@@ -7,7 +7,5 @@
 ;; atomic and precedes children. Child positions are stable; incomplete tails
 ;; remain pending. finish-traversal completes only with complete membership and
 ;; no work. None of these operations acquires or executes source.
-(def-cells begin-traversal traversal-empty? take-pending pending-occurrence
-           discovered-occurrence? register-occurrence connect-reference
-           connect-child-outputs enqueue-child-work finish-traversal
-           traversal-result)
+;; Implementations are versioned definitions in the traversal implementation
+;; slot. This file declares the contract; hierarchy.lain owns their composition.

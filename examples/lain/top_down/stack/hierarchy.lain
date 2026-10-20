@@ -1,14 +1,14 @@
 ;; Requires structure.lain and traversal-state.lain. All reads are qualified by
 ;; the frozen observation; no operation may fall back to a newer live runtime.
-(def-cells root-compound-occurrence occurrence-identity content-of-scope
-           direct-compound-children)
+;; Frozen readers are versioned definitions in the primitive implementation
+;; slot. Every reader remains observation-qualified.
 
 (define expand-pending
   (network [observation state out]
-    (when (traversal-empty? state)
+    (when (switch true (traversal-empty? state))
       (-> (finish-traversal state) out))
     (->
-      (when (not (traversal-empty? state))
+      (when (switch true (not (traversal-empty? state)))
         (let-cell [work remaining occurrence identity next registered connected]
           (take-pending state work remaining)
           (pending-occurrence work occurrence)
@@ -16,9 +16,11 @@
 
           ;; Known occurrences connect through explicit references and are never
           ;; expanded twice. Registration precedes child discovery for cycles.
-          (when (discovered-occurrence? remaining identity)
-            (connect-reference remaining work (stack-ref identity) next))
-          (when (not (discovered-occurrence? remaining identity))
+          (when (switch true (discovered-occurrence? remaining identity))
+            (let-cell [reference]
+              (stack-ref identity reference)
+              (connect-reference remaining work reference next)))
+          (when (switch true (not (discovered-occurrence? remaining identity)))
             (let-cell [content children owned]
               (content-of-scope observation occurrence content)
               (direct-compound-children observation occurrence children)
@@ -32,13 +34,15 @@
     (list out)))
 
 (define scope->stack
-  (network [observation root]
+  (network [observation root out]
     (let-cell [initial completed]
       (begin-traversal observation root initial)
       (expand-pending observation initial completed)
-      (traversal-result completed))))
+      (traversal-result completed out))
+    (list out)))
 
 ;; Convenience discovery requires unique, complete root-membership evidence.
 (define hierarchy->stacks
-  (network [observation]
-    (scope->stack observation (root-compound-occurrence observation))))
+  (network [observation out]
+    (scope->stack observation (root-compound-occurrence observation) out)
+    (list out)))

@@ -1,0 +1,93 @@
+{:run/id :stack-integrated-r4-checkpoint-1
+ :run/kind :correctness-gated-development-checkpoint
+ :recorded-at "2026-10-20T12:02:58Z"
+ :repository/revision "f808b7a8d6cc360d36372fafedfcb49e71dc3f66"
+ :repository/working-tree :dirty
+ :specification/revision :stack-spec-2026-10-20-r4
+ :dirty-source-hashes
+ {"examples/lain/top_down/stack-design.lain"
+  "62008a015678b50af83524dfadc200e13593d60d7247d1812c380c0dff9c3c08"
+  "examples/lain/top_down/stack/primitive-bindings.lain"
+  "8a2b3d407e2588f2f1e360544ffac5900b938fdcefdb792acbd35cb4d2e93d41"
+  "examples/lain/top_down/stack/traversal-implementation.lain"
+  "b376c65101719c76db6273bc83821c41c0c69ed0df065f44cc3f2de4d8d6998d"
+  "graph/lain_editor/stack_primitives.clj"
+  "83142eabbd981cedf8dbcd16be72e6074bc5b02d2b01208116e8c86c000bc916"
+  "graph/lain_editor/development_session.clj"
+  "fc48d0f11866da020e7e59fc7865799e9d4573944cef4520f601d104c98ef299"
+  "graph/lain_editor/stack_scene.clj"
+  "4aab995e73513d2e0dc5b705fc0a2cfdce64d42771b9976bb387d9a9ed6281ce"
+  "graph/lain_editor/frontend/stack_scene.cljs"
+  "67191e71729363ef26e6a7af428c0471d2e0a247bab2497664ac98e5ef3cd4eb"}
+ :implementation-premises
+ {:client-id "stack-baseline-r4"
+  :pending-slots 21
+  :specification-slots 22
+  :replacement-versions 21
+  :total-commits 65}
+ :fixture/expectations
+ {:distinct-calls :satisfied
+  :sibling-sharing :satisfied
+  :reference-cycle :satisfied
+  :deep-tail-expansion :satisfied
+  :partial-child-tail :pending
+  :conflicting-child-facts :contradictory
+  :ambiguous-roots :violated
+  :withdrawn-source :inactive
+  :late-refinement :satisfied}
+ :edit/sequence
+ [:initial-pending :install-reader :unrelated-edit :replace-reader
+  :withdraw-reader :restore-reader :failed-commit :no-op-edit]
+ :environment
+ {:os "Darwin 25.6.0 arm64"
+  :java "OpenJDK 27 Homebrew"
+  :clojure "1.12.6.1673"}
+ :budgets {:sample-limit-ms 60000}
+ :instrumentation
+ {:activation-profile true
+  :constraint-evaluation-index true
+  :overhead-measured false
+  :browser-request-to-visible false}
+ :raw-samples
+ [{:sample 1
+   :scenario :integrated-versioned-replay
+   :kind :cold-correctness-check
+   :wall-seconds 23.41
+   :user-seconds 45.44
+   :system-seconds 1.22
+   :outcome :completed-with-semantic-mismatch}]
+ :checkpoint
+ {:membership-complete? false
+  :result/status :pending
+  :scene {:planes 0
+          :diagnostics [{:kind :conflict
+                         :message "Expected a materialized stack"}]}
+  :correctness-gate :blocked
+  :reason :supported-result-lost-across-versioned-wrapper-composition}
+ :verification
+ {:focused-jvm
+  [{:namespace "propagators.compiler-2-organization-test"
+    :assertions 18 :failures 0 :errors 0}
+   {:namespace "graph.lain-editor.stack-incremental-integration-test"
+    :assertions 6 :failures 0 :errors 0}
+   {:namespace "graph.lain-editor.development-runtime-test"
+    :assertions 26 :failures 0 :errors 0}
+   {:namespace "graph.lain-editor.experiment-comparison-test"
+    :assertions 3 :failures 0 :errors 0}]
+  :full-jvm {:assertions 6419 :failures 0 :errors 0}
+  :clojurescript {:tests 78 :assertions 693 :failures 0 :errors 0}
+  :rust {:tests 2 :failures 0}
+  :production-browser-build :passed
+  :loopback-stack-scene
+  {:status :ready :planes 1 :diagnostics 0}}
+ :comparison
+ {:alternating-warm-benchmark :not-run
+  :reason :correctness-gate-blocked
+  :incremental-clean-agreement :not-established}
+ :limitations
+ [:integrated-result-pending
+  :required-membership-incomplete
+  :browser-visual-acceptance-not-run
+  :browser-latency-not-measured
+  :instrumentation-overhead-not-measured
+  :not-a-performance-comparison]}

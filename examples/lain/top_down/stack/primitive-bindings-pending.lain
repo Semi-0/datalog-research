@@ -1,0 +1,21 @@
+;; Pending implementation slot for stack-spec-2026-10-20-r4.
+;; Signatures are stable across replacement; bodies intentionally contribute no
+;; value. Pending is therefore visible without pretending that a check passed.
+(define struct (network [fields out] (-> (when false :pending) out) (list out)))
+(define stack-slot (network [field value out] (-> (when false :pending) out) (list out)))
+(define root-compound-occurrence
+  (network [observation out] (-> (when false :pending) out) (list out)))
+(define occurrence-identity
+  (network [observation occurrence out] (-> (when false :pending) out) (list out)))
+(define content-of-scope
+  (network [observation occurrence out] (-> (when false :pending) out) (list out)))
+(define direct-compound-children
+  (network [observation occurrence out] (-> (when false :pending) out) (list out)))
+(define stack-shape?
+  (network [value out] (-> (when false :pending) out) (list out)))
+(define scope-content?
+  (network [observation identity content out] (-> (when false :pending) out) (list out)))
+(define direct-children?
+  (network [observation identity children out] (-> (when false :pending) out) (list out)))
+(define reference-integrity?
+  (network [value out] (-> (when false :pending) out) (list out)))

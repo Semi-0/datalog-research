@@ -1,7 +1,7 @@
 # Incremental constraint-first stack development
 
 This folder is the canonical record for the
-`stack-spec-2026-10-20-r1` experiment. It tests whether a retained,
+`stack-spec-2026-10-20-r4` experiment. It tests whether a retained,
 premise-versioned Lain program can support correct incremental refinement with
 less repeated work than clean reconstruction. No speedup is assumed.
 
@@ -39,7 +39,13 @@ JAVA_HOME=/opt/homebrew/opt/openjdk clojure -M:test \
   graph.lain-editor.frontend-model-test \
   graph.lain-editor.workspace-commands-test \
   graph.lain-editor.constraint-checkpoint-test \
-  graph.lain-editor.stack-design-test
+  graph.lain-editor.constraint-index-test \
+  graph.lain-editor.development-runtime-test \
+  graph.lain-editor.experiment-comparison-test \
+  graph.lain-editor.stack-design-test \
+  graph.lain-editor.stack-primitives-test \
+  graph.lain-editor.stack-incremental-integration-test \
+  graph.lain-editor.stack-scene-test
 
 clojure -M:editor/cljs-test
 node target/lain-editor/tests.js
@@ -55,13 +61,22 @@ versions, fixtures/edit sequence, environment, budgets, instrumentation, raw
 samples, and outcome. Portable records never contain sessions, live networks,
 capabilities, or credentials.
 
+`2026-10-20-pinned-baseline-r1.edn` is the controlled semantic baseline at the
+clean `f808b7a` revision. It is intentionally not a performance comparison: the
+runtime boundary did not yet separate compilation from propagation and no warmed
+samples or instrumentation-overhead sample had been taken.
+
 See [REPORT.md](REPORT.md) for observed evidence and [DECISIONS.md](DECISIONS.md)
 for revision amendments. The current run is a development checkpoint, not the
 completed comparative benchmark.
 
 ## Limitations
 
-Frozen-scope readers, traversal-state primitives, recursive validation, spatial
-stack rendering, browser acceptance, and the alternating benchmark remain
-unimplemented. The current checkpoint therefore cannot support a claim that the
-overall method is faster or that stack semantics are accepted.
+Frozen-scope readers, traversal-state primitives, clean comparison, and spatial
+stack rendering are implemented and pass at their isolated boundaries. The r4
+versioned recursive composition still leaves the final result pending after all
+21 implementation replacements, so semantic acceptance is blocked. Visual
+browser acceptance and the alternating benchmark have not been performed; the
+benchmark remains behind the correctness gate. The current checkpoint therefore
+cannot support a claim that the overall method is faster or that the integrated
+stack semantics are accepted.

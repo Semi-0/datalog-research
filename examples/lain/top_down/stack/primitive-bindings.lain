@@ -1,0 +1,25 @@
+;; Separately versioned implementation definitions for stack-spec-2026-10-20-r4.
+;; The public specification keeps these names as explicit cells. This block
+;; supplies only generic struct construction and pure frozen-capture readers.
+(define struct (network [fields out] (stack:struct fields out) (list out)))
+(define stack-slot (network [field value out] (stack.raw:stack-slot field value out) (list out)))
+(define root-compound-occurrence
+  (network [observation out] (stack.raw:root-compound-occurrence observation out) (list out)))
+(define occurrence-identity
+  (network [observation occurrence out]
+    (stack.raw:occurrence-identity observation occurrence out) (list out)))
+(define content-of-scope
+  (network [observation occurrence out]
+    (stack.raw:content-of-scope observation occurrence out) (list out)))
+(define direct-compound-children
+  (network [observation occurrence out]
+    (stack.raw:direct-compound-children observation occurrence out) (list out)))
+(define stack-shape? (network [value out] (stack.raw:stack-shape? value out) (list out)))
+(define scope-content?
+  (network [observation identity content out]
+    (stack.raw:scope-content? observation identity content out) (list out)))
+(define direct-children?
+  (network [observation identity children out]
+    (stack.raw:direct-children? observation identity children out) (list out)))
+(define reference-integrity?
+  (network [value out] (stack.raw:reference-integrity? value out) (list out)))

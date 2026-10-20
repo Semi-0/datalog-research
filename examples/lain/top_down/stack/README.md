@@ -20,7 +20,7 @@ they do not introduce namespaces or an idempotent module cache. Load the entry
 once in a fresh editor block. Opening domain files in neighboring blocks is
 for source review, not sharing runtime bindings across blocks.
 
-This is the executable, pinned `stack-spec-2026-10-20-r1` partial specification.
+This is the executable, pinned `stack-spec-2026-10-20-r4` partial specification.
 The example and semantic capture
 are real; `struct`, hierarchy readers and validation predicates remain explicit
 implementation obligations. No spatial renderer is implemented. Missing capture
