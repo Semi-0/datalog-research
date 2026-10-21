@@ -97,6 +97,15 @@ the root compound-node center. Changing depth spacing moved the child plane from
 capability-free legacy semantic graphs and deliberately performs no acquisition.
 No page or console errors were observed.
 
+A later presentation run added explicit depth labels, expansion/reference
+counts, and accessible plane/edge descriptions without changing the stack
+domain value. Its raw record is
+[`runs/2026-10-21-stack-r9-browser-depth-presentation.edn`](runs/2026-10-21-stack-r9-browser-depth-presentation.edn).
+On a fresh server with per-sample runtime release, its measured median was
+`1320.572 ms` with range `1308.327–1322.074 ms`. This is not attributed to the
+visual change: the earlier harness had retained every backend editor session,
+so the two timing sets do not isolate one variable.
+
 ## Verification
 
 - The complete JVM suite passed 6,419 assertions with no failures or errors.
@@ -125,6 +134,12 @@ No page or console errors were observed.
 - The first benchmark classifier used substring matching and falsely reported
   constraint executions for compound-object slot accessors. Exact symbol
   matching shows zero constraint primitive executions for unrelated edits.
+- The initial browser harness closed browser contexts without closing their
+  backend editor sessions. Repeated runs eventually produced a server heap
+  exhaustion. The runner now sends the ordinary editor `close` command in a
+  `finally` block; three consecutive complete 3+5 runs passed afterward. The
+  original latency record remains raw evidence but is not a clean-lifecycle
+  performance baseline.
 - The full benchmark output exceeded the console display limit. The canonical
   artifact preserves all timing arrays and counters needed for the reported
   comparisons. One non-summary activation-elapsed value that was not preserved

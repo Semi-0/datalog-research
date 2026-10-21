@@ -1,0 +1,54 @@
+{:record/schema :top-down-constraints/browser-measurement-v1
+ :run/id :stack-r9-browser-depth-presentation-1
+ :specification/revision :stack-spec-2026-10-20-r9
+ :repository/base-revision "6f17fee62229bedff6104d1091a1ab479543466b"
+ :source/manifest
+ [{:path "graph/lain_editor/frontend/stack_scene.cljs"
+   :sha256 "6415eb98f21240d3b4f4a745d3ac09d445ee821293797f1bea3b984f89ab2d08"}
+  {:path "graph/lain_editor/frontend/stack_scene_model.cljc"
+   :sha256 "d00f8e5dc499e0da1ab7ceab96d1a36ced62cdd4a93200f58c2b977415a3fddb"}
+  {:path "graph/lain_editor_static/style.css"
+   :sha256 "69b34aa08544ac9be214475b802e9e6313a1e917f95eb8fe3b08f8178f5cb839"}
+  {:path "experiments/top_down_constraints/browser_acceptance.js"
+   :sha256 "ff7af40885fa8618a0cdc31bcf55804714fa3b94b2d4ac747737b99233c30bef"}
+  {:path "examples/lain/top_down/stack-browser-acceptance.lain"
+   :sha256 "abfc41d26d0b5b68763ffb53b3135df760a890963120a2302db51d12d64bd3e1"}]
+ :fixture :controlled-source-anchored-two-plane-stack
+ :environment {:os-name "macOS"
+               :os-version "26.7.1"
+               :os-arch "arm64"
+               :browser "Chrome for Testing"
+               :browser-version "156.0.8078.4"
+               :playwright-version "1.64.1"
+               :viewport [1440 1000]
+               :server :fresh-process}
+ :budgets {:sample-limit-seconds 60 :warmups 3 :measurements 5}
+ :instrumentation {:start :meta-enter-dispatch
+                   :stop :scene-visible-plus-two-animation-frames
+                   :clock :node-monotonic-performance-now
+                   :per-sample-runtime-close? true}
+ :warmup-ms [2330.292208 1831.050416 1824.911041]
+ :measured-ms [1322.074459 1320.91725 1309.94075 1320.571834 1308.327042]
+ :summary {:median-ms 1320.571834
+           :range-ms [1308.327042 1322.074459]
+           :within-60-seconds [true true true true true]}
+ :observed {:summary "2 semantic planes · 1 expansion · depth 1"
+            :planes 2
+            :expansion-edges 1
+            :node-kinds [:cell :cell :propagator :propagator]
+            :depth-labels ["D0" "D1"]
+            :anchor-distance-px [0.185354 0.186619 0.186420 0.186584 0.187760]
+            :spacing-before-px 258
+            :spacing-after-px 328
+            :semantic-stable-after-view-change? true
+            :browser-errors []}
+ :lifecycle-counterexample
+ {:previous-harness :closed-browser-context-without-editor-close
+  :observed-failure :server-java-heap-out-of-memory
+  :correction :post-editor-close-in-finally-before-context-close
+  :two-additional-complete-runs-after-correction? true}
+ :result {:visual-acceptance? true
+          :source-anchored-expansion? true
+          :depth-presentation? true
+          :accessible-plane-and-edge-semantics? true
+          :repeatable-runtime-release? true}}

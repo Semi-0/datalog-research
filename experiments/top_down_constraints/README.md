@@ -86,9 +86,13 @@ samples, and outcome. Portable records never contain sessions, live networks,
 capabilities, or credentials.
 
 `2026-10-21-stack-r9-measured-2.edn` is the current revision-matched compact raw
-runtime record. `2026-10-21-stack-r9-browser.edn` records the separate browser
-request-to-visible and visual acceptance run. `2026-10-20-pinned-baseline-r1.edn`
-is the controlled semantic baseline at the
+runtime record. `2026-10-21-stack-r9-browser.edn` records the initial separate
+browser request-to-visible and visual acceptance run.
+`2026-10-21-stack-r9-browser-depth-presentation.edn` records the depth-labelled
+presentation and corrected per-sample runtime lifecycle. The browser runner
+closes its backend editor in a `finally` block before closing each isolated
+browser context. `2026-10-20-pinned-baseline-r1.edn` is the controlled semantic
+baseline at the
 clean `f808b7a` revision. It is intentionally not a performance comparison: the
 runtime boundary did not yet separate compilation from propagation and no warmed
 samples or instrumentation-overhead sample had been taken.

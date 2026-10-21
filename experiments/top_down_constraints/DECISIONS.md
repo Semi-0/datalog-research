@@ -215,3 +215,18 @@ withdrawal makes the existing result pending and restoration resumes it. The
 isolated fixture gate passes all 11 assertions and all nine declared fixture
 statuses, including deep tail expansion, sharing, cycles, partial information,
 localized contradiction, and late refinement.
+
+## Browser measurement lifecycle correction — 2026-10-21
+
+This is an evidence-method correction, not a stack-specification amendment.
+The first Playwright runner disposed each browser context but did not send the
+editor's `close` command. Backend sessions therefore accumulated across runs;
+after several complete 3+5 repetitions, the editor server exhausted its Java
+heap. Those earlier latency samples remain recorded observations, but they are
+not a clean-lifecycle baseline.
+
+The runner now sends the ordinary close command for the context's pane in a
+`finally` block and treats close failure as a failed acceptance run. A fresh
+server completed the depth-presentation 3+5 run and two further complete runs
+without exhaustion. The correction changes neither stack semantics nor fixture
+expectations.
