@@ -1,13 +1,12 @@
 # Constraint-first plan: recoverable blocks and executable semantic stacks
 
-Status: implementation checkpoint, 2026-10-20. Gates A and B are pinned as
+Status: measured acceptance checkpoint, 2026-10-21. Gates A and B are pinned as
 `stack-spec-2026-10-20-r9`; recoverable blocks, read-only checkpoint aggregation,
 a clean revision-pinned semantic baseline, the opt-in premise-versioned editor
 path, frozen readers, explicit traversal, recursive validation, semantic clean
-comparison, and an initial spatial renderer are implemented. Complete fixture
-execution, anchored browser acceptance, and comparative measurements remain
-open. See `experiments/top_down_constraints/` for evidence and limitations.
-No commit, push, or model sync is implied.
+comparison, spatial rendering, complete fixture execution, anchored browser
+acceptance, and comparative measurements are implemented. See
+`experiments/top_down_constraints/` for evidence and limitations.
 
 ## Goal and governing order
 
@@ -41,9 +40,12 @@ starts before the stack constraint and high-level specification gates pass.
   retained original observation resumes the same network and materializes a
   stack. An independently reconstructed network agrees semantically after
   generated identities are normalized.
-- The initial renderer still connects plane centers; visual acceptance must prove
-  that each inter-plane edge is visibly anchored to its source compound node.
-- The complete fixture sequence and alternating benchmark remain unmeasured.
+- The renderer anchors each inter-plane edge to its source compound node. A
+  Chromium acceptance run verified two semantic planes, preserved node kinds,
+  a source-anchor distance below 0.19 px, and view-state-only spacing changes.
+- All nine declared fixture expectations agree. Five alternating retained/clean
+  pairs per measured edit scenario agree semantically; unrelated edits execute
+  no stack-constraint primitives under exact-name classification.
 - Unrelated dirty worktree changes remain outside this task. A locally available
   uncommitted helper is not automatically an accepted dependency.
 

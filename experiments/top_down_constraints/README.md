@@ -26,7 +26,8 @@ constraints the rate is not applicable. Fixture agreement is a separate measure
 of observed status versus the fixture's declared expected status. No success is
 reported while membership is incomplete.
 
-Timing uses `System/nanoTime` and separates construction, commit admission and
+JVM timing uses `System/nanoTime`; browser timing uses Node's monotonic
+`performance.now`. The records distinguish construction, commit admission and
 compilation, propagation, outcome maintenance, checkpoint capture/inspection,
 browser request-to-visible update, and clean reconstruction. Runtime timing is
 not a proxy for human or agent development time. Synchronous profiler values are
@@ -57,6 +58,19 @@ JAVA_HOME=/opt/homebrew/opt/openjdk clojure -M -e \
   '(require (quote [graph.lain-editor.stack-benchmark :as b]))
    (prn (b/compact-artifact (b/run)))'
 
+# Browser acceptance uses an isolated temporary Playwright installation.
+# Keep this server running in a first terminal.
+clojure -M -m graph.lain-editor.server 4783
+
+# Run these commands in a second terminal.
+npm install --prefix /tmp/lain-stack-browser playwright@1.64.1
+PLAYWRIGHT_BROWSERS_PATH=/tmp/lain-stack-browser-browsers \
+  /tmp/lain-stack-browser/node_modules/.bin/playwright install chromium
+NODE_PATH=/tmp/lain-stack-browser/node_modules \
+PLAYWRIGHT_BROWSERS_PATH=/tmp/lain-stack-browser-browsers \
+LAIN_EDITOR_URL=http://127.0.0.1:4783 \
+  node experiments/top_down_constraints/browser_acceptance.js
+
 clojure -M:editor/cljs-test
 node target/lain-editor/tests.js
 ```
@@ -72,21 +86,24 @@ samples, and outcome. Portable records never contain sessions, live networks,
 capabilities, or credentials.
 
 `2026-10-21-stack-r9-measured-2.edn` is the current revision-matched compact raw
-record. `2026-10-20-pinned-baseline-r1.edn` is the controlled semantic baseline at the
+runtime record. `2026-10-21-stack-r9-browser.edn` records the separate browser
+request-to-visible and visual acceptance run. `2026-10-20-pinned-baseline-r1.edn`
+is the controlled semantic baseline at the
 clean `f808b7a` revision. It is intentionally not a performance comparison: the
 runtime boundary did not yet separate compilation from propagation and no warmed
 samples or instrumentation-overhead sample had been taken.
 
 See [REPORT.md](REPORT.md) for observed evidence and [DECISIONS.md](DECISIONS.md)
-for revision amendments. The current run is a development checkpoint, not the
-completed comparative benchmark.
+for revision amendments. The runtime and browser records together form the
+completed r9 comparative and presentation checkpoint.
 
 ## Limitations
 
 Frozen readers, traversal, clean comparison, scene interpretation, and frontend
 model rendering pass their revision-matched automated boundaries. All declared
 fixture expectations agree, and the alternating benchmark shows semantic
-agreement and localized unrelated work for the measured fixture. Browser
-request-to-visible latency and a revision-matched visual acceptance pass remain
-unverified because Safari remote automation is disabled. Exact cold compilation
-and propagation components are also not separately available.
+agreement and localized unrelated work for the measured fixture. Chromium
+browser acceptance preserves semantic node kinds, source-anchored expansion,
+and view-state separation. Safari-specific automation remains unavailable
+without a user-authenticated global setting change. Exact cold compilation and
+propagation components are also not separately available.

@@ -1,9 +1,8 @@
 # Incremental constraint-first stack experiment report
 
-Status: semantically accepted through the runtime, scene interpreter, and
-frontend model. Revision-matched interactive browser latency and visual
-acceptance remain unverified, so this is not a claim of complete browser
-acceptance.
+Status: accepted through the runtime, scene interpreter, frontend model, and a
+revision-matched Chromium browser run. Safari-specific automation remains an
+environment limitation rather than a substitute acceptance claim.
 
 ## Proposed
 
@@ -82,6 +81,22 @@ edit, localized invalidation for reader replacement, pending after withdrawal,
 satisfied after restoration, atomic stale-commit rejection, and supported
 success after a no-op replacement with old evidence invalidated.
 
+The separate browser record is
+[`runs/2026-10-21-stack-r9-browser.edn`](runs/2026-10-21-stack-r9-browser.edn).
+After three warmups, request-to-visible samples were `3326.087`, `3342.900`,
+`3326.225`, `3324.360`, and `3326.929` ms: median `3326.225` ms, range
+`3324.360–3342.900` ms. Timing begins at Meta-Enter dispatch and ends after the
+scene is visible plus two animation frames, so it includes the browser request,
+server execution, reactive update, layout, and a paint boundary.
+
+The browser displayed two semantic planes, one expansion edge, two cell nodes,
+and two propagator nodes. The measured edge start remained within `0.19 px` of
+the root compound-node center. Changing depth spacing moved the child plane from
+`258 px` to `328 px` while semantic counts and kinds remained unchanged. The two
+“Partial capture.” messages are expected: the controlled renderer fixture uses
+capability-free legacy semantic graphs and deliberately performs no acquisition.
+No page or console errors were observed.
+
 ## Verification
 
 - The complete JVM suite passed 6,419 assertions with no failures or errors.
@@ -89,8 +104,9 @@ success after a no-op replacement with old evidence invalidated.
   browser bundle rebuilt successfully.
 - `cargo test --locked` passed both Rust tests.
 - A fresh r9 API smoke run reached ready state with two stack planes, one
-  source-anchored expansion, preserved `:call` and `:result` node kinds, and no
-  diagnostics.
+  source-anchored expansion and preserved `:call` and `:result` node kinds.
+- Chromium browser acceptance passed three warmups and five measured samples,
+  including source-anchor geometry and view-state separation checks.
 - The canonical EDN artifact parses successfully and `git diff --check` reports
   no whitespace errors.
 
@@ -126,14 +142,13 @@ A performance regression would not invalidate semantic acceptance. None was
 observed against clean reconstruction, but retained topology and replacement
 latency grew across repeated versions and should be treated as a limitation.
 
-## Remaining unverified
+## Remaining limitations
 
-- Browser request-to-visible latency is not measured. The live server responds
-  on port 4782, but Safari WebDriver reported that global “Allow remote
-  automation” is disabled. Server or synchronous profiler time is not used as a
-  substitute.
-- The current r9 browser presentation has not received a revision-matched visual
-  acceptance pass. The prior visual development check predates r9.
+- Safari WebDriver requires an administrator-authenticated “Allow remote
+  automation” setting, and macOS screen capture is not authorized in this
+  environment. The revision-matched browser gate therefore used isolated
+  Chromium 156 with Playwright 1.64.1. No server or synchronous profiler timing
+  was substituted for browser latency.
 - Exact separation of initial compilation from initial propagation remains
   unavailable at the runtime boundary; cold reconstruction is reported as one
   total.

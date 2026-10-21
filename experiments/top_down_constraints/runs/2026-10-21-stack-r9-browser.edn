@@ -1,0 +1,51 @@
+{:record/schema :top-down-constraints/browser-measurement-v1
+ :run/id :stack-r9-browser-chromium-1
+ :specification/revision :stack-spec-2026-10-20-r9
+ :repository/revision "4151827cef899264771b64bb6341daee50348816"
+ :source {:path "examples/lain/top_down/stack-browser-acceptance.lain"
+          :sha256 "abfc41d26d0b5b68763ffb53b3135df760a890963120a2302db51d12d64bd3e1"}
+ :implementation {:premise-count 24
+                  :fixture :controlled-source-anchored-two-plane-stack}
+ :environment {:os-name "macOS"
+               :os-version "26.7.1"
+               :os-build "25G241"
+               :os-arch "arm64"
+               :browser "Chrome for Testing"
+               :browser-version "156.0.8078.4"
+               :playwright-version "1.64.1"
+               :viewport [1440 1000]}
+ :budgets {:sample-limit-seconds 60 :warmups 3 :measurements 5}
+ :instrumentation {:start :meta-enter-dispatch
+                   :stop :scene-visible-plus-two-animation-frames
+                   :clock :node-monotonic-performance-now
+                   :includes [:browser-request :server-execution :response
+                              :reactive-update :layout :visible-paint-boundary]
+                   :synchronous-profiler-substituted? false}
+ :warmup-ms [3345.33925 3857.639791 3326.460042]
+ :measured-ms [3326.086542 3342.89975 3326.225459 3324.359541 3326.929459]
+ :summary {:median-ms 3326.225459
+           :range-ms [3324.359541 3342.89975]
+           :within-60-seconds [true true true true true]}
+ :observed {:summary "2 semantic planes"
+            :planes 2
+            :expansion-edges 1
+            :reference-edges 0
+            :node-kinds [:cell :cell :propagator :propagator]
+            :diagnostics ["Partial capture." "Partial capture."]
+            :anchor-distance-px [0.186186 0.186701 0.186295 0.186733 0.187364]
+            :spacing-before-px 258
+            :spacing-after-px 328
+            :semantic-stable-after-view-change? true
+            :browser-errors []}
+ :screenshot {:captured? true
+              :inspected? true
+              :persisted? false
+              :note "The inspected full-page screenshot is a local ephemeral artifact; semantic and geometry evidence are recorded above."}
+ :limitations {:safari-webdriver :requires-user-authenticated-remote-automation
+               :safari-screen-capture :not-authorized
+               :fixture-graphs :intentional-legacy-partial-captures}
+ :result {:request-to-visible-measured? true
+          :visual-acceptance? true
+          :source-anchored-expansion? true
+          :semantic-kinds-preserved? true
+          :view-state-separated? true}}
