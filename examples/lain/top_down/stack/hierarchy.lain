@@ -1,48 +1,58 @@
 ;; Requires structure.lain and traversal-state.lain. All reads are qualified by
 ;; the frozen observation; no operation may fall back to a newer live runtime.
 ;; Frozen readers are versioned definitions in the primitive implementation
-;; slot. Every reader remains observation-qualified.
+;; slot. Every reader remains observation-qualified. A direct expansion retains
+;; the compound node that owns each lower plane.
 
 (define expand-pending
-  (network [observation state out]
-    (when (switch true (traversal-empty? state))
-      (-> (finish-traversal state) out))
-    (->
-      (when (switch true (not (traversal-empty? state)))
-        (let-cell [work remaining occurrence identity next registered connected]
-          (take-pending state work remaining)
-          (pending-occurrence work occurrence)
-          (occurrence-identity observation occurrence identity)
+  (network [observation state]
+    (let-cell [empty? result]
+      (-> (traversal-empty? state) empty?)
+      (when (switch true empty?)
+        (-> (finish-traversal state) result))
+      (when (switch true (not empty?))
+        (let-cell [step work remaining occurrence identity discovered? next
+                   graph expansions registered connected]
+          (-> (take-pending state) step)
+          (-> (pending-work step) work)
+          (-> (pending-remaining step) remaining)
+          (-> (pending-occurrence work) occurrence)
+          (-> (occurrence-identity observation occurrence) identity)
+          (-> (discovered-occurrence? remaining identity) discovered?)
 
           ;; Known occurrences connect through explicit references and are never
           ;; expanded twice. Registration precedes child discovery for cycles.
-          (when (switch true (discovered-occurrence? remaining identity))
-            (let-cell [reference]
-              (stack-ref identity reference)
-              (connect-reference remaining work reference next)))
-          (when (switch true (not (discovered-occurrence? remaining identity)))
-            (let-cell [content children owned]
-              (content-of-scope observation occurrence content)
-              (direct-compound-children observation occurrence children)
-              (register-occurrence remaining work identity content owned registered)
-              (connect-child-outputs registered identity children connected)
-              (enqueue-child-work connected identity children next)))
+          (when (switch true discovered?)
+            (-> (connect-reference remaining work identity) next))
+          (when (switch true (not discovered?))
+            (-> (content-of-scope observation occurrence) graph)
+            (-> (direct-compound-expansions observation occurrence) expansions)
+            (-> (register-occurrence remaining work identity graph) registered)
+            (-> (connect-expansion-outputs registered identity expansions) connected)
+            (-> (enqueue-expansion-work connected identity expansions) next))
 
           ;; Construction and scheduling precede this tail-position loop call.
-          (expand-pending observation next out)))
-      out)
-    (list out)))
+          (-> (expand-pending observation next) result)))
+      result)))
 
 (define scope->stack
-  (network [observation root out]
-    (let-cell [initial completed]
-      (begin-traversal observation root initial)
-      (expand-pending observation initial completed)
-      (traversal-result completed out))
-    (list out)))
+  (network [observation root]
+    (let [initial (begin-traversal observation root)
+          completed (expand-pending observation initial)]
+      (traversal-result completed))))
+
+;; Primary declarative entry: expand this traced compound node into a spatial
+;; stack. All returned values are implicit; conditional branches are selected
+;; as zero-argument networks and the recursive call remains in tail position.
+(define compound->stack
+  (network [observation compound-node]
+    (let-cell [occurrence]
+      (-> (compound-occurrence observation compound-node) occurrence)
+      (scope->stack observation occurrence))))
 
 ;; Convenience discovery requires unique, complete root-membership evidence.
 (define hierarchy->stacks
-  (network [observation out]
-    (scope->stack observation (root-compound-occurrence observation) out)
-    (list out)))
+  (network [observation]
+    (let-cell [root]
+      (-> (root-compound-node observation) root)
+      (compound->stack observation root))))

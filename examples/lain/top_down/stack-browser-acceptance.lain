@@ -1,0 +1,20 @@
+;; Controlled renderer fixture for stack-spec-2026-10-20-r9.
+;; This does not stand in for compound->stack acceptance: it isolates whether
+;; the browser preserves graph nodes and visibly anchors an inter-plane expansion
+;; to its source compound node. Both planes intentionally reuse the same
+;; capability-free semantic graph so the renderer check performs no acquisition.
+(define import load-lain)
+(import "examples/lain/top_down/stack/primitive-bindings.lain")
+(import "examples/lain/top_down/stack/structure.lain")
+
+(define acceptance-graph
+  {:semantic-trace/graph true
+   :nodes {:call "compound call" :result "result"}
+   :node-kinds {:call :propagator :result :cell}
+   :values {:result 42}
+   :edges #{[:call :result]}})
+
+(define child (stack :browser-child acceptance-graph (list)))
+(define expansion (stack-expansion :call child))
+(define root (stack :browser-root acceptance-graph (list expansion)))
+(display root)

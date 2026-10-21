@@ -93,3 +93,125 @@ after more than 60 seconds). The candidate was removed. `struct` remains an
 explicit obligation; compile-only success is not accepted as implementation
 evidence. Any replacement must satisfy late refinement, local conflict,
 idempotence, and withdrawal tests before the specification can use it.
+
+## stack-spec-2026-10-20-r5 — 2026-10-20
+
+The integrated r4 investigation separated two previously conflated states.
+Raw stack primitives were receiving premise transport wrappers before checking
+readiness, and repeated returned-member gates could publish a wrapper as the
+next gate's semantic value. R5 recursively projects the semantic base at those
+two boundaries while each versioned gate continues to own and combine support.
+
+The Lain composition now invokes every explicit-output wrapper explicitly,
+including branch predicates and root discovery. This preserves the declared
+network signatures and avoids relying on an implicit return cell for a closure
+whose last parameter is itself the output connection.
+
+After those corrections, a root-only frozen capture remains pending as required.
+Publishing the child scope from the retained original observation resumes the
+same running traversal and yields the materialized stack. This is not a weakened
+success condition: missing child information is still pending, and acquisition
+remains outside transformation and rendering. Fixture expectations are unchanged.
+
+## stack-spec-2026-10-20-r6 — 2026-10-20
+
+The r5 `stack(identity, content, children)` representation captured occurrence
+hierarchy but lost the graph node that caused each expansion. That is
+insufficient for the intended spatial meaning: a stack expands a graph through
+the third dimension, and the inter-plane connection must begin at the compound
+node in the parent plane.
+
+R6 replaces the public shape with `stack(identity, graph, expansions)`, where
+each `stack-expansion(source, target)` retains the source node and targets either
+another canonical stack plane or `stack-ref(identity)`. Primitive nodes remain
+in their graph plane. Sharing and cycles still create references rather than
+duplicate planes. The direct-child constraint is correspondingly renamed and
+strengthened to direct-expansion membership, including the source anchor.
+
+The primary high-level operation is now `compound->stack`. It implicitly returns
+one stack; explicit output cells are confined to the lower-level tail-recursive
+interpreter and versioned primitive boundary. Frozen observations remain a
+required source dependency and are not renderer state.
+
+This is a semantic amendment, so r5 acceptance evidence is stale for the stack
+shape and scene. Fixture statuses are unchanged, but revision-matched evidence
+must additionally preserve expansion anchors. Incremental and clean results are
+compared after removing generated runtime identities while retaining node
+kinds, values, directed topology, plane depth, reference/expansion kinds, and
+canonicalized source anchors.
+
+## stack-spec-2026-10-20-r7 — 2026-10-20
+
+R6 still exposed the propagator installer's explicit output-cell convention in
+ordinary single-result constructors, readers, accessors, and `scope->stack`.
+Those cells were transport wiring, not stack-domain inputs, and made the
+declarative composition read like a manually assembled runtime graph.
+
+R7 uses Lain's implicit single-result relation for those operations. Explicit
+applicants remain only where the domain operation genuinely has multiple
+results and in the private tail-recursive `expand-pending` helper, whose two
+conditional branches must converge on one result cell. `compound->stack` and
+`scope->stack` now both read as value transformations; callers do not allocate
+their results.
+
+No stack semantics or fixture expectation changed. Because public versioned
+signatures changed, r6 runtime evidence is stale. Revision-matched focused
+evidence is the primitive and incremental reconstruction suites, which pass 44
+assertions after replaying the r7 ledger.
+
+## stack-spec-2026-10-20-r8 — 2026-10-21
+
+The first complete r7 fixture run exposed two representation mismatches. A
+captured scope combined its one-plane semantic graph with nested-scope
+membership, while the semantic graph information merge correctly retained only
+graph fields. Separately, the sharing branch constructed a live `stack-ref`
+struct and passed it across a primitive boundary that could not inspect the
+struct's owning-network field cells. Distinct trees passed, but sharing and
+cycles consequently failed shape, reference-integrity, and direct-expansion
+constraints.
+
+R8 makes the boundary explicit. `content-of-scope` returns the canonical
+one-scope semantic graph; `direct-compound-expansions` reads nested membership
+as its separate frozen fact. Semantic-graph normalization retains distinct
+capture diagnostics. The Lain sharing branch passes its already-known,
+observation-qualified identity into the traversal transition, which produces a
+capability-free `stack-ref` at materialization. The decision to reference rather
+than expand remains in the Lain recursion.
+
+Fixture expectations did not change. R7 result evidence is stale because the
+public frozen reader now has a precise plane-only contract. Revision-matched
+evidence is 77 focused primitive/semantic assertions and the isolated executable
+fixture gate: 11 assertions, all nine declared fixture statuses in agreement,
+including sharing, cycles, partial information, localized contradiction,
+withdrawal, and late refinement.
+
+## stack-spec-2026-10-20-r9 — 2026-10-21
+
+The r8 withdrawal check exposed two hidden output paths. `take-pending` and
+`register-occurrence` wrote caller-supplied cells, so those values escaped the
+single versioned return boundary. The private recursive helper likewise accepted
+an explicit caller output. As a result, replacing a reader implementation could
+leave a previously materialized stack supported by only downstream candidates.
+
+R9 makes each traversal operation single-result. `take-pending` returns an
+immutable step read through `pending-work` and `pending-remaining`;
+`register-occurrence` returns the next traversal state directly. The recursive
+helper now has an implicit result, with local branch convergence and its
+recursive call in tail position. The stack extension's raw primitive adapter
+computes from semantic bases while transporting distributed support and premise
+state, so an upstream retraction invalidates retained downstream results. This
+is extension-local and does not redefine process-global compiler behavior.
+
+Recursive reuse also exposed an overly coarse generic candidate-input rule: a
+conjunctive claim containing the current definition premise was discarded in
+full. The runtime now removes only that self-support conjunct and retains the
+claim when independent upstream support remains; claims supported only by
+themselves are still excluded. A focused runtime test covers both invariants.
+
+Fixture expectations did not change. R8 measurements are stale because the
+implementation signatures and support behavior changed. Revision-matched
+evidence includes the 12-assertion incremental integration check: reader
+withdrawal makes the existing result pending and restoration resumes it. The
+isolated fixture gate passes all 11 assertions and all nine declared fixture
+statuses, including deep tail expansion, sharing, cycles, partial information,
+localized contradiction, and late refinement.

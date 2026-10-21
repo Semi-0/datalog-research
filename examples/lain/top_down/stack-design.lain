@@ -1,4 +1,4 @@
-;; Lain-first partial specification, not an implemented 3D renderer.
+;; Lain-first specification; the renderer interprets its stack result separately.
 ;; import is an ordinary alias of the existing project-relative file loader.
 ;; Imports share this program environment; order is explicit, with no module cache.
 (define import load-lain)
@@ -9,16 +9,14 @@
 (import "examples/lain/top_down/stack/fixtures.lain")
 (import "examples/lain/top_down/stack/example.lain")
 
-(define stack-specification-revision :stack-spec-2026-10-20-r4)
+(define stack-specification-revision :stack-spec-2026-10-20-r9)
 
 ;; High-level orchestration stays in Lain; imported domains own their contracts.
-;; Capture is real, but its hierarchy readers and struct are explicit holes.
+;; Capture is real. Pending and concrete implementations occupy separately
+;; versioned blocks in the incremental experiment.
 (define captured (observe-semantic-captured example-result :both))
-(define root-occurrence (root-compound-occurrence captured))
-(define stacks
-  (let-cell [result]
-    (scope->stack captured root-occurrence result)
-    result))
+(define selected-compound (root-compound-node captured))
+(define stacks (compound->stack captured selected-compound))
 (define checks (stack-constraints captured stacks))
 (define design
   (list
@@ -28,9 +26,10 @@
     (list :data stacks)
     (list :constraints checks)))
 
-;; Review this data before implementing its spatial interpretation.
-;; Future view: one scope per plane, root above children; primitives stay inside.
-;; Children express hierarchy, not additional dataflow edges.
+;; Review this data independently from its spatial interpretation.
+;; One occurrence graph occupies each plane; primitives stay within that plane.
+;; Expansions connect their source compound node to a lower canonical plane or
+;; an explicit reference; they do not add semantic dataflow edges.
 ;; Acquire missing scope information only from the original observation.
 ;; Camera, depth visibility and layer spacing are view state, not struct fields.
 (display design)

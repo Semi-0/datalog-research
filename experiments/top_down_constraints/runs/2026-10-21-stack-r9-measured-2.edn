@@ -1,0 +1,121 @@
+{:run/id :stack-r9-measured-2
+ :record/schema :top-down-constraints/measurement-v1
+ :recording
+ {:kind :capability-free-compact-transcription
+  :source :completed-benchmark-output
+  :note "Repeated scenes and generated node IDs are omitted. One implementation activation-elapsed value was truncated by the console and remains nil rather than inferred."}
+ :repository/revision "85010635cf887cf5e3eba1179b5181a5c31ed389"
+ :specification/revision :stack-spec-2026-10-20-r9
+ :source/manifest
+ [{:path "examples/lain/top_down/stack-design.lain"
+   :sha256 "1028b0f6837ea1e8c74c3d05f960f45d83fe259d81d36348bc49e14638005435" :bytes 1825}
+  {:path "examples/lain/top_down/stack/structure.lain"
+   :sha256 "e5e65b4a7242ade7820183e9280f774a06300d7676b218df3650245fa7258de4" :bytes 1661}
+  {:path "examples/lain/top_down/stack/constraints.lain"
+   :sha256 "8ea6ed91504cb579d455e4ad3d7525e647d7fd6d23860226a7b9f84ff49a2d61" :bytes 1216}
+  {:path "examples/lain/top_down/stack/traversal-state.lain"
+   :sha256 "2630b7828b1d9d3e32c539986e456e16759490357565ece37497b50023b8a659" :bytes 805}
+  {:path "examples/lain/top_down/stack/hierarchy.lain"
+   :sha256 "90dae42a3ab3083d81699b1031602308dd2d7d3490b4790ebbdede739c7d98bf" :bytes 2814}
+  {:path "examples/lain/top_down/stack/primitive-bindings-pending.lain"
+   :sha256 "0779c955a30b68b8a972eb68d6d6535ff5a615ebad0a50e44f563d503399b22c" :bytes 1099}
+  {:path "examples/lain/top_down/stack/primitive-bindings.lain"
+   :sha256 "a32255cd4c5e0d7b70ba1b44b734210e660fa51a9a1c567a5b4c8666205ce636" :bytes 1395}
+  {:path "examples/lain/top_down/stack/traversal-implementation-pending.lain"
+   :sha256 "499bb4584878dca9f76efc53fb0dbf4afb878bcdebf417c7b7d62d5968149be3" :bytes 1062}
+  {:path "examples/lain/top_down/stack/traversal-implementation.lain"
+   :sha256 "ac990778527905dfff6515ac8266a8a4484bb382730848d2e086d8c293f81b3e" :bytes 1517}
+  {:path "examples/lain/top_down/stack/fixtures.lain"
+   :sha256 "6db465a5fcd01c8c45ef573c67d8a6529afe0c6642e6d1cd916d6bad36f0720b" :bytes 1025}
+  {:path "examples/lain/top_down/stack/example.lain"
+   :sha256 "d629cc7a43270bf84ce514edf1f36a9f25eae5e8ed2e1c48b524dd04a52a2a73" :bytes 738}]
+ :implementation
+ {:premise-count 24
+  :client-id "stack-baseline-r9"
+  :fixture :distinct-calls}
+ :environment
+ {:java-version "27" :java-vm "OpenJDK 64-Bit Server VM"
+  :os-name "Mac OS X" :os-version "26.7.1" :os-arch "aarch64"}
+ :budgets {:sample-limit-seconds 60 :warmups 3 :measurements 5}
+ :instrumentation
+ {:activation-events true :temperature true
+  :constraint-classifier :exact-propagator-name
+  :synchronous-profiler-not-browser-latency true}
+ :work-session
+ {:started-at "2026-10-20T23:39:22.279683Z"
+  :stopped-at "2026-10-20T23:48:39.342731Z"
+  :classification :runtime-execution-and-wait}
+ :cold-start
+ {:kind :separate-post-run-sample
+  :elapsed-ns 24717141208 :within-limit? true
+  :commit-count 76 :status :satisfied
+  :retained {:entries 40210 :nodes 40210}}
+ :fixture-outcomes
+ {:checked 9 :agreements 9 :fixture-expectation-agreement 1
+  :required-count 8 :membership-complete? true
+  :satisfied 5 :violated 1 :pending 1 :contradictory 1
+  :inactive-or-withdrawn 1 :required-constraint-satisfaction 5/8}
+ :edit-sequence
+ [{:edit :initial-pending :status :pending}
+  {:edit :install-reader :commits 24 :status :satisfied}
+  {:edit :unrelated-edit :status :satisfied
+   :constraint-evaluations [] :invalidated-outcomes [] :invalidated-evidence []}
+  {:edit :replace-reader :status :satisfied :elapsed-ns 1286978500
+   :constraint-evaluations [:distinct-calls]
+   :invalidated-outcomes [:distinct-calls]
+   :invalidated-evidence [:fixture/distinct-calls]}
+  {:edit :withdraw-reader :status :pending :elapsed-ns 985560125
+   :constraint-evaluations [:distinct-calls]
+   :invalidated-outcomes [:distinct-calls]
+   :invalidated-evidence [:fixture/distinct-calls]}
+  {:edit :restore-reader :status :satisfied :elapsed-ns 1189884750
+   :constraint-evaluations [:distinct-calls]}
+  {:edit :failed-commit :accepted? false :reason "stale block version"
+   :ledger-unchanged? true}
+  {:edit :no-op-edit :status :satisfied :elapsed-ns 1804574084
+   :constraint-evaluations [:distinct-calls]
+   :invalidated-outcomes [:distinct-calls]
+   :invalidated-evidence [:fixture/distinct-calls]}]
+ :scenarios
+ {:unrelated
+  {:orders [:clean-first :incremental-first :clean-first :incremental-first :clean-first]
+   :incremental-ns [137476458 127648417 125802292 126882750 127269083]
+   :clean-ns [22369807708 22416147541 22665522500 22778281125 22769754584]
+   :activations [405 404 404 404 404]
+   :activation-elapsed-ns [118855667 110778750 109735008 111043389 111074735]
+   :queue-transitions [405 404 404 404 404]
+   :maximum-pending-work [236 236 236 236 236]
+   :changed-output-count [163 162 162 162 162]
+   :constraint-evaluations [{} {} {} {} {}]
+   :semantic-agreement [true true true true true]
+   :within-60-seconds [true true true true true]
+   :summary
+   {:incremental {:median 127269083 :range [125802292 137476458]}
+    :clean {:median 22665522500 :range [22369807708 22778281125]}}}
+  :implementation-replacement
+  {:orders [:clean-first :incremental-first :clean-first :incremental-first :clean-first]
+   :incremental-ns [1885261334 2178283750 2526923959 2842388709 3197025000]
+   :clean-ns [27927697708 30077462959 32496653375 35363158750 38531579875]
+   :activations [3330 3345 3361 3378 3394]
+   :activation-elapsed-ns [1863662968 2156355206 2502723304 2820116958 nil]
+   :activation-elapsed-complete? false
+   :queue-transitions [3330 3345 3361 3378 3394]
+   :maximum-pending-work [245 245 245 245 245]
+   :constraint-evaluations [{} {} {} {} {}]
+   :semantic-agreement [true true true true true]
+   :within-60-seconds [true true true true true]
+   :summary
+   {:incremental {:median 2526923959 :range [1885261334 3197025000]}
+    :clean {:median 32496653375 :range [27927697708 38531579875]}}}}
+ :instrumentation-overhead
+ {:instrumented-ns [127025708 127659917 128524167 134371334 134608333]
+  :uninstrumented-ns [127119167 127707125 130302042 133485542 133499583]
+  :instrumented {:median 128524167 :range [127025708 134608333]}
+  :uninstrumented {:median 130302042 :range [127119167 133499583]}
+  :interpretation :noise-dominated-no-overhead-claim}
+ :browser-request-to-visible-update :not-measured
+ :result
+ {:semantic-agreement true
+  :localized-constraint-counter true
+  :within-sample-budget true
+  :performance-regression false}}

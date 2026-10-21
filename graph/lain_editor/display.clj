@@ -1,6 +1,7 @@
 (ns graph.lain-editor.display
   "A pane-local display sink using the same layered forwarding policy as ->."
-  (:require [propagators.semantic-trace.capture :as capture]
+  (:require [graph.lain-editor.stack-scene :as stack-scene]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.operator-value :as operator]
             [propagators.compiler-2.runtime.session.extension :as extension]
@@ -45,6 +46,8 @@
 (defn mode [network]
   (when (contains? (net/net-env network) cell-id)
     (if (let [payload (payload (net/network-cell-strongest network cell-id))]
-          (or (capture/semantic-graph? payload) (history/replay? payload)))
+          (or (capture/semantic-graph? payload)
+              (history/replay? payload)
+              (stack-scene/stack-value? network payload)))
       "graph"
       "value")))

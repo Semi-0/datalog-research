@@ -20,17 +20,23 @@ they do not introduce namespaces or an idempotent module cache. Load the entry
 once in a fresh editor block. Opening domain files in neighboring blocks is
 for source review, not sharing runtime bindings across blocks.
 
-This is the executable, pinned `stack-spec-2026-10-20-r4` partial specification.
-The example and semantic capture
-are real; `struct`, hierarchy readers and validation predicates remain explicit
-implementation obligations. No spatial renderer is implemented. Missing capture
-must remain unknown rather than becoming an empty hierarchy. Occurrence identity
-must include the original observation; path-based cycle detection alone does
-not deduplicate sharing across sibling branches. Resolve these contracts before
-implementing lower-level readers or rendering.
+This is the executable, pinned `stack-spec-2026-10-20-r9` specification.
+`compound->stack` is the primary declarative entry point and delegates to an
+explicit-work, tail-recursive `scope->stack` traversal. Its primitive bindings,
+constraint outcomes, incremental checkpoint path, clean reconstruction
+comparison, and spatial scene interpreter are implemented. Missing capture
+remains unknown rather than becoming an empty hierarchy. Occurrence identity
+includes the original observation, so sharing and cycles produce explicit
+references instead of duplicate planes. Camera state remains outside the stack
+domain value.
 
 Verification:
 
 ```sh
-clojure -M:test graph.lain-editor.stack-design-test
+clojure -M:test \
+  graph.lain-editor.stack-design-test \
+  graph.lain-editor.stack-primitives-test \
+  graph.lain-editor.stack-incremental-integration-test \
+  graph.lain-editor.stack-experiment-test \
+  graph.lain-editor.stack-scene-test
 ```

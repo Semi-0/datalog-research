@@ -1,8 +1,9 @@
 (ns graph.lain-editor.constraint-index-test
   (:require [clojure.test :refer [deftest is testing]]
-            [graph.lain-editor.constraint-index :as index]))
+            [graph.lain-editor.constraint-index :as index]
+            [graph.lain-editor.experiment-baseline :as baseline]))
 
-(def revision :stack-spec-2026-10-20-r4)
+(def revision baseline/specification-revision)
 
 (defn outcome [id status dependencies]
   {:constraint/id id :specification/revision revision

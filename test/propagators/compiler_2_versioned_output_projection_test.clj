@@ -45,3 +45,26 @@
     (is (= 4 (tms/distributed-base-value
               (tms/strongest-distributed-value (input-projection id content)))))
     (is (= 4 (input-projection id 4)))))
+
+(deftest recursive-input-removes-only-self-support
+  (let [id [:block 'walk]
+        self [:compiler-2/definition id 1]
+        source :fixture/source
+        claim (tms/claim :recursive tms/distributed-proposition :next-state
+                         [(tms/support self :walk-output :definition)
+                          (tms/support source :fixture :input)])
+        content (tms/indexed-distributed-content
+                 {(tms/claim-slot-key :recursive) claim
+                  (tms/premise-slot-key self 1)
+                  (tms/premise-state self 1 true)
+                  (tms/premise-slot-key source 0)
+                  (tms/premise-state source 0 true)})
+        projected (input-projection id content)
+        projected-claim (get (tms/distributed-slots projected)
+                             (tms/claim-slot-key :recursive))]
+    (is (= :next-state
+           (tms/distributed-base-value
+            (tms/strongest-distributed-value projected))))
+    (is (= #{source} (tms/supports projected-claim)))
+    (is (not (contains? (tms/distributed-slots projected)
+                        (tms/premise-slot-key self 1))))))

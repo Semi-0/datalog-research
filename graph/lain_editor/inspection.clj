@@ -157,21 +157,26 @@
                                :dataflow/seeds #{[[:outer] id]})]
          (dataflow/dataflow-graph network operational)))))
 
-(defn stack-scene-json [candidate]
-  (let [compiled (stack-scene/compile-scene candidate)]
+(defn stack-scene-json
+  ([candidate] (stack-scene-json nil candidate))
+  ([network candidate]
+  (let [compiled (if network
+                   (stack-scene/compile-scene network candidate)
+                   (stack-scene/compile-scene candidate))]
     {:root (pr-str (:root compiled))
-     :planes (mapv (fn [{:keys [identity content depth order]}]
+     :planes (mapv (fn [{:keys [identity graph depth order]}]
                      {:identity (pr-str identity)
                       :depth depth
                       :order order
-                      :graph (graph-json content nil)})
+                      :graph (graph-json graph nil)})
                    (:planes compiled))
      :edges (mapv #(-> %
                        (update :from pr-str)
                        (update :to pr-str)
+                       (update :source-node pr-str)
                        (update :kind name))
                   (:edges compiled))
-     :diagnostics (:diagnostics compiled)}))
+     :diagnostics (:diagnostics compiled)})))
 
 (defn- retain-semantic-graph
   [session generation network id graph supported]
@@ -236,7 +241,7 @@
           supported (net/network-cell-strongest network id)
           candidate (data/payload supported)
           replay-value? (history/replay? candidate)
-          stack-value? (stack-scene/stack-value? candidate)
+          stack-value? (stack-scene/stack-value? network candidate)
           historical-scope? (and parent recordedObservation)
           semantic (when (and (not stack-value?)
                               (not historical-scope?)
@@ -300,7 +305,7 @@
                                          (dataflow/child-dataflow-graph network selected))
                                        semantic) network))))
         (and stack-value? (= "graph" (:mode display)))
-        (assoc result :stackScene (stack-scene-json candidate))
+        (assoc result :stackScene (stack-scene-json network candidate))
 
         (= "graph" (:mode display))
         (let [direction (keyword (:direction display))

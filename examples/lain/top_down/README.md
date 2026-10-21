@@ -9,12 +9,12 @@ Load `examples/lain/top_down/stack-design.lain` as the review entry point.
 It defines `(define import load-lain)` and uses ordinary `(import "...")`
 expressions, with project-root-relative paths, to load these domains in order:
 
-- `stack/structure.lain`: named-field stack and reference constructors/accessors;
+- `stack/structure.lain`: named-field stack, anchored expansion, and reference constructors/accessors;
   `struct` remains an explicit live-field implementation obligation.
 - `stack/constraints.lain`: constraint composition and unresolved check contracts.
 - `stack/traversal-state.lain`: explicit pending/discovery/connection contracts.
-- `stack/hierarchy.lain`: frozen hierarchy reader contracts and tail-recursive
-  occurrence-to-stack transformation.
+- `stack/hierarchy.lain`: frozen reader contracts and tail-recursive
+  compound-node-to-stack transformation.
 - `stack/fixtures.lain`: pinned expected outcomes and edit sequence.
 - `stack/example.lain`: a concrete nested network whose result is `15`.
 
@@ -24,10 +24,11 @@ current program environment, have explicit ordering, and do not introduce
 namespaces or an idempotent module cache. Load the entry once in a fresh block;
 do not independently reload its dependencies into the same session.
 
-This is an executable **partial specification**. The example evaluates and its
-semantic capture is real; unresolved readers and checks are not successful
-stubs. No spatial renderer is implemented here. Review the data contracts before
-extending the host. Verify with:
+This is an executable, versioned specification. Pending implementation blocks
+remain honest unresolved definitions until replaced; the concrete bindings can
+resume the retained traversal when frozen child information arrives. The stack
+scene is rendered by the editor, with browser acceptance still tracked in the
+experiment report. Review the data contracts before extending the host. Verify with:
 
 ```sh
 clojure -M:test graph.lain-editor.stack-design-test

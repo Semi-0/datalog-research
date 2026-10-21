@@ -65,6 +65,16 @@
       (is (= known (get-in (trace/graph-union empty-sample known-sample) [:values :cell])))))
   (is (value/nothing? (get-in (trace/graph-union {:values {:cell value/nothing}}) [:values :cell]))))
 
+(deftest graph-union-retains-distinct-capture-diagnostics
+  (let [first-diagnostic {:kind :missing :message "first"}
+        second-diagnostic {:kind :conflict :message "second"}]
+    (is (= [first-diagnostic second-diagnostic]
+           (:semantic-capture/diagnostics
+            (trace/graph-union
+             {:semantic-capture/diagnostics [first-diagnostic]}
+             {:semantic-capture/diagnostics
+              [first-diagnostic second-diagnostic]}))))))
+
 (deftest network-rules-retain-copy-propagators-and-cell-identities
   (let [edb {:visible #{[:call] [:route]}
              :output #{[:returned :call]}

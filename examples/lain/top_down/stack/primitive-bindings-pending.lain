@@ -1,21 +1,23 @@
-;; Pending implementation slot for stack-spec-2026-10-20-r4.
+;; Pending implementation slot for stack-spec-2026-10-20-r9.
 ;; Signatures are stable across replacement; bodies intentionally contribute no
 ;; value. Pending is therefore visible without pretending that a check passed.
-(define struct (network [fields out] (-> (when false :pending) out) (list out)))
-(define stack-slot (network [field value out] (-> (when false :pending) out) (list out)))
-(define root-compound-occurrence
-  (network [observation out] (-> (when false :pending) out) (list out)))
+(define struct (network [fields] (when false :pending)))
+(define stack-slot (network [field value] (when false :pending)))
+(define root-compound-node
+  (network [observation] (when false :pending)))
+(define compound-occurrence
+  (network [observation compound-node] (when false :pending)))
 (define occurrence-identity
-  (network [observation occurrence out] (-> (when false :pending) out) (list out)))
+  (network [observation occurrence] (when false :pending)))
 (define content-of-scope
-  (network [observation occurrence out] (-> (when false :pending) out) (list out)))
-(define direct-compound-children
-  (network [observation occurrence out] (-> (when false :pending) out) (list out)))
+  (network [observation occurrence] (when false :pending)))
+(define direct-compound-expansions
+  (network [observation occurrence] (when false :pending)))
 (define stack-shape?
-  (network [value out] (-> (when false :pending) out) (list out)))
+  (network [value] (when false :pending)))
 (define scope-content?
-  (network [observation identity content out] (-> (when false :pending) out) (list out)))
-(define direct-children?
-  (network [observation identity children out] (-> (when false :pending) out) (list out)))
+  (network [observation identity content] (when false :pending)))
+(define direct-expansions?
+  (network [observation identity expansions] (when false :pending)))
 (define reference-integrity?
-  (network [value out] (-> (when false :pending) out) (list out)))
+  (network [value] (when false :pending)))

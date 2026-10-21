@@ -1,23 +1,24 @@
-;; Pending traversal implementation slot for stack-spec-2026-10-20-r4.
+;; Pending traversal implementation slot for stack-spec-2026-10-20-r9.
 (define begin-traversal
-  (network [observation root out] (-> (when false :pending) out) (list out)))
+  (network [observation root] (when false :pending)))
 (define traversal-empty?
-  (network [state out] (-> (when false :pending) out) (list out)))
-(define take-pending (network [state work remaining] (list work remaining)))
+  (network [state] (when false :pending)))
+(define take-pending (network [state] (when false :pending)))
+(define pending-work (network [step] (when false :pending)))
+(define pending-remaining (network [step] (when false :pending)))
 (define pending-occurrence
-  (network [work out] (-> (when false :pending) out) (list out)))
+  (network [work] (when false :pending)))
 (define discovered-occurrence?
-  (network [state identity out] (-> (when false :pending) out) (list out)))
+  (network [state identity] (when false :pending)))
 (define register-occurrence
-  (network [state work identity content owned registered]
-    (list owned registered)))
+  (network [state work identity content] (when false :pending)))
 (define connect-reference
-  (network [state work reference out] (-> (when false :pending) out) (list out)))
-(define connect-child-outputs
-  (network [state identity children out] (-> (when false :pending) out) (list out)))
-(define enqueue-child-work
-  (network [state identity children out] (-> (when false :pending) out) (list out)))
+  (network [state work reference] (when false :pending)))
+(define connect-expansion-outputs
+  (network [state identity expansions] (when false :pending)))
+(define enqueue-expansion-work
+  (network [state identity expansions] (when false :pending)))
 (define finish-traversal
-  (network [state out] (-> (when false :pending) out) (list out)))
+  (network [state] (when false :pending)))
 (define traversal-result
-  (network [state out] (-> (when false :pending) out) (list out)))
+  (network [state] (when false :pending)))

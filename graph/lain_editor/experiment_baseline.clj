@@ -7,9 +7,9 @@
   (:import [java.security MessageDigest]
            [java.util UUID]))
 
-(def specification-revision :stack-spec-2026-10-20-r4)
+(def specification-revision :stack-spec-2026-10-20-r9)
 (def specification-revision-name (name specification-revision))
-(def client-id "stack-baseline-r4")
+(def client-id "stack-baseline-r9")
 
 (def source-paths
   ["examples/lain/top_down/stack-design.lain"
@@ -101,10 +101,8 @@
   {:commit-id "30000000-0000-0000-0000-000000000001"
    :client-id client-id :index (stack-query-index)
    :expected-version nil
-   :text (str "(let-cell [root result] "
-              "(define frozen (observe-semantic-captured (example-pipeline 3) :both)) "
-              "(root-compound-occurrence frozen root) "
-              "(scope->stack frozen root result) result)")})
+   :text (str "(define frozen (observe-semantic-captured (example-pipeline 3) :both)) "
+              "(compound->stack frozen (root-compound-node frozen))")})
 
 (defn refined-instance []
   {:schema "compiler-2/versioned-instance"

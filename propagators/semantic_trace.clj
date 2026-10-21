@@ -132,6 +132,10 @@
       (assoc :graph/relations
              (apply merge-with set/union
                     (map #(or (:graph/relations %) {}) graphs)))
+      (some #(contains? % :semantic-capture/diagnostics) graphs)
+      (assoc :semantic-capture/diagnostics
+             (vec (distinct
+                   (mapcat #(or (:semantic-capture/diagnostics %) []) graphs))))
       scope (assoc :dataflow/scope scope)
       projection (assoc :dataflow/projection projection)
        representation (assoc :dataflow/representation representation)

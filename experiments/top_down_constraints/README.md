@@ -1,7 +1,7 @@
 # Incremental constraint-first stack development
 
 This folder is the canonical record for the
-`stack-spec-2026-10-20-r4` experiment. It tests whether a retained,
+`stack-spec-2026-10-20-r9` experiment. It tests whether a retained,
 premise-versioned Lain program can support correct incremental refinement with
 less repeated work than clean reconstruction. No speedup is assumed.
 
@@ -45,7 +45,17 @@ JAVA_HOME=/opt/homebrew/opt/openjdk clojure -M:test \
   graph.lain-editor.stack-design-test \
   graph.lain-editor.stack-primitives-test \
   graph.lain-editor.stack-incremental-integration-test \
+  graph.lain-editor.stack-experiment-test \
+  graph.lain-editor.stack-benchmark-test \
   graph.lain-editor.stack-scene-test
+
+JAVA_HOME=/opt/homebrew/opt/openjdk clojure -M:test \
+  propagators.compiler-2-versioned-output-projection-test
+
+# About nine minutes on the recorded machine. Emits portable EDN.
+JAVA_HOME=/opt/homebrew/opt/openjdk clojure -M -e \
+  '(require (quote [graph.lain-editor.stack-benchmark :as b]))
+   (prn (b/compact-artifact (b/run)))'
 
 clojure -M:editor/cljs-test
 node target/lain-editor/tests.js
@@ -61,7 +71,8 @@ versions, fixtures/edit sequence, environment, budgets, instrumentation, raw
 samples, and outcome. Portable records never contain sessions, live networks,
 capabilities, or credentials.
 
-`2026-10-20-pinned-baseline-r1.edn` is the controlled semantic baseline at the
+`2026-10-21-stack-r9-measured-2.edn` is the current revision-matched compact raw
+record. `2026-10-20-pinned-baseline-r1.edn` is the controlled semantic baseline at the
 clean `f808b7a` revision. It is intentionally not a performance comparison: the
 runtime boundary did not yet separate compilation from propagation and no warmed
 samples or instrumentation-overhead sample had been taken.
@@ -72,11 +83,10 @@ completed comparative benchmark.
 
 ## Limitations
 
-Frozen-scope readers, traversal-state primitives, clean comparison, and spatial
-stack rendering are implemented and pass at their isolated boundaries. The r4
-versioned recursive composition still leaves the final result pending after all
-21 implementation replacements, so semantic acceptance is blocked. Visual
-browser acceptance and the alternating benchmark have not been performed; the
-benchmark remains behind the correctness gate. The current checkpoint therefore
-cannot support a claim that the overall method is faster or that the integrated
-stack semantics are accepted.
+Frozen readers, traversal, clean comparison, scene interpretation, and frontend
+model rendering pass their revision-matched automated boundaries. All declared
+fixture expectations agree, and the alternating benchmark shows semantic
+agreement and localized unrelated work for the measured fixture. Browser
+request-to-visible latency and a revision-matched visual acceptance pass remain
+unverified because Safari remote automation is disabled. Exact cold compilation
+and propagation components are also not separately available.

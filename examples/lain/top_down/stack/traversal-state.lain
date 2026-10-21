@@ -4,7 +4,8 @@
 ;; begin-traversal creates one pending root and no discoveries. take-pending
 ;; returns stable first work and remaining state. discovered-occurrence? is
 ;; support-sensitive and false only with complete membership. Registration is
-;; atomic and precedes children. Child positions are stable; incomplete tails
+;; atomic and precedes expansions. Expansion positions are stable and retain
+;; their source-node anchors; incomplete tails
 ;; remain pending. finish-traversal completes only with complete membership and
 ;; no work. None of these operations acquires or executes source.
 ;; Implementations are versioned definitions in the traversal implementation

@@ -322,14 +322,30 @@
   "Project caller evidence; candidate feedback remains in the outer cell."
   [definition-id content]
   (if (tms/distributed-value? content)
-    (let [slots (into {}
-                      (remove (fn [[_ entry]]
-                                (if (tms/claim? entry)
-                                  (some (partial definition-support? definition-id)
-                                        (tms/supports entry))
-                                  (and (tms/premise-state? entry)
-                                       (definition-support? definition-id (tms/premise entry))))))
-                      (tms/distributed-slots content))]
+    (let [slots
+          (into {}
+                (keep
+                 (fn [[slot entry]]
+                   (cond
+                     (tms/claim? entry)
+                     (let [supports
+                           (remove #(definition-support?
+                                    definition-id (tms/support-premise %))
+                                   (tms/support-objects entry))]
+                       (when (seq supports)
+                         [slot (tms/claim (tms/claim-id entry)
+                                          (tms/proposition entry)
+                                          (tms/claim-value entry)
+                                          supports)]))
+
+                     (and (tms/premise-state? entry)
+                          (definition-support? definition-id
+                                               (tms/premise entry)))
+                     nil
+
+                     :else
+                     [slot entry])))
+                (tms/distributed-slots content))]
       (if (some tms/claim? (vals slots))
         (tms/indexed-distributed-content slots)
         value/nothing))

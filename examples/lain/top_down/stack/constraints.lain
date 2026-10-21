@@ -1,23 +1,23 @@
 ;; Requires structure.lain. Checks remain implementation obligations.
-;; shape: marker, fields and child-entry forms; partial tails stay unknown.
+;; shape: marker, graph and expansion-entry forms; partial tails stay unknown.
 ;; scope-content: captured graph belongs to this original occurrence.
-;; direct-children: actual immediate compound scopes; primitives are leaves.
+;; direct-expansions: every child plane is anchored to its compound source node.
 ;; references: preserve sharing and cycles without incompatible occurrence IDs.
 ;; Unknown is not success; contradictory evidence is distinct from false.
 ;; Checks are versioned definitions in the primitive implementation slot.
 
 (define stack-constraints
   (network [observation value]
-    (let-cell [identity content children shape content-check child-check references]
-      (stack-identity value identity)
-      (stack-content value content)
-      (stack-children value children)
-      (stack-shape? value shape)
-      (scope-content? observation identity content content-check)
-      (direct-children? observation identity children child-check)
-      (reference-integrity? value references)
+    (let-cell [identity graph expansions shape content-check expansion-check references]
+      (-> (stack-identity value) identity)
+      (-> (stack-graph value) graph)
+      (-> (stack-expansions value) expansions)
+      (-> (stack-shape? value) shape)
+      (-> (scope-content? observation identity graph) content-check)
+      (-> (direct-expansions? observation identity expansions) expansion-check)
+      (-> (reference-integrity? value) references)
       (list
         (list :shape shape)
         (list :scope-content content-check)
-        (list :direct-children child-check)
+        (list :direct-expansions expansion-check)
         (list :references references)))))

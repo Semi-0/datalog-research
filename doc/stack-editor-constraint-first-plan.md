@@ -1,10 +1,11 @@
 # Constraint-first plan: recoverable blocks and executable semantic stacks
 
 Status: implementation checkpoint, 2026-10-20. Gates A and B are pinned as
-`stack-spec-2026-10-20-r4`; recoverable blocks, read-only checkpoint aggregation,
-a clean revision-pinned semantic baseline, and the opt-in premise-versioned
-editor path are implemented. Frozen hierarchy readers, traversal primitives,
-recursive validation, comparative measurements, and spatial rendering remain
+`stack-spec-2026-10-20-r9`; recoverable blocks, read-only checkpoint aggregation,
+a clean revision-pinned semantic baseline, the opt-in premise-versioned editor
+path, frozen readers, explicit traversal, recursive validation, semantic clean
+comparison, and an initial spatial renderer are implemented. Complete fixture
+execution, anchored browser acceptance, and comparative measurements remain
 open. See `experiments/top_down_constraints/` for evidence and limitations.
 No commit, push, or model sync is implied.
 
@@ -28,18 +29,21 @@ starts before the stack constraint and high-level specification gates pass.
 
 ## Current evidence and gaps
 
-- `frontend/model.cljc` removes a pane descriptor on close. Runtime closure is a
-  separate HTTP effect. There is no closed-block archive.
-- `stack-design.lain` imports structure, constraints, hierarchy, and example
-  domains. The example evaluates to 15 and produces a real semantic capture.
-- `struct`, four validation predicates, and four hierarchy/identity readers are
-  unresolved obligations. Existing tests intentionally verify this partial state.
-- `child-stacks` and `scope->stack` currently recurse beneath `cons` and `stack`;
-  they are not tail-recursive. The path check does not deduplicate sibling sharing.
-- Public capture accessors, compound slots, support propagation, immutable
-  observations, the CPS scene compiler, layout provider, and acknowledged
-  browser command channel already exist. Their suitability must be tested at
-  the required boundary rather than inferred from their names.
+- Closed-block recovery and the opt-in premise-versioned editor path are
+  implemented behind the existing acknowledged command channel.
+- `stack-design.lain` imports the structure, constraints, traversal, hierarchy,
+  fixtures, and example domains. The example evaluates to 15 and produces a real
+  frozen semantic capture.
+- The high-level loop is tail-recursive and keeps pending work, discovery, and
+  output connections explicit. Host primitives implement generic compound and
+  frozen-reader obligations rather than an opaque finished traversal.
+- A root-only capture remains pending. Publishing the child scope from the
+  retained original observation resumes the same network and materializes a
+  stack. An independently reconstructed network agrees semantically after
+  generated identities are normalized.
+- The initial renderer still connects plane centers; visual acceptance must prove
+  that each inter-plane edge is visibly anchored to its source compound node.
+- The complete fixture sequence and alternating benchmark remain unmeasured.
 - Unrelated dirty worktree changes remain outside this task. A locally available
   uncommitted helper is not automatically an accepted dependency.
 
@@ -104,18 +108,20 @@ declared, tested-pass, tested-fail, or not-yet-tested against a specific revisio
   Missing information stays unknown; multiple supported roots are an explicit
   ambiguity diagnostic, not an arbitrary first match.
 - Named-field stack constructors and public accessors define the abstraction.
-  Keep `stack(identity, content, children)` and `stack-ref(identity)` as the public
-  variants. Internal traversal state is not part of their rendering contract.
+  Keep `stack(identity, graph, expansions)`, `stack-expansion(source, target)`,
+  and `stack-ref(identity)` as the public variants. Internal traversal state is
+  not part of their rendering contract.
 - Content contains the captured scope's actual semantic cells, propagators,
   ports/boundaries, and dataflow edges. Do not infer topology from collection shape
   or replace all semantic nodes with cells.
-- Children denote immediate compound occurrences. Primitive propagators remain
-  nodes within their containing content graph, not additional stack planes.
+- Expansions denote immediate compound occurrences and retain the compound node
+  in the parent graph as their source. Primitive propagators remain nodes within
+  their containing graph plane, not additional stack planes.
 - Sharing and cycles use explicit references to stable identities. Every reachable
   occurrence is expanded at most once per derivation; every known child position
   is connected to its canonical stack or a reference. References do not create
   additional semantic dataflow edges.
-- Missing children or an unfinished list tail are not a known empty list. Known
+- Missing expansions or an unfinished list tail are not a known empty list. Known
   prefixes and fields may be exposed while unresolved positions remain partial.
   Unrelated siblings must not all wait for one unavailable descendant.
 - Contradictory facts remain localized. Validation distinguishes supported true,
@@ -133,12 +139,13 @@ declared, tested-pass, tested-fail, or not-yet-tested against a specific revisio
 
 ### A3. Tail-recursive expansion in Lain
 
-- Keep `scope->stack` as the readable public entry point. Express its expansion
-  loop and orchestration in Lain, not a hidden host-side recursive traversal.
+- Keep `compound->stack` as the readable public entry point and `scope->stack`
+  as its lower-level occurrence interpreter. Express expansion orchestration in
+  Lain, not a hidden host-side recursive traversal.
 - Pass pending work, discovered occurrence bindings, and output connections
   explicitly. No mutable global visited set or state hidden inside propagators.
-- Connect each child output position to its stack/reference, register an
-  occurrence before expanding its children, and schedule its unresolved work.
+- Connect each source-node expansion to its stack/reference, register an
+  occurrence before expanding its descendants, and schedule its unresolved work.
   Known work can proceed without treating unknown child membership as complete.
 - The recursive loop call is in tail position; no `cons` or stack construction
   remains to execute after that call. Tail position does not by itself prove a
@@ -146,7 +153,7 @@ declared, tested-pass, tested-fail, or not-yet-tested against a specific revisio
 - Terminate on a finite, fully acquired reachable occurrence graph. A partial or
   infinite source is not reported as a complete finite stack. A bounded diagnostic
   experiment may stop with pending work; exhaustion must not imply emptiness.
-- Stable child enumeration makes canonical ownership deterministic. If the source
+- Stable expansion enumeration makes canonical ownership deterministic. If the source
   provides semantic ordering, preserve it. Otherwise define a stable identity
   ordering, without treating that presentation order as a semantic dependency.
 
@@ -174,7 +181,7 @@ declared, tested-pass, tested-fail, or not-yet-tested against a specific revisio
 
 - Recognize explicitly marked stack values through their public abstraction.
   Ordinary unmarked values, recordings, and graphs keep their existing behavior.
-- Render one canonical plane per expanded occurrence, root above owned children.
+- Render one canonical plane per expanded occurrence, root above owned expansions.
   Siblings occupy the same abstraction depth. Shared/cyclic references navigate
   to existing planes; reference links need not point downward and do not imply
   additional copies or infinitely descending planes.
@@ -199,9 +206,10 @@ After Gate A review, revise the public composition and its contracts together:
 
 - `stack/structure.lain`: constructors/accessors and explicit identity/reference
   contracts. No inline representation assembly by unrelated algorithms.
-- `stack/constraints.lain`: complete reachable-shape, scope ownership, direct-child
-  membership, reference validity, completeness, and support-sensitive checks.
-- `stack/hierarchy.lain`: explicit-root entry and tail-recursive child expansion,
+- `stack/constraints.lain`: complete reachable-shape, scope ownership,
+  direct-expansion membership (including source anchors), reference validity,
+  completeness, and support-sensitive checks.
+- `stack/hierarchy.lain`: direct compound entry and tail-recursive expansion,
   with discovery and pending-work transitions expressed in Lain.
 - Add a focused traversal-state domain file only if the expansion composition
   needs a genuine abstraction with its own constructors/accessors.

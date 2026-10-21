@@ -3,41 +3,48 @@
 ;; Equal field evidence is idempotent; incompatible evidence conflicts locally.
 ;; Later field refinements must reach existing p:slot readers.
 ;; `struct` and `stack-slot` are versioned definitions owned by the dedicated
-;; implementation slot. The pending and concrete versions have one stable
-;; signature, so replacing that slot reactivates these retained callers.
+;; implementation slot. Single-result operations use Lain's implicit result;
+;; callers never allocate or pass an output cell for a domain value.
 
-;; Identity includes the original observation and compound occurrence.
-;; Children are direct child stacks or explicit references, never invented edges.
-;; Empty means known complete and empty; unavailable children remain missing.
+;; A stack plane is the graph produced by expanding one compound occurrence.
+;; Expansion entries retain the node in this plane that expands to another plane.
+;; Empty means known complete and empty; unavailable expansions remain missing.
 (define stack
-  (network [identity content children out]
+  (network [identity graph expansions]
     (struct
       (list
         (list :type :stack)
         (list :identity identity)
-        (list :content content)
-        (list :children children))
-      out)
-    (list out)))
+        (list :graph graph)
+        (list :expansions expansions)))))
+
+(define stack-expansion
+  (network [source target]
+    (struct
+      (list
+        (list :type :stack-expansion)
+        (list :source source)
+        (list :target target)))))
 
 (define stack-ref
-  (network [identity out]
+  (network [identity]
     (struct
       (list
         (list :type :stack-ref)
-        (list :identity identity))
-      out)
-    (list out)))
+        (list :identity identity)))))
 
 (define stack-identity
-  (network [value out]
-    (stack-slot :identity value out)
-    (list out)))
-(define stack-content
-  (network [value out]
-    (stack-slot :content value out)
-    (list out)))
-(define stack-children
-  (network [value out]
-    (stack-slot :children value out)
-    (list out)))
+  (network [value]
+    (stack-slot :identity value)))
+(define stack-graph
+  (network [value]
+    (stack-slot :graph value)))
+(define stack-expansions
+  (network [value]
+    (stack-slot :expansions value)))
+(define expansion-source
+  (network [value]
+    (stack-slot :source value)))
+(define expansion-target
+  (network [value]
+    (stack-slot :target value)))

@@ -16,17 +16,19 @@
     (data/payload (net/network-cell-strongest network id))))
 
 (deftest struct-stack-design-is-an-executable-partial-specification
-  (let [source (str "(def-cells struct stack-slot stack-shape? scope-content? direct-children? "
-                    "reference-integrity? root-compound-occurrence content-of-scope "
-                    "direct-compound-children occurrence-identity begin-traversal "
-                    "traversal-empty? take-pending pending-occurrence discovered-occurrence? "
-                    "register-occurrence connect-reference connect-child-outputs "
-                    "enqueue-child-work finish-traversal traversal-result)\n"
+  (let [source (str "(def-cells struct stack-slot stack-shape? scope-content? direct-expansions? "
+                    "reference-integrity? root-compound-node compound-occurrence content-of-scope "
+                    "direct-compound-expansions occurrence-identity begin-traversal "
+                    "traversal-empty? take-pending pending-work pending-remaining "
+                    "pending-occurrence discovered-occurrence? register-occurrence "
+                    "connect-reference connect-expansion-outputs "
+                    "enqueue-expansion-work finish-traversal traversal-result)\n"
                     (slurp "examples/lain/top_down/stack-design.lain"))
         session (:session (editor/prepare source []))]
     (try
-      (doseq [name '[stack stack-ref stack-identity stack-content stack-children
-                    stack-constraints expand-pending scope->stack hierarchy->stacks
+      (doseq [name '[stack stack-expansion stack-ref stack-identity stack-graph
+                    stack-expansions expansion-source expansion-target
+                    stack-constraints expand-pending scope->stack compound->stack hierarchy->stacks
                     example-stage example-pipeline]]
         (is (closure/closure-info?
              (application/callable-declaration (binding-value session name)))
@@ -35,19 +37,19 @@
           "The concrete compound network evaluates independently of design holes")
       (is (capture/fragment? (binding-value session 'captured))
           "The example uses an actual frozen semantic capture")
-      (is (= :stack-spec-2026-10-20-r4
+      (is (= :stack-spec-2026-10-20-r9
              (binding-value session 'stack-specification-revision)))
       (is (not (value/nothing? (binding-value session 'stack-fixture-expectations))))
-      (doseq [name '[struct stack-slot stack-shape? scope-content? direct-children?
-                    reference-integrity? root-compound-occurrence content-of-scope
-                    direct-compound-children occurrence-identity begin-traversal
-                    traversal-empty? take-pending pending-occurrence
+      (doseq [name '[struct stack-slot stack-shape? scope-content? direct-expansions?
+                    reference-integrity? root-compound-node compound-occurrence content-of-scope
+                    direct-compound-expansions occurrence-identity begin-traversal
+                    traversal-empty? take-pending pending-work pending-remaining pending-occurrence
                     discovered-occurrence? register-occurrence connect-reference
-                    connect-child-outputs enqueue-child-work finish-traversal
+                    connect-expansion-outputs enqueue-expansion-work finish-traversal
                     traversal-result]]
         (is (value/nothing? (binding-value session name))
             (str name " remains an explicit implementation obligation")))
-      (is (value/nothing? (binding-value session 'root-occurrence)))
+      (is (value/nothing? (binding-value session 'selected-compound)))
       (is (not (value/contradiction? (binding-value session 'design))))
       (finally
         (editor/close-session! session)))))

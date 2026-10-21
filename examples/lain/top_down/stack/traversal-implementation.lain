@@ -3,33 +3,34 @@
 ;; observation orchestration remain in hierarchy.lain.
 
 (define begin-traversal
-  (network [observation root out]
-    (stack.raw:begin-traversal observation root out) (list out)))
+  (network [observation root]
+    (stack.raw:begin-traversal observation root)))
 (define traversal-empty?
-  (network [state out] (stack.raw:traversal-empty? state out) (list out)))
+  (network [state] (stack.raw:traversal-empty? state)))
 (define take-pending
-  (network [state work remaining]
-    (stack.raw:take-pending state work remaining)
-    (list work remaining)))
+  (network [state] (stack.raw:take-pending state)))
+(define pending-work
+  (network [step] (stack.raw:pending-work step)))
+(define pending-remaining
+  (network [step] (stack.raw:pending-remaining step)))
 (define pending-occurrence
-  (network [work out] (stack.raw:pending-occurrence work out) (list out)))
+  (network [work] (stack.raw:pending-occurrence work)))
 (define discovered-occurrence?
-  (network [state identity out]
-    (stack.raw:discovered-occurrence? state identity out) (list out)))
+  (network [state identity]
+    (stack.raw:discovered-occurrence? state identity)))
 (define register-occurrence
-  (network [state work identity content owned registered]
-    (stack.raw:register-occurrence state work identity content owned registered)
-    (list owned registered)))
+  (network [state work identity content]
+    (stack.raw:register-occurrence state work identity content)))
 (define connect-reference
-  (network [state work reference out]
-    (stack.raw:connect-reference state work reference out) (list out)))
-(define connect-child-outputs
-  (network [state identity children out]
-    (stack.raw:connect-child-outputs state identity children out) (list out)))
-(define enqueue-child-work
-  (network [state identity children out]
-    (stack.raw:enqueue-child-work state identity children out) (list out)))
+  (network [state work reference]
+    (stack.raw:connect-reference state work reference)))
+(define connect-expansion-outputs
+  (network [state identity expansions]
+    (stack.raw:connect-expansion-outputs state identity expansions)))
+(define enqueue-expansion-work
+  (network [state identity expansions]
+    (stack.raw:enqueue-expansion-work state identity expansions)))
 (define finish-traversal
-  (network [state out] (stack.raw:finish-traversal state out) (list out)))
+  (network [state] (stack.raw:finish-traversal state)))
 (define traversal-result
-  (network [state out] (stack.raw:traversal-result state out) (list out)))
+  (network [state] (stack.raw:traversal-result state)))
