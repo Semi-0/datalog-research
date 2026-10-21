@@ -230,3 +230,23 @@ The runner now sends the ordinary close command for the context's pane in a
 server completed the depth-presentation 3+5 run and two further complete runs
 without exhaustion. The correction changes neither stack semantics nor fixture
 expectations.
+
+## Compound-plane membership correction — 2026-10-21
+
+This is an implementation correction, not a stack-specification amendment.
+The first live trace classified every propagator with structural children as a
+nested compound. That produced ten planes: primitive arithmetic, copy, and
+compiler return wiring were incorrectly promoted out of the semantic plane
+that owns them.
+
+Nested capture membership now additionally requires the semantic application
+to resolve to a Lain closure or to the active closure selected by a versioned
+network definition. Primitive applications remain graph nodes inside their
+owning plane. The public frozen-capture boundary and all fixture expectations
+are unchanged.
+
+Revision-matched evidence is the live trace integration test plus the existing
+capture, recursive semantic, stack primitive, incremental, scene, experiment,
+and browser-model suites. The editor walkthrough renders exactly three planes:
+one pipeline and two distinct stage applications, connected by two expansion
+edges.

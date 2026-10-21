@@ -6,6 +6,8 @@ limitations are in [`experiments/top_down_constraints`](../../../experiments/top
 ## Stack design: domain files composed in Lain
 
 Load `examples/lain/top_down/stack-design.lain` as the review entry point.
+Load `examples/lain/top_down/stack-live-trace.lain` for the interactive,
+real-child editor walkthrough described in `stack/README.md`.
 It defines `(define import load-lain)` and uses ordinary `(import "...")`
 expressions, with project-root-relative paths, to load these domains in order:
 

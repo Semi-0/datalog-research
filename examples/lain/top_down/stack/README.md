@@ -30,6 +30,15 @@ includes the original observation, so sharing and cycles produce explicit
 references instead of duplicate planes. Camera state remains outside the stack
 domain value.
 
+For a live editor walkthrough of actual compound children, load
+`examples/lain/top_down/stack-live-trace.lain`. It starts by displaying the
+`captured` binding. Open the pipeline call body and its two nested stage call
+bodies, then use **Toggle display layers** in the command palette and set its
+**Output binding** to `stacks`. Those actions
+refine the same frozen observation; the existing traversal resumes and renders
+the pipeline plane above two distinct stage planes. The example does not use the
+controlled renderer fixture or acquire from a newer runtime.
+
 Verification:
 
 ```sh

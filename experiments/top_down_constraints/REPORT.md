@@ -140,6 +140,12 @@ so the two timing sets do not isolate one variable.
   `finally` block; three consecutive complete 3+5 runs passed afterward. The
   original latency record remains raw evidence but is not a clean-lifecycle
   performance baseline.
+- The first real compound walkthrough treated every propagator with structural
+  children as another compound plane. It rendered ten planes instead of three,
+  exposing primitive arithmetic, copy, and return wiring as false expansions.
+  Resolving semantic applications to Lain closures, including the active body
+  of a versioned definition, restores the intended boundary: primitives remain
+  nodes in the owning plane.
 - The full benchmark output exceeded the console display limit. The canonical
   artifact preserves all timing arrays and counters needed for the reported
   comparisons. One non-summary activation-elapsed value that was not preserved

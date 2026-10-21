@@ -20,7 +20,8 @@ The observation query is defined in Lain and executes in a disposable one-time n
 
 Inside the library, `history:record` watches the semantic graph. `history:between` selects observations in the requested range. `reduce` invokes the compiled Lain network `collect-frame` for each selected observation, in order. `display` recognizes the replay value and shows previous/play/next controls and a timeline slider below the code.
 
-To create two observable changes, use **Extend this running block** twice:
+To create two observable changes, open **Toggle extension editor** from the
+command palette and apply these two extensions in sequence:
 
 ```clojure
 (-> 7 input)

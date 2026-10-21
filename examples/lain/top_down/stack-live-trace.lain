@@ -1,0 +1,23 @@
+;; Executable editor example for tracing a real compound hierarchy.
+;;
+;; Start on the `captured` binding in graph mode. Open the pipeline call body,
+;; then open both nested stage call bodies. Each action acquires another scope
+;; from this same frozen observation. Finally run `Toggle display layers` from
+;; the command palette and change Output binding to `stacks`; the pending
+;; traversal resumes and renders one semantic plane per compound occurrence.
+(define import load-lain)
+(import "examples/lain/top_down/stack/primitive-bindings.lain")
+(import "examples/lain/top_down/stack/traversal-implementation.lain")
+(import "examples/lain/top_down/stack/structure.lain")
+(import "examples/lain/top_down/stack/constraints.lain")
+(import "examples/lain/top_down/stack/traversal-state.lain")
+(import "examples/lain/top_down/stack/hierarchy.lain")
+(import "examples/lain/top_down/stack/example.lain")
+
+(define captured (observe-semantic-captured example-result :both))
+(define selected-compound (root-compound-node captured))
+(define stacks (compound->stack captured selected-compound))
+
+;; The initial view exposes the real acquisition boundary. `stacks` remains
+;; pending until the reachable compound bodies above have been opened.
+(display captured)

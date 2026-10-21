@@ -34,10 +34,12 @@ Use Open JSON with `graph/lain_editor/example-workspace.json` for a three-pane d
   Drag dividers to resize tiles or the textarea handle for more editing space.
 - The workspace header is hidden until the pointer approaches the top edge.
   Keyboard focus also reveals it. Its Commands button opens the same palette.
-- **Extend this running block** adds source to that tile's existing bindings and
+- **Toggle extension editor** in the palette reveals the extension draft;
+  **Apply extension** adds it to that tile's existing bindings and
   topology. Successful extensions are retained in order. It is an append
   operation, not hot replacement of an individual definition or file.
-- The **Layers** panel controls Code, Result, Topology, and Cell details.
+- **Toggle display layers** in the palette opens the Layers panel, which controls
+  Code, Result, Topology, and Cell details.
   Toggle visibility, use the up/down buttons for top-to-bottom order, and choose
   Overlay or Stack. The output binding setting is inside this panel.
   Palette commands reveal Value, Cell details, Topology, and select trace direction.
@@ -69,12 +71,13 @@ JSON is a **source replay document**, not a serialized JVM or heap snapshot.
 Clock timestamps, external effects, and transient runtime inputs are not frozen.
 Loading a file stores its source and name; it does not create a file watcher.
 
-Each block has **Hide visualizer / Show visualizer**, **Fill block / Restore
-block**, and **Full screen** controls. They apply to the current value, topology,
-or cell-details output. Fullscreen hides the code temporarily; Escape restores
-the previous presentation. These controls reuse mounted views and do not change
-source, runtime state, saved layer preferences, or graph camera. Presentation is
-temporary and resets when the pane is remounted.
+The command palette contains **Hide or show visualizer**, **Fill or restore
+visualizer**, and **Toggle fullscreen visualizer**. They apply to the current
+value, topology, or cell-details output without adding a permanent pane toolbar.
+Fullscreen hides the code temporarily; Escape restores the previous presentation.
+These commands reuse mounted views and do not change source, runtime state,
+saved layer preferences, or graph camera. Presentation is temporary and resets
+when the pane is remounted.
 
 ### Open editor files through POST requests
 
@@ -228,7 +231,8 @@ failed replacement, extension identity, JSON replay rollback, and real tracing.
 
 ### Premise-versioned development mode
 
-Each pane includes an opt-in **Incremental development** panel. The ordinary
+**Toggle incremental development** in the palette opens each pane's opt-in
+development panel. The ordinary
 isolated-session path remains the default. Enabling the panel starts a separate
 `:versioned-premise` compiler session and persists only its portable source and
 commit ledger in workspace JSON. **Commit current source**, or Cmd/Ctrl+Enter
@@ -349,11 +353,12 @@ entry is foremost in Overlay mode and first vertically in Stack mode. The small
 Layers panel edits this configuration and the shared output binding. Overlay is
 the default. Foreground code/result reserve their space above a topology below
 them; moving topology to the front lets it cover the layers beneath it. The
-panel itself remains accessible when every content layer is hidden.
+panel itself remains accessible from the command palette when every content
+layer is hidden.
 
 The optional Result layer uses plain text beneath the source without a binding caption,
 Run status, or graph toolbar. Fit and return-to-root actions remain in the
-command palette. **Edit display layers** opens the same compact panel. Visibility
+command palette. **Toggle display layers** opens or closes the same compact panel. Visibility
 and order persist in saved JSON and local recovery, including across desktops.
 Older files infer their output layers from their saved display mode.
 

@@ -3,7 +3,7 @@
 ## Pythagorean triangle
 
 Load `examples/lain/amb/editor/pythagorean.lain` in an editor block, then use
-**Extend this running block** with:
+open **Toggle extension editor** from the command palette, then apply:
 
 ```clojure
 (-> (list 3 4 5) domain)
@@ -66,7 +66,7 @@ three independent panes on desktops 1, 2 and 3:
    or repeat effects.
 
 Each source can also be loaded on its own. It starts with an empty `domain`;
-use **Extend this running block** with:
+use **Toggle extension editor** from the command palette, then apply:
 
 ```clojure
 (-> (list 1 2) domain)

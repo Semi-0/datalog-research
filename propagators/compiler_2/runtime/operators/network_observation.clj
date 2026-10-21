@@ -3,7 +3,10 @@
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
+            [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.operator-value :as operator-value]
+            [propagators.compiler-2.runtime.application :as application]
+            [propagators.compiler-2.operators.versioned-definition :as definition]
             [propagators.datastructures.compound-object :as object]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.layered-value :as datum]
@@ -81,6 +84,51 @@
     (prop/prop? entry) :propagator
     :else :unknown))
 
+(defn- closure-declaration?
+  [candidate]
+  (closure-value/closure-info?
+   (application/callable-declaration candidate)))
+
+(defn- versioned-network-declaration?
+  [candidate]
+  (let [name (operator-value/operator-name
+              (application/callable-declaration candidate))]
+    (and (vector? name)
+         (= :compiler-2/versioned-definition (first name)))))
+
+(defn- closure-application?
+  "True when a semantic propagator is an application of a Lain network.
+  Primitive application and compiler-wiring children remain inside their
+  owning semantic plane instead of becoming stack occurrences."
+  [source-net node-key]
+  (let [path (if (and (vector? node-key) (vector? (first node-key)))
+               (first node-key)
+               [:outer])
+        owner (relationships/network-at-path source-net path)
+        semantic-application (when owner
+                               (some #(when (= node-key (:id %)) %)
+                                     (facts/applications owner path)))
+        operator-id (some-> semantic-application :operator second)
+        callable (when (and owner operator-id
+                            (contains? (net/net-env owner) operator-id))
+                   (visualization-data/payload
+                    (net/network-cell-strongest owner operator-id)))
+        selected-calls
+        (when (and owner semantic-application
+                   (not (closure-declaration? callable)))
+          (definition/active-call-topologies
+           owner operator-id
+           (mapv second (:arguments semantic-application))
+           (some-> semantic-application :result second)))]
+    (or (closure-declaration? callable)
+        (versioned-network-declaration? callable)
+        (and (= 1 (count selected-calls))
+             (let [selected (first selected-calls)
+                   selected-callable
+                   (visualization-data/payload
+                    (net/network-cell-strongest owner (:operator-id selected)))]
+               (closure-declaration? selected-callable))))))
+
 (deftype FrozenNetworkSnapshot [source-net observation]
   capture/SemanticCaptureSource
   (capture-fragment [_ request]
@@ -111,6 +159,7 @@
               nested (into {}
                            (keep (fn [[node-id kind]]
                                    (when (and (= :propagator kind)
+                                              (closure-application? source-net node-id)
                                               (seq (relationship/children
                                                     (net/net-relationship source-net)
                                                     node-id)))
