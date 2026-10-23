@@ -1,0 +1,77 @@
+;; Public tracers for the editor gallery. Import this file once per session.
+;; Relationship views compose explicitly; observers name their lifetime.
+(load-primitive-environment
+  "propagators/compiler_2/runtime/operators/network_traversal.clj"
+  :propagators.compiler-2.runtime.operators.network-traversal/traversal-environment
+  0)
+
+;; Current runtime session: explicit output cell, matching the trace primitive.
+(define trace:session trace)
+
+(define trace:semantic
+  (network [root]
+    (relationship:with-values (relationship:semantic root))))
+
+;; Keep dataflow selection explicit: a compound tracer would observe its own
+;; application. Primitive aliases preserve the original caller graph.
+(define trace:roots relationship:roots)
+(define trace:dataflow relationship:dataflow)
+(define trace:with-values relationship:with-values)
+
+(define trace:root-semantic
+  (network [root]
+    (relationship:with-values (relationship:roots-semantic root))))
+
+(define trace:children
+  (network [root]
+    (relationship:with-values (relationship:children root))))
+
+(define trace:caller
+  (network [root]
+    (relationship:caller-view (trace:semantic root))))
+
+(define trace:semantic-neighborhood
+  (network [snapshot root direction]
+    (traverse (semantic-snapshot snapshot root) root direction)))
+
+(define trace:observe-live
+  (network [root direction]
+    (observe-network root trace:semantic-neighborhood direction)))
+
+(define trace:downstream-live
+  (network [root]
+    (trace:observe-live root :downstream)))
+
+(define trace:observe-retained
+  (network [root direction]
+    (observe-network-retained root trace:semantic-neighborhood direction)))
+
+(define trace:downstream-retained
+  (network [root]
+    (trace:observe-retained root :downstream)))
+
+;; Short directional names retain their frozen observation for later inspection.
+(define trace:upstream
+  (network [root]
+    (trace:observe-retained root :upstream)))
+
+(define trace:downstream trace:downstream-retained)
+
+(define trace:append-frame
+  (network [acc next]
+    (history:append acc (p:slot :value next))))
+
+(define trace:graph-history
+  (network [graph start end]
+    (define recording (history:record graph))
+    (define selected (history:between recording start end))
+    (reduce trace:append-frame (history:empty) selected)))
+
+;; Capture published semantic snapshots and values, not every internal operation.
+(define trace:history
+  (network [root start end]
+    (trace:graph-history
+      (relationship:with-values (observe-semantic-captured root :both))
+      start end)))
+
+(define trace:calls call-graph)

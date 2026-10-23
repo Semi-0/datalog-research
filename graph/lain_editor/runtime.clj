@@ -6,6 +6,7 @@
             [graph.lain-editor.retained-inspection :as retained-inspection]
             [graph.lain-editor.semantic-capture :as semantic-capture]
             [graph.lain-editor.stack-primitives :as stack-primitives]
+            [graph.lain-editor.slot-spawn :as slot-spawn]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.operators.network-history :as history]
@@ -99,6 +100,17 @@
           (catch Throwable error
             (close-session! candidate)
             (throw error)))))))
+
+(defn spawn-slots! [editors {:keys [pane generation] :as command}]
+  (let [previous (require-pane editors pane)
+        _ (require-generation previous generation)
+        session (:session previous)]
+    (locking session
+      (let [state @session
+            planned (slot-spawn/plan (:program/net state) (:program/env state))]
+        (if (empty? (:slots planned))
+          (assoc planned :generation generation)
+          (merge planned (extend! editors (assoc command :source (:source planned)))))))))
 
 (defn restore! [editors document]
   (workspace/validate document)

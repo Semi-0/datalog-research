@@ -38,6 +38,16 @@ Use Open JSON with `graph/lain_editor/example-workspace.json` for a three-pane d
   **Apply extension** adds it to that tile's existing bindings and
   topology. Successful extensions are retained in order. It is an append
   operation, not hot replacement of an individual definition or file.
+- **Spawn slot** scans the selected block's current application declarations and
+  applies one ordinary extension defining its unresolved callable bindings. For
+  `(consume-task agents queue)`, it generates
+  `(define consume-task (network [input-1 input-2] (define out) out))`.
+  Empty data inputs are left alone; generated outputs remain unknown. Repeated
+  calls share one stub, and conflicting input counts reject the whole operation.
+  Computed callables that already have a producer and nested lexical parameters
+  are reported rather than overwritten. Run source/extension edits first and
+  clear or apply an extension draft before using the command. The command is for
+  ordinary blocks; incremental development mode retains its separate commit path.
 - **Toggle display layers** in the palette opens the Layers panel, which controls
   Code, Result, Topology, and Cell details.
   Toggle visibility, use the up/down buttons for top-to-bottom order, and choose

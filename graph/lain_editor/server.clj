@@ -38,6 +38,9 @@
                  (graph-layout/close-pane! layouts id)
                  result)
          "extend" (let [result (editor/extend! editors command)] (graph-layout/close-pane! layouts id) result)
+         "spawn-slot" (let [result (editor/spawn-slots! editors command)]
+                        (graph-layout/close-pane! layouts id)
+                        result)
          "restore" (let [result (editor/restore! editors (:workspace command))]
                      (development-runtime/close-all! developments)
                      (graph-layout/close! layouts)
