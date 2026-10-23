@@ -1,0 +1,19 @@
+{
+  "name": "pi-vigilant",
+  "version": "0.8.1",
+  "tarball": "https://registry.npmjs.org/pi-vigilant/-/pi-vigilant-0.8.1.tgz",
+  "integrity": "sha512-jMZRKl9SJRr7fC2criHjztsO5MTXv/r8DEnbWg5x1VbaqQLspfd1/sLrL2HeFvWYx+TrSCR5UU4tVDHPM3Mu+w==",
+  "files": {
+    "CHANGELOG.md": "294c062f993786f848bfd268a45e59d7483f0c9b8e0d8edcaef0fbc25d26f046",
+    "LICENSE": "02a5fb6c869d762e1119ee764878cfbe5e6c7951741903c70f5d6fab7cf94b58",
+    "README.md": "3e2b699240937a1d92a77a33ff192eb812eb8c885a495a81f6cd90aa48a4354d",
+    "index.ts": "e9dd6319236229d2ab54fa44279ac7e752c87590be84871caa6608806c85a64b",
+    "lib/completeness.ts": "b8687e0940d6b350ce4283c709362c50471db588bbb7730f2d2cea53c3988a1d",
+    "lib/loop-guardian.ts": "c68f959364d173115e0e98c375c18b9750d2c22f9ee75a0e615db7d9812c166d",
+    "lib/obligations.ts": "dec39151b7fde30b2755f64a0b1eeae0c89126f75dfd999f5ee918f89f0620ad",
+    "package.json": "f1f760da733fef2f147d45c96cd0129b6000d302b7cfda293c5cf6481228becd",
+    "pi-vigilant.json": "4f1fb6d6906e6f640b70a11ae76db43422eff2d60b83a2e8b7734990ad0460c8",
+    "skills/feedback-memory/SKILL.md": "bdf9ee77e2f27362a8bdc3a0802db6ebfd0d5279278cb7fd63823ee192fd3ef2",
+    "skills/spec-memory/SKILL.md": "bfe93e3a0d8abd0e81be3b5b39e18db07b3384fa4ae1e1745c11f8dd130070ce"
+  }
+}

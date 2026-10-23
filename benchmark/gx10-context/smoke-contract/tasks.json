@@ -1,0 +1,1 @@
+[{"id":"smoke","namespace":"benchmark.smoke","function":"double-number","args":"number","path":"benchmark/smoke.clj","test_namespace":"benchmark.smoke-test","test_path":"test/benchmark/smoke_test.clj","acceptance":"smoke-acceptance.clj"}]

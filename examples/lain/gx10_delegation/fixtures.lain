@@ -1,0 +1,19 @@
+;; Constraint fixtures are executable Lain, separate from live host mechanisms.
+(define import load-lain)
+(import "examples/lain/gx10_delegation/constraints.lain")
+(define clean-ready (admit-workers? true true true true))
+(define unload-not-proven (admit-workers? false true true true))
+(define memory-not-settled (admit-workers? true false true true))
+(define reserve-crossed (admit-workers? true true false true))
+(define sandbox-not-verified (admit-workers? true true true false))
+(define unknown-unload)
+(define pending-admission (admit-workers? unknown-unload true true true))
+
+(define result
+  (list
+    (list :clean-ready clean-ready)
+    (list :unload-not-proven unload-not-proven)
+    (list :memory-not-settled memory-not-settled)
+    (list :reserve-crossed reserve-crossed)
+    (list :sandbox-not-verified sandbox-not-verified)))
+(display result)

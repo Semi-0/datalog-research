@@ -1,0 +1,9 @@
+There is no overall wall-clock task deadline. Finish the implementation and verified tests with focused reasoning and concrete tools. Individual commands remain bounded. A command timeout is a failed command, not a passing test; inspect it, repair the cause and continue.
+
+Progress supervision warns after 10 minutes without qualifying evidence or a new/improved assertion result, steers after 15, and stops after 30 without progress. Initial reference evidence is bounded to 12 distinct successful results. Token streaming, compaction and rewriting a file alone do not establish progress. The attempt also has a generous 128-request / 200000-generated-token budget, including compaction. Use finite focused tests early, report actual assertions and repair concrete failures.
+
+Use a finite test input unless the contract explicitly supports infinite input. Do not put an infinite sequence before an element you expect to reach. For laziness checks, use bounded sequences or a bounded prefix with an early invalid event.
+
+Every shell/tool command has a maximum of 120 seconds. Run each test command with `timeout --signal=TERM --kill-after=5s 110s`, and set the bash tool timeout to 120 seconds. Use `set -o pipefail` if piping output. An exit status of 124 or 137 means the test timed out; it does not pass. Inspect and repair a timed-out test before retrying; do not repeatedly launch an unchanged hanging test. Prefer the focused namespace requested above over the repository-wide suite. Report the actual assertion/failure/error counts; zero assertions does not establish success.
+
+Implement, run and repair your own tests, inspect both final files, and give a concise final report. Keep reasoning focused and move to tools. If a response is truncated, continue from the saved files rather than starting over. Do not read other experiment attempts or saved agent histories.

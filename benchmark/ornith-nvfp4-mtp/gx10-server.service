@@ -1,0 +1,16 @@
+[Unit]
+Description=Isolated Ornith NVFP4 MTP coding experiment
+[Service]
+Type=simple
+WorkingDirectory=/home/lain/projects/KIROSHI/benchmark/ornith-nvfp4-mtp
+Environment=PATH=/home/lain/.local/opt/vllm-ornith-nvfp4/bin:/usr/local/cuda/bin:/usr/bin:/bin
+Environment=CUDA_HOME=/usr/local/cuda
+Environment=CPATH=/home/lain/experiments/ornith-nvfp4-mtp-20261021/toolchain/extracted/usr/include:/home/lain/experiments/ornith-nvfp4-mtp-20261021/toolchain/extracted/usr/include/python3.12
+Environment=CUTE_DSL_ARCH=sm_121a
+Environment=MAX_JOBS=2
+Environment=FLASHINFER_NVCC_THREADS=1
+Environment=VLLM_MARLIN_USE_ATOMIC_ADD=1
+ExecStart=/usr/bin/python3 /home/lain/projects/KIROSHI/benchmark/ornith-nvfp4-mtp/resource_guard.py --command /home/lain/experiments/ornith-nvfp4-mtp-20261021/server-command.json --output /home/lain/experiments/ornith-nvfp4-mtp-20261021
+StandardOutput=append:/home/lain/experiments/ornith-nvfp4-mtp-20261021/server.log
+StandardError=append:/home/lain/experiments/ornith-nvfp4-mtp-20261021/server.log
+TimeoutStopSec=8

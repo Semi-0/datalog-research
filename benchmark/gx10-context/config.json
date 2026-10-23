@@ -1,0 +1,217 @@
+{
+  "protocol_version": 8,
+  "backend_runtime": {
+    "ollama_prompt_cache_mib": 0,
+    "ollama_context_checkpoints": 1,
+    "ollama_batch_size": 256,
+    "ollama_ubatch_size": 256,
+    "ollama_workspace_allowance_bytes": 3758096384,
+    "kv_cache_precision": "f16"
+  },
+  "status": "single_model_pilot_required",
+  "host": "lain@gx10-ac8b.local",
+  "pi_version": "1.3.0",
+  "native_context_ceiling": 262144,
+  "context_scan": [
+    32768,
+    65536,
+    131072,
+    262144
+  ],
+  "fallback_contexts": [
+    16384
+  ],
+  "boundary_resolution_tokens": 8192,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "models": [
+    {
+      "id": "ornith-nvfp4",
+      "backend": "vllm",
+      "source": "ornith-nvfp4-mtp",
+      "revision": "94e431d9cc47fa1986a7a1a4e9a80f7f118b03aa",
+      "weight_bytes": 23420419700,
+      "quantization": "NVFP4",
+      "mtp": true
+    },
+    {
+      "id": "ornith-q4",
+      "source": "gx10-ornith-q4:cap",
+      "digest": "a7c1044ccb93faa6d740a058ba3a56f11d64f0309b3f3058a9dafc0a0de56005",
+      "quantization": "Q4_K_M",
+      "backend": "ollama"
+    },
+    {
+      "id": "ornith-bf16",
+      "source": "gx10-ornith-bf16:monitored32k",
+      "digest": "8dee3551018192f35a19727ea237272a85ac52a35503dcc9da08da248faba70a",
+      "quantization": "BF16",
+      "backend": "ollama"
+    },
+    {
+      "id": "flash-iq4",
+      "source": "gx10-flash-iq4:cap",
+      "digest": "278e165a99cb2b014cf249e8fe63d3389134a3f736f21023b6f1262730adb9f5",
+      "quantization": "IQ4_XS",
+      "backend": "ollama"
+    }
+  ],
+  "memory": {
+    "physical_bytes_at_inventory": 130594021376,
+    "reserve_fraction": 0.2,
+    "minimum_reserve_bytes": 17179869184,
+    "reserve_bytes_at_inventory": 26118804275,
+    "sample_interval_ms": 200
+  },
+  "sampling": {
+    "thinking": true,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0,
+    "repeat_penalty": 1,
+    "presence_penalty": 0
+  },
+  "context": {
+    "output_reserve_tokens": 8192,
+    "rendering_margin_tokens": 2048,
+    "input_calibration_tolerance_tokens": 512,
+    "pi_max_output_tokens": 12288,
+    "pi_compaction_reserve_tokens": 16384,
+    "pi_keep_recent_tokens": 4096
+  },
+  "runtime_phase": {
+    "retrieval_facts": 16,
+    "generated_token_cap": 8192,
+    "wall_limit_seconds": null,
+    "socket_idle_timeout_seconds": 1800
+  },
+  "pi_phase": {
+    "wall_limit_seconds": null,
+    "source_commit": "85010635cf887cf5e3eba1179b5181a5c31ed389",
+    "web_package": "pi-web-access@0.43.0",
+    "search_provider": "duckduckgo",
+    "workflow": "none",
+    "fetch_providers": [
+      "http"
+    ],
+    "browser_cookies": false,
+    "remote_hosted_fetch": false,
+    "provided_reference_urls": false,
+    "supervisor_hints": false,
+    "coding_context_tokens": 131072,
+    "thinking_level": "high"
+  },
+  "isolation": {
+    "fresh_process_per_attempt": true,
+    "fresh_agent_directory": true,
+    "fresh_session_directory": true,
+    "fresh_web_cache": true,
+    "fresh_checkout": true,
+    "fresh_tmp_directory": true,
+    "allowlisted_environment": true,
+    "resume_allowed": false,
+    "shared_writable_memory_allowed": false,
+    "discovery_disabled": [
+      "extensions",
+      "skills",
+      "prompt_templates",
+      "context_files",
+      "mcp"
+    ],
+    "unload_runtime_before_preload": true,
+    "preload_prompt": "Think briefly and reply READY.",
+    "read_only_artifacts_and_dependency_caches_shared": true,
+    "os_file_cache_cleared": false,
+    "filesystem_security_sandbox": false
+  },
+  "phase_order": [
+    "isolated_128k_coding",
+    "runtime_context_scan"
+  ],
+  "coding": {
+    "structural_editing": {
+      "manifest": "/home/lain/experiments/gx10-structural-tools-1/manifest.json",
+      "source_commit": "a0c30e4be43a0c96d9b3f1fee44184b6feeb5600"
+    },
+    "tasks": [
+      "distinct",
+      "order",
+      "events"
+    ],
+    "context": 131072,
+    "attempts_per_cell": 1,
+    "wall_limit_seconds": null,
+    "tool_timeout_seconds": 120,
+    "supervision": {
+      "warn_no_progress_seconds": 600,
+      "steer_no_progress_seconds": 900,
+      "stop_no_progress_seconds": 1800,
+      "initial_evidence_limit": 12,
+      "maximum_requests": 128,
+      "maximum_generated_tokens": 200000
+    },
+    "evaluation_timeout_seconds": 120,
+    "length_continuations": 3,
+    "pilot_model": "flash-iq4",
+    "continuation_owner": "pi-vigilant",
+    "allowed_tools": [
+      "read",
+      "edit",
+      "write",
+      "bash",
+      "web_search",
+      "fetch_content",
+      "get_search_content"
+    ]
+  },
+  "transition": {
+    "timeout_seconds": 180,
+    "stable_seconds": 10,
+    "variation_bytes": 268435456,
+    "baseline_shortfall_bytes": 2147483648
+  },
+  "pi_retry": {
+    "enabled": true,
+    "maxRetries": 3,
+    "baseDelayMs": 2000,
+    "maxAgentDelayMs": 10000,
+    "provider": {
+      "maxRetries": 0
+    }
+  },
+  "pi_extensions": {
+    "anti_repeat": {
+      "manifest": "/home/lain/experiments/gx10-anti-repeat-tools-1/manifest.json",
+      "manifest_sha256": "76ee2416c0aa1a88255cfa49f82eec86be60e7359f36fb71a1d70aa1c530f000",
+      "version": "0.2.1"
+    },
+    "vigilant": {
+      "lock_file": "pi-vigilant-lock.json",
+      "settings": {
+        "prematureStopDetection": true,
+        "lengthStopContinuation": true,
+        "compactionContinuation": true,
+        "finalVerification": true,
+        "feedbackMemoryIntegration": false,
+        "specMemoryIntegration": false,
+        "completenessGuard": true,
+        "staleContinuationFiltering": true,
+        "maxConsecutiveFailureContinuations": 0,
+        "hostRetryBudget": 3,
+        "lengthContinuationMaxConsecutive": 3,
+        "contextPressureCompaction": true,
+        "maxContextPressureCompactions": 2,
+        "compactionFallback": true,
+        "maxCompactionFallbackAttempts": 3,
+        "compactionFallbackDropOnly": false,
+        "compactionFallbackModel": "",
+        "loopGuardian": true,
+        "toolTimeoutEnforcement": false
+      }
+    }
+  }
+}

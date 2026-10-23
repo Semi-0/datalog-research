@@ -1,0 +1,23 @@
+;; Define the admission contract before supplying model, process or Pi mechanisms.
+;; Missing inputs stay pending in Lain. False and pending never admit workers.
+(define admit-workers?
+  (network [previous-unloaded memory-settled reserve-preserved sandbox-verified]
+    (if previous-unloaded
+      (if memory-settled
+        (if reserve-preserved sandbox-verified false)
+        false)
+      false)))
+
+(define delegation-requirements
+  (list
+    (list :resident-models-at-most 1)
+    (list :worker-count 4)
+    (list :worker-context 131072)
+    (list :worker-workspaces :private)
+    (list :worker-sandbox :outer-process)
+    (list :nested-delegation false)
+    (list :command-timeout-seconds 120)
+    (list :overall-agent-deadline :none)
+    (list :physical-ram-reserve :max-16GiB-or-20percent)
+    (list :unverified-cleanup :stop)
+    (list :completion-proof :independent-assertions)))

@@ -1,0 +1,31 @@
+;; GX10 delegation — high-level executable workflow, designed from constraints down.
+;; Run in the hosted editor to inspect the plan. No model loads occur there.
+(define import load-lain)
+(import "examples/lain/gx10_delegation/workflow.lain")
+(import "examples/lain/gx10_delegation/constraints.lain")
+
+(define implement-and-verify
+  (network [task]
+    (sequence
+      (list
+        (with-model :flash
+          (plan-with-pi task))
+        (verify-unloaded :flash)
+
+        (with-model :ornith-nvfp4
+          (sequence
+            (list
+              (smoke-workers 2)
+              (parallel-workers 4
+                (list :normalize :project :order :batch))
+              (collect-patches))))
+        (verify-unloaded :ornith-nvfp4)
+
+        (with-model :flash
+          (sequence
+            (list
+              (integrate-with-pi)
+              (independent-check))))))))
+
+(define result (implement-and-verify :event-batch))
+(display result)

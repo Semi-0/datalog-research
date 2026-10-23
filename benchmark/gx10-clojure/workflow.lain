@@ -1,0 +1,27 @@
+;; Executable specification. Editing/compiling never starts an external process.
+;; Load this first, then extend the same session with refinement.lain.
+;; Explicit outer cells keep refinement shared with the captured network scope.
+(define clean-transition)
+(define admit-model)
+(define implement-and-assess)
+(define preserve-and-release)
+
+(define benchmark-cell
+  (network []
+    (list :sequence
+      (clean-transition)
+      (admit-model)
+      (implement-and-assess)
+      (preserve-and-release))))
+
+(define continue-queue?
+  (network [cleanup-verified result-durable execution-resolved]
+    (if cleanup-verified
+      (if result-durable execution-resolved false)
+      false)))
+
+;; Correctness establishes the task pass; workflow and timing stay independent.
+(define task-outcome
+  (network [correct] (if correct :passed :task-failed)))
+
+(define result (benchmark-cell))

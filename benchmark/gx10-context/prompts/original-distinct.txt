@@ -1,0 +1,6 @@
+Implement stable-distinct-by in the isolated Clojure benchmark namespace benchmark.stable-distinct (benchmark/stable_distinct.clj). It accepts a key function and a finite collection, returning a vector containing the first item for each distinct key, in original order. Treat nil and false as valid keys. Handle empty input and repeated structured keys. Do not mutate the input or add dependencies. Add unit tests in test/benchmark/stable_distinct_test.clj, run them, and briefly explain the implementation.
+
+Work only in these two files. Starting files are already present. Run your tests with:
+clojure -M:test benchmark.stable-distinct-test
+
+Acceptance also checks nil input, lists and finite lazy sequences, exactly one key-function invocation per input item, and a large duplicate-heavy collection. You have ten minutes. Use the read, edit, write, and bash tools as needed. Complete the task without asking follow-up questions.

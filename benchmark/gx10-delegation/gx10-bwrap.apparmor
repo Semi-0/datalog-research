@@ -1,0 +1,8 @@
+# Grants user-namespace creation to the system Bubblewrap executable only.
+# Keeps kernel.apparmor_restrict_unprivileged_userns=1 unchanged.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile gx10-delegation-bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+}

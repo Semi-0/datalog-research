@@ -1,0 +1,24 @@
+;; A small public workflow algebra. These constructors declare effects as data.
+;; The host interpreter supplies the mechanisms; evaluating in the editor is pure.
+(define sequence
+  (network [steps] (list :sequence steps)))
+(define with-model
+  (network [model body] (list :with-model model body)))
+(define step
+  (network [identity operation arguments]
+    (list :step identity operation arguments)))
+(define plan-with-pi
+  (network [task] (step :plan :pi/plan task)))
+(define verify-unloaded
+  (network [model] (step :clean :model/verify-unloaded model)))
+(define smoke-workers
+  (network [count] (step :smoke :pi/smoke count)))
+(define parallel-workers
+  (network [limit assignments]
+    (step :workers :pi/parallel (list limit assignments))))
+(define collect-patches
+  (network [] (step :handoffs :patch/collect :workers)))
+(define integrate-with-pi
+  (network [] (step :integration :pi/integrate :handoffs)))
+(define independent-check
+  (network [] (step :acceptance :evaluate :integration)))

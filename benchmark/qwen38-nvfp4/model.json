@@ -1,0 +1,14 @@
+{
+  "id": "qwen38-27b-nvfp4",
+  "backend": "vllm",
+  "source": "qwen38-27b-nvfp4",
+  "repository": "nvidia/Qwen3.8-27B-NVFP4",
+  "revision": "482ca0f3832238542f8f5295dde86b5f22711d80",
+  "weight_bytes": 21921697280,
+  "quantization": "NVFP4/FP8 mixed",
+  "mtp": false,
+  "thinking_level_map": {"high": "xhigh"},
+  "model_directory": "/home/lain/experiments/qwen38-27b-nvfp4-20261022/model",
+  "artifact_manifest": "/home/lain/experiments/qwen38-27b-nvfp4-20261022/artifacts.json",
+  "server_command": "qwen38-nvfp4/server-command.json"
+}

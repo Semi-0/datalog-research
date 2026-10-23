@@ -1,0 +1,25 @@
+# Runtime evidence and downloaded model artifacts stay outside source control.
+**/results/
+**/runs/
+**/outputs/
+**/logs/
+**/tmp/
+**/models/
+**/weights/
+**/*.gguf
+**/*.safetensors
+
+# Platform copy metadata is not source.
+**/._*
+**/.DS_Store
+
+# Interpreter, dependency and build caches.
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.cpcache/
+**/.cache/
+**/.venv/
+**/venv/
+**/node_modules/
+**/target/

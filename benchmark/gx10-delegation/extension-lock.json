@@ -1,0 +1,20 @@
+{
+  "README.md": "5d53675fef91f6c4699b9cd5b8032c8293d9b15ad5aed2bed5fe1e340715ec08",
+  "NOTICE": "6868c3b69640d42685db1f914aa31302b18b6219254178e7baa5ca785144dd85",
+  "LICENSE": "dc5a2fe270e7aa045d017d0c7aa7c0d9052f6fc888695df34531db69c06b7d28",
+  "CHANGELOG.md": "da401a3f578ef6ae6d575791098bcb5eef0f8833291c3a9304b82cabba8f104b",
+  "package.json": "5113ccfa7cbd703c264d363bbfb154b93beaf6ad9b055e2f8326aa705dcc1a41",
+  "src/approval.ts": "f4da4f7bc2e772bd48b569995bbf7d8cf448ae12df2b5377a36b6ae71997f9cf",
+  "src/runtime.ts": "d1b9a29fa06efe3db5f37909431c3f0179dcf957fcf525181ff5662fff85987f",
+  "src/policy.ts": "139c1e37a1993bbf71977d2477968ad3f34ed5732a00abf2b9eb04e2a926d96e",
+  "src/host-ipc.ts": "1b2d4121cd86822eb45bdf4f368b5d8a6fd7400f7859cd9a31387897cc154e02",
+  "src/subagent.ts": "69f39f7c9914b08bebef2d55ed8be20394a8cb496a9b46f87b0b20107267a02b",
+  "src/runner.ts": "a2d16e5cbcb2eb894fd6203f33550710ae406265090a9bf85f04942a4d011374",
+  "src/network-policy.mjs": "1b7113a9c4ee6c23b7798489585f17122a0d0ea57af0ac36b81a2a3d6042b850",
+  "src/config.ts": "9f7b5967276d4be51783e49494e701d0bebc5690dd4b8eaa7dd91e16494d21d4",
+  "src/srt-broker.mjs": "fae8506ef556c0cc4a7c61ef72f69afdf05d262ce24fea5b7b34a18366151eb6",
+  "src/traps.ts": "79e11590b9d2c9a11a306c5ce9f556579e58df8d245ff2450e5f48c510bec446",
+  "src/pi-subagents-native.ts": "6a7e063d89168b7398a33e0b78bf7bd970ab53f5d0b5fb135349962bd930ec1c",
+  "src/index.ts": "b4ec9a71324a2fc138c26e552f7f57b4d16f0218a507f3f1b1273cb0884d09b0",
+  "src/network-policy.d.mts": "f40a691fddc68839f30131263165abd9414d3e6b669cdd46cd42f4f958267b7c"
+}

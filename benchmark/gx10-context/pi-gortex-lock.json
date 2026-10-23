@@ -1,0 +1,28 @@
+{
+  "package": "pi-gortex",
+  "version": "0.4.0",
+  "source": "https://registry.npmjs.org/pi-gortex/-/pi-gortex-0.4.0.tgz",
+  "integrity": "sha512-wkOSah5SjgXVbc30YgxLQ02hMwoJtMYSOxRGgRPKhzec8bOP9WufuA+WQIr25APEH3pwXhhRG0QMWmKnjMwU8A==",
+  "files": {
+    "LICENSE": "95a563114b5b09c2ce58366ba57a25e81e20b740e63a3b8def4f9c36aa12a180",
+    "README.md": "8747a611102d1764610a3ff005627eb4882729d198e2b06ded3e85d3fce90d74",
+    "docs/architecture.md": "9f8bda72667bf2c74efeaea8e4f18f361023c19cf185e29659ffe073a0d2d26c",
+    "docs/tests.md": "a6175e89e037bec4159e8732281331b84e114babbe108c0cec5307fb525ad32a",
+    "index.ts": "51d71a1d175dfb8fa0d725a492ffe25bf0f86e9fece4d450b612177d1a105f5c",
+    "package.json": "b918e99dc69bba88cf8136bc3108c7ddf03960fcc01046ae6ede2543207dfcd3",
+    "src/config.ts": "1c2a9951861c7b823b04be2b13da17bb4ca76c579dbc0e7bb94b30b074c5e9f3",
+    "src/diff.ts": "aa438fa7342139220a52d83534d9eb0b59d1a506cc186faff4878f419f8a3bf4",
+    "src/hook.ts": "4ba826d2b6624fb3fcc516302da6c854c71804c2d7a59710a43a45a09a9cf58d",
+    "src/index.ts": "cdb9f6c78e964434e28e8fba270c53e1eb7a4b6117d824149baae1c6c12de04d",
+    "src/mcp-client.ts": "6e75fd4882d3e83b02a980ab32bb6a80ea5aeb82233c9303ae97751a1b04f36c",
+    "src/native.ts": "bd3978af3650c6abdf7342048fc64ba6e7c2b30f96bb5fc369443e05944fa443",
+    "src/render.ts": "0c5c1b24251e09fe030c0c6b1b8c299c28164bcc6b5db2ef6a5c448c60206ee0",
+    "src/runtime.ts": "6aed24c4090471baf5c5e71d74e48ef2d37992b23f619fcd78059af624217de3",
+    "src/state.ts": "63047895039f0eecac47c0055f7c6997f6cfb225ceafa7548196af0eca3bc9e7",
+    "src/tools.ts": "1abaa02d75ebf701001f2075eab05b6fb2e7d6df2e509b0472984b69257bb42d"
+  },
+  "runtime": {
+    "node": {"path": ".local/opt/node-v24.22.1-linux-arm64/bin/node", "sha256": "c8c5721679d8d1a09e9987e345d5f9a64899bb85f7a384783ba8a93e6e62348a"},
+    "gortex": {"path": ".local/opt/gortex-v0.64.8/gortex", "sha256": "0ef11c3e0f67a2c93bc97867669165aed935e172cdf6691ae02a8ffa91f86c82"}
+  }
+}

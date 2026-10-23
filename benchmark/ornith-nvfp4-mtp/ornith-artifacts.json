@@ -1,0 +1,35 @@
+{
+  "sha": "94e431d9cc47fa1986a7a1a4e9a80f7f118b03aa",
+  "siblings": [
+    {
+      "rfilename": "model-00001-of-00003.safetensors",
+      "blobId": "8760c0ea3b55a79e5e031e20e376e08c15cf6242",
+      "size": 10005851848,
+      "lfs": {
+        "sha256": "648fe83171485f4be03ea58d86089e088c94c2a3dc88922233f9002f30d8bc8b",
+        "size": 10005851848,
+        "pointerSize": 136
+      }
+    },
+    {
+      "rfilename": "model-00002-of-00003.safetensors",
+      "blobId": "50744589455424bda1e4a2b806c8a40e0037c56e",
+      "size": 10006454416,
+      "lfs": {
+        "sha256": "cb5c5978721a1e87406ae68f1cd5a855326e40ff8bc13832644c392115336987",
+        "size": 10006454416,
+        "pointerSize": 136
+      }
+    },
+    {
+      "rfilename": "model-00003-of-00003.safetensors",
+      "blobId": "104dd75628d492c09545dd64ab12b7ed0d34d52a",
+      "size": 3408113436,
+      "lfs": {
+        "sha256": "8303cef7d375021d69dcafc60d3fad5f8186995b18b0db5e2a609aadeb8a4f51",
+        "size": 3408113436,
+        "pointerSize": 135
+      }
+    }
+  ]
+}

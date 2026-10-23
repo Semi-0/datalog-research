@@ -1,0 +1,18 @@
+;; Retain the specification and resolve its four operations in this session.
+;; These stage names are the public contract of the Clojure interpreter.
+(define clean-transition
+  (network [] (list :sequence :cleanup-before :verify-unloaded :settle-memory)))
+
+(define admit-model
+  (network [] (list :sequence :check-budget :load-model :verify-configuration :preload)))
+
+(define implement-and-assess
+  (network [] (list :sequence :execute :evaluate)))
+
+(define preserve-and-release
+  (network [] (list :sequence :save-result :cleanup-after)))
+
+;; Computed through the native session extension, without external effects.
+(define reserve-for-128-gib (memory-reserve 137438953472))
+(define recovered-abort-can-continue (continue-queue? true true true))
+(define uncertain-cleanup-must-stop (continue-queue? false true true))

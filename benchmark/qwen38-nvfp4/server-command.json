@@ -1,0 +1,20 @@
+[
+  "/home/lain/.local/opt/vllm-ornith-nvfp4/bin/python",
+  "-m", "vllm.entrypoints.openai.api_server",
+  "--model", "/home/lain/experiments/qwen38-27b-nvfp4-20261022/model",
+  "--served-model-name", "qwen38-27b-nvfp4",
+  "--host", "127.0.0.1", "--port", "8001",
+  "--tensor-parallel-size", "1", "--language-model-only",
+  "--linear-backend", "auto", "--attention-backend", "triton_attn",
+  "--gdn-prefill-backend", "triton",
+  "--max-model-len", "131072", "--gpu-memory-utilization", "0.60",
+  "--kv-cache-memory-bytes", "17179869184", "--kv-cache-dtype", "fp8_e4m3",
+  "--max-num-seqs", "1", "--max-num-batched-tokens", "4096",
+  "--max-cudagraph-capture-size", "4", "--enable-chunked-prefill",
+  "--enable-prefix-caching", "--prefix-match-unit", "16", "--async-scheduling",
+  "--reasoning-parser", "qwen3", "--tool-call-parser", "qwen3_coder",
+  "--enable-auto-tool-choice",
+  "--default-chat-template-kwargs", "{\"enable_thinking\":true,\"reasoning_effort\":\"xhigh\"}",
+  "--override-generation-config", "{\"temperature\":1.0,\"top_p\":0.95,\"top_k\":20,\"min_p\":0,\"presence_penalty\":0,\"repetition_penalty\":1}",
+  "--api-key", "local-benchmark"
+]
