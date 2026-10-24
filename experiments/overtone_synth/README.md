@@ -18,7 +18,7 @@ clojure -M:example/synth --silent --host 0.0.0.0 --port 45673
 
 Visit `http://127.0.0.1:45673/relationships` on this computer, or replace the
 address with this computer's LAN IP on your phone. The test machine's address
-on 2026-10-06 was `192.168.178.96`; addresses may change.
+on 2026-10-06 was [redacted LAN address]; addresses may change.
 
 Binding `0.0.0.0` exposes the existing unauthenticated XR runtime controls and
 network inspection on your LAN. Use trusted Wi-Fi only. Omit `--host` for a

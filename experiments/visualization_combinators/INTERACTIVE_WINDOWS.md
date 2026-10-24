@@ -44,7 +44,7 @@ To expose this example to a trusted LAN, replace the localhost host argument
 with the computer's Wi-Fi address and use an unused port, for example:
 
 ```sh
-clojure -M -m examples.lain.visualization-combinators.compound-levels 45672 192.168.178.96
+clojure -M -m examples.lain.visualization-combinators.compound-levels 45672 "$GX10_LAN_ADDRESS"
 ```
 
 The phone must be on the same network. This exposes full Net inspection data and

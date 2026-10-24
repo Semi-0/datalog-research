@@ -32,7 +32,7 @@
       (is (= credential (:credential (protected/configuration environment))))
       (doseq [key (keys environment)]
         (is (thrown? Exception (protected/configuration (dissoc environment key)))))
-      (doseq [host ["0.0.0.0" "192.168.178.201"]]
+      (doseq [host ["0.0.0.0" "10.0.0.10"]]
         (is (thrown? Exception (protected/configuration (assoc environment "LAIN_RUNTIME_HOST" host)))))
       (doseq [value ["" "short" "contains whitespace and invalid ! characters"]]
         (spit file value)

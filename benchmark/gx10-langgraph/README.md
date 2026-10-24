@@ -24,7 +24,7 @@ On GX10 the deployed source is `/home/lain/projects/datalog-research/benchmark/g
 
 ## Access and repeatable commands
 
-From a Mac on the same LAN, open **http://192.168.178.201:4141** directly. No SSH tunnel or Mac port forwarding is needed. The previous Mac forwards were removed.
+From a Mac on the same LAN, open **http://<GX10_LAN_ADDRESS>:4141** directly. No SSH tunnel or Mac port forwarding is needed. The previous Mac forwards were removed.
 
 `gx10-lgview-lan.service` runs `lan-proxy.mjs` on GX10's private IPv4 address. It proxies the UI and streamed API requests to local lgview, fixes the API target to `127.0.0.1:2024`, and rejects unexpected Host/Origin values and cross-site browser requests. The underlying API remains loopback-only. Devices on the LAN can use this experimental UI without authentication. If GX10's DHCP address changes, update the service's address argument and use the new URL.
 
