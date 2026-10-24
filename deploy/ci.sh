@@ -8,6 +8,7 @@ for tool in clojure node npm cargo python3; do
   fi
 done
 clojure -M:test
+clojure -M:test graph.lain-editor.protected-server-test
 clojure -M:editor/cljs-test
 node target/lain-editor/tests.js
 cargo test --locked --manifest-path leapfrog-rs/Cargo.toml

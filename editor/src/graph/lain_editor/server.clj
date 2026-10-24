@@ -15,6 +15,11 @@
            [java.net InetSocketAddress]
            [java.util.concurrent Executors]))
 
+(def ^:dynamic *project-root* nil)
+
+(defn project-root []
+  (or *project-root* (System/getProperty "user.dir")))
+
 (def assets
   {"/" ["index.html" "text/html"]
    "/compiled/app.js" ["compiled/app.js" "text/javascript"]
@@ -62,8 +67,8 @@
          "reopen-session" (editor/reopen! editors detached command)
          "stop-session" (editor/stop-detached! detached command)
          "inspect" (inspection/inspect editors command)
-         "save-block" (source-files/save-block! (System/getProperty "user.dir") command)
-         "save-workspace" (workspace-files/save-workspace! (System/getProperty "user.dir") command)
+         "save-block" (source-files/save-block! (project-root) command)
+         "save-workspace" (workspace-files/save-workspace! (project-root) command)
          (throw (ex-info "Unknown editor operation" {})))))))
 
 (defn respond! [exchange status content-type body]
@@ -89,7 +94,7 @@
                  (development-protocol/operations (:op command))
                  (development-handler/command! developments command)
                  (workspace-commands/operations (:op command))
-                 (workspace-commands/command! commands (System/getProperty "user.dir") command)
+                 (workspace-commands/command! commands (project-root) command)
                  :else (command! editors layouts developments detached command))]
     (respond! exchange 200 "application/json" (json/write-json {:ok true :result result}))))
 
@@ -107,12 +112,21 @@
                 (json/write-json {:ok false :error (ex-message error)})))
     (finally (.close exchange))))
 
-(defn start! [port]
+(defn start!
+  ([port] (start! port {}))
+  ([port {:keys [authorize? project-root]}]
   (let [editors (atom {}) layouts (atom {}) developments (atom {}) commands (atom {}) detached (atom {})
         server (HttpServer/create (InetSocketAddress. "127.0.0.1" (int port)) 0)
         executor (Executors/newCachedThreadPool)]
     (.createContext server "/" (reify HttpHandler
-                                  (handle [_ exchange] (handle! editors layouts developments commands detached exchange))))
+                                  (handle [_ exchange]
+                                    (if (and authorize? (not (authorize? exchange)))
+                                      (try
+                                        (respond! exchange 401 "application/json"
+                                                  (json/write-json {:ok false :error "Unauthorized"}))
+                                        (finally (.close exchange)))
+                                      (binding [*project-root* project-root]
+                                        (handle! editors layouts developments commands detached exchange))))))
     (.setExecutor server executor)
     (.start server)
     {:port (.getPort (.getAddress server)) :editors editors :layouts layouts
@@ -122,7 +136,7 @@
                 (development-runtime/close-all! developments)
                 (graph-layout/close! layouts)
                 (editor/close! editors)
-                (editor/close! detached)))}))
+                (editor/close! detached)))})))
 
 (defn -main [& args]
   (let [port (if (seq args) (Long/parseLong (first args)) 4780)

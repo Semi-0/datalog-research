@@ -36,4 +36,20 @@ ssh -N -L 4792:127.0.0.1:4782 lain@gx10-ac8b.local
 
 Open http://127.0.0.1:4792/. This does not install the frontend repository's authenticated LAN gateway templates or expose the editor on LAN interfaces.
 
+## Optional authenticated LAN access
+
+After deploying a revision containing `graph.lain-editor.protected-server`, install a pinned, checksum-verified ARM64 Caddy binary under the GX10 account and run:
+
+```sh
+python3 deploy/gx10_lan.py --address 192.168.178.201 --subnet 192.168.178.0/24 --caddy ~/.local/opt/caddy-2.11.7/caddy
+```
+
+This separate deployment uses HTTPS on port 8443 and browser username/password sign-in through Caddy. It does not install or weaken the frontend repository's Authelia/two-factor templates. Only clients in the configured LAN subnet are accepted. The frontend stays on loopback in protected mode and requires a distinct gateway credential; the runtime stays on loopback and validates exactly one bearer header before body parsing or command dispatch. Editor file commands use `~/projects/lain-workspace`. This is a shared trusted operator runtime with the account's code execution permissions, not per-user isolation or an OS sandbox.
+
+The installer generates independent credentials and a strong initial sign-in password in mode-0600 files under `~/.config/lain-editor-lan/`. Read `login.json` privately on GX10; do not paste credentials into chat or commit them. The `gx10-lain-gateway.service` user service restarts with the frontend on deployments. Protected production health probes receive only the gateway credential and exact public Origin; candidate checks never receive production credentials.
+
+Open `https://192.168.178.201:8443/`. Trust the public local CA certificate from `~/.local/share/lain-editor-deploy/gateway-data/caddy/pki/authorities/local/root.crt` on each client, after transferring it over authenticated SSH and verifying its fingerprint. Never transfer `root.key`. No system trust store is modified automatically. A browser may initially show an untrusted-certificate warning. The LAN address is DHCP-assigned; reserve it in the router or reinstall the configuration if it changes. Basic authentication uses the browser's credential cache; close the private browsing session to discard that session's cached sign-in.
+
+Stop LAN ingress with `systemctl --user stop gx10-lain-gateway.service`. Removing LAN configuration requires first disabling ingress and deliberately restoring local configuration; failures never expose an unauthenticated LAN fallback.
+
 Stop automatic updates with `systemctl --user stop gx10-lain-pull.timer`. Existing releases remain available for inspection and rollback; the driver does not prune them automatically.

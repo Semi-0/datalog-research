@@ -118,9 +118,27 @@ def processes(release, backend_port, frontend_port):
                 process.wait(timeout=15)
 
 
+def lan_configuration():
+    path = ROOT / "lan.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    return None
+
+
+def probe_headers(url):
+    # Never send production credentials to candidate or external URLs.
+    if url.rstrip("/") != f"http://127.0.0.1:{FRONTEND_PORT}":
+        return {}
+    configuration = lan_configuration()
+    if configuration is None:
+        return {}
+    return {"X-Lain-Gateway": Path(configuration["gateway_credential_file"]).read_text().strip(),
+            "Origin": configuration["origin"]}
+
+
 def api(url, command):
     request = urllib.request.Request(url + "/api", data=json.dumps(command).encode(),
-                                     headers={"Content-Type": "application/json"})
+                                     headers={"Content-Type": "application/json", **probe_headers(url)})
     with urllib.request.urlopen(request, timeout=60) as response:
         body = json.load(response)
     if not body.get("ok"):
@@ -129,7 +147,8 @@ def api(url, command):
 
 
 def probe(url):
-    with urllib.request.urlopen(url, timeout=15) as response:
+    request = urllib.request.Request(url, headers=probe_headers(url))
+    with urllib.request.urlopen(request, timeout=15) as response:
         if b'id="app"' not in response.read():
             raise RuntimeError("Editor HTML is missing its mount point")
     pane = "deployment-probe-" + uuid.uuid4().hex
@@ -256,12 +275,22 @@ def poll(retry=False):
 def serve(role):
     release = (ROOT / "current").resolve(strict=True)
     env = service_environment()
+    configuration = lan_configuration()
     if role == "backend":
         args = backend_command(BACKEND_PORT)
+        if configuration is not None:
+            env.update(LAIN_RUNTIME_HOST="127.0.0.1", LAIN_RUNTIME_PORT=str(BACKEND_PORT),
+                       LAIN_RUNTIME_PROJECT_ROOT=configuration["project_root"],
+                       LAIN_RUNTIME_BEARER_CREDENTIAL_FILE=configuration["backend_credential_file"])
+            args = ["clojure", "-Sdeps", DEPS, "-M", "-m", "graph.lain-editor.protected-server"]
     else:
         args = ["node", "scripts/dev.mjs"]
         env.update(LAIN_EDITOR_PORT=str(FRONTEND_PORT),
                    LAIN_EDITOR_BACKEND=f"http://127.0.0.1:{BACKEND_PORT}")
+        if configuration is not None:
+            env.update(LAIN_EDITOR_MODE="protected", LAIN_EDITOR_PUBLIC_ORIGIN=configuration["origin"],
+                       LAIN_EDITOR_GATEWAY_CREDENTIAL_FILE=configuration["gateway_credential_file"],
+                       LAIN_EDITOR_BACKEND_CREDENTIAL_FILE=configuration["backend_credential_file"])
     os.chdir(release / role)
     os.execvpe(args[0], args, env)
 
