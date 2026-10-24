@@ -1,0 +1,10 @@
+;; Inspect the constructor's internal protocol network with the existing tracer.
+;; Parameters and policy/accessor bodies may remain partial; no live I/O is bound.
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+(load-lain "examples/lain/subagents/evaluation-framework.lain")
+
+(def-cells parameters evaluation-framework)
+(define construction
+  (make-evaluation-framework parameters evaluation-framework))
+
+(display (trace:children construction))

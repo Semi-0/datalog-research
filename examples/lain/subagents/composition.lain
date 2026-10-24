@@ -3,9 +3,9 @@
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 (load-lain "examples/lain/subagents/evaluation-framework.lain")
 
-(def-cells user evaluation-framework runtime)
+(def-cells user evaluation-framework runtime evaluation-parameters)
 (define execute-assignment)
-(make-evaluation-framework evaluation-framework)
+(make-evaluation-framework evaluation-parameters evaluation-framework)
 
 (<-> (assignments user)
      (assignments evaluation-framework))
