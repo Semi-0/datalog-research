@@ -1,0 +1,7 @@
+services:
+  main:
+    # The model endpoint stays bound to host loopback; no model port is exposed.
+    network_mode: host
+    networks: !reset []
+    labels:
+      gx10.benchmark.owner: harbor-pilot-20261023

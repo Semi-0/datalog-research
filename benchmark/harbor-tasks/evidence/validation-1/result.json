@@ -1,0 +1,298 @@
+{
+  "passed": true,
+  "scope": "Harbor task migration validation; no model assessment",
+  "models_loaded": false,
+  "model_requests": 0,
+  "trials": [
+    {
+      "label": "oracle-distinct",
+      "agent": "oracle",
+      "harbor_trial": "/home/lain/experiments/gx10-harbor-migration-validation-1/jobs/oracle-distinct/distinct__WVEQaQx/result.json",
+      "reward": 1.0,
+      "verification": {
+        "task": "distinct",
+        "verification_valid": true,
+        "correct": true,
+        "reward": 1,
+        "acceptance": {
+          "exit": 0,
+          "timed_out": false,
+          "wall_s": 0.565961224026978,
+          "counts": {
+            "tests": 3,
+            "assertions": 14,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "own_tests": {
+          "exit": 0,
+          "timed_out": false,
+          "wall_s": 0.4158325089956634,
+          "counts": {
+            "tests": 1,
+            "assertions": 1,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "scope_valid": true,
+        "scope_violations": [],
+        "workflow_pass": true,
+        "expected_assertions": 14,
+        "evaluator_sha256": "33145fc956b41791ad33580c778f1ef1edf20c695b98f14275687066c39ee7cf",
+        "execution_scope": "fresh Harbor verifier container; no evaluator feedback to agent",
+        "timing_valid": null,
+        "timing_note": "Migration validation does not establish model timing validity"
+      }
+    },
+    {
+      "label": "nop-distinct",
+      "agent": "nop",
+      "harbor_trial": "/home/lain/experiments/gx10-harbor-migration-validation-1/jobs/nop-distinct/distinct__82LijhF/result.json",
+      "reward": 0.0,
+      "verification": {
+        "task": "distinct",
+        "verification_valid": true,
+        "correct": false,
+        "reward": 0,
+        "acceptance": {
+          "exit": 1,
+          "timed_out": false,
+          "wall_s": 0.5683218180201948,
+          "counts": {
+            "tests": 3,
+            "assertions": 11,
+            "failures": 0,
+            "errors": 11
+          }
+        },
+        "own_tests": {
+          "exit": 1,
+          "timed_out": false,
+          "wall_s": 0.46649117197375745,
+          "counts": {
+            "tests": 0,
+            "assertions": 0,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "scope_valid": true,
+        "scope_violations": [],
+        "workflow_pass": false,
+        "expected_assertions": 14,
+        "evaluator_sha256": "33145fc956b41791ad33580c778f1ef1edf20c695b98f14275687066c39ee7cf",
+        "execution_scope": "fresh Harbor verifier container; no evaluator feedback to agent",
+        "timing_valid": null,
+        "timing_note": "Migration validation does not establish model timing validity"
+      }
+    },
+    {
+      "label": "oracle-order",
+      "agent": "oracle",
+      "harbor_trial": "/home/lain/experiments/gx10-harbor-migration-validation-1/jobs/oracle-order/order__MojJniV/result.json",
+      "reward": 1.0,
+      "verification": {
+        "task": "order",
+        "verification_valid": true,
+        "correct": true,
+        "reward": 1,
+        "acceptance": {
+          "exit": 0,
+          "timed_out": false,
+          "wall_s": 0.5703730679815635,
+          "counts": {
+            "tests": 4,
+            "assertions": 17,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "own_tests": {
+          "exit": 0,
+          "timed_out": false,
+          "wall_s": 0.4683476450154558,
+          "counts": {
+            "tests": 1,
+            "assertions": 1,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "scope_valid": true,
+        "scope_violations": [],
+        "workflow_pass": true,
+        "expected_assertions": 17,
+        "evaluator_sha256": "b85175ffdce75616bd39c1081a2b7ce74665b185994b48677925f245b094a93d",
+        "execution_scope": "fresh Harbor verifier container; no evaluator feedback to agent",
+        "timing_valid": null,
+        "timing_note": "Migration validation does not establish model timing validity"
+      }
+    },
+    {
+      "label": "nop-order",
+      "agent": "nop",
+      "harbor_trial": "/home/lain/experiments/gx10-harbor-migration-validation-1/jobs/nop-order/order__qzatF6J/result.json",
+      "reward": 0.0,
+      "verification": {
+        "task": "order",
+        "verification_valid": true,
+        "correct": false,
+        "reward": 0,
+        "acceptance": {
+          "exit": 1,
+          "timed_out": false,
+          "wall_s": 0.5667631350224838,
+          "counts": {
+            "tests": 4,
+            "assertions": 15,
+            "failures": 5,
+            "errors": 10
+          }
+        },
+        "own_tests": {
+          "exit": 1,
+          "timed_out": false,
+          "wall_s": 0.5183761040098034,
+          "counts": {
+            "tests": 0,
+            "assertions": 0,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "scope_valid": true,
+        "scope_violations": [],
+        "workflow_pass": false,
+        "expected_assertions": 17,
+        "evaluator_sha256": "b85175ffdce75616bd39c1081a2b7ce74665b185994b48677925f245b094a93d",
+        "execution_scope": "fresh Harbor verifier container; no evaluator feedback to agent",
+        "timing_valid": null,
+        "timing_note": "Migration validation does not establish model timing validity"
+      }
+    },
+    {
+      "label": "oracle-events",
+      "agent": "oracle",
+      "harbor_trial": "/home/lain/experiments/gx10-harbor-migration-validation-1/jobs/oracle-events/events__YBw6y2t/result.json",
+      "reward": 1.0,
+      "verification": {
+        "task": "events",
+        "verification_valid": true,
+        "correct": true,
+        "reward": 1,
+        "acceptance": {
+          "exit": 0,
+          "timed_out": false,
+          "wall_s": 0.5690930529963225,
+          "counts": {
+            "tests": 3,
+            "assertions": 42,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "own_tests": {
+          "exit": 0,
+          "timed_out": false,
+          "wall_s": 0.4665963950101286,
+          "counts": {
+            "tests": 1,
+            "assertions": 1,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "scope_valid": true,
+        "scope_violations": [],
+        "workflow_pass": true,
+        "expected_assertions": 42,
+        "evaluator_sha256": "9cfae63ff9d9d2ad1c292e31ff27cdd951b259c07e670aae3f5d7fb4bb9627d3",
+        "execution_scope": "fresh Harbor verifier container; no evaluator feedback to agent",
+        "timing_valid": null,
+        "timing_note": "Migration validation does not establish model timing validity"
+      }
+    },
+    {
+      "label": "nop-events",
+      "agent": "nop",
+      "harbor_trial": "/home/lain/experiments/gx10-harbor-migration-validation-1/jobs/nop-events/events__ALxY6yf/result.json",
+      "reward": 0.0,
+      "verification": {
+        "task": "events",
+        "verification_valid": true,
+        "correct": false,
+        "reward": 0,
+        "acceptance": {
+          "exit": 1,
+          "timed_out": false,
+          "wall_s": 0.5666503160027787,
+          "counts": {
+            "tests": 3,
+            "assertions": 39,
+            "failures": 28,
+            "errors": 10
+          }
+        },
+        "own_tests": {
+          "exit": 1,
+          "timed_out": false,
+          "wall_s": 0.4664957399945706,
+          "counts": {
+            "tests": 0,
+            "assertions": 0,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "scope_valid": true,
+        "scope_violations": [],
+        "workflow_pass": false,
+        "expected_assertions": 42,
+        "evaluator_sha256": "9cfae63ff9d9d2ad1c292e31ff27cdd951b259c07e670aae3f5d7fb4bb9627d3",
+        "execution_scope": "fresh Harbor verifier container; no evaluator feedback to agent",
+        "timing_valid": null,
+        "timing_note": "Migration validation does not establish model timing validity"
+      }
+    },
+    {
+      "label": "oracle-scope-violation",
+      "agent": "oracle",
+      "harbor_trial": "/home/lain/experiments/gx10-harbor-migration-validation-1/jobs/oracle-scope-violation/scope-fixture__PwphTUr/result.json",
+      "reward": 1.0,
+      "verification": {
+        "task": "distinct",
+        "verification_valid": true,
+        "correct": true,
+        "reward": 1,
+        "acceptance": {
+          "exit": 0,
+          "timed_out": false,
+          "wall_s": 0.6175821350188926,
+          "counts": {
+            "tests": 3,
+            "assertions": 14,
+            "failures": 0,
+            "errors": 0
+          }
+        },
+        "own_tests": null,
+        "scope_valid": false,
+        "scope_violations": [
+          "Changed or missing scaffold: deps.edn"
+        ],
+        "workflow_pass": false,
+        "expected_assertions": 14,
+        "evaluator_sha256": "33145fc956b41791ad33580c778f1ef1edf20c695b98f14275687066c39ee7cf",
+        "execution_scope": "fresh Harbor verifier container; no evaluator feedback to agent",
+        "timing_valid": null,
+        "timing_note": "Migration validation does not establish model timing validity"
+      }
+    }
+  ],
+  "oracle_assertions": 73,
+  "task_package_hashes_unchanged": true,
+  "cleanup_verified": true,
+  "harbor_version": "0.24.0"
+}

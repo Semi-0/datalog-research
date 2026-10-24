@@ -1,0 +1,35 @@
+{
+  "state": "completed",
+  "digest": "d988372ee194eab35bc8356f0284a00da6eb8f65b9d817821fd2dd6b210e4a01",
+  "result": {
+    "phase": "admission",
+    "runs": [],
+    "pid": 496051,
+    "controls": [
+      "subagent_spawn_batch",
+      "subagent_list",
+      "subagent_output",
+      "subagent_result",
+      "subagent_stop"
+    ],
+    "tools": [
+      "read",
+      "bash",
+      "powershell",
+      "edit",
+      "write",
+      "grep",
+      "find",
+      "ls",
+      "subagent_spawn",
+      "subagent_spawn_batch",
+      "subagent_list",
+      "subagent_settings",
+      "subagent_output",
+      "subagent_result",
+      "subagent_stop",
+      "agents_catalog"
+    ]
+  },
+  "epoch": 1792793744346
+}

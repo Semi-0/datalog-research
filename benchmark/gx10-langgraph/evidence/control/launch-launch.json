@@ -1,0 +1,44 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Batch batch_mvlj3ulo_1 launched 2 subagent(s):\n• worker-1 → sa_mvlj3ulq_1\n• worker-2 → sa_mvlj3umq_2"
+    }
+  ],
+  "details": {
+    "status": "launched",
+    "batchId": "batch_mvlj3ulo_1",
+    "launched": [
+      {
+        "job": 1,
+        "name": "worker-1",
+        "id": "sa_mvlj3ulq_1"
+      },
+      {
+        "job": 2,
+        "name": "worker-2",
+        "id": "sa_mvlj3umq_2"
+      }
+    ],
+    "failed": [],
+    "skipped": []
+  },
+  "structuredContent": {
+    "status": "launched",
+    "batchId": "batch_mvlj3ulo_1",
+    "launched": [
+      {
+        "job": 1,
+        "name": "worker-1",
+        "id": "sa_mvlj3ulq_1"
+      },
+      {
+        "job": 2,
+        "name": "worker-2",
+        "id": "sa_mvlj3umq_2"
+      }
+    ],
+    "failed": [],
+    "skipped": []
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "endpoint": "http://127.0.0.1:8001/v1",
+  "served_model": "qwen36-35b-a3b-nvfp4",
+  "authenticated_models_status": 200,
+  "invalid_credential_status": 401,
+  "credential_source": "backend/server-command.json --api-key"
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=GX10 lgview private LAN access
+After=network-online.target gx10-lgview.service
+Wants=network-online.target gx10-lgview.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/lain/projects/datalog-research/benchmark/gx10-langgraph
+ExecStart=/home/lain/.local/opt/node-v24.22.1-linux-arm64/bin/node /home/lain/projects/datalog-research/benchmark/gx10-langgraph/lan-proxy.mjs 192.168.178.201
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+UMask=0077
+
+[Install]
+WantedBy=default.target

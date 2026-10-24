@@ -1,63 +1,70 @@
-;; Complete harness composition for discussion; missing operations stay partial.
-;; Compound slots remain connected. Feedback must not require whole-object readiness.
-;; Only outside session handlers perform I/O; :observe never launches Pi children.
-(def-cells harbor-input user-commands recorded-observations plugin)
-(def-cells effect-receipts pi-responses inspection)
+;; Three external actors, connected by one reactive harness network.
+;; Ports expose independently available slots; unresolved operations stay partial.
+;; Outside session handlers own transport I/O. Observation/replay never launches Pi.
+(def-cells session-context harbor-transport user-transport pi-transport)
+(def-cells recorded-observations inspection)
 (define backend :observe)
 
-;; Harbor supplies a trial; the adapter exposes session, commands and Pi config.
-(define trial (harbor:trial-input harbor-input))
-(define session (p:slot :session trial))
-(define pi-config (p:slot :pi-config trial))
-(define commands
-  (subagent:commands (p:slot :commands trial) user-commands))
+;; Actor ports: Harbor trials/outputs, user commands/status, Pi operations/responses.
+;; Terminal or socket implements the user port; socket or RPC implements Pi's port.
+(define harbor (harbor:port backend session-context harbor-transport))
+(define user-input (user:port backend session-context user-transport))
+(define pi-runtime (pi:port backend session-context pi-transport))
 
-;; Observations are facts returned by the boundary/interpreter, or recorded replay.
+;; Normalize actor input into domain commands and ordered observation facts.
+(define trial (harbor:trial-input (p:slot :trial harbor)))
+(define commands
+  (subagent:commands (p:slot :commands trial) (p:slot :commands user-input)))
 (define observations
   (subagent:observations backend
     (p:slot :observations effect-boundary)
     (p:slot :observations interpreted-effects)
     recorded-observations))
 (define events (subagent:accumulate commands observations))
+
+;; The FSM derives state and requests; it never invokes an actor or interpreter.
 (define transition (subagent:fsm events))
 (define current-state (p:slot :state transition))
 (define effect-requests (p:slot :effects transition))
 
-;; Session ownership, admission, deduplication and receipts surround execution.
-;; These are dataflow connections, not another copy of the FSM transition rules.
+;; Session policy admits requests and receives normalized execution receipts.
 (define effect-boundary
-  (subagent:effect-boundary backend session effect-requests effect-receipts))
+  (subagent:effect-boundary backend session-context effect-requests
+    (p:slot :receipts interpreted-effects)))
 (define interpreted-effects
-  (subagent:effect-interpreter pi-config
-    (p:slot :admitted-requests effect-boundary) pi-responses))
+  (subagent:effect-interpreter
+    (p:slot :pi-config trial)
+    (p:slot :admitted-requests effect-boundary)
+    (p:slot :responses pi-runtime)))
 
-;; The actualizer is an outside capability exposed through the session extension.
-;; It returns Pi responses; the interpreter normalizes them into receipts/facts.
-(define pi-actualization
-  (pi:actualize backend session plugin pi-config
-    (p:slot :operations interpreted-effects)))
-(-> (p:slot :responses pi-actualization) pi-responses)
-(-> (p:slot :receipts interpreted-effects) effect-receipts)
+;; Wire intended Pi operations to its actor port. The outside actualizer performs
+;; them and publishes responses/artifacts into that same session's return slots.
+(p:slot :operations (p:slot :operations interpreted-effects) pi-runtime)
 
-;; Harbor receives execution evidence and keeps ownership of task grading.
+;; Publish state and diagnostics to the interactive actor, independent of Harbor.
+(p:slot :state current-state user-input)
+(p:slot :receipts (p:slot :receipts interpreted-effects) user-input)
+(p:slot :diagnostics (p:slot :diagnostics effect-boundary) user-input)
+
+;; Return execution evidence to Harbor; Harbor alone grades task correctness.
 (define harbor-output
   (harbor:trial-output
     (p:slot :trial-id trial)
     current-state
     (p:slot :results interpreted-effects)
-    effect-receipts
-    (p:slot :artifacts pi-actualization)))
+    (p:slot :receipts interpreted-effects)
+    (p:slot :artifacts pi-runtime)))
+(p:slot :output harbor-output harbor)
 
-;; Inspect the complete composition, including unresolved boundary capabilities.
-(p:slot :trial trial inspection)
-(p:slot :commands commands inspection)
-(p:slot :observations observations inspection)
+;; Inspect the actors and the internal connections without unwrapping the graph.
+(p:slot :harbor harbor inspection)
+(p:slot :user-input user-input inspection)
+(p:slot :pi-runtime pi-runtime inspection)
 (p:slot :events events inspection)
 (p:slot :state current-state inspection)
 (p:slot :effect-requests effect-requests inspection)
 (p:slot :effect-boundary effect-boundary inspection)
 (p:slot :effect-interpreter interpreted-effects inspection)
-(p:slot :pi-actualizer pi-actualization inspection)
 (p:slot :harbor-output harbor-output inspection)
 (display
   (relationship:with-values

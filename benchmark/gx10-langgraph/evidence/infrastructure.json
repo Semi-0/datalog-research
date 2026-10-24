@@ -1,0 +1,27 @@
+{
+  "scope": "infrastructure_only",
+  "health": {
+    "ok": true,
+    "services": {}
+  },
+  "thread_id": "01a16ad5-863c-7517-9f84-2ff0392d6099",
+  "graph_nodes": [
+    "__start__",
+    "Admission",
+    "Flash plans",
+    "Save plan and unload Flash",
+    "Load shared Qwen",
+    "Implementation worker",
+    "Test worker",
+    "Join and collect patches",
+    "Stop workers and unload Qwen",
+    "Reload Flash and integrate",
+    "Harbor independent verification",
+    "Save result and cleanup",
+    "__end__"
+  ],
+  "checkpoint_survived_api_restart": true,
+  "linger": "Linger=yes",
+  "models_loaded_by_check": false,
+  "epoch": 1792793743.0055716
+}

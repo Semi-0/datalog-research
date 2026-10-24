@@ -1,0 +1,10 @@
+{
+  "cohort": "codex-assisted-qwen36-concurrent-pilot-v1",
+  "author": "Codex",
+  "maximum_qwen_tokens": 128,
+  "outlines": {
+    "distinct": "Reduce once with a seen-key set and result vector. Bind each item's key once; use membership, not key truthiness, to retain the first item. Preserve order and immutability. Test nil/false and structured keys, lazy/list input, call counts, empty input and a large repeated-key collection.",
+    "order": "Map nodes to original indices. Validate edge endpoints using membership and deduplicate edges before building adjacency and indegrees. Run Kahn's algorithm with an ordered set of ready indices; insert newly ready nodes before selecting again. An incomplete output indicates a cycle. Test newly ready priority, duplicates, unusual node values, disconnected cycles and a long chain.",
+    "events": "Validate the initial map, then process events in index order with a reducing function. Require a vector, known operation and exact arity before applying it. For increment, distinguish absence with contains? and require integer delta and existing value. Throw the specified error at the first invalid event. Test nil/false keys, present nil/false values, finite laziness and large input."
+  }
+}

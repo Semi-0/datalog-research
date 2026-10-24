@@ -1,0 +1,11 @@
+{
+  "epoch": 1792795386.2583017,
+  "original_task_and_evidence_files_unchanged": true,
+  "deployed_source_hashes_verified": true,
+  "owned_containers_remaining": [],
+  "memory_samples": 1279,
+  "minimum_available_bytes": 81695637504,
+  "reserve_bytes": 26118804275,
+  "swap_in_pages_delta": 0,
+  "swap_out_pages_delta": 0
+}

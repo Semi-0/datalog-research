@@ -1,0 +1,19 @@
+{
+  "status": "paused_at_user_request",
+  "date": "2026-10-24",
+  "resume_document": "benchmark/harbor-assisted/RESUME.md",
+  "archive": "benchmark/harbor-assisted-checkpoint-20261024.tar.gz",
+  "archive_sha256": "b7d8a6ee8adc11f79ca42f9a7dad2aea0833c5a5e78342c0b29252762d8808bb",
+  "contents": ["benchmark/harbor-assisted/", "benchmark/gx10-langgraph/control.mjs"],
+  "excluded": ["__pycache__", "*.pyc"],
+  "git_head_at_checkpoint": "aa5cf06448f6965df684664fa61c731e7d8df3e9",
+  "committed": false,
+  "pushed": false,
+  "live_model_or_cohort_started": false,
+  "last_verified_tests": {"python": 20, "node": 10},
+  "synthetic_control_fixtures_verified": ["normal", "authentication_error", "interruption"],
+  "last_remote_inspection": "No running Docker containers or assisted backend/attempt services; unrelated UI services preserved",
+  "remote_backup_verified": false,
+  "remote_backup_error": "SSH master connection broke; re-authentication required. Any remote checkpoint archive is unverified or partial.",
+  "restore_instruction": "Verify checksum and extract into a fresh staging directory. Preserve unrelated or newer working-tree changes. Read RESUME.md before running anything."
+}

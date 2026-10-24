@@ -1,0 +1,37 @@
+{
+  "unscored": true,
+  "oracle_passed": true,
+  "pi_passed": true,
+  "correct": true,
+  "execution": {
+    "outcome": "completed",
+    "assistant_errors": [],
+    "assistant_messages": 15,
+    "generated_tokens": 4426,
+    "agent_end": true,
+    "agent_settled": true,
+    "transcript": "/home/lain/experiments/gx10-harbor-pi-authfix-1/jobs/pi/harbor-pilot-20261023__D23KWo2/agent/pi.txt",
+    "harbor_exit": 0
+  },
+  "verifier": {
+    "tests": 1,
+    "assertions": 4,
+    "failures": 0,
+    "errors": 0
+  },
+  "assertions": 4,
+  "model": {
+    "id": "qwen36-35b-a3b-nvfp4",
+    "backend": "vllm",
+    "source": "qwen36-35b-a3b-nvfp4",
+    "repository": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "revision": "1355db6a052410cfd62085d94b58866fd0f2c3c5",
+    "weight_bytes": 23424338320,
+    "quantization": "NVFP4 W4A16 experts / FP8 mixed",
+    "mtp": false,
+    "model_directory": "/home/lain/experiments/qwen36-35b-a3b-nvfp4-20261023/model",
+    "artifact_manifest": "/home/lain/experiments/qwen36-35b-a3b-nvfp4-20261023/artifacts.json",
+    "server_command": "qwen36-nvfp4/server-command.json"
+  },
+  "cleanup_verified": true
+}

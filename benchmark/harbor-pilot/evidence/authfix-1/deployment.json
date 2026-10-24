@@ -1,0 +1,13 @@
+{
+  "source_hashes": {
+    "/home/lain/experiments/harbor-pilot-authfix-code-20261024-1/test_pilot_checks.py": "dfe4308020c3b0b8545ff72f2a670e07cb901e84f63af2c7d4df57fb00058e2c",
+    "/home/lain/experiments/harbor-pilot-authfix-code-20261024-1/validate.py": "0cc82d531ce3ec2197ceaaae78731e9e732fdd80dcfd8e5947c0cc96eaceceed",
+    "/home/lain/experiments/harbor-pilot-authfix-code-20261024-1/pilot_checks.py": "2069129bff983669b87e7e8f6dd432778291b37c9d21082ce29905205e4d3671",
+    "/home/lain/experiments/harbor-pilot-authfix-code-20261024-1/test_validate.py": "257b6fb43c719b12ca9e33f9e66a806f83134a9334635bfd44b0383ce66778ca",
+    "/home/lain/experiments/gx10-delegation-python-harness-20/benchmark/gx10-context/lifecycle.py": "af6e318255a2a70c888cc2aed355cf6459a4a82c75b7c2f2516fc24f6d003eb7",
+    "/home/lain/experiments/gx10-delegation-python-harness-20/benchmark/gx10-context/model_setup.py": "69acd6a6d381204a51018b77bd0b329c0b1b6585ca55b4f80c04add70bdb8137",
+    "/home/lain/experiments/gx10-delegation-python-harness-20/benchmark/gx10-context/suite.py": "fcd0f1fd7c29a73f1a3ab1bbe67f2d33fb6e98d06279fae7c7c0d9b571d01f45",
+    "/home/lain/.local/opt/harbor-eval/lib/python3.12/site-packages/harbor/agents/installed/pi.py": "5d51eddbbbf8f5bcab2263fe3ada99bd9611add2e857c4b7d4f4c2eb3a2a5487"
+  },
+  "original_task_and_evidence_unchanged": true
+}

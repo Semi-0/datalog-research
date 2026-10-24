@@ -1,0 +1,43 @@
+{
+  "evidence_kind": "selected fields from live admission and runtime-security receipts",
+  "source": "/home/lain/experiments/gx10-assisted-policy-admission-1/result.json",
+  "runtime_source": "/home/lain/experiments/gx10-assisted-policy-admission-1/runtime-security.json",
+  "outcome": "sandbox_passed",
+  "container": "gx10-assisted-admission-f0d2e4721e19",
+  "parent_model_requests": 0,
+  "worker_model_requests": 0,
+  "cohort_started": false,
+  "cleanup_verified": true,
+  "started_monotonic_ns": 269098033776054,
+  "finished_monotonic_ns": 269098931646197,
+  "cleanup_duration_ns": 66739583,
+  "runtime": {
+    "apparmor_label": "gx10-harbor-bwrap-v1 (enforce)",
+    "uid": 1000,
+    "CapInh": "0000000000000000",
+    "CapPrm": "0000000000000000",
+    "CapEff": "0000000000000000",
+    "CapBnd": "0000000000000000",
+    "CapAmb": "0000000000000000",
+    "NoNewPrivs": 1,
+    "Seccomp": 2,
+    "Seccomp_filters": 1
+  },
+  "security": {
+    "apparmor": "gx10-harbor-bwrap-v1",
+    "seccomp_base_sha256": "6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6",
+    "seccomp_sha256": "11947f9e04415dddf91dc03e3718317bef510c6253429b89b883c73609c190ad"
+  },
+  "sandbox": {
+    "sandbox_passed": true,
+    "exit_code": 0,
+    "stdout": "{\"inside_write_rename_delete\":true,\"absolute_relative_symlink_shell_rejected\":true,\"failures\":[]}\n",
+    "stderr": ""
+  },
+  "hashes": {
+    "probe": "141c12e808d3e24e77744b7b44607b3e56bc88f0e90d40460c9499e4d70e5c90",
+    "plugin_sandbox": "021b9138056014c9d25a9a0ddc8877996c612b9d02308918a4e84e352f3cabb2",
+    "plugin_core": "ad6b574f003460f0a11681ee28d5428242dca337aef95ff2878683d0b33a1845",
+    "task_dockerfile": "9468c19996db7013cced24c931d0bf9a52b6e37a9db27214a2a4bac7ef4536cc"
+  }
+}

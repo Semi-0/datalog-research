@@ -1,0 +1,13 @@
+{
+  "state": "completed",
+  "digest": "b977ed930b1aabfbd4ce8cccd9aea64e6d1bfd5c357575ba65f06851ae1b1f63",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "No subagent runs match filters.\n---\nstatusCursor=p1.eyJrIjoicyIsInIiOiJod3o3UXh2VTJWVEF2ckNDIiwiYyI6Ind6U01xYXUycG12czhKUXQiLCJmIjoid3pTTXFhdTJwbXZzOEpRdCJ9"
+      }
+    ]
+  },
+  "epoch": 1792793744349
+}

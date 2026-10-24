@@ -1,0 +1,54 @@
+{
+  "synthetic_fixture": true,
+  "parent_model_requests": 0,
+  "worker_provider_requests": 2,
+  "workers": [
+    {
+      "job": 1,
+      "name": "worker-1",
+      "id": "sa_mvlj3ulq_1"
+    },
+    {
+      "job": 2,
+      "name": "worker-2",
+      "id": "sa_mvlj3umq_2"
+    }
+  ],
+  "production_admission": false,
+  "pending": [
+    "trusted tool workspace guards",
+    "model lifecycle adapter",
+    "Harbor Distinct adapter",
+    "resource and recovery fixtures"
+  ],
+  "inventory": {
+    "phase": "admission",
+    "runs": [],
+    "pid": 496051,
+    "controls": [
+      "subagent_spawn_batch",
+      "subagent_list",
+      "subagent_output",
+      "subagent_result",
+      "subagent_stop"
+    ],
+    "tools": [
+      "read",
+      "bash",
+      "powershell",
+      "edit",
+      "write",
+      "grep",
+      "find",
+      "ls",
+      "subagent_spawn",
+      "subagent_spawn_batch",
+      "subagent_list",
+      "subagent_settings",
+      "subagent_output",
+      "subagent_result",
+      "subagent_stop",
+      "agents_catalog"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+;; The session extension supplies events and view cells. Opening is observation-only.
+((network (events view)
+   (p:slot :phase (subagent-phase events) view)
+   (p:slot :backend (subagent-backend events) view)
+   (p:slot :operation (subagent-operation events) view)
+   (p:slot :task (subagent-task events) view)
+   (p:slot :child (subagent-child events) view)
+   (p:slot :result (subagent-result events) view)
+   (p:slot :failure (subagent-failure events) view)
+   view)
+ subagent-events subagent-view)

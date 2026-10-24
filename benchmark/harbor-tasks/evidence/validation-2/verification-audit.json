@@ -1,0 +1,13 @@
+{
+  "source_hashes": {
+    "validate.py": "8e2e953509e7ba03d0df4ed44d5f07afd94a86a118c8dc339ea774f1c0094e01",
+    "verifier.py": "9b1a7dacd4cbe36c75a0dee39bcc117268f13c428fc5efbad48aaa79b6c4e743",
+    "test_migration.py": "9b2e2cb38b58cfebe25be37aab7e289320e218eac04da000d1f2ecfdc9cbe5af",
+    "build.py": "c726d8b5429a26ff3536e8572a67a057e6c42bd66a6e039a96c006802c2ced22"
+  },
+  "source_snapshot": "/home/lain/experiments/gx10-harbor-migration-validation-2/code",
+  "original_evaluators_unchanged": true,
+  "package_hashes_unchanged": true,
+  "score_protection_verified": true,
+  "owned_containers_remaining": []
+}

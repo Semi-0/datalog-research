@@ -1,0 +1,20 @@
+{
+  "outcome": "passed",
+  "correct": true,
+  "execution": {
+    "outcome": "completed",
+    "assistant_errors": [],
+    "assistant_messages": 15,
+    "generated_tokens": 4426,
+    "agent_end": true,
+    "agent_settled": true,
+    "transcript": "/home/lain/experiments/gx10-harbor-pi-authfix-1/jobs/pi/harbor-pilot-20261023__D23KWo2/agent/pi.txt",
+    "harbor_exit": 0
+  },
+  "verifier": {
+    "tests": 1,
+    "assertions": 4,
+    "failures": 0,
+    "errors": 0
+  }
+}

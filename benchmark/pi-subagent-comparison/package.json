@@ -1,0 +1,12 @@
+{
+  "name": "pi-subagent-comparison",
+  "private": true,
+  "type": "module",
+  "description": "Isolated, pinned Pi subagent packages for benchmark adapter validation",
+  "scripts": { "test": "node --test smoke.test.mjs" },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "1.3.0",
+    "pi-subagents": "0.81.0",
+    "pi-better-subagents": "0.19.1"
+  }
+}

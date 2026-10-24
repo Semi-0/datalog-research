@@ -1,0 +1,41 @@
+{
+  "epoch": 1792794048.322971,
+  "source_hashes": {
+    "README.md": "48f5ffdcc4382f181c93cdee59fb0d921c78523ddef9ed3caf8aa539a924fb4a",
+    "test_outcomes.py": "46c0c6b501d63d4ff547a2fedba760bfae3eb0c68eadd2a7b3f58ed9a19cf786",
+    "probe.py": "16ced15a39114684fb30d0ce82da6abfcb6fdd8032773e6fc52aaf36bcfcf86a",
+    "companion.ts": "2011900ef17c5b583a47240de8306473dfe161e67a865e791481a56f5fe18bbc",
+    "test_control.mjs": "fc5f22ff8fc0adb9ba2676383886b383ce0edd11aeed18a095d9d860dc8869ad",
+    "install.py": "4adfa28148506469d189fdb1d970bcf02487623a1398c21ce3767848d1ab9702",
+    ".gitignore": "6c6ad1d048a9d6948ffb6ceb6d52d1cedfb75693d55637080e979731a24aca6b",
+    "control.mjs": "7db5011474d70f20f29970f78e1aa531ad279e12abaf3182e401a955810ca05a",
+    "langgraph.json": "8ba5b43b32048bd51c04e181aec66ee732d77934cedf310a1e14040cafa582a0",
+    "graph.py": "8e68ac64cb391536b1c7da8ea98635f20f8fbb2451a646747324c918a59fc89b",
+    "outcomes.py": "cb46422efcac8d84337cca5c1efe9c0e7fa1813bc2e7f6fd3c376fdfb76b33d6",
+    "check_infrastructure.py": "a1c19a8a73c38473537bc5dcbf85e8a6fb2f190a4fa9bcd608d6a82f21f2ca65",
+    "package.json": "35ae9e4a2397b2de147c1918e90e3b180d35a18acfba38e99d37be68f6ecf05c"
+  },
+  "lgview_commit": "cb06b8e657fa03c30a9da6544bf0903e0ef97485",
+  "lgview_bundle_sha256": "ebe6ff062f4074eef9785332c1eee994c22d8e76cc806ad83bdf3bab548ff73b",
+  "versions": {
+    "langgraph": "1.2.16",
+    "langgraph-api": "0.16.6",
+    "langgraph-cli": "0.4.38"
+  },
+  "harbor": "0.24.0",
+  "health": {
+    "api": {
+      "ok": true,
+      "services": {}
+    },
+    "graphs": [
+      "gx10_delegation"
+    ],
+    "ui": true
+  },
+  "services": {
+    "gx10-langgraph-api": "[Unit]\nDescription=GX10 local LangGraph experimental API\nAfter=network.target\n\n[Service]\nType=simple\nWorkingDirectory=/home/lain/projects/datalog-research/benchmark/gx10-langgraph\nEnvironment=\"PATH=/home/lain/.local/opt/node-v24.22.1-linux-arm64/bin:/home/lain/.local/opt/langgraph-pi/bin:/usr/bin:/bin\"\nEnvironment=\"PYTHONPATH=/home/lain/projects/datalog-research/benchmark/gx10-langgraph\"\nEnvironment=\"LANGSMITH_TRACING=false\"\nEnvironment=\"LANGCHAIN_TRACING_V2=false\"\nEnvironment=\"LANGSMITH_API_KEY=\"\nEnvironment=\"LANGCHAIN_API_KEY=\"\nEnvironment=\"LANGGRAPH_CLI_NO_ANALYTICS=1\"\nEnvironment=\"LANGGRAPH_API_NO_USAGE_STATS=true\"\nEnvironment=\"OTEL_SDK_DISABLED=true\"\nEnvironment=\"DO_NOT_TRACK=1\"\nEnvironment=\"HARBOR_TELEMETRY=0\"\nEnvironment=\"PI_TELEMETRY=0\"\nEnvironment=\"ANONYMIZED_TELEMETRY=false\"\nExecStart=\"/home/lain/.local/opt/langgraph-pi/bin/langgraph\" \"dev\" \"--config\" \"/home/lain/projects/datalog-research/benchmark/gx10-langgraph/langgraph.json\" \"--host\" \"127.0.0.1\" \"--port\" \"2024\" \"--no-reload\" \"--no-browser\" \"--n-jobs-per-worker\" \"1\" \"--allow-blocking\"\nRestart=on-failure\nRestartSec=3\nKillMode=control-group\nTimeoutStopSec=30\nUMask=0077\n\n[Install]\nWantedBy=default.target\n",
+    "gx10-lgview": "[Unit]\nDescription=GX10 local lgview\nAfter=network.target\n\n[Service]\nType=simple\nWorkingDirectory=/home/lain/projects/datalog-research/benchmark/gx10-langgraph\nEnvironment=\"PATH=/home/lain/.local/opt/node-v24.22.1-linux-arm64/bin:/home/lain/.local/opt/langgraph-pi/bin:/usr/bin:/bin\"\nEnvironment=\"PYTHONPATH=/home/lain/projects/datalog-research/benchmark/gx10-langgraph\"\nEnvironment=\"LANGSMITH_TRACING=false\"\nEnvironment=\"LANGCHAIN_TRACING_V2=false\"\nEnvironment=\"LANGSMITH_API_KEY=\"\nEnvironment=\"LANGCHAIN_API_KEY=\"\nEnvironment=\"LANGGRAPH_CLI_NO_ANALYTICS=1\"\nEnvironment=\"LANGGRAPH_API_NO_USAGE_STATS=true\"\nEnvironment=\"OTEL_SDK_DISABLED=true\"\nEnvironment=\"DO_NOT_TRACK=1\"\nEnvironment=\"HARBOR_TELEMETRY=0\"\nEnvironment=\"PI_TELEMETRY=0\"\nEnvironment=\"ANONYMIZED_TELEMETRY=false\"\nExecStart=\"/home/lain/.local/opt/node-v24.22.1-linux-arm64/bin/node\" \"/home/lain/experiments/gx10-langgraph-install-1/lgview/dist/cli.js\" \"--server\" \"http://127.0.0.1:2024\" \"--port\" \"4141\" \"--no-open\"\nRestart=on-failure\nRestartSec=3\nKillMode=control-group\nTimeoutStopSec=30\nUMask=0077\n\n[Install]\nWantedBy=default.target\n"
+  },
+  "models_loaded_by_install": false
+}

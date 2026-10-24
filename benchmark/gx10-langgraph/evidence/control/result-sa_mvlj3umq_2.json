@@ -1,0 +1,26 @@
+{
+  "state": "completed",
+  "digest": "c1c7ff3b44f3a21d0ee4d31cc4a92dc3c03c2040de48189290f8aa3bffcbd266",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "[sa_mvlj3umq_2 · completed · exit 0 · 1s · lifecycle complete]\nSynthetic worker fixture completed.\n---\nstatusCursor=p1.eyJrIjoicyIsInIiOiI1cWo3ME4yTEZiOGNaLWlDIiwiYyI6ImxaQjFQTnJnMkdDUzZvc18iLCJmIjoid295ODdQMTltb1JrSTV4SSJ9"
+      }
+    ],
+    "details": {
+      "kind": "subagent-result-display",
+      "id": "sa_mvlj3umq_2",
+      "status": "completed",
+      "head": "[sa_mvlj3umq_2 · completed · exit 0 · 1s · lifecycle complete]",
+      "fullLineCount": 4,
+      "compactLines": [
+        "Synthetic worker fixture completed.",
+        "---",
+        "statusCursor=p1.eyJrIjoicyIsInIiOiI1cWo3ME4yTEZiOGNaLWlDIiwiYyI6ImxaQjFQTnJnMkdDUzZvc18iLCJmIjoid295ODdQMTltb1JrSTV4SSJ9"
+      ],
+      "foldedLineCount": 0
+    }
+  },
+  "epoch": 1792793745663
+}
