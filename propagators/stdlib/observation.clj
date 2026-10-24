@@ -2,7 +2,6 @@
   "Identity publication: project locally, never copy TTMS retained history."
   (:refer-clojure :exclude [identity])
   (:require [propagators.cells.value :as value]
-            [propagators.datastructures.behavior.core :as behavior]
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support-collection :as collection]
             [propagators.datastructures.membership-collection :as membership]
@@ -53,7 +52,6 @@
     (cond
       (some? supported) supported
       (tms/distributed-value? content) (tms/distributed-forward-update content)
-      (behavior/behavior-value? content) content
       (not (value/nothing? strongest)) strongest
       :else nil)))
 

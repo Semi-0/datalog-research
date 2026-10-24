@@ -21,8 +21,8 @@ Implemented compiler-2 surface:
 - topology-lazy presence-gated `when`;
 - arithmetic/comparison primitives, boolean `not`, variadic `->`, and
   variadic `<->`;
-- behavior/TMS default entry through
-  `propagators.compiler-2.main/compile-source-with-behavior-tms`;
+- TMS-enabled entry through
+  `propagators.compiler-2.main/compile-source-with-tms`;
 - runtime/TUI/XR operators through the compiler-2 runtime env.
 
 ## Naming Prefixes

@@ -14,7 +14,7 @@
 (def tui-display-effect-request common/tui-display-effect-request)
 (def effect-tick common/effect-tick)
 (def supported-display-result common/supported-display-result)
-(def event-display-result common/event-display-result)
+(def source-display-result common/source-display-result)
 
 (defn- write-block-messages
   [network outbox-id text-id source-id read-block?]
@@ -112,7 +112,7 @@
                             "be:event-block-at expects instance, index, and source"
                             {:arg-ids arg-ids})))
                   (if (and display-id source-id)
-                    (event-display-result display-id source-id)
+                    (source-display-result display-id source-id)
                     [])))}))
 
 (defn be-block-target-operator [outbox-id instance-id]

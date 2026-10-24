@@ -47,7 +47,7 @@
              semantic-capture/storage-key sources
              retained-inspection/storage-key (atom {}))
       {:session session :source source :extensions extensions
-       :generation (str (random-uuid))}
+       :generation (str (random-uuid)) :sessionId (str (random-uuid))}
       (catch Throwable error
         (close-session! session)
         (throw error)))))
@@ -66,7 +66,7 @@
       (runtime/refresh-trace-subscriptions! (:session candidate))
       (swap! editors assoc id candidate)
       (when previous (close-session! (:session previous)))
-      (cond-> (select-keys candidate [:generation])
+      (cond-> (select-keys candidate [:generation :sessionId])
         (display/mode (:program/net @(:session candidate)))
         (assoc :displayMode (display/mode (:program/net @(:session candidate)))))
       (catch Throwable error
@@ -133,6 +133,40 @@
       (catch Throwable error
         (doseq [pane (vals @candidates)] (close-session! (:session pane)))
         (throw error)))))
+
+(defn detached-entry [detached session-id]
+  (or (get @detached session-id)
+      (throw (ex-info "Detached session not found or already attached" {:sessionId session-id}))))
+
+(defn detach! [editors detached {:keys [pane generation]}]
+  (let [entry (require-pane editors pane)]
+    (require-generation entry generation)
+    (swap! detached assoc (:sessionId entry) (assoc entry :pane pane))
+    (swap! editors dissoc pane)
+    {:sessionId (:sessionId entry)}))
+
+(defn list-detached [detached]
+  {:sessions (mapv #(select-keys % [:sessionId :pane :source :extensions])
+                   (sort-by :sessionId (vals @detached)))})
+
+(defn reopen! [editors detached {:keys [pane sessionId]}]
+  (when-not (and (string? pane) (not (empty? pane)))
+    (throw (ex-info "Pane id required" {})))
+  (when (contains? @editors pane)
+    (throw (ex-info "Target pane is occupied" {:pane pane})))
+  (let [entry (detached-entry detached sessionId)
+        mode (display/mode (:program/net @(:session entry)))
+        result (cond-> (select-keys entry [:sessionId :generation :source :extensions])
+                 mode (assoc :displayMode mode))]
+    (swap! editors assoc pane (dissoc entry :pane))
+    (swap! detached dissoc sessionId)
+    result))
+
+(defn stop-detached! [detached {:keys [sessionId]}]
+  (let [entry (detached-entry detached sessionId)]
+    (close-session! (:session entry))
+    (swap! detached dissoc sessionId)
+    {:stopped sessionId}))
 
 (defn remove! [editors id]
   (when-let [pane (get @editors id)] (close-session! (:session pane)))

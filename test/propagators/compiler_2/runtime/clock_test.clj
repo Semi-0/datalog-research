@@ -3,7 +3,11 @@
   (:require [clojure.test :refer [deftest is]]
             [propagators.compiler-2.runtime :as runtime]
             [propagators.compiler-2.runtime.session.clock :as clock]
-            [propagators.datastructures.event :as event]
+            [propagators.cells.value :as value]
+            [propagators.core :as core]
+            [propagators.message :refer [message]]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support-collection :as collection]
             [propagators.datastructures.tms.distributed :as tms]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -38,14 +42,29 @@
   [session]
   (first (:clock/subscriptions @session)))
 
-(deftest clock-update-is-a-source-aware-event
+(deftest clock-update-is-a-source-aware-ttms-publication
   (let [subscription {:clock/id :clock-a :clock/target-id :out}
         update (clock/clock-update subscription 7 123456)]
-    (is (event/event-fact? update))
-    (is (= :out (event/input-id update)))
-    (is (= :clock-a (event/source update)))
-    (is (= 7 (event/timestamp update)))
-    (is (= 123456 (event/event-value update)))))
+    (is (= 123456 (datum/layer-value update :base)))
+    (is (= #{{:source (clock/clock-source-id subscription) :timestamp 7 :premises-status :active}}
+           (datum/support-of update)))
+    (is (collection/content? (collection/content update)))))
+
+(defn- inject [network id datum]
+  (second (core/eval-cells [(message id (collection/content datum))] network)))
+
+(deftest newer-ticks-and-withdrawal-preserve-frozen-clock-values
+  (let [id (ids/new-node-id)
+        subscription {:clock/id :clock-a :clock/target-id id}
+        first (inject (nb/install-cell net/empty-net id) id
+                      (clock/clock-update subscription 1 1000))
+        next (inject first id (clock/clock-update subscription 2 2000))
+        withdrawn (inject next id (clock/clock-retraction subscription 3))]
+    (is (= 1000 (datum/layer-value (net/network-cell-strongest first id) :base)))
+    (is (= 2000 (datum/layer-value (net/network-cell-strongest next id) :base)))
+    (is (value/nothing? (datum/layer-value (net/network-cell-strongest withdrawn id) :base)))
+    (is (= #{{:source (clock/clock-source-id subscription) :timestamp 3 :premises-status :retracted}}
+           (datum/layer-value (net/network-cell-strongest withdrawn id) :premise-state)))))
 
 (defn ^:deprecated loaded-clock-display-result
   "Reproduce the unsupported flat-GUR event-to-TUI display crossing.

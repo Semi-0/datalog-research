@@ -6,7 +6,8 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.tms.distributed :as tms]
             [propagators.compiler-2.operators.block-premise :as premise]
-            [propagators.datastructures.event :as event]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.stdlib.observation :as observation]
             [propagators.gur.flat :as fvm]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -122,33 +123,10 @@
       state-update (tms/merge-distributed-content forwarded state-update)
       :else forwarded)))
 
-(defn- event-display-messages
-  [display-id content]
-  (mapv (fn [fact]
-          (message
-           display-id
-           (if (event/active? fact)
-             (event/active-event display-id
-                                 (event/source fact)
-                                 (event/timestamp fact)
-                                 (event/event-value fact))
-             (event/retraction-event display-id
-                                     (event/source fact)
-                                     (event/timestamp fact)))))
-        (event/latest-facts content)))
-
-(defn event-display-result
-  [display-id source-id]
-  (let [prop-id (runtime-ids/stable-node-id
-                 :tui :event-block-display display-id source-id)]
-    {:effects
-     [(fvm/declare-prop
-       prop-id :runtime/tui-event-block-display [source-id] [display-id]
-       (fn [_inputs _outputs current]
-         (let [content (net/network-cell-content current source-id)]
-           (if (event/event-content? content)
-             (event-display-messages display-id content)
-             []))))]
+(defn source-display-result [display-id source-id]
+  (let [prop-id (runtime-ids/stable-node-id :tui :supported-block-display display-id source-id)]
+    {:effects [(fvm/declare-prop prop-id :runtime/tui-supported-block-display
+                                 [source-id] [display-id] observation/activation)]
      :messages []}))
 
 (defn supported-display-result
@@ -159,10 +137,11 @@
   [network display-id source-id]
   (let [contexts (vec (premise/binding-contexts network source-id))
         source-content (net/network-cell-content network source-id)
-        event-source? (event/protocol-cell? network source-id)]
+        supported-source? (datum/layer-present?
+                           (net/network-cell-strongest network source-id) :support)]
     (cond
-      event-source?
-      (event-display-result display-id source-id)
+      supported-source?
+      (source-display-result display-id source-id)
 
       (seq contexts)
       (let [state-ids (mapv :premise/state-cell contexts)

@@ -2,7 +2,7 @@
   "Port-neutral declarations and pure resolution for inspectable views."
   (:require [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
-            [propagators.datastructures.event :as event]
+            [propagators.stdlib.source-publication :as publication]
             [propagators.experimental.visualization.data :as collection-data]
             [propagators.experimental.visualization.ttms :as ttms]
             [propagators.graph :as graph]
@@ -96,13 +96,21 @@
            {:sample/content (cell/cell-content source)
             :sample/strongest (cell/cell-strongest source)})))
 
-(defn- history-event
-  [network source-id history-id]
-  (let [{:sample/keys [epoch tick] :as sample}
-        (history-sample network source-id)
-        timestamp (+ (* epoch 1000000000) tick)
-        source [:cell-history source-id (hash sample)]]
-    (event/active-event history-id source timestamp sample)))
+(defn- retain-sample [previous sample]
+  (let [samples (if (value/nothing? previous) [] (:history/samples previous))]
+    (when-not (vector? samples)
+      (throw (ex-info "Invalid retained cell history" {:previous previous})))
+    (if (some #(= sample %) samples)
+      previous
+      {:history/samples (vec (sort-by (juxt :sample/epoch :sample/tick hash)
+                                    (conj samples sample)))
+       :history/dropped 0})))
+
+(defn- history-publication [network source-id history-id]
+  (let [previous (collection-data/payload (net/network-cell-strongest network history-id))
+        retained (retain-sample previous (history-sample network source-id))]
+    (when-not (= previous retained)
+      (publication/active history-id (count (:history/samples retained)) retained))))
 
 (defn- install-view-propagator
   [network id name inputs outputs activate]
@@ -133,8 +141,9 @@
        (nb/ensure-cell network history-id)
        prop-id :visualizer/cell-history [source-id] [history-id port-id]
        (fn [_inputs _outputs current]
-         [(message history-id (history-event current source-id history-id))
-          (message port-id declaration)])))))
+         (let [update (history-publication current source-id history-id)]
+           (cond-> [(message port-id declaration)]
+             update (conj (message history-id update)))))))))
 
 (defn p:propagator-references
   [cell-id direction port-id]
@@ -204,16 +213,6 @@
                (conj visited current)))
       visited)))
 
-(defn- history-samples
-  [history]
-  (if (event/event-content? history)
-    (->> (event/active-facts history)
-         (map (fn [fact]
-                (event/event-value fact)))
-         (sort-by (juxt :sample/epoch :sample/tick hash))
-         vec)
-    []))
-
 (declare resolve-view*)
 
 (defn- resolve-view-cell
@@ -280,12 +279,13 @@
 
     :cell-history
     (let [history-id (:view/history-cell declaration)
-          history (net/network-cell-content network history-id)
           snapshot (collection-data/payload (net/network-cell-strongest network history-id))]
       (if (and (map? snapshot) (vector? (:history/samples snapshot)))
         (assoc declaration :view/samples (:history/samples snapshot)
                :view/dropped (or (:history/dropped snapshot) 0))
-        (assoc declaration :view/samples (history-samples history))))
+        (if (value/nothing? snapshot)
+          (assoc declaration :view/samples [])
+          (throw (ex-info "Invalid cell history publication" {:history-id history-id})))))
 
     :hierarchy
     (let [reference-id (:reference-cell declaration)

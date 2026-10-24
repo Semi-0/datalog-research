@@ -4,9 +4,7 @@
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.operator-value :as operator-value]
-            [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.event :as event]
             [propagators.datastructures.tms :as tms]
             [propagators.experimental.visualization.data :as collection-data]
             [propagators.experimental.visualization.ttms :as ttms]
@@ -40,17 +38,8 @@
     (accepted? v)
     v
 
-    (event/event-projection? v)
-    (let [values (->> (obj/public-slot-keys v)
-                      (keep #(boundary-value accepted? (obj/slot-value v %)))
-                      distinct
-                      vec)]
-      (when (= 1 (count values))
-        (first values)))
-
-    (or (event/event-content? v)
-        (event/event-fact? v))
-    (boundary-value accepted? (event/strongest-value v))
+    (ttms/supported? v)
+    (boundary-value accepted? (ttms/payload v))
 
     (tms/distributed-value? v)
     (let [projected (tms/strongest-distributed-value v)]
@@ -58,10 +47,7 @@
         (boundary-value accepted? (tms/distributed-base-value projected))))
 
     :else
-    (let [base (or (behavior/base-value (behavior/strongest-value v))
-                   (behavior/base-value v))]
-      (when base
-        (boundary-value accepted? base)))))
+    nil))
 
 (defn- trace-graph-value
   [v]
@@ -72,12 +58,13 @@
   (boundary-value visualizer/view-declaration? v))
 
 (defn- xr-launch-messages
-  [network outbox-id trace-id receipt-id]
+  [network outbox-id trace-id receipt-id graph-presentation]
   (let [source-value (when trace-id
                        (net/network-cell-strongest network trace-id))
         ttms? (ttms/supported? source-value)
         payload (collection-data/payload source-value)
-        trace-graph (when-not ttms? (trace-graph-value source-value))
+        trace-graph (when-not (and ttms? (= :reactive-view graph-presentation))
+                      (trace-graph-value source-value))
         view (cond
                (collection-data/collection? source-value)
                (visualizer/collection-declaration trace-id trace-id)
@@ -104,8 +91,12 @@
       :else
       [])))
 
-(defn xr-io-operator [outbox-id]
-  (operator-value/operator-closure
+(defn xr-io-operator
+  ([outbox-id] (xr-io-operator outbox-id :reactive-view))
+  ([outbox-id graph-presentation]
+   (when-not (contains? #{:snapshot :reactive-view} graph-presentation)
+     (throw (ex-info "Unsupported graph presentation" {:presentation graph-presentation})))
+   (operator-value/operator-closure
    {:name 'xr-io
     :output-selector (fn [arg-ids fallback-id]
                        (or (second (vec arg-ids)) fallback-id))
@@ -115,7 +106,7 @@
                   (when-not (and trace-id receipt-id (#{1 2} (count arg-ids)))
                     (throw (ex-info "xr-io expects a graph or view and optional receipt output"
                                     {:arg-ids arg-ids})))
-                  (xr-launch-messages network outbox-id trace-id receipt-id)))}))
+                  (xr-launch-messages network outbox-id trace-id receipt-id graph-presentation)))})))
 
 (defn io-xr-operator [outbox-id]
   (operator-value/operator-closure
@@ -128,4 +119,4 @@
                   (when-not (and trace-id receipt-id (= 1 (count arg-ids)))
                     (throw (ex-info "io:xr expects trace graph and returns receipt cell"
                                     {:arg-ids arg-ids})))
-                  (xr-launch-messages network outbox-id trace-id receipt-id)))}))
+                  (xr-launch-messages network outbox-id trace-id receipt-id :snapshot)))}))

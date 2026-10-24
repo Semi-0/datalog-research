@@ -8,7 +8,7 @@
             [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.inspection.temperature :as temperature]
             [propagators.core :as core]
-            [propagators.datastructures.event :as event]
+            [propagators.stdlib.source-publication :as publication]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]))
@@ -186,11 +186,8 @@
                                    {:channel channel-name
                                     :cell-id (:event-cell channel-info)
                                     :value (get latest-values channel-name)
-                                    :update (event/active-event
-                                             (:event-cell channel-info)
-                                             widget-id
-                                             epoch
-                                             (get latest-values channel-name))}))
+                                    :update (publication/active [widget-id (:event-cell channel-info)] epoch
+                                                        (get latest-values channel-name))}))
                                channels))
                 candidates (changed-candidate-cells before-net updates)
                 state* (apply-program-updates state updates)]
@@ -217,10 +214,7 @@
                 epoch (next-widget-epoch state widget-id)
                 update {:channel channel
                         :cell-id (:event-cell channel-info)
-                        :update (event/retraction-event
-                                 (:event-cell channel-info)
-                                 widget-id
-                                 epoch)}
+                        :update (publication/retracted [widget-id (:event-cell channel-info)] epoch)}
                 candidates (changed-candidate-cells before-net [update])
                 state* (apply-program-updates state [update])]
             (-> state*

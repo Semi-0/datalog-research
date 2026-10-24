@@ -15,7 +15,11 @@
             [propagators.network :as net]
             [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.propagator :as prop]
-            [propagators.semantic-trace :as semantic-trace])
+            [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.graph-union :as graph-union]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support :as support]
+            [propagators.stdlib.premise-state :as state])
   (:import [java.nio.charset StandardCharsets]
            [java.util UUID]))
 
@@ -181,7 +185,7 @@
             closure-application?
             (closure-value/closure-info?
              (application/callable-declaration operator))]
-        [(message graph-id
+        (graph-union/publish network graph-id application-id
                   (realized-call-graph
                    caller-id application-id operator-id operator call-label
                    {:path path
@@ -192,7 +196,9 @@
                     :frame-id (or (:frame-id topology)
                                   (when closure-application?
                                     (application/lexical-frame-id
-                                     application-id)))}))]))))
+                                     application-id)))})
+                  (support/combine (datum/support-of caller) (datum/support-of operator))
+                  (support/join (state/states-of caller) (state/states-of operator)))))))
 
 (defn p:application-call
   "Publish one connected application into its caller's stable graph cell."
@@ -220,14 +226,16 @@
   [closure-id graph-id out-id network]
   (let [closure (net/network-cell-strongest network closure-id)
         closure-info (application/callable-declaration closure)
-        realized (net/network-cell-strongest network graph-id)]
+        realized-input (net/network-cell-strongest network graph-id)
+        realized (graph-union/graph-of realized-input)]
     (if-not (closure-value/closure-info? closure-info)
       []
-      [(message out-id
-                (relations/project
-                 (semantic-trace/graph-union
-                  (potential-call-graph network closure-id closure-info)
-                  realized)))])))
+      (graph-union/publish-derived
+       network out-id
+       (relations/project
+        (semantic-trace/graph-union
+         (potential-call-graph network closure-id closure-info) realized))
+       [closure realized-input]))))
 
 (defn p:call-graph
   "Construct a named propagator exposing potential and realized closure calls."

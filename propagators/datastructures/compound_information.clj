@@ -1,8 +1,7 @@
 (ns propagators.datastructures.compound-information
   "Direct slot access and semantic classification for built-in information values."
-  (:require [propagators.datastructures.behavior :as behavior]
+  (:require
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.event :as event]
             [propagators.datastructures.support-collection :as supported]
             [propagators.datastructures.membership-collection :as membership]
             [propagators.datastructures.tms :as tms]))
@@ -22,10 +21,5 @@
   (cond
     (membership/content? value) :membership-collection
     (supported/content? value) :support-collection
-    (or (event/event-content? value)
-        (event/event-fact? value)
-        (event/event-projection? value)) :event-content
-    (or (behavior/behavior-content? value)
-        (behavior/behavior-value? value)) :behavior-content
     (tms/distributed-value? value) :distributed-tms
     :else nil))

@@ -1,6 +1,7 @@
 (ns propagators.visualizer-test
   (:require [clojure.test :refer [deftest is testing]]
-            [propagators.datastructures.event :as event]
+            [propagators.stdlib.source-publication :as publication]
+            [propagators.experimental.visualization.data :as data]
             [propagators.helpers.task-queue :as tq]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -71,13 +72,13 @@
              (net/assoc-net-dict-entry :runtime/commit-tick 10)))
         [first-net first-tasks]
         (nb/seed-cell! installed tq/empty-queue source
-                       (event/active-event source :test 10 :first))
+                       (publication/active source 10 :first))
         first-settled (run first-net first-tasks)
         advanced (net/assoc-net-dict-entry first-settled
                                             :runtime/commit-tick 11)
         [second-net second-tasks]
         (nb/seed-cell! advanced tq/empty-queue source
-                       (event/active-event source :test 11 :second))
+                       (publication/active source 11 :second))
         settled (run second-net second-tasks)
         declaration (net/network-cell-strongest settled port)
         samples (:view/samples (visualizer/resolve-view settled declaration))]
@@ -85,6 +86,7 @@
                     :visualizer :cell-history source port)))
     (is (= [10 11] (mapv :sample/tick samples)))
     (is (= 2 (count samples)))
+    (is (= [:first :second] (mapv #(data/payload (:sample/strongest %)) samples)))
     (is (every? #(contains? % :sample/content) samples))
     (is (every? #(contains? % :sample/strongest) samples))))
 

@@ -8,7 +8,8 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.env :as cenv]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.event :as event]
+            [propagators.stdlib.source-publication :as publication]
+            [propagators.experimental.visualization.data :as data]
             [propagators.message :refer [message]]
             [propagators.network :as net]))
 
@@ -54,17 +55,7 @@
     (strongest session cell-id)
     value/nothing))
 
-(defn- base-value
-  [v]
-  (cond
-    (event/event-projection? v)
-    (let [facts (event/projection-facts v)]
-      (if (= 1 (count facts))
-        (event/event-value (first facts))
-        v))
-
-    :else
-    v))
+(defn- base-value [v] (data/payload v))
 
 (defn- commit-cell!
   [session cell-id update]
@@ -131,9 +122,9 @@
   (or (get-in @system [:clients (bridge/normalize-client-id client-id) :session])
       (throw (ex-info "web client not found" {:client-id client-id}))))
 
-(defn- message-event
+(defn- message-publication
   [cell-id from tick payload]
-  (event/active-event cell-id (bridge/normalize-client-id from) tick payload))
+  (publication/active [(bridge/normalize-client-id from) cell-id] tick payload))
 
 (defn- message-payload
   [{:keys [from to text pipe value]}]
@@ -151,7 +142,7 @@
         client-session (client-session system from)
         client-cell (client-input-cell-id from pipe)
         tick (inc (long (or (:web/commit-tick @system) 0)))
-        update (message-event client-cell from tick payload)]
+        update (message-publication client-cell from tick payload)]
     (swap! system assoc :web/commit-tick tick)
     (commit-cell! client-session client-cell update)
     {:client-id from
@@ -184,7 +175,7 @@
   [system client-id payload tick]
   (let [client-id (bridge/normalize-client-id client-id)
         view-cell (client-view-cell-id client-id)
-        update (message-event view-cell client-id tick payload)
+        update (message-publication view-cell client-id tick payload)
         view payload]
     (commit-cell! (client-session system client-id) view-cell update)
     (swap! system assoc-in [:clients client-id :latest-view] view)

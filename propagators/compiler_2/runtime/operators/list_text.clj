@@ -3,7 +3,7 @@
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.event :as event]
+            [propagators.stdlib.source-publication :as publication]
             [propagators.message :refer [message]]
             [propagators.network :as net]))
 
@@ -92,7 +92,7 @@
       :else
       (mapv (fn [[tick text]]
               (message out-id
-                       (event/active-event out-id out-id tick text)))
+                       (publication/active out-id tick text)))
             prefixes))))
 
 (defn list-text-events-operator []

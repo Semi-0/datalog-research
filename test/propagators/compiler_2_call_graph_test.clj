@@ -14,7 +14,8 @@
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.semantic-trace.graph-union :as graph-union]))
 
 (defn- run-compiled
   [compiled]
@@ -22,7 +23,7 @@
 
 (defn- strongest
   [network id]
-  (net/network-cell-strongest network id))
+  (graph-union/graph-of (net/network-cell-strongest network id)))
 
 (defn- binding-id
   [network sym]

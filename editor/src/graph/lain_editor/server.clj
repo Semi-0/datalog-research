@@ -28,6 +28,10 @@
   ([editors layouts command]
    (command! editors layouts (atom {}) command))
   ([editors layouts developments command]
+   (when (contains? #{"detach-session" "list-sessions" "reopen-session" "stop-session"} (:op command))
+     (throw (ex-info "Detached session registry required" {})))
+   (command! editors layouts developments (atom {}) command))
+  ([editors layouts developments detached command]
    (locking editors
      (let [id (:pane command)]
        (case (:op command)
@@ -49,6 +53,14 @@
                    (development-runtime/close-pane! developments id)
                    (graph-layout/close-pane! layouts id)
                    result)
+         "detach-session" (do
+                            (editor/require-generation (editor/require-pane editors id) (:generation command))
+                            (development-runtime/close-pane! developments id)
+                            (graph-layout/close-pane! layouts id)
+                            (editor/detach! editors detached command))
+         "list-sessions" (editor/list-detached detached)
+         "reopen-session" (editor/reopen! editors detached command)
+         "stop-session" (editor/stop-detached! detached command)
          "inspect" (inspection/inspect editors command)
          "save-block" (source-files/save-block! (System/getProperty "user.dir") command)
          "save-workspace" (workspace-files/save-workspace! (System/getProperty "user.dir") command)
@@ -63,7 +75,7 @@
     (.sendResponseHeaders exchange status (alength bytes))
     (with-open [out (.getResponseBody exchange)] (.write out bytes))))
 
-(defn api! [editors layouts developments commands exchange]
+(defn api! [editors layouts developments commands detached exchange]
   (when-not (= "POST" (.getRequestMethod exchange))
     (throw (ex-info "API requires POST" {})))
   ;; Local files may be loaded explicitly by Lain. Browser requests are same-origin.
@@ -78,14 +90,14 @@
                  (development-handler/command! developments command)
                  (workspace-commands/operations (:op command))
                  (workspace-commands/command! commands (System/getProperty "user.dir") command)
-                 :else (command! editors layouts developments command))]
+                 :else (command! editors layouts developments detached command))]
     (respond! exchange 200 "application/json" (json/write-json {:ok true :result result}))))
 
-(defn handle! [editors layouts developments commands exchange]
+(defn handle! [editors layouts developments commands detached exchange]
   (try
     (let [path (.getPath (.getRequestURI exchange))]
       (cond
-        (= path "/api") (api! editors layouts developments commands exchange)
+        (= path "/api") (api! editors layouts developments commands detached exchange)
         (and (= "GET" (.getRequestMethod exchange)) (contains? assets path))
         (let [[file mime] (get assets path)]
           (respond! exchange 200 mime (slurp (io/resource (str "public/lain-editor/" file)))))
@@ -96,18 +108,21 @@
     (finally (.close exchange))))
 
 (defn start! [port]
-  (let [editors (atom {}) layouts (atom {}) developments (atom {}) commands (atom {})
+  (let [editors (atom {}) layouts (atom {}) developments (atom {}) commands (atom {}) detached (atom {})
         server (HttpServer/create (InetSocketAddress. "127.0.0.1" (int port)) 0)
         executor (Executors/newCachedThreadPool)]
     (.createContext server "/" (reify HttpHandler
-                                  (handle [_ exchange] (handle! editors layouts developments commands exchange))))
+                                  (handle [_ exchange] (handle! editors layouts developments commands detached exchange))))
     (.setExecutor server executor)
     (.start server)
     {:port (.getPort (.getAddress server)) :editors editors :layouts layouts
-     :developments developments
+     :developments developments :detached detached
      :close (fn [] (.stop server 0) (.shutdownNow executor) (reset! commands {})
-              (development-runtime/close-all! developments)
-              (graph-layout/close! layouts) (editor/close! editors))}))
+              (locking editors
+                (development-runtime/close-all! developments)
+                (graph-layout/close! layouts)
+                (editor/close! editors)
+                (editor/close! detached)))}))
 
 (defn -main [& args]
   (let [port (if (seq args) (Long/parseLong (first args)) 4780)

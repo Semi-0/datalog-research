@@ -1,27 +1,8 @@
-(load-primitive-environment
-  "propagators/compiler_2/runtime/operators/network_traversal.clj"
-  :propagators.compiler-2.runtime.operators.network-traversal/traversal-environment
-  0)
+;; Compatibility import. Public gallery tracers live in tracers.lain.
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 
-(define semantic-neighborhood
-  (network (snapshot root direction)
-    (traverse
-      (semantic-snapshot snapshot root)
-      root
-      direction)))
-
-(define observe-semantic
-  (network (root direction)
-    (observe-network root semantic-neighborhood direction)))
-
-(define observe-dependents
-  (network (root)
-    (observe-semantic root :downstream)))
-
-(define observe-semantic-retained
-  (network (root direction)
-    (observe-network-retained root semantic-neighborhood direction)))
-
-(define observe-dependents-retained
-  (network (root)
-    (observe-semantic-retained root :downstream)))
+(define semantic-neighborhood trace:semantic-neighborhood)
+(define observe-semantic trace:observe-live)
+(define observe-dependents trace:downstream-live)
+(define observe-semantic-retained trace:observe-retained)
+(define observe-dependents-retained trace:downstream-retained)

@@ -4,7 +4,6 @@
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.inspection.semantic-support :as demo]
             [propagators.compiler-2.runtime.session.extension :as extension]
-            [propagators.cells.cell-protocol :as cell-protocol]
             [propagators.compiler-2.compiler.basis :as compiler-helpers]
             [propagators.compiler-2.model.env :as compiler-env]
             [propagators.ids :as ids]
@@ -57,12 +56,8 @@
        (doto (Thread. ^Runnable r name)
          (.setDaemon true))))))
 
-(defn install-runtime-protocols
-  [n]
-  (cell-protocol/prefer-direct-standard-protocols n))
-
 (defn runtime-base-net []
-  (install-runtime-protocols net/empty-net))
+  net/empty-net)
 
 (defn runtime-root
   [network]
@@ -79,7 +74,7 @@
 
 (defn empty-state []
   (let [root (runtime-root (runtime-base-net))]
-   {:network (install-runtime-protocols net/empty-net)
+   {:network net/empty-net
    :program/net (:net root)
    :program/env (:env root)
    :program/props (:props root)

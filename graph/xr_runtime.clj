@@ -11,7 +11,6 @@
             [graph.xr-inspection :as inspection]
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.env :as cenv]
-            [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.tms :as tms]
             [propagators.experimental.visualization.interaction :as interaction]
@@ -73,42 +72,10 @@
   (cond
     (value/nothing? v) :nothing
     (value/contradiction? v) :contradiction
-    (and (contains? (obj/public-slot-keys v) behavior/base-layer)
-         (contains? (obj/public-slot-keys v) behavior/summary-layer))
-    :behavior-projection
     (tms/distributed-value? v) :tms
-    (behavior/behavior-value? v) :behavior
     (ttms/supported? v) :supported
     (net/network? v) :network
     :else :value))
-
-(defn- behavior-summary
-  [v]
-  (let [current (behavior/strongest-value v)
-        records (try
-                  (count (behavior/history-records v))
-                  (catch Throwable _ nil))]
-    (cond-> {:kind "behavior"
-             :current (semantic-repl/display-cell-value
-                       (if (value/unusable? current)
-                         current
-                         (behavior/base-value current)))}
-      records (assoc :retained-count records))))
-
-(defn- behavior-projection-summary
-  [v]
-  (let [retained-count (try
-                         (behavior/summary-retained-count v)
-                         (catch Throwable _ nil))
-        latest-time (try
-                      (behavior/summary-latest-time v)
-                      (catch Throwable _ nil))]
-    (cond-> {:kind "behavior"
-             :current (semantic-repl/display-cell-value (behavior/base-value v))}
-      (some? retained-count) (assoc :retained-count retained-count)
-      (some? latest-time) (assoc :latest-time
-                                 (semantic-repl/display-cell-value
-                                  latest-time)))))
 
 (defn- tms-summary
   [v]
@@ -133,9 +100,7 @@
     (case kind
       :nothing {:kind "nothing"}
       :contradiction {:kind "contradiction"}
-      :behavior-projection (behavior-projection-summary v)
       :tms (tms-summary v)
-      :behavior (behavior-summary v)
       :supported {:kind "supported"
                   :status (name (ttms/status v))
                   :current (semantic-repl/display-cell-value (ttms/payload v))
@@ -447,16 +412,6 @@
   (case kind
     "value" value
     :value value
-
-    "behavior-event"
-    (obj/compound-object {tick value})
-    :behavior-event
-    (obj/compound-object {tick value})
-
-    "behavior-latest"
-    (behavior/retained-value :xr tick value #{[:xr tick]})
-    :behavior-latest
-    (behavior/retained-value :xr tick value #{[:xr tick]})
 
     "tms-premise"
     (tms/distributed-premise-update premise epoch active)

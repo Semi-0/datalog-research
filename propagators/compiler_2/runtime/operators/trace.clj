@@ -5,7 +5,7 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.event :as event]
+            [propagators.experimental.visualization.data :as data]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.semantic-trace :as semantic-trace]))
@@ -25,7 +25,6 @@
       (seq? source-value)
       (and (map? source-value)
            (not (net/network? source-value))
-           (not (event/event-projection? source-value))
            (not (semantic-trace/semantic-trace-graph? source-value)))))
 
 (defn- trace-request-source
@@ -39,11 +38,9 @@
   (let [direction (if direction-id
                     (net/network-cell-strongest network direction-id)
                     :upstream)
-        graph (net/network-cell-strongest network graph-id)
-        source-value (net/network-cell-strongest network source-id)
+        source-value (data/payload (net/network-cell-strongest network source-id))
         request (trace-request-source source-id source-value direction)]
-    (if (or (value/unusable? graph)
-            (value/unusable? direction)
+    (if (or (value/unusable? direction)
             (not (keyword? direction)))
       []
       (let [effect-id [:trace/subscribe target-id]]

@@ -3,7 +3,6 @@
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
             [propagators.core :as core]
-            [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.reducer-cell :as reducer]
             [propagators.datastructures.tms :as tms]
@@ -54,12 +53,8 @@
   ([premise source]
    (tms/support premise source :test/support)))
 
-(defn- behavior-current-value
-  [behavior-value]
-  (let [summary (behavior/strongest-value behavior-value)]
-    (if (value/unusable? summary)
-      summary
-      (obj/slot-value summary behavior/base-layer))))
+(defn- compound-current-value [compound]
+  (if (value/unusable? compound) compound (obj/slot-value compound :value)))
 
 (defn- indexed
   [distributed]
@@ -271,20 +266,20 @@
     (is (= (get indexed-left tms/index-key)
            (get indexed-right tms/index-key)))))
 
-(deftest tms-selects-between-behavior-valued-claims
-  (let [left (behavior/latest-value 0 :left #{[:definition :left]})
-        right (behavior/latest-value 0 :right #{[:definition :right]})
+(deftest tms-selects-between-compound-valued-claims
+  (let [left (obj/compound-object {:value :left})
+        right (obj/compound-object {:value :right})
         content (merge-updates
                  (tms/premise-update :truth :left 0 true)
                  (tms/premise-update :truth :right 0 false)
                  (tms/claim-update :truth
-                                   (tms/claim :left-behavior
-                                              :behavior
+                                   (tms/claim :left-compound
+                                              :compound
                                               left
                                               [(support :left)]))
                  (tms/claim-update :truth
-                                   (tms/claim :right-behavior
-                                              :behavior
+                                   (tms/claim :right-compound
+                                              :compound
                                               right
                                               [(support :right)])))
         left-view (reduced-view content)
@@ -296,15 +291,15 @@
                                  (tms/premise-update :truth :left 2 true))
         conflict-view (reduced-view content**)]
     (is (= :left
-           (behavior-current-value
-            (tms/proposition-value left-view :behavior))))
+           (compound-current-value
+            (tms/proposition-value left-view :compound))))
     (is (= :right
-           (behavior-current-value
-            (tms/proposition-value right-view :behavior))))
+           (compound-current-value
+            (tms/proposition-value right-view :compound))))
     (is (= value/contradiction
-           (tms/proposition-value conflict-view :behavior)))
-    (is (= #{(tms/claim-slot-key :left-behavior)
-             (tms/claim-slot-key :right-behavior)
+           (tms/proposition-value conflict-view :compound)))
+    (is (= #{(tms/claim-slot-key :left-compound)
+             (tms/claim-slot-key :right-compound)
              (tms/premise-slot-key :left 0)
              (tms/premise-slot-key :left 1)
              (tms/premise-slot-key :left 2)

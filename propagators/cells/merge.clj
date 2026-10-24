@@ -40,14 +40,6 @@
 (def ^:private support-strongest-fn
   (resolved 'propagators.datastructures.support-collection/strongest-value))
 
-(def ^:private event-merge-fn
-  (resolved 'propagators.datastructures.event/merge-content))
-(def ^:private event-strongest-fn
-  (resolved 'propagators.datastructures.event/strongest-value))
-(def ^:private behavior-merge-fn
-  (resolved 'propagators.datastructures.behavior/merge-content))
-(def ^:private behavior-strongest-fn
-  (resolved 'propagators.datastructures.behavior/strongest-value))
 (def ^:private tms-merge-fn
   (resolved 'propagators.datastructures.tms/merge-distributed-content))
 (def ^:private tms-strongest-fn
@@ -138,12 +130,6 @@
       (reducer/reducer-subnet? update) :reducer-subnet
       (or (reducer-cell/reducer-cell? content)
           (reducer-cell/reducer-cell? update)) :reducer-cell
-      (or ((requiring-resolve 'propagators.semantic-trace/semantic-trace-graph?) content)
-          ((requiring-resolve 'propagators.semantic-trace/semantic-trace-graph?) update))
-      :semantic-trace-graph
-      (or ((requiring-resolve 'propagators.semantic-trace/epoch?) content)
-          ((requiring-resolve 'propagators.semantic-trace/epoch?) update))
-      :semantic-trace-epoch
       (or (closure-value? content)
           (closure-value? update)) :closure
       (evidence/evidence-set? update) :named-network
@@ -172,18 +158,6 @@
   (preserve-contradiction
    content update
    #((requiring-resolve 'propagators.datastructures.membership-collection/merge-content) %1 %2)))
-
-(defmethod built-in-cell-merge :event-content
-  [content update _network]
-  (preserve-contradiction
-   content update
-   #(@event-merge-fn %1 %2)))
-
-(defmethod built-in-cell-merge :behavior-content
-  [content update _network]
-  (preserve-contradiction
-   content update
-   #(@behavior-merge-fn %1 %2)))
 
 (defmethod built-in-cell-merge :distributed-tms
   [content update _network]
@@ -227,18 +201,6 @@
   [content update]
   ((requiring-resolve
     'propagators.datastructures.compound-object.merge/merge-named-network-content)
-   content
-   update))
-
-(defmethod built-in-cell-merge :semantic-trace-graph
-  [content update _network]
-  ((requiring-resolve 'propagators.semantic-trace/graph-union)
-   content
-   update))
-
-(defmethod built-in-cell-merge :semantic-trace-epoch
-  [content update _network]
-  ((requiring-resolve 'propagators.semantic-trace/merge-epoch)
    content
    update))
 
@@ -359,14 +321,6 @@
       (reducer-cell/reducer-cell? x) :reducer-cell
       (named/named-network? x) :named-network
       :else :content))))
-
-(defmethod built-in-strongest-value :event-content
-  [content _network]
-  (@event-strongest-fn content))
-
-(defmethod built-in-strongest-value :behavior-content
-  [content _network]
-  (@behavior-strongest-fn content))
 
 (defmethod built-in-strongest-value :distributed-tms
   [content _network]

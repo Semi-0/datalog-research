@@ -1,5 +1,5 @@
 (load-lain
-  "examples/lain/network_replay/collect-history.lain")
+  "propagators/compiler_2/runtime/lain/tracers.lain")
 
 (define input 4)
 (def-cells result)
@@ -7,4 +7,4 @@
 (-> (+ input 1) result)
 
 (display
-  (collect-semantic-history input 0 60000))
+  (trace:history input 0 60000))

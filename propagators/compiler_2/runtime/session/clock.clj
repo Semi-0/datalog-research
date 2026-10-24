@@ -3,9 +3,13 @@
   (:require [propagators.compiler-2.runtime.boundary.effects :as effects]
             [propagators.compiler-2.runtime.session.input :as input]
             [propagators.compiler-2.runtime.session.state :as state]
-            [propagators.datastructures.event :as event]
+            [propagators.cells.value :as value]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support-collection :as collection]
             [propagators.datastructures.tms.distributed :as tms]
-            [propagators.network :as net])
+            [propagators.network :as net]
+            [propagators.network-builder :as nb]
+            [propagators.stdlib.source-publication :as publication])
   (:import [java.util.concurrent TimeUnit]))
 
 (defonce ^:private session-runners (atom {}))
@@ -25,35 +29,35 @@
     (or (empty? contexts)
         (every? #(context-active? (:program/net runtime-state) %) contexts))))
 
+(defn clock-source-id
+  "Dedicated stable TTMS injection identity for one clock source."
+  [subscription]
+  (publication/source-id (or (:clock/source-id subscription) (:clock/id subscription))))
+
 (defn clock-update
   [subscription epoch wallclock-ms]
-  (event/active-event (:clock/target-id subscription)
-                      (or (:clock/source-id subscription)
-                          (:clock/id subscription))
-                      epoch
-                      wallclock-ms))
+  (publication/datum (clock-source-id subscription) epoch wallclock-ms :active))
 
 (defn clock-retraction
   [subscription epoch]
-  (event/retraction-event (:clock/target-id subscription)
-                          (or (:clock/source-id subscription)
-                              (:clock/id subscription))
-                          epoch))
+  (publication/datum (clock-source-id subscription) epoch value/nothing :retracted))
 
 (defn- epoch-key
   [subscription]
   (or (:clock/source-id subscription) (:clock/id subscription)))
 
 (defn- apply-clock-update
-  [runtime-state subscription update]
+  [runtime-state subscription clock-datum]
   (let [tick (input/next-runtime-commit-tick runtime-state)]
     (-> runtime-state
         (assoc :runtime/commit-tick tick)
         (input/assoc-program-commit-tick tick)
         (assoc-in [:clock/epochs (epoch-key subscription)]
-                  (event/timestamp update))
+                  (:timestamp (first (datum/support-of clock-datum))))
+        (update :program/net nb/ensure-cell (clock-source-id subscription))
         (input/apply-program-updates
-         [{:cell-id (event/input-id update) :update update}])
+         [{:cell-id (clock-source-id subscription) :update (collection/content clock-datum)}
+          {:cell-id (:clock/target-id subscription) :update (collection/content clock-datum)}])
         effects/run-runtime-cycle)))
 
 (defn tick-clock!

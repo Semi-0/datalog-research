@@ -1,3 +1,5 @@
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+
 (define shift
   (network [x]
     (+ x 1)))
@@ -18,4 +20,4 @@
   (pipeline 4))
 
 (display
-  (call-graph pipeline))
+  (trace:calls pipeline))

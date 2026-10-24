@@ -5,7 +5,7 @@
             [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.inspection.temperature :as temperature]
             [propagators.core :as core]
-            [propagators.datastructures.event :as event]
+            [propagators.stdlib.source-publication :as publication]
             [propagators.message :refer [message]]
             [propagators.semantic-trace :as semantic-trace]))
 
@@ -19,9 +19,9 @@
   (max (long (or (:program/epoch state) 0))
        (long (or (:runtime/commit-tick state) 0))))
 
-(defn result-event
+(defn result-publication
   [subscription-id target-id epoch graph]
-  (event/active-event target-id subscription-id epoch graph))
+  (publication/active subscription-id epoch graph))
 
 (defn result-epoch
   [result]
@@ -52,7 +52,7 @@
       (update state :trace/stale-results (fnil inc 0))
 
       :else
-      (let [trace-update (result-event subscription-id
+      (let [trace-update (result-publication subscription-id
                                        (:target-id subscription)
                                        epoch
                                        graph)

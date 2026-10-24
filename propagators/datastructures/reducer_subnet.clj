@@ -36,25 +36,6 @@
                (contains? #{:slot-sync :reduce-sync :slot-tap :effect-tap}
                           (first k))))))
 
-(def ^:private event-kind-key [:compound/internal :event :kind])
-(def ^:private event-timestamp-key [:compound/internal :event :timestamp])
-(def ^:private event-value-key [:compound/internal :event :value])
-
-(defn- compound-slot
-  [source-net slot-key]
-  (when-let [slot-id (net/network-dict-entry source-net slot-key)]
-    (net/network-cell-strongest source-net slot-id)))
-
-(defn- event-fact?
-  [v]
-  (and (net/network? v)
-       (= :event/fact (compound-slot v event-kind-key))))
-
-(defn- event-update
-  [fact]
-  {:slot (compound-slot fact event-timestamp-key)
-   :value (compound-slot fact event-value-key)})
-
 (defn source-updates
   "All usable public source slots as `{:slot k :value v}` updates."
   [source-net]
@@ -66,9 +47,7 @@
                  (when (contains? (net/net-env source-net) slot-id)
                    (let [slot-value (net/network-cell-strongest source-net slot-id)]
                      (when-not (value/unusable? slot-value)
-                       (if (event-fact? slot-value)
-                         (event-update slot-value)
-                         {:slot slot-key :value slot-value}))))))
+                       {:slot slot-key :value slot-value})))))
          (sort-by (comp pr-str :slot))
          vec)))
 

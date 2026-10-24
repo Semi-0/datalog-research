@@ -26,7 +26,8 @@
             [propagators.network-builder :as nb]
             [propagators.runner :as runner]
             [propagators.stdlib.prop :as stdlib-prop]
-            [propagators.semantic-trace :as semantic-trace]))
+            [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.graph-union :as graph-union]))
 
 (def default-xr-client-id state/default-xr-client-id)
 (def empty-state state/empty-state)
@@ -69,9 +70,7 @@
         base-state (assoc (empty-state) :runtime/options options)
         base-net (-> (:program/net base-state)
                      (nb/ensure-cell (boundary-outbox-id))
-                     (nb/install-cell graph-id
-                                      (semantic-trace/graph-union (empty-graph))
-                                      (semantic-trace/graph-union (empty-graph))))
+                     (nb/ensure-cell graph-id))
         environment (runtime-env base-state
                                  base-net
                                  (:program/env base-state)
@@ -87,8 +86,9 @@
                   (runner/run-network (:props compiled) (:net compiled)))
         [tasks network1]
         (cell-evaluator/evaluate-all
-         [(message graph-id
-                   (semantic-repl/compiled-semantic-graph compiled network0))]
+         (graph-union/publish-derived
+          network0 graph-id
+          (semantic-repl/compiled-semantic-graph compiled network0) [])
          network0)
         network2 (runner/completed-network
                   (runner/run-network tasks network1))
@@ -354,14 +354,12 @@
                   aggregate (:program/net state))
                  (empty-graph)))
         graph-id (runtime-graph-id)
-        network (-> (:program/net state)
-                    (nb/ensure-cell graph-id)
-                    (nb/seed-cell graph-id graph))
-        network
-        (runner/completed-network
-         (runner/run-network
-          (nb/neighbor-propagator-ids network graph-id)
-          network))]
+        installed (nb/ensure-cell (:program/net state) graph-id)
+        [tasks updated] (cell-evaluator/evaluate-all
+                         (graph-union/publish-derived installed graph-id graph [])
+                         installed)
+        network (runner/completed-network
+                 (runner/run-network tasks updated))]
     (assoc state :program/net network :program/graph graph :graph graph)))
 
 (defn compile-program-form
@@ -382,9 +380,7 @@
           graph-id (runtime-graph-id)
           program-net-input (-> (:program/net state)
                                 (nb/ensure-cell (boundary-outbox-id))
-                                (nb/install-cell graph-id
-                                                 (:graph state)
-                                                 (:graph state)))
+                                (nb/ensure-cell graph-id))
           environment (runtime-env state
                                    program-net-input
                                    (:program/env state)
@@ -418,7 +414,7 @@
                                             :source source)
                                [tasks program-net1]
                                (cell-evaluator/evaluate-all
-                                [(message graph-id graph)]
+                                (graph-union/publish-derived program-net0 graph-id graph [])
                                 (nb/ensure-cell program-net0 graph-id))]
                            (runner/completed-network
                             (runner/run-network tasks program-net1)))
@@ -543,7 +539,7 @@
         source-blocks (source-blocks state)
         root (state/runtime-root (runtime-base-net))
         base (assoc state
-                    :program/net (nb/install-cell
+                    :program/net (nb/ensure-cell
                                   (net/assoc-net-dict-entry
                                    (nb/ensure-cell
                                     (seed-program-blocks
@@ -553,9 +549,7 @@
                                     (boundary-outbox-id))
                                    :program/epoch
                                    epoch)
-                                  (runtime-graph-id)
-                                  (semantic-trace/graph-union (empty-graph))
-                                  (semantic-trace/graph-union (empty-graph)))
+                                  (runtime-graph-id))
                     :program/env (:env root)
                     :program/graph (empty-graph)
                     :program/results {}

@@ -13,7 +13,8 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.dependency :as dependency]
-            [propagators.datastructures.event :as event]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.stdlib.membership :as membership]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms.distributed :as tms]
             [propagators.gur :as gur]
@@ -25,9 +26,7 @@
             [propagators.compiler-2.runtime.supported-application.runtime]
             [propagators.propagator :as prop]
             [propagators.stdlib.observation :as observation]
-            [propagators.stdlib.conditional :as conditional]
-            [propagators.datastructures.behavior.core :as behavior]
-            [propagators.datastructures.behavior.arithmetic :as behavior-arithmetic])
+            [propagators.stdlib.conditional :as conditional])
   (:import [java.nio.charset StandardCharsets]
            [java.util UUID]))
 
@@ -454,43 +453,13 @@
       (select-output arg-ids fallback-id)
       fallback-id)))
 
-(defn- behavior-projection?
-  [v]
-  (and (contains? (obj/public-slot-keys v) behavior/base-layer)
-       (contains? (obj/public-slot-keys v) behavior/summary-layer)))
-
-(defn- unwrap-behavior-current
-  [v]
-  (cond
-    (behavior-projection? v) (behavior/base-value v)
-    (behavior/behavior-value? v) (unwrap-behavior-current
-                                  (behavior/strongest-value v))
-    :else v))
-
-(defn- unwrap-event-current
-  [v]
-  (cond
-    (event/event-projection? v)
-    (let [values (vals (event/active-values v))]
-      (cond
-        (empty? values) value/nothing
-        (apply = values) (first values)
-        :else value/contradiction))
-
-    (or (event/event-content? v)
-        (event/event-fact? v))
-    (unwrap-event-current (event/strongest-value v))
-
-    :else v))
-
 (defn- unwrap-compiler-value
   [v]
   (-> v
       scope-source/unwrap
       tms/distributed-base-value
       dependency/unwrap
-      unwrap-event-current
-      unwrap-behavior-current))
+      membership/payload))
 
 (declare dependency-sources)
 
@@ -503,12 +472,6 @@
                     (dependency/dependency-value result sources))]
       (or (tms/distributed-result-update claim-id result* arg-contents)
           result*))))
-
-(defn- event-lift-message
-  [claim-id f arg-contents bases]
-  (when-let [update (event/lift claim-id f arg-contents bases)]
-    (when-not (value/nothing? update)
-      update)))
 
 (defn- primitive-messages
   [f current-net arg-ids out-id]
@@ -526,21 +489,14 @@
              set)
         claim-id [:compiler-2/primitive out-id support-version]]
     (cond
-      (some #((requiring-resolve 'propagators.datastructures.layered-value/layer-present?) % :membership) arg-values)
-      [(message out-id ((requiring-resolve 'propagators.stdlib.membership/apply-value) f arg-values))]
+      (some #(or (datum/layer-present? % :membership)
+                 (datum/layer-present? % :support)) arg-values)
+      [(message out-id (membership/apply-value f arg-values))]
       (some value/contradiction? bases)
       []
 
       (some value/contradiction? arg-contents)
       []
-
-      (some #(or (event/event-content? %)
-                 (event/event-fact? %)
-                 (event/event-projection? %))
-            arg-contents)
-      (if-let [update (event-lift-message claim-id f arg-contents bases)]
-        [(message out-id update)]
-        [])
 
       (some value/nothing? bases)
       (if-let [update (tms/distributed-state-update arg-contents)]
@@ -604,20 +560,6 @@
                                                      arg-values))
                                          (context/dependency-source
                                           context-value))))])))))}))
-
-(defn behavior-operator
-  "Compiler-2 operator wrapper for behavior-history stdlib operators."
-  [op f]
-  (with-meta
-    (fn [network arg-ids out-id]
-      (let [[prop-id network']
-            ((apply (behavior-arithmetic/behavior-propagator op f)
-                    (conj (vec arg-ids) out-id))
-             network)]
-        [network' [prop-id] out-id]))
-    {application-activate-key
-     (fn [current-net _context-id arg-ids out-id]
-       (behavior-arithmetic/behavior-messages op f arg-ids out-id current-net))}))
 
 (defn execute-sub-env-operator []
   (operator-value/operator-closure
@@ -702,11 +644,6 @@
 (defn sync-operator []
   (operator-value/propagator-operator
    {:name '->
-    :prepare-network
-    (fn [network {:keys [inputs outputs]}]
-      (if (some #(event/protocol-cell? network %) inputs)
-        (reduce event/mark-protocol-cell network outputs)
-        network))
     :output-selector sync-output-id
     :input-selector (fn [arg-ids _fallback-id _context-id]
                       (sync-chain-ids '-> arg-ids))
@@ -725,9 +662,13 @@
 
 (defn- switch-messages
   [network value-id condition-id out-id]
-  (let [condition (unwrap-compiler-value
-                   (net/network-cell-strongest network condition-id))]
+  (let [arguments (mapv #(net/network-cell-strongest network %)
+                        [value-id condition-id])
+        condition (unwrap-compiler-value (second arguments))]
     (cond
+      (some #(datum/layer-present? % :support) arguments)
+      [(message out-id (membership/apply-value
+                        (fn [v enabled] (if enabled v value/nothing)) arguments))]
       (value/contradiction? condition) [(message out-id value/contradiction)]
       (value/unusable? condition) []
       condition (forward-sync-messages network value-id out-id)
@@ -841,9 +782,6 @@
                   :closure ((requiring-resolve
                              'propagators.compiler-2.model.closure-value/closure-info?)
                             v)
-                  :behavior ((requiring-resolve
-                              'propagators.datastructures.behavior/behavior-value?)
-                             v)
                   :tms (tms/distributed-value? v)
                   false))])))
 
@@ -906,7 +844,6 @@
     ['cell? (predicate-operator 'cell? :cell)]
     ['network? (predicate-operator 'network? :network)]
     ['closure? (predicate-operator 'closure? :closure)]
-    ['behavior? (predicate-operator 'behavior? :behavior)]
     ['tms? (predicate-operator 'tms? :tms)]
     ['p:cons (cons-operator)]
     ['list (list-operator)]
@@ -930,16 +867,9 @@
 (defn dependency-bindings []
   (operator-bindings contextual-primitive-operator))
 
-(defn ^:deprecated behavior-bindings []
-  (default-bindings))
-
 (defn tms-bindings
   "Primitive and TMS bindings, without deprecated temporal behavior operators."
   []
   ((requiring-resolve
     'propagators.compiler-2.operators.tms/add-distributed-tms-bindings)
    (default-bindings)))
-
-(defn ^:deprecated behavior-tms-bindings []
-  ((requiring-resolve
-    'propagators.compiler-2.operators.behavior/behavior-tms-bindings)))

@@ -1,7 +1,7 @@
 (load-primitive-environment
   "examples/lain/amb/web_editor.clj"
   :examples.lain.amb.web-editor/primitive-bindings)
-(load-lain "examples/lain/network_replay/collect-history.lain")
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 
 ;; The existing recorder accumulates published semantic graphs and their values.
 ;; It does not claim to capture every internal learning operation.
@@ -13,4 +13,4 @@
 (define knowledge (learn failure decisions))
 (-> (backtrack decisions knowledge) repairs)
 (define learning (amb:learning-view knowledge))
-(display (collect-semantic-history learning 0 600000))
+(display (trace:history learning 0 600000))

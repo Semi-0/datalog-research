@@ -1,5 +1,5 @@
 (load-lain
-  "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
+  "propagators/compiler_2/runtime/lain/tracers.lain")
 
 (define input 4)
 (def-cells shifted result)
@@ -8,4 +8,4 @@
 (-> (* shifted shifted) result)
 
 (display
-  (observe-semantic shifted :upstream))
+  (trace:observe-live shifted :upstream))

@@ -10,6 +10,7 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.operators.versioned-definition :as definition]
             [propagators.datastructures.tms :as tms]
+            [propagators.datastructures.compound-information :as information]
             [propagators.gur.flat :as fvm]
             [propagators.core :as core]
             [propagators.ids :as ids]
@@ -289,8 +290,8 @@
 (defn block-display-network
   "Choose the network that owns the block's strongest display value.
 
-  Compiler output is declarative topology in :program/net. Legacy boundary
-  display writes still land in :network, so they remain the fallback."
+  Compiler-connected supported displays live in :program/net in both modes.
+  Raw legacy boundary display writes still land in :network as the fallback."
   [state block]
   (let [client-id (:client-id (block-model/block-by-display-id
                                state (:display-id block)))
@@ -302,8 +303,10 @@
                                    (contains? (net/net-env program-net)
                                               display-id))
                           (net/network-cell-content program-net display-id))]
-    (if (and versioned?
-             program-net
+    (if (and program-net
+             (or versioned?
+                 (contains? #{:support-collection :membership-collection}
+                            (information/semantic-kind program-content)))
              (not (value/nothing? program-content)))
       program-net
       (:network state))))

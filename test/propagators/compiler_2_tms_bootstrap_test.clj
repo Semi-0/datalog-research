@@ -20,8 +20,7 @@
     (is (= 42 (net/network-cell-strongest
                (fixture/run compiled) (:cell compiled))))))
 
-(deftest historical-entry-points-are-explicitly-deprecated
-  (doseq [entry [#'main/behavior-tms-bindings
-                 #'main/compile-expr-with-behavior-tms
-                 #'main/compile-source-with-behavior-tms]]
-    (is (true? (:deprecated (meta entry))))))
+(deftest historical-entry-points-have-been-removed
+  (doseq [entry '[behavior-tms-bindings compile-expr-with-behavior-tms
+                  compile-source-with-behavior-tms]]
+    (is (nil? (ns-resolve 'propagators.compiler-2.main entry)))))

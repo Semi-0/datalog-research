@@ -11,7 +11,8 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.semantic-trace :as semantic-trace]))
+            [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.graph-union :as graph-union]))
 
 (def seed-appended-block-topology-state
   topology/seed-appended-block-topology-state)
@@ -26,10 +27,7 @@
     (let [source (program/normalize-trace-source source)
           source (program/auto-output-source state block source)
           graph-id (program/runtime-graph-id)
-          program-net-input (nb/install-cell (:program/net state)
-                                             graph-id
-                                             (:graph state)
-                                             (:graph state))
+          program-net-input (nb/ensure-cell (:program/net state) graph-id)
           environment (program/runtime-env
                        state
                        program-net-input
@@ -105,7 +103,7 @@
 
 (defn- base-rebuild-state
   [state epoch]
-  (let [base-net (nb/install-cell
+  (let [base-net (nb/ensure-cell
                   (net/assoc-net-dict-entry
                    (nb/ensure-cell
                     (topology/seed-program-topology
@@ -114,9 +112,7 @@
                     (program/boundary-outbox-id))
                    :program/epoch
                    epoch)
-                  (program/runtime-graph-id)
-                  (semantic-trace/graph-union (program/empty-graph))
-                  (semantic-trace/graph-union (program/empty-graph)))
+                  (program/runtime-graph-id))
         root (state/runtime-root base-net)]
    (assoc state
          :program/net (:net root)
@@ -167,7 +163,8 @@
 (defn- publish-graph
   [state graph]
   (let [graph-id (program/runtime-graph-id)
-        [tasks n1] (core/eval-cells [(message graph-id graph)]
+        [tasks n1] (core/eval-cells (graph-union/publish-derived
+                                    (:program/net state) graph-id graph [])
                                     (nb/ensure-cell (:program/net state)
                                                     graph-id))
         [state' n2] (temperature/run-tasks state
@@ -254,9 +251,7 @@
           graph-id (program/runtime-graph-id)
           program-net-input (-> (:program/net state)
                                 (nb/ensure-cell (program/boundary-outbox-id))
-                                (nb/install-cell graph-id
-                                                 (:graph state)
-                                                 (:graph state)))
+                                (nb/ensure-cell graph-id))
           environment (program/runtime-env
                        state
                        program-net-input

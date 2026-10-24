@@ -1,0 +1,41 @@
+;; Requires structure.lain. Reads frozen captures, never newer live state.
+;; root-compound-occurrence: unique root; ambiguity is an explicit error.
+;; content-of-scope: actual semantic nodes and dataflow edges of this occurrence.
+;; direct-compound-children: immediate compound occurrences, not raw value shapes.
+;; occurrence-on-path?: compare occurrence identities, not function names.
+(def-cells root-compound-occurrence content-of-scope
+           direct-compound-children occurrence-on-path?)
+
+;; High-level transformation, with mutually recursive network declarations.
+;; Missing readers stay unresolved instead of returning dummy empty hierarchies.
+(define child-stacks
+  (network [observation children path]
+    (if (= children :compiler-2/list-empty)
+      (list)
+      (cons
+        (scope->stack observation (car children) path)
+        (child-stacks observation (cdr children) path)))))
+
+(define scope->stack
+  (network [observation occurrence path]
+    (if (occurrence-on-path? occurrence path)
+      (stack-ref occurrence)
+      (stack occurrence
+        (content-of-scope observation occurrence)
+        (child-stacks observation
+          (direct-compound-children observation occurrence)
+          (cons occurrence path))))))
+
+
+(define compound->stack
+  (network [compound-node]
+    (let [sub-nodes (sub-node-of compound-node)]
+        (if (all primitive-node? sub-nodes)
+            (stack sub-nodes)
+            (apply stack subnodes
+              (stack (compound->stack
+                     (filter compound-node? subnodes))))))))
+
+(define hierarchy->stacks
+  (network [observation root]
+    (scope->stack observation root (list))))

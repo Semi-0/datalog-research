@@ -1,8 +1,8 @@
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+
 (define input 4)
 (def-cells result)
 
 (-> (+ input 1) result)
 
-(display
-  (relationship:with-values
-    (relationship:roots-semantic input)))
+(display (trace:root-semantic input))

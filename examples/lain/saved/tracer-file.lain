@@ -1,0 +1,24 @@
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+
+(define queue)
+(define consumed (consume-task agents queue))
+(define result (test-2 consumed output))
+(-> 1 result)
+
+(define constraint-network (network [input] input))
+(display (trace:root-semantic (constraint-network result)))
+
+(define consume-task
+  (network [input-1 input-2]
+    (define out)
+    out))
+
+(define test-2
+  (network [input-1 input-2]
+    (define out)
+    out))
+
+(define some-other-undefined
+  (network [input-1 input-2]
+    (define out)
+    out))

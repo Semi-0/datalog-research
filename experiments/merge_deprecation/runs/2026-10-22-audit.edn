@@ -1,0 +1,42 @@
+{:run/id "merge-removal-2026-10-22-audit"
+ :run/type :isolated-merge-audit
+ :source/base "2e2e26a6f6e5a1e4cb57ae4e69d10e569365f959"
+ :source/dirty? true
+ :source/tracked-diff-sha256 "390dbf507460c4e2abdd6d8536702e0cf2e0232acb98aad4b6405635f7cd13c4"
+ :source/hash-command "git diff --no-ext-diff -- deps.edn extensions graph propagators run_tests.clj test propagators_compiler_2_tms_chain_bench.clj | shasum -a 256"
+ :source/new-files
+ {"propagators/semantic_trace/graph_union.clj" "624847f0ec8727c578627636aa4e2f04196cabcf13984845be12d84939fa113d"
+  "propagators/stdlib/source_publication.clj" "381fc785fd5e7cd4108cdea737adeb08cacacb3c3eebb473ae83ae6b04ec1e7d"
+  "test/propagators/semantic_trace/graph_union_test.clj" "65b1ae58dc78f1aa535906c72ae07128e0d0364a54455a5a3c46b545d860ce0a"
+  "test/propagators/source_publication_test.clj" "29da91da59a7e5e0a1d6ac3201cc46e48669ba81073b12355e0a2d9c2ec5bfd7"
+  "experiments/merge_deprecation/audit.clj" "becdcf5e7973153ebb8ad95f51bbb2f86a456acd3768b10f6b54e0102e949d91"}
+ :source/note "Audit-stage fingerprint, before final widget display normalization and its regression fixture; not the final handoff tree."
+ :environment {:clojure "1.12.6" :java "27" :os "Mac OS X" :arch "aarch64"}
+ :instrumentation {:built-in-method-wrappers true :producer-attribution true
+                   :restored-in-finally true :live-editor false}
+ :benchmark? false
+ :timing-samples nil
+ :limitations ["Counts are observed single-pass test counters, not warmed performance measurements."
+               "The harness's :baseline mode means unsubstituted dispatch, not original source."
+               "Per-event records were inspected in the terminal but are not persisted in this summary."
+               "The dirty source patch is local, not committed or exported as a portable revision."]
+ :results
+ [{:suite graph.lain-editor.network-replay-test
+   :tests {:test 8 :pass 56 :fail 0 :error 0}
+   :counts {:default 8850 :closure 648 :membership-collection 1018
+            :named-network 11732 :support-collection 1002}}
+  {:suite graph.lain-editor.recursive-semantic-test
+   :tests {:test 2 :pass 18 :fail 0 :error 0}
+   :counts {:named-network 2655 :closure 195 :default 2097
+            :membership-collection 275 :support-collection 274}}
+  {:suite graph.lain-editor.semantic-gallery-test
+   :tests {:test 5 :pass 538 :fail 0 :error 0}
+   :counts {:named-network 14250 :default 10644 :support-collection 2049 :closure 909}}
+  {:suite propagators.compiler-2.runtime.semantic-traversal-test
+   :tests {:test 12 :pass 60 :fail 0 :error 0}
+   :counts {:default 25606 :closure 6921 :named-network 29909
+            :support-collection 5406 :membership-collection 83}}]
+ :retired-methods #{:semantic-trace-graph :semantic-trace-epoch :behavior :event}
+ :retired-method-activations 0
+ :registry #{:default :named-network :closure :reducer-cell :reducer-subnet
+             :distributed-tms :support-collection :membership-collection}}

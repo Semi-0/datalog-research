@@ -9,11 +9,8 @@
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.main :as compiler]
-            [propagators.compiler-behavior.core :as behavior-core]
-            [propagators.compiler-behavior.main :as behavior-compiler]
             [propagators.compiler-common.cps :as cps]
             [propagators.compiler-common.core :as common]
-            [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.scope-source :as scope-source]
@@ -54,10 +51,7 @@
 
 (deftest active-compiler-entry-points-are-preserved
   (is (identical? compiler/default-compiler cps-core/default-compiler))
-  (is (identical? cps-core/compile* cps-core/default-compiler))
-  (is (identical? behavior-compiler/g:compile behavior-core/g:compile))
-  (is (identical? behavior-compiler/g:apply behavior-core/g:apply))
-  (is (identical? behavior-compiler/g:advance behavior-core/g:advance)))
+  (is (identical? cps-core/compile* cps-core/default-compiler)))
 
 (deftest main-compilation-migrates-to-cps-core
   (is (identical? compiler/default-compiler cps-core/default-compiler))
@@ -210,14 +204,3 @@
       (is (= 1 (count applications)))
       (is (= [application-id] (:applications compiled)))
       (is (contains? (set (:props compiled)) apply-prop-id)))))
-
-(deftest behavior-compiler-reuses-composed-traversal-with-own-values
-  (let [behavior-result (behavior-compiler/compile-expr
-                         (ast/sequence* (ast/lit 1))
-                         (h/behavior-bindings)
-                         {:timestamp 7
-                          :compiler behavior-core/default-compiler})
-        current-result (compiler/compile-expr (ast/sequence* (ast/lit 1)))
-        behavior-value (strongest (:net behavior-result) (:cell behavior-result))]
-    (is (= 1 (behavior/base-value behavior-value)))
-    (is (= 1 (strongest (:net current-result) (:cell current-result))))))

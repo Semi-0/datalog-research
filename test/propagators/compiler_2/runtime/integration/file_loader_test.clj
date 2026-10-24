@@ -7,8 +7,9 @@
             [propagators.compiler-2.runtime.bridge.web :as bridge]
             [graph.compiler-2-runtime-server :as server]
             [propagators.compiler-2.model.env :as cenv]
-            [propagators.datastructures.event :as event]
-            [propagators.network :as net]))
+            [propagators.experimental.visualization.data :as data]
+            [propagators.network :as net]
+            [propagators.cells.merge :as merge]))
 
 (def slider-file "examples/lain/slider-panel.lain")
 (def demo-file "examples/lain/demo.lain")
@@ -42,11 +43,11 @@
     (commit-slider! session "b" 4)
     (commit-slider! session "c" 3)
     (let [d-content (cell-content session 'd)]
-      (is (= [9] (vec (vals (event/active-values d-content)))))
+      (is (= 9 (data/payload (merge/strongest-value d-content (:program/net @session)))))
       (is (= 9 (annotations/project-value d-content))))
     (commit-slider! session "a" 11)
     (let [d-content (cell-content session 'd)]
-      (is (= [10] (vec (vals (event/active-values d-content)))))
+      (is (= 10 (data/payload (merge/strongest-value d-content (:program/net @session)))))
       (is (= 10 (annotations/project-value d-content))))))
 
 (deftest demo-lain-prints-info-cell-into-one-tui-block

@@ -305,14 +305,13 @@ call, but the data boundary is present. Every application gets an application
 IR cell, and one uniform application propagator is installed alongside it.
 
 `propagators.compiler-2.main/compile-source` remains the raw compiler-2 entry
-and uses `helpers/default-env`. To compile with behavior arithmetic plus
-distributed TMS primitives by default, use:
+and uses ordinary primitive bindings. To include distributed TMS primitives, use:
 
 ```clojure
-(main/compile-source-with-behavior-tms source {:net n})
+(main/compile-source-with-tms source {:net n})
 ```
 
-The matching AST entry is `main/compile-expr-with-behavior-tms`.
+The matching AST entry is `main/compile-expr-with-tms`.
 
 The retained application object has slots:
 

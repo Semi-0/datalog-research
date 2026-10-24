@@ -46,21 +46,6 @@
   ([source opts]
    (compile-expr-with-tms (parser/parse-string source) opts)))
 
-(defn ^:deprecated behavior-tms-bindings
-  "Historical opt-in environment. Active sessions use tms-bindings."
-  []
-  (basis/behavior-tms-bindings))
-
-(defn ^:deprecated compile-expr-with-behavior-tms
-  ([expr] (compile-expr-with-behavior-tms expr {}))
-  ([expr opts]
-   (compiler/compile-expr-with-bindings expr (behavior-tms-bindings) opts)))
-
-(defn ^:deprecated compile-source-with-behavior-tms
-  ([source] (compile-source-with-behavior-tms source {}))
-  ([source opts]
-   (compile-expr-with-behavior-tms (parser/parse-string source) opts)))
-
 (defn compiled-result [compiled-net]
   (compiler/compiled-result compiled-net))
 

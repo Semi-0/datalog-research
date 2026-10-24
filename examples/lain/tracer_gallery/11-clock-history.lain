@@ -3,11 +3,11 @@
   :extensions.runtime-clock/primitive-bindings)
 
 (load-lain
-  "examples/lain/network_replay/collect-history.lain")
+  "propagators/compiler_2/runtime/lain/tracers.lain")
 
 ; The runtime publishes a new event value every 500 ms.
 (define time
   (clock-in 500))
 
 (display
-  (collect-semantic-history time 0 60000))
+  (trace:history time 0 60000))

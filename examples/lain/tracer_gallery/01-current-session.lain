@@ -1,9 +1,11 @@
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+
 (define input 4)
 (def-cells result traced)
 
 (-> (+ input 1) result)
 
 ; trace reads this pane's current runtime-session graph.
-(trace result :both traced)
+(trace:session result :both traced)
 
 (display traced)

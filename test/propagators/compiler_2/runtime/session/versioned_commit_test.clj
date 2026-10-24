@@ -6,14 +6,14 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.operators.block-premise :as premise]
             [propagators.compiler-2.operators.versioned-definition :as definition]
-            [propagators.datastructures.event :as event]
             [propagators.gur.flat :as fvm]
             [propagators.ids :as ids]
             [propagators.datastructures.tms.distributed :as tms]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.propagator :as prop]
-            [propagators.semantic-trace :as semantic-trace]))
+            [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.graph-union :as graph-union]))
 
 (def c0 "00000000-0000-0000-0000-000000000001")
 (def c1 "00000000-0000-0000-0000-000000000002")
@@ -111,8 +111,7 @@
                                             (:cell compiled))]
       (is (= :legacy (get-in @session [:tuis "legacy" :mode])))
       (is (= :versioned-premise (get-in @session [:tuis "A" :mode])))
-      (is (tms/distributed-value? content))
-      (is (not (event/event-content? content))))))
+      (is (tms/distributed-value? content)))))
 
 (deftest premise-identity-embeds-the-logical-client
   (let [session (runtime/new-session)]
@@ -164,8 +163,9 @@
        (block-request (str (java.util.UUID/randomUUID)) index nil source)))
     (let [graph (net/network-cell-strongest
                  (:program/net @session) (program/runtime-graph-id))]
-      (is (semantic-trace/semantic-trace-graph? graph))
-      (is (seq (:edges graph))))))
+      (let [payload (graph-union/graph-of graph)]
+        (is (semantic-trace/semantic-trace-graph? payload))
+        (is (seq (:edges payload)))))))
 
 (deftest command-protocol-replays-and-versioned-unregister-retains-history
   (let [session (runtime/new-session)

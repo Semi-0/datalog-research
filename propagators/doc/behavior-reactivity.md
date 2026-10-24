@@ -1,4 +1,9 @@
-# Behavior Reactivity
+# Behavior Reactivity (historical)
+
+This document records a removed experiment. Behavior/event APIs and their merge
+routes are no longer available. See [the migration note](../../doc/behavior-deprecation.md)
+for current supported publications and explicit history retention. The designs,
+commands, and measurements below describe the historical implementation only.
 
 Source files:
 

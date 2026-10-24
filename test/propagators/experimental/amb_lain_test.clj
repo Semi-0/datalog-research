@@ -88,11 +88,18 @@
     (is (= [3 3 4 4 5 5] (sort (map #(nth (:domain %) (:index %)) records))))))
 
 (deftest original-whole-compound-gating-is-a-reproduced-runtime-gap
-  ;; Characterization only: this is explicitly NOT solver acceptance evidence.
+  ;; Characterization only: quiescence with an unresolved output is NOT solver
+  ;; acceptance evidence. The former collection exception is no longer emitted.
   (let [original (str/replace example/source
                               "(list (switch a valid) (switch b valid) (switch c valid))"
                               "(switch (list a b c) valid)")
-        run (example/run original)]
-    (is (= :failed (get-in run [:result :status])))
-    (is (= "Expected supported collection content" (ex-message (get-in run [:result :error]))))
-    (is (set? (:content (ex-data (get-in run [:result :error])))))))
+        run (example/run original)
+        network (get-in run [:result :network])
+        root (get-in run [:compiled :cell])
+        snapshot (observation/list-snapshot network root)]
+    (is (= :completed (get-in run [:result :status])))
+    (is (nil? (get-in run [:result :error])))
+    (is (false? (:ready? snapshot)))
+    (is (empty? (:items snapshot)))
+    (is (= :bool4/nothing (observation/cell-base network root)))
+    (is (nil? (:solution run)))))

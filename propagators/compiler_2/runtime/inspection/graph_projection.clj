@@ -5,9 +5,9 @@
             [graph.compiler-2-semantic-repl :as semantic-repl]
             [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
-            [propagators.datastructures.behavior :as behavior]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.event :as event]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.experimental.visualization.ttms :as ttms]
             [propagators.graph :as graph]
             [propagators.network :as net]
             [propagators.propagator :as prop]
@@ -19,17 +19,11 @@
 (defn display-widget-value
   [v]
   (when-not (value/unusable? v)
-    (cond
-      (or (event/event-content? v)
-          (event/event-fact? v)
-          (event/event-projection? v))
-      (let [values (vals (event/active-values v))]
-        (cond
-          (empty? values) nil
-          (= 1 (count values)) (first values)
-          :else (vec values)))
-
-      :else
+    (if (ttms/supported? v)
+      (loop [current v]
+        (if (ttms/supported? current)
+          (recur (ttms/payload current))
+          current))
       (semantic-repl/display-cell-value v))))
 
 (defn widget-node-id
@@ -58,18 +52,14 @@
 (defn graph-cell-value?
   [v]
   (cond
+    (datum/layer-present? v :support)
+    (graph-cell-value? (datum/layer-value v :base))
+
     (value/unusable? v)
     false
 
     (semantic-trace/semantic-trace-graph? v)
     false
-
-    (and (contains? (obj/public-slot-keys v) behavior/base-layer)
-         (contains? (obj/public-slot-keys v) behavior/summary-layer))
-    true
-
-    (behavior/behavior-value? v)
-    true
 
     (net/network? v)
     false
@@ -208,6 +198,11 @@
                :runtime/changed-node-ids nodes)
         (dissoc :runtime/changed-candidate-cells))))
 
+(defn- single-source-revision [current]
+  (let [dependencies (datum/support-of current)]
+    (when (= 1 (count dependencies))
+      (:timestamp (first dependencies)))))
+
 (defn widget-channel-view
   [state {:keys [widget/channel widget/view-cell widget/event-cell widget/view-value]}]
   (let [labels (labels state)]
@@ -218,7 +213,8 @@
      :event-cell event-cell
      :event-cell-id (pr-str event-cell)
      :event-label (get labels event-cell)
-     :current (display-widget-value view-value)}))
+     :current (display-widget-value view-value)
+     :epoch (single-source-revision view-value)}))
 
 (defn widget-ui
   [widget-type widget-id channels]

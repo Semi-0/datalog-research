@@ -22,12 +22,16 @@
             [propagators.compiler-2.model.env :as cenv]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.event :as event]
+            [propagators.experimental.visualization.data :as data]
+            [propagators.stdlib.source-publication :as publication]
+            [propagators.datastructures.support-collection :as collection]
+            [propagators.cells.merge :as merge]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.semantic-trace :as semantic-trace]))
+            [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.graph-union :as graph-union]))
 
 (def source
   "(let-cell [same next] ((network [x same next] (<-> x same) (<-> (+ x 1) next) (list same next)) 4 same next) next)")
@@ -49,10 +53,9 @@
     (is (contains? (set (semantic-repl/edge-labels expansion)) ["+" "<->"]))
     (is (contains? (set (semantic-repl/edge-labels expansion)) ["x" "+"]))))
 
-(deftest downstream-trace-expands-monotonically-on-epoch
+(deftest downstream-trace-expands-through-supported-publication
   (let [request-id (ids/new-node-id)
         graph-id (ids/new-node-id)
-        epoch-id (ids/new-node-id)
         out-id (ids/new-node-id)
         start-graph (semantic-trace/graph-union
                      {:nodes {:a "a" :b "b"}
@@ -65,16 +68,16 @@
         n0 (-> net/empty-net
                (nb/install-cell request-id {:label "a" :direction :downstream}
                                 {:label "a" :direction :downstream})
-               (nb/install-cell graph-id start-graph start-graph)
-               (nb/install-cell epoch-id (semantic-trace/epoch 0) (semantic-trace/epoch 0))
+               (nb/install-cell graph-id)
                (nb/install-cell out-id))
-        [prop-id n1] ((semantic-trace/p:semantic-trace request-id graph-id epoch-id out-id) n0)
+        [_ seeded] (core/eval-cells
+                    (graph-union/publish-derived n0 graph-id start-graph []) n0)
+        [prop-id n1] ((semantic-trace/p:semantic-trace request-id graph-id out-id) seeded)
         n2 (nb/run-propagators n1 [prop-id])
-        [tasks n3] (core/eval-cells [(message graph-id expanded-graph)
-                                     (message epoch-id (semantic-trace/epoch 1))]
-                                    n2)
+        [tasks n3] (core/eval-cells
+                    (graph-union/publish-derived n2 graph-id expanded-graph []) n2)
         n4 (nb/run-propagators n3 tasks)
-        trace (net/network-cell-strongest n4 out-id)]
+        trace (graph-union/graph-of (net/network-cell-strongest n4 out-id))]
     (is (contains? (set (:edges trace)) [:a :b]))
     (is (contains? (set (:edges trace)) [:b :c]))
     (is (= "c" (get-in trace [:nodes :c])))))
@@ -630,9 +633,9 @@
     (let [d-id (runtime-binding-id @session 'd)
           d-content (net/network-cell-content (:program/net @session) d-id)
           annotations (tui-annotations/value-annotations d-content)]
-      (is (= [9] (vec (vals (event/active-values d-content)))))
+      (is (= 9 (data/payload (merge/strongest-value d-content (:program/net @session)))))
       (is (= 9 (tui-annotations/project-value d-content)))
-      (is (= :event (get-in annotations [0 :kind])))
+      (is (= :ttms (get-in annotations [0 :kind])))
       (is (= 9 (get-in (runtime/read-tui-view @session {:client-id "A"})
                        [:blocks 7 :value]))))
     (runtime/commit-runtime-input! session
@@ -642,12 +645,12 @@
                                     :value 11})
     (let [d-id (runtime-binding-id @session 'd)
           d-content (net/network-cell-content (:program/net @session) d-id)]
-      (is (= [10] (vec (vals (event/active-values d-content)))))
+      (is (= 10 (data/payload (merge/strongest-value d-content (:program/net @session)))))
       (is (= 10 (tui-annotations/project-value d-content)))
       (let [block (get-in (runtime/read-tui-view @session {:client-id "A"})
                           [:blocks 7])]
         (is (= 10 (:value block)))
-        (is (str/includes? (:annotation block) "/slider-panel-0@4"))))))
+        (is (str/includes? (:annotation block) "[ttms:3 sources]"))))))
 
 (deftest tui-slider-panel-events-feed-nested-derived-event-arithmetic
   (let [session (assembly/new-session)]
@@ -665,7 +668,7 @@
                                       :value value}))
     (let [e-id (runtime-binding-id @session 'e)
           e-content (net/network-cell-content (:program/net @session) e-id)]
-      (is (= [75] (vec (vals (event/active-values e-content)))))
+      (is (= 75 (data/payload (merge/strongest-value e-content (:program/net @session)))))
       (is (= 75 (get-in (runtime/read-tui-view @session {:client-id "A"})
                         [:blocks 3 :value]))))
     (runtime/commit-runtime-input! session
@@ -675,7 +678,7 @@
                                     :value 11})
     (let [e-id (runtime-binding-id @session 'e)
           e-content (net/network-cell-content (:program/net @session) e-id)]
-      (is (= [76] (vec (vals (event/active-values e-content)))))
+      (is (= 76 (data/payload (merge/strongest-value e-content (:program/net @session)))))
       (is (= 76 (get-in (runtime/read-tui-view @session {:client-id "A"})
                         [:blocks 3 :value]))))
     (runtime/commit-runtime-input! session
@@ -685,40 +688,25 @@
                                     :value 71})
     (let [e-id (runtime-binding-id @session 'e)
           e-content (net/network-cell-content (:program/net @session) e-id)]
-      (is (= [77] (vec (vals (event/active-values e-content)))))
+      (is (= 77 (data/payload (merge/strongest-value e-content (:program/net @session)))))
       (is (= 77 (get-in (runtime/read-tui-view @session {:client-id "A"})
                         [:blocks 3 :value]))))))
 
-(deftest tui-annotations-compact-trace-and-derived-event-identities
-  (let [node-id (ids/new-node-id)
-        trace-label (tui-annotations/format-annotations
-                     [{:kind :behavior
-                       :identities [[:xr/trace-subscription
-                                     [:trace/subscribe
-                                      node-id
-                                      {:trace/target true
-                                       :trace/symbol "d"}]]]
-                       :latest-time 6}])
-        event-label (tui-annotations/format-annotations
-                     [{:kind :event
-                       :facts [{:input-id [:compiler-2/primitive node-id]
-                                :source [:event/derived
-                                         [:compiler-2/primitive node-id]
-                                         #{[node-id "slider-panel-0"]}]
-                                :timestamp #{{:input-id node-id
-                                              :source "slider-panel-0"
-                                              :timestamp 3}
-                                             {:input-id :b
-                                              :source "slider-panel-0"
-                                              :timestamp 3}}
-                                :source-state event/active-state}]}])]
-    (is (= "[be:xr-trace @6]" trace-label))
-    (is (str/includes? event-label "[event:primitive/derived@joined{"))
-    (is (str/includes? event-label "/slider-panel-0@3"))
-    (is (str/includes? event-label "\n"))
-    (is (not (str/includes? trace-label "#propagators.ids.NodeId")))
-    (is (not (str/includes? trace-label ":trace/subscribe")))
-    (is (not (str/includes? event-label "#propagators.ids.NodeId")))))
+(deftest tui-annotations-retain-ttms-support-and-withdrawal
+  (let [source (ids/new-node-id)
+        active (publication/active source 3 10)
+        withdrawn (collection/merge-content active (publication/retracted source 4))
+        annotations (tui-annotations/value-annotations active)
+        retracted (tui-annotations/value-annotations withdrawn)]
+    (is (= 10 (tui-annotations/project-value active)))
+    (is (= :ttms (:kind (first annotations))))
+    (is (= [{:source (pr-str source) :timestamp 3 :premises-status :active}]
+           (:support (first annotations))))
+    (is (= "[ttms:1 sources]" (tui-annotations/format-annotations annotations)))
+    (is (value/nothing? (tui-annotations/project-value withdrawn)))
+    (is (= [{:source (pr-str source) :timestamp 4 :premises-status :retracted}]
+           (:premise-state (first retracted))))
+    (is (= 10 (data/payload (merge/strongest-value active net/empty-net))))))
 
 (deftest block-target-rejects-non-empty-past-block
   (let [session (assembly/new-session)]

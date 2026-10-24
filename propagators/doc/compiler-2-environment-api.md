@@ -39,9 +39,9 @@ Bindings are declaration data:
  ['x (env/cell-binding x-id)]]
 ```
 
-Compiler bootstrap uses `default-bindings`, `dependency-bindings`,
-`behavior-bindings`, or `behavior-tms-bindings`, declares one deterministic
-root, then compiles with its environment ID.
+Compiler bootstrap uses `default-bindings`, `dependency-bindings`, or
+`tms-bindings`, declares one deterministic root, then compiles with its
+environment ID. Temporal behavior bindings have been removed.
 
 ## Slot topology
 

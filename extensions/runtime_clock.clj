@@ -6,7 +6,6 @@
             [propagators.compiler-2.runtime.boundary :as boundary]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.event :as event]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -39,9 +38,7 @@
     (let [interval-id (first arg-ids)
           target-id (or (nth arg-ids 1 nil) fallback-id)
           outbox-id (runtime-ids/boundary-outbox-id)
-          marked (-> network
-                     (nb/ensure-cell target-id)
-                     (event/mark-protocol-cell target-id))
+          marked (nb/ensure-cell network target-id)
           [prop-id installed]
           ((prop/construct-propagator
             (runtime-ids/stable-node-id :clock-in interval-id target-id)

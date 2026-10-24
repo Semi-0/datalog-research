@@ -36,8 +36,8 @@
       "id": "values",
       "title": "",
       "filename": "values.lain",
-      "source": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
-      "executedSource": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (trace:history input 0 60000))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (trace:history input 0 60000))\n",
       "extensions": [
         "(-> 7 input)"
       ],
@@ -72,8 +72,8 @@
       "id": "topology",
       "title": "",
       "filename": "topology.lain",
-      "source": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
-      "executedSource": "(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (collect-semantic-history input 0 60000))\n",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (trace:history input 0 60000))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (trace:history input 0 60000))\n",
       "extensions": [
         "(-> 7 input)",
         "(def-cells doubled)\n\n(-> (* input 2) doubled)"
@@ -109,8 +109,8 @@
       "id": "clock",
       "title": "",
       "filename": "clock.lain",
-      "source": "(load-primitive-environment\n  \"extensions/runtime_clock.clj\"\n  :extensions.runtime-clock/primitive-bindings)\n\n(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(define time\n  (clock-in 1000))\n\n(display\n  (collect-semantic-history time 0 60000))\n",
-      "executedSource": "(load-primitive-environment\n  \"extensions/runtime_clock.clj\"\n  :extensions.runtime-clock/primitive-bindings)\n\n(load-lain\n  \"examples/lain/network_replay/collect-history.lain\")\n\n(define time\n  (clock-in 1000))\n\n(display\n  (collect-semantic-history time 0 60000))\n",
+      "source": "(load-primitive-environment\n  \"extensions/runtime_clock.clj\"\n  :extensions.runtime-clock/primitive-bindings)\n\n(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(define time\n  (clock-in 1000))\n\n(display\n  (trace:history time 0 60000))\n",
+      "executedSource": "(load-primitive-environment\n  \"extensions/runtime_clock.clj\"\n  :extensions.runtime-clock/primitive-bindings)\n\n(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(define time\n  (clock-in 1000))\n\n(display\n  (trace:history time 0 60000))\n",
       "extensions": [],
       "extensionDraft": "",
       "outputRatio": 0.53,

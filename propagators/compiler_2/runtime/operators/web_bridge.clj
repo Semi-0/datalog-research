@@ -8,7 +8,7 @@
             [propagators.compiler-2.model.env :as cenv]
             [propagators.compiler-2.compiler.basis :as h]
             [propagators.compiler-2.model.operator-value :as operator-value]
-            [propagators.datastructures.event :as event]
+            [propagators.experimental.visualization.data :as data]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -34,17 +34,7 @@
          (h/add-props [installed-id]))
      installed-id]))
 
-(defn- base-value
-  [v]
-  (cond
-    (event/event-projection? v)
-    (let [facts (event/projection-facts v)]
-      (if (= 1 (count facts))
-        (event/event-value (first facts))
-        v))
-
-    :else
-    v))
+(defn- base-value [v] (data/payload v))
 
 (defn- install-static-relation
   [state from-id to-id prop-key]

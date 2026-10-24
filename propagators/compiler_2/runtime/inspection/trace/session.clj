@@ -10,7 +10,9 @@
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.runner :as runner]
-            [propagators.semantic-trace :as semantic-trace])
+            [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.graph-union :as graph-union]
+            [propagators.datastructures.support-collection :as collection])
   (:import [java.util.concurrent TimeUnit]))
 
 (def require-state state/require-state)
@@ -40,7 +42,7 @@
          [trace-prop-id n2] ((semantic-trace/p:semantic-trace request-id graph-id out-id) n1)
          n3 (runner/completed-network
              (runner/run-network [request-prop-id trace-prop-id] n2))]
-     (net/network-cell-strongest n3 out-id))))
+     (graph-union/graph-of (net/network-cell-strongest n3 out-id)))))
 
 (defn resolved-trace-request
   [state request]
@@ -69,7 +71,11 @@
 
 (defn installed-trace-graph
   [trace]
-  (net/network-cell-strongest (:network trace) (:out-id trace)))
+  (graph-union/graph-of (net/network-cell-strongest (:network trace) (:out-id trace))))
+
+(defn- revision-update [source revision]
+  (let [premise {:source source :timestamp revision :premises-status :active}]
+    (collection/content {:base revision :support #{premise} :premise-state #{premise}})))
 
 (defn tick-trace!
   [session trace-id]
@@ -80,7 +86,7 @@
        (let [next-epoch (inc (:epoch trace))
              [tasks n1] (core/eval-cells
                          [(message (:epoch-id trace)
-                                   (semantic-trace/epoch next-epoch))]
+                                   (revision-update (:epoch-id trace) next-epoch))]
                          (:network trace))
              [state' n2] (temperature/run-tasks state
                                                 :propagation/trace-tick
@@ -108,7 +114,8 @@
                (nb/install-cell graph-id
                                 (semantic-trace/graph-union (:graph state))
                                 (semantic-trace/graph-union (:graph state)))
-               (nb/install-cell epoch-id (semantic-trace/epoch 0) (semantic-trace/epoch 0))
+               (nb/install-cell epoch-id)
+               (nb/seed-cell epoch-id (revision-update epoch-id 0))
                (nb/install-cell out-id))
         [prop-id n1] ((semantic-trace/p:semantic-trace request-id graph-id epoch-id out-id) n0)
         [state' n2] (temperature/run-propagators state

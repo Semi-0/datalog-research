@@ -74,19 +74,6 @@
   (and (map? x)
        (true? (:semantic-trace/graph x))))
 
-(defn epoch
-  [n]
-  {:semantic-trace/epoch n})
-
-(defn epoch?
-  [x]
-  (and (map? x)
-       (contains? x :semantic-trace/epoch)))
-
-(defn merge-epoch
-  [& epochs]
-  (epoch (apply max 0 (keep :semantic-trace/epoch epochs))))
-
 (defn- projection-context [graphs key]
   (let [contexts (set (keep key graphs))]
     (case (count contexts)
@@ -243,10 +230,14 @@
      (prop/construct-propagator
       (fn [_inputs _outputs network]
         (let [request (net/network-cell-strongest network request-id)
-              graph (net/network-cell-strongest network graph-id)]
+              graph-input (net/network-cell-strongest network graph-id)
+              graph-of (requiring-resolve 'propagators.semantic-trace.graph-union/graph-of)
+              publish (requiring-resolve 'propagators.semantic-trace.graph-union/publish-derived)
+              graph (graph-of graph-input)]
           (if (or (value/unusable? request)
                   (value/unusable? graph))
             []
-            [(message out-id (trace-graph graph request))])))
+            (publish network out-id (trace-graph graph request)
+                     (mapv #(net/network-cell-strongest network %) inputs)))))
       inputs
       [out-id]))))

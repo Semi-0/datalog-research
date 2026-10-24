@@ -2,7 +2,6 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
-            [propagators.cells.cell-protocol :as protocol]
             [propagators.cells.value :as value]
             [propagators.closure :as closure]
             [propagators.compiler-2.runtime.application :as compiler-app]
@@ -16,11 +15,11 @@
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.language.parser :as parser]
             [propagators.core :as core]
-            [propagators.datastructures.behavior :as behavior]
-            [propagators.datastructures.behavior-algebra :as hist]
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.dependency :as dependency]
-            [propagators.datastructures.event :as event]
+            [propagators.stdlib.source-publication :as publication]
+            [propagators.datastructures.membership-collection :as membership]
+            [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.reducer-cell :as reducer]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms :as tms]
@@ -62,49 +61,26 @@
   (let [id (ids/new-node-id)]
     [id (nb/seed-cell (nb/install-cell n id) id v)]))
 
-(defn- behavior-protocol-net
-  []
-  (protocol/prefer-direct-standard-protocols net/empty-net))
+(defn- sample [_label source revision base]
+  (publication/active source revision base))
 
-(defn- behavior-tms-protocol-net
-  []
-  (protocol/prefer-direct-standard-protocols net/empty-net))
+(defn- withdraw [_label source revision]
+  (publication/retracted source revision))
 
-(defn- scope-source-protocol-net
-  []
-  (protocol/prefer-direct-standard-protocols net/empty-net))
-
-(defn- tms-distributed-protocol-net
-  []
-  (protocol/prefer-direct-standard-protocols net/empty-net))
-
-(defn- behavior-view
-  [records source-keys]
-  (behavior/behavior-value
-   {:history (hist/records->history records)
-    :source-keys source-keys
-    :reducer behavior/event-history-reducer-id}))
-
-(defn- behavior-cell
-  [n v]
-  (let [id (ids/new-node-id)]
-    [id (nb/install-cell n id v (behavior/strongest-value v))]))
-
-(defn- event-cell
-  [n & facts]
+(defn- source-cell [n & facts]
   (let [id (ids/new-node-id)
-        content (reduce event/merge-content value/nothing facts)]
-    [id (nb/install-cell n id content (event/strongest-value content))]))
+        [_ network] (core/eval-cells (mapv #(message id %) facts) (nb/install-cell n id))]
+    [id network]))
 
-(defn- event-active-values
+(defn- source-active-values [n id]
+  (let [projected (net/network-cell-strongest n id)]
+    (if (value/unusable? projected) {} {:current (datum/layer-value projected :base)})))
+
+(defn- source-active-value-list
   [n id]
-  (event/active-values (net/network-cell-content n id)))
+  (vec (vals (source-active-values n id))))
 
-(defn- event-active-value-list
-  [n id]
-  (vec (vals (event-active-values n id))))
-
-(defn- run-event-update
+(defn- run-source-update
   [n id fact]
   (let [[tasks n'] (core/eval-cell id (message id fact) n)]
     (nb/run-propagators n' tasks)))
@@ -171,30 +147,6 @@
   [& symbols]
   (selected-env (h/default-bindings) symbols))
 
-(defn- behavior-record-map
-  [record]
-  (cond
-    (hist/point-record? record)
-    {:at (obj/slot-value record :at)
-     :value (obj/slot-value record :value)}
-
-    (hist/interval-record? record)
-    {:from (obj/slot-value record :from)
-     :to (obj/slot-value record :to)
-     :value (obj/slot-value record :value)}))
-
-(defn- behavior-records
-  [v]
-  (mapv behavior-record-map
-        (behavior/history-records (scope-source/unwrap v))))
-
-(defn- behavior-current-value
-  [n id]
-  (let [v (scope-source/unwrap (strongest n id))]
-    (if (value/unusable? v)
-      v
-      (behavior/base-value v))))
-
 (defn- distributed-current-value
   [n id]
   (let [v (scope-source/unwrap (strongest n id))]
@@ -218,21 +170,6 @@
       tms/distributed-slots
       keys
       set))
-
-(defn- distributed-behavior-current-value
-  [n id]
-  (let [v (strongest n id)]
-    (if (value/unusable? v)
-      v
-      (behavior/base-value
-       (behavior/strongest-value (tms/distributed-base-value v))))))
-
-(defn- distributed-behavior-records
-  [n id]
-  (let [v (strongest n id)]
-    (if (value/unusable? v)
-      v
-      (behavior-records (tms/distributed-base-value v)))))
 
 (defn- scoped-base
   [v]
@@ -653,22 +590,8 @@
           (is (operator-value/operator-closure? operator))
           (is (nil? (-> operator meta h/application-activate-key))))))))
 
-(deftest compiler-2-behavior-env-uses-operator-closures
-  (let [compiler-env (h/behavior-tms-bindings)]
-    (doseq [op ['behavior-event
-                'behavior-add-event
-                'behavior-empty-state
-                'behavior-retain-last
-                'behavior
-                'behavior-cell
-                'latest]]
-      (testing op
-        (let [operator (binding-value compiler-env op)]
-          (is (operator-value/operator-closure? operator))
-          (is (nil? (-> operator meta h/application-activate-key))))))))
-
 (deftest compiler-2-main-compiles-with-default-behavior-tms-env
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [out]
                      (premise-input :yes :from-main-entry 0 out)
                      out)")
@@ -678,7 +601,7 @@
                    (tms/premise-slot-key :from-main-entry 0)))))
 
 (deftest compiler-2-known-tms-operator-declares-primitive-topology
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [out] (define premise :static/premise) (define epoch 0) (premise-retract premise epoch out) out)")
         applications (compiler-app/application-topologies (:net compiled))
         n (run-compiled compiled)]
@@ -691,18 +614,18 @@
 ;; Deferred compiler-2 behavior-history arithmetic integration.
 ;; See propagators/doc/compiler-2-progress-and-priorities.md.
 #_(deftest compiler-2-main-can-define-behavior-producing-network
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [a b out] (define make-point (network [t v out] (-> (behavior-point t v out) out) (list out))) (make-point 6 2 a) (make-point 6 7 b) (<-> (be:+ a b) out) out)"
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 9 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 6 :value 9}]
            (behavior-records (net/network-cell-content n (:cell compiled)))))))
 
 #_(deftest compiler-2-main-can-build-behavior-with-compiler-closure-reducer
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [events out] (define retain-event (network [acc update out] (-> (behavior-add-event acc update out) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior events retain-event (behavior-empty-state) out) out)"
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 3 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 6 :value 2}
@@ -710,9 +633,9 @@
            (behavior-records (net/network-cell-content n (:cell compiled)))))))
 
 #_(deftest compiler-2-behavior-merge-can-use-low-level-operators
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [events out] (define retain-event-low (network [acc update out] (-> (let-cell [known tick value next] (behavior-state-events acc known) (behavior-update-tick update tick) (behavior-update-value update value) (behavior-assoc-event known tick value next) (behavior-state-from-events next out)) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior events retain-event-low (behavior-empty-state) out) out)"
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 3 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 6 :value 2}
@@ -720,27 +643,27 @@
            (behavior-records (net/network-cell-content n (:cell compiled)))))))
 
 #_(deftest compiler-2-behavior-cell-can-use-slot-based-merge-closure
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [events retained out] (define retain-latest-slot (network [acc next out] (-> (let-cell [events* slot value next-events full] (behavior-state-events acc events*) (p:slot :slot slot next) (p:slot :value value next) (behavior-assoc-event events* slot value next-events) (behavior-state-from-events next-events full) (behavior-retain-last full 1 out)) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior-cell events (behavior-empty-state) retain-latest-slot retained) (<-> (be:+ retained retained) out) out)"
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 6 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 8 :value 6}]
            (behavior-records (net/network-cell-content n (:cell compiled)))))))
 
 #_(deftest compiler-2-behavior-closure-reducer-can-retain-latest-in-chain
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [events retained out] (define retain-latest (network [acc update out] (-> (let-cell [full] (behavior-add-event acc update full) (behavior-retain-last full 1 out)) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior-event 10 5 events) (behavior events retain-latest (behavior-empty-state) retained) (<-> (be:+ retained retained) out) out)"
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 10 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 10 :value 10}]
            (behavior-records (net/network-cell-content n (:cell compiled)))))))
 
 #_(deftest compiler-2-behavior-closure-reducer-can-retain-window-in-chain
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [events retained out] (define retain-window (network [acc update out] (-> (let-cell [full] (behavior-add-event acc update full) (behavior-retain-last full 2 out)) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior-event 10 5 events) (behavior events retain-window (behavior-empty-state) retained) (<-> (be:+ retained retained) out) out)"
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 10 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 8 :value 6}
@@ -748,9 +671,9 @@
            (behavior-records (net/network-cell-content n (:cell compiled)))))))
 
 #_(deftest compiler-2-behavior-cell-can-retain-window-in-chain
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [events retained out] (define retain-window (network [acc next out] (-> (let-cell [full] (behavior-add-event acc next full) (behavior-retain-last full 2 out)) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior-event 10 5 events) (behavior-cell events (behavior-empty-state) retain-window retained) (<-> (be:+ retained retained) out) out)"
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 10 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 8 :value 6}
@@ -759,16 +682,16 @@
 
 #_(deftest compiler-2-behavior-syntax-latest-and-last-are-behaviors
   (let [source "(let-cell [events retained out] (define retain-all (network [acc next out] (-> (behavior-add-event acc next out) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior-event 10 5 events) (be:behavior-cell events (behavior-empty-state) retain-all retained) %s out)"
-        compiled (main/compile-source-with-behavior-tms
+        compiled (main/compile-source-with-tms
                   (format source "(<-> (be:+ (latest retained) (latest retained)) out)")
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 10 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 10 :value 10}]
            (behavior-records (net/network-cell-content n (:cell compiled)))))
-    (let [compiled (main/compile-source-with-behavior-tms
+    (let [compiled (main/compile-source-with-tms
                     (format source "(last retained 1 out)")
-                    {:net (behavior-tms-protocol-net)})
+                    {:net net/empty-net})
           n (run-compiled compiled)]
       (is (= 3 (behavior-current-value n (:cell compiled))))
       (is (= [{:at 8 :value 3}]
@@ -777,9 +700,9 @@
 #_(deftest compiler-2-behavior-prefixed-projections-are-behaviors
   (let [source "(let-cell [events retained out] (define retain-all (network [acc next out] (-> (behavior-add-event acc next out) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior-event 10 5 events) (behavior-cell events (behavior-empty-state) retain-all retained) %s out)"
         compile-projection (fn [body]
-                             (let [compiled (main/compile-source-with-behavior-tms
+                             (let [compiled (main/compile-source-with-tms
                                              (format source body)
-                                             {:net (behavior-tms-protocol-net)})]
+                                             {:net net/empty-net})]
                                [compiled (run-compiled compiled)]))]
     (let [[compiled n] (compile-projection
                         "(<-> (be:+ (be:latest retained) (be:latest retained)) out)")]
@@ -797,30 +720,20 @@
              (behavior-records (net/network-cell-content n (:cell compiled))))))))
 
 #_(deftest compiler-2-behavior-prefixed-constructor-builds-behavior
-  (let [compiled (main/compile-source-with-behavior-tms
+  (let [compiled (main/compile-source-with-tms
                   "(let-cell [events retained] (define retain-all (network [acc next out] (-> (behavior-add-event acc next out) out) (list out))) (behavior-event 6 2 events) (behavior-event 10 5 events) (be:behavior events retain-all (behavior-empty-state) retained) (be:latest retained))"
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         n (run-compiled compiled)]
     (is (= 5 (behavior-current-value n (:cell compiled))))
     (is (= [{:at 10 :value 5}]
            (behavior-records (net/network-cell-content n (:cell compiled)))))))
 
-(deftest compiler-2-be-latest-zero-arg-builds-empty-latest-behavior
-  (let [compiled (compile-source
-                  "(be:latest)"
-                  (selected-env (h/behavior-tms-bindings) ['be:latest])
-                  {:net (behavior-tms-protocol-net)})
-        n (run-compiled compiled)
-        content (net/network-cell-content n (:cell compiled))]
-    (is (= value/nothing (behavior-current-value n (:cell compiled))))
-    (is (= [] (behavior-records content)))))
-
 #_(deftest compiler-2-behavior-syntax-history-slices-return-behaviors
   (let [base-source "(let-cell [events retained out] (define retain-all (network [acc next out] (-> (behavior-add-event acc next out) out) (list out))) (behavior-event 6 2 events) (behavior-event 8 3 events) (behavior-event 10 5 events) (behavior-cell events (behavior-empty-state) retain-all retained) %s out)"
         compile-slice (fn [body]
-                        (let [compiled (main/compile-source-with-behavior-tms
+                        (let [compiled (main/compile-source-with-tms
                                         (format base-source body)
-                                        {:net (behavior-tms-protocol-net)})]
+                                        {:net net/empty-net})]
                           [compiled (run-compiled compiled)]))]
     (let [[compiled n] (compile-slice "(history retained 0 2 out)")]
       (is (= [{:at 6 :value 2}
@@ -995,9 +908,9 @@
   (testing "compiled behavior arithmetic joins retained point histories"
     (let [left (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
           right (behavior-view [(hist/point-record 6 7)] #{[:b 6]})
-          [a-id n1] (behavior-cell (behavior-protocol-net) left)
+          [a-id n1] (behavior-cell net/empty-net left)
           [b-id n2] (behavior-cell n1 right)
-          env (-> (h/behavior-bindings)
+          env (-> (h/default-bindings)
                   (with-binding 'a (env/cell-binding a-id) 0)
                   (with-binding 'b (env/cell-binding b-id) 0))
           compiled (compile-source "(be:+ a b)" env {:net n2})
@@ -1011,9 +924,9 @@
   (testing "plain arithmetic is current-value arithmetic, not history join"
     (let [left (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
           right (behavior-view [(hist/point-record 7 7)] #{[:b 7]})
-          [a-id n1] (behavior-cell (behavior-protocol-net) left)
+          [a-id n1] (behavior-cell net/empty-net left)
           [b-id n2] (behavior-cell n1 right)
-          env (-> (h/behavior-bindings)
+          env (-> (h/default-bindings)
                   (with-binding 'a (env/cell-binding a-id) 0)
                   (with-binding 'b (env/cell-binding b-id) 0))
           compiled (compile-source "(+ a b)" env {:net n2})
@@ -1024,10 +937,10 @@
 
 (deftest compile-2-default-arithmetic-lifts-event-values
   (testing "plain arithmetic over event cells emits derived event facts"
-    (let [[a-id n1] (event-cell (behavior-protocol-net)
-                                (event/active-event :a :slider-a 1 10))
-          [b-id n2] (event-cell n1 (event/active-event :b :slider-b 1 4))
-          [c-id n3] (event-cell n2 (event/active-event :c :slider-c 1 3))
+    (let [[a-id n1] (source-cell net/empty-net
+                                (sample :a :slider-a 1 10))
+          [b-id n2] (source-cell n1 (sample :b :slider-b 1 4))
+          [c-id n3] (source-cell n2 (sample :c :slider-c 1 3))
           d-id (ids/new-node-id)
           env (-> (selected-default-env '+ '- '->)
                   (with-binding 'a (env/cell-binding a-id) 0)
@@ -1038,16 +951,16 @@
                                    env
                                    {:net (nb/install-cell n3 d-id)})
           result-net (run-compiled compiled)]
-      (is (= [9] (vec (vals (event-active-values result-net d-id)))))
-      (is (event/event-content? (net/network-cell-content result-net d-id))))))
+      (is (= [9] (vec (vals (source-active-values result-net d-id)))))
+      (is (membership/content? (net/network-cell-content result-net d-id))))))
 
 (deftest compile-2-event-arithmetic-uses-newer-events-and-retractions
   (testing "newer source events dominate older inputs"
-    (let [[a-id n1] (event-cell (behavior-protocol-net)
-                                (event/active-event :a :slider-a 1 10)
-                                (event/active-event :a :slider-a 2 20))
-          [b-id n2] (event-cell n1 (event/active-event :b :slider-b 1 4))
-          [c-id n3] (event-cell n2 (event/active-event :c :slider-c 1 3))
+    (let [[a-id n1] (source-cell net/empty-net
+                                (sample :a :slider-a 1 10)
+                                (sample :a :slider-a 2 20))
+          [b-id n2] (source-cell n1 (sample :b :slider-b 1 4))
+          [c-id n3] (source-cell n2 (sample :c :slider-c 1 3))
           d-id (ids/new-node-id)
           env (-> (selected-default-env '+ '- '->)
                   (with-binding 'a (env/cell-binding a-id) 0)
@@ -1058,14 +971,14 @@
                                    env
                                    {:net (nb/install-cell n3 d-id)})
           result-net (run-compiled compiled)]
-      (is (= [19] (vec (vals (event-active-values result-net d-id)))))))
+      (is (= [19] (vec (vals (source-active-values result-net d-id)))))))
 
   (testing "source retractions clear derived output"
-    (let [[a-id n1] (event-cell (behavior-protocol-net)
-                                (event/active-event :a :slider-a 1 10)
-                                (event/retraction-event :a :slider-a 2))
-          [b-id n2] (event-cell n1 (event/active-event :b :slider-b 1 4))
-          [c-id n3] (event-cell n2 (event/active-event :c :slider-c 1 3))
+    (let [[a-id n1] (source-cell net/empty-net
+                                (sample :a :slider-a 1 10)
+                                (withdraw :a :slider-a 2))
+          [b-id n2] (source-cell n1 (sample :b :slider-b 1 4))
+          [c-id n3] (source-cell n2 (sample :c :slider-c 1 3))
           d-id (ids/new-node-id)
           env (-> (selected-default-env '+ '- '->)
                   (with-binding 'a (env/cell-binding a-id) 0)
@@ -1076,7 +989,7 @@
                                    env
                                    {:net (nb/install-cell n3 d-id)})
           result-net (run-compiled compiled)]
-      (is (= {} (event-active-values result-net d-id))))))
+      (is (= {} (source-active-values result-net d-id))))))
 
 (defn- nested-plus-source
   [sym length]
@@ -1087,9 +1000,9 @@
 (defn- panel-update-all
   [n epoch values]
   (reduce (fn [network [input-id cell-id value]]
-            (run-event-update network
+            (run-source-update network
                               cell-id
-                              (event/active-event input-id
+                              (sample input-id
                                                   :panel
                                                   epoch
                                                   value)))
@@ -1098,8 +1011,8 @@
 
 (deftest compile-2-event-reactivity-propagates-through-long-arithmetic-chain
   (let [chain-length 50
-        [x-id n1] (event-cell (behavior-protocol-net)
-                              (event/active-event :x :panel 1 0))
+        [x-id n1] (source-cell net/empty-net
+                              (sample :x :panel 1 0))
         out-id (ids/new-node-id)
         env (-> (selected-default-env '+ '->)
                 (with-binding 'x (env/cell-binding x-id) 0)
@@ -1109,19 +1022,19 @@
                                  env
                                  {:net (nb/install-cell n1 out-id)})
         initial-net (run-compiled compiled)
-        updated-net (run-event-update initial-net
+        updated-net (run-source-update initial-net
                                       x-id
-                                      (event/active-event :x :panel 2 10))]
-    (is (= [chain-length] (event-active-value-list initial-net out-id)))
+                                      (sample :x :panel 2 10))]
+    (is (= [chain-length] (source-active-value-list initial-net out-id)))
     (is (= [(+ 10 chain-length)]
-           (event-active-value-list updated-net out-id)))))
+           (source-active-value-list updated-net out-id)))))
 
 (deftest compile-2-event-reactivity-propagates-through-complex-arithmetic-dag
-  (let [[a-id n1] (event-cell (behavior-protocol-net)
-                              (event/active-event :a :panel 1 2))
-        [b-id n2] (event-cell n1 (event/active-event :b :panel 1 3))
-        [c-id n3] (event-cell n2 (event/active-event :c :panel 1 11))
-        [d-id n4] (event-cell n3 (event/active-event :d :panel 1 5))
+  (let [[a-id n1] (source-cell net/empty-net
+                              (sample :a :panel 1 2))
+        [b-id n2] (source-cell n1 (sample :b :panel 1 3))
+        [c-id n3] (source-cell n2 (sample :c :panel 1 11))
+        [d-id n4] (source-cell n3 (sample :d :panel 1 5))
         out-id (ids/new-node-id)
         env (-> (selected-default-env '+ '- '* '->)
                 (with-binding 'a (env/cell-binding a-id) 0)
@@ -1142,12 +1055,12 @@
                                        [:b b-id 7]
                                        [:c c-id 11]
                                        [:d d-id 5]])]
-    (is (= [44] (event-active-value-list initial-net out-id)))
-    (is (= [64] (event-active-value-list updated-net out-id)))))
+    (is (= [44] (source-active-value-list initial-net out-id)))
+    (is (= [64] (source-active-value-list updated-net out-id)))))
 
 (deftest compile-2-event-reactivity-propagates-through-switch
-  (let [[x-id n1] (event-cell (behavior-protocol-net)
-                              (event/active-event :x :panel 1 5))
+  (let [[x-id n1] (source-cell net/empty-net
+                              (sample :x :panel 1 5))
         out-id (ids/new-node-id)
         env (-> (selected-default-env '+ 'switch)
                 (with-binding 'x (env/cell-binding x-id) 0)
@@ -1156,17 +1069,17 @@
                                  env
                                  {:net (nb/install-cell n1 out-id)})
         initial-net (run-compiled compiled)
-        updated-net (run-event-update initial-net
+        updated-net (run-source-update initial-net
                                       x-id
-                                      (event/active-event :x :panel 2 8))]
-    (is (= [6] (event-active-value-list initial-net out-id)))
-    (is (= [9] (event-active-value-list updated-net out-id)))))
+                                      (sample :x :panel 2 8))]
+    (is (= [6] (source-active-value-list initial-net out-id)))
+    (is (= [9] (source-active-value-list updated-net out-id)))))
 
 (deftest compile-2-event-reactivity-uses-event-valued-switch-condition
-  (let [[x-id n1] (event-cell (behavior-protocol-net)
-                              (event/active-event :x :panel 1 5))
-        [enabled-id n2] (event-cell n1
-                                    (event/active-event :enabled
+  (let [[x-id n1] (source-cell net/empty-net
+                              (sample :x :panel 1 5))
+        [enabled-id n2] (source-cell n1
+                                    (sample :enabled
                                                         :panel
                                                         1
                                                         false))
@@ -1179,19 +1092,21 @@
                                  env
                                  {:net (nb/install-cell n2 out-id)})
         initially-disabled-net (run-compiled compiled)
-        enabled-net (run-event-update initially-disabled-net
+        enabled-net (run-source-update initially-disabled-net
                                       enabled-id
-                                      (event/active-event :enabled
+                                      (sample :enabled
                                                           :panel
                                                           2
-                                                          true))]
-    (is (= [] (event-active-value-list initially-disabled-net out-id)))
-    (is (= [6] (event-active-value-list enabled-net out-id)))))
+                                                          true))
+        coherent-net (run-source-update enabled-net x-id (sample :x :panel 2 5))]
+    (is (= [] (source-active-value-list initially-disabled-net out-id)))
+    (is (= [] (source-active-value-list enabled-net out-id)))
+    (is (= [6] (source-active-value-list coherent-net out-id)))))
 
 (deftest compile-2-event-reactivity-propagates-through-bi-sync-chain
   (testing "events flow from the left side through a <-> chain"
-    (let [[a-id n1] (event-cell (behavior-protocol-net)
-                                (event/active-event :a :panel 1 5))
+    (let [[a-id n1] (source-cell net/empty-net
+                                (sample :a :panel 1 5))
           b-id (ids/new-node-id)
           c-id (ids/new-node-id)
           env (-> (selected-default-env '<->)
@@ -1204,17 +1119,17 @@
                                              (nb/install-cell b-id)
                                              (nb/install-cell c-id))})
           initial-net (run-compiled compiled)
-          updated-net (run-event-update initial-net
+          updated-net (run-source-update initial-net
                                         a-id
-                                        (event/active-event :a :panel 2 8))]
-      (is (= [5] (event-active-value-list initial-net c-id)))
-      (is (= [8] (event-active-value-list updated-net c-id)))))
+                                        (sample :a :panel 2 8))]
+      (is (= [5] (source-active-value-list initial-net c-id)))
+      (is (= [8] (source-active-value-list updated-net c-id)))))
 
   (testing "events flow from the right side through a <-> chain"
     (let [a-id (ids/new-node-id)
           b-id (ids/new-node-id)
-          [c-id n1] (event-cell (behavior-protocol-net)
-                                (event/active-event :c :panel 1 12))
+          [c-id n1] (source-cell net/empty-net
+                                (sample :c :panel 1 12))
           env (-> (selected-default-env '<->)
                   (with-binding 'a (env/cell-binding a-id) 0)
                   (with-binding 'b (env/cell-binding b-id) 0)
@@ -1225,15 +1140,15 @@
                                              (nb/install-cell a-id)
                                              (nb/install-cell b-id))})
           result-net (run-compiled compiled)]
-      (is (= [12] (event-active-value-list result-net a-id))))))
+      (is (= [12] (source-active-value-list result-net a-id))))))
 
 #_(deftest compile-2-behavior-env-does-not-imply-point-continuation
   (testing "compiled behavior arithmetic does not join different point timestamps"
     (let [left (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
           right (behavior-view [(hist/point-record 7 7)] #{[:b 7]})
-          [a-id n1] (behavior-cell (behavior-protocol-net) left)
+          [a-id n1] (behavior-cell net/empty-net left)
           [b-id n2] (behavior-cell n1 right)
-          env (-> (h/behavior-bindings)
+          env (-> (h/default-bindings)
                   (with-binding 'a (env/cell-binding a-id) 0)
                   (with-binding 'b (env/cell-binding b-id) 0))
           compiled (compile-source "(be:+ a b)" env {:net n2})
@@ -1245,9 +1160,9 @@
   (testing "compiled behavior arithmetic emits only the common interval"
     (let [left (behavior-view [(hist/interval-record 0 10 2)] #{[:a 0]})
           right (behavior-view [(hist/interval-record 5 12 7)] #{[:b 5]})
-          [a-id n1] (behavior-cell (behavior-protocol-net) left)
+          [a-id n1] (behavior-cell net/empty-net left)
           [b-id n2] (behavior-cell n1 right)
-          env (-> (h/behavior-bindings)
+          env (-> (h/default-bindings)
                   (with-binding 'a (env/cell-binding a-id) 0)
                   (with-binding 'b (env/cell-binding b-id) 0))
           compiled (compile-source "(be:+ a b)" env {:net n2})
@@ -1267,9 +1182,9 @@
           right-6-8 (behavior-view [(hist/point-record 6 7)
                                     (hist/point-record 8 10)]
                                    #{[:b 6] [:b 8]})
-          [a-id n1] (behavior-cell (behavior-protocol-net) left-6)
+          [a-id n1] (behavior-cell net/empty-net left-6)
           [b-id n2] (behavior-cell n1 right-6)
-          env (-> (h/behavior-bindings)
+          env (-> (h/default-bindings)
                   (with-binding 'a (env/cell-binding a-id) 0)
                   (with-binding 'b (env/cell-binding b-id) 0))
           compiled (compile-source "(be:+ a b)" env {:net n2})
@@ -1358,7 +1273,7 @@
            (ast/name (ast/operator (parse "(be:divide a b)")))))))
 
 (deftest compiler-2-primitive-behavior-env-has-no-arithmetic-bindings
-  (let [compiler-env (h/behavior-bindings)]
+  (let [compiler-env (h/default-bindings)]
     (doseq [op ['be:+ 'be:- 'be:* 'be:divide]]
       (is (nil? (binding-value compiler-env op)) op))))
 
@@ -1885,7 +1800,7 @@
                                   'premise-input
                                   'switch
                                   '->)
-                                 {:net (tms-distributed-protocol-net)})
+                                 {:net net/empty-net})
         result-net (run-compiled compiled)]
     (is (= 2 (distributed-current-value result-net (:cell compiled))))
     (is (contains? (distributed-slot-keys result-net (:cell compiled))
@@ -1893,15 +1808,15 @@
 
 #_(deftest compiler-2-behavior-tms-env-supports-switch-and-forward-sync
   (testing "explicit-output switch gates behavior content"
-    (let [compiled (main/compile-source-with-behavior-tms
+    (let [compiled (main/compile-source-with-tms
                     "(let-cell [events retained gated out] (define retain-latest (network [acc next out] (-> (let-cell [full] (behavior-add-event acc next full) (behavior-retain-last full 1 out)) out) (list out))) (behavior-event 6 2 events) (behavior-cell events (behavior-empty-state) retain-latest retained) (switch retained true gated) (-> (be:+ gated gated) out) out)"
-                    {:net (behavior-tms-protocol-net)})
+                    {:net net/empty-net})
           result-net (run-compiled compiled)]
       (is (= 4 (behavior-current-value result-net (:cell compiled))))))
   (testing "expression-style switch gates behavior content"
-    (let [compiled (main/compile-source-with-behavior-tms
+    (let [compiled (main/compile-source-with-tms
                     "(let-cell [events retained out] (define retain-latest (network [acc next out] (-> (let-cell [full] (behavior-add-event acc next full) (behavior-retain-last full 1 out)) out) (list out))) (behavior-event 6 2 events) (behavior-cell events (behavior-empty-state) retain-latest retained) (define gated (switch retained true)) (-> (be:+ gated gated) out) out)"
-                    {:net (behavior-tms-protocol-net)})
+                    {:net net/empty-net})
           result-net (run-compiled compiled)]
       (is (= 4 (behavior-current-value result-net (:cell compiled)))))))
 
@@ -2057,13 +1972,13 @@
     (is (= 41 (strongest result-net (:cell compiled))))))
 
 #_(deftest execute-sub-env-behavior-tms-env-supports-switch-and-forward-sync
-  (let [parent-env (h/behavior-tms-bindings)
+  (let [parent-env (h/tms-bindings)
         expr (execute-sub-env-ast
               (parse "(let-cell [events retained gated out] (define retain-latest (network [acc next out] (-> (let-cell [full] (behavior-add-event acc next full) (behavior-retain-last full 1 out)) out) (list out))) (behavior-event 6 2 events) (behavior-cell events (behavior-empty-state) retain-latest retained) (switch retained true gated) (-> (be:+ gated gated) out) out)")
               parent-env)
-        compiled (main/compile-expr-with-behavior-tms
+        compiled (main/compile-expr-with-tms
                   expr
-                  {:net (behavior-tms-protocol-net)})
+                  {:net net/empty-net})
         result-net (run-compiled compiled)]
     (is (= 4 (behavior-current-value result-net (:cell compiled))))))
 
@@ -2559,7 +2474,7 @@
                     "(let-cell [a f] (define pa :premise/a) (define pa0 0) (premise-input 8 pa pa0 a) (-> a f) f)"
                     (selected-default-env
                      'premise-input 'premise-retract '->)
-                    (tms-distributed-protocol-net))
+                    net/empty-net)
         env0 (compiled-result-env setup)
         id-of (fn [sym] (env/resolve-binding-id n0 env0 sym))
         a-id (id-of 'a)
@@ -2583,7 +2498,7 @@
         (compile-source
          "(let-cell [a out] (define value 8) (define premise :premise/a) (define epoch 0) (premise-input value premise epoch a) (define identity (network [a] a)) (define tms-identity (tms-closure identity)) (-> (tms-identity a) out) out)"
          (h/default-bindings)
-         (tms-distributed-protocol-net))
+         net/empty-net)
         n0 (run-compiled setup)
         env0 (compiled-result-env setup)
         out-id (env/resolve-binding-id n0 env0 'out)]
@@ -2598,7 +2513,7 @@
                      (-> (op identity 6) out)
                      (let [op (premise-closure (network (f x) (f x)) :definition/plus-ten 0)]
                        (-> (op identity 15) out)) out)"
-                  (h/default-bindings) (tms-distributed-protocol-net))
+                  (h/default-bindings) net/empty-net)
         network (run-compiled compiled)
         out-id (:cell compiled)]
     (is (value/contradiction? (distributed-current-value network out-id)))
@@ -2611,7 +2526,7 @@
                      (define inc (network (x) (+ x 1)))
                      (define apply-inc (premise-closure (network (f x) (f x)) :premise/definition 0))
                      (-> (apply-inc inc x) out) out)"
-                  (h/default-bindings) (tms-distributed-protocol-net))
+                  (h/default-bindings) net/empty-net)
         network (run-compiled compiled)
         out-id (:cell compiled)]
     (is (= 6 (distributed-current-value network out-id)))
@@ -2621,9 +2536,9 @@
 #_(deftest compiler-2-distributed-tms-composes-with-behavior-arithmetic
   (let [left (behavior-view [(hist/point-record 6 2)] #{[:left 6]})
         right (behavior-view [(hist/point-record 6 7)] #{[:right 6]})
-        [left-id n1] (behavior-cell (behavior-tms-protocol-net) left)
+        [left-id n1] (behavior-cell net/empty-net left)
         [right-id n2] (behavior-cell n1 right)
-        env (-> (h/behavior-tms-bindings)
+        env (-> (h/tms-bindings)
                 (with-binding 'left-source (env/cell-binding left-id) 0)
                 (with-binding 'right-source (env/cell-binding right-id) 0))
         compile-step (fn [source env network]
@@ -2656,9 +2571,9 @@
 #_(deftest execute-sub-env-reuses-behavior-arithmetic-point-join
   (let [left (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
         right (behavior-view [(hist/point-record 6 7)] #{[:b 6]})
-        [a-id n1] (behavior-cell (behavior-protocol-net) left)
+        [a-id n1] (behavior-cell net/empty-net left)
         [b-id n2] (behavior-cell n1 right)
-        parent-env (-> (h/behavior-bindings)
+        parent-env (-> (h/default-bindings)
                        (with-binding 'a (env/cell-binding a-id) 0)
                        (with-binding 'b (env/cell-binding b-id) 0))
         outer-env (-> (h/default-bindings)
@@ -2727,7 +2642,7 @@
                               'x
                               (env/cell-binding bound-id)
                               0)
-        base (-> (scope-source-protocol-net)
+        base (-> net/empty-net
                  (install-empty-cells [bound-id env-id binding-answer-id
                                        value-answer-id])
                  (nb/seed-cell bound-id 12))
@@ -2751,9 +2666,9 @@
 #_(deftest execute-sub-env-reuses-behavior-arithmetic-point-non-continuation
   (let [left (behavior-view [(hist/point-record 6 2)] #{[:a 6]})
         right (behavior-view [(hist/point-record 7 7)] #{[:b 7]})
-        [a-id n1] (behavior-cell (behavior-protocol-net) left)
+        [a-id n1] (behavior-cell net/empty-net left)
         [b-id n2] (behavior-cell n1 right)
-        parent-env (-> (h/behavior-bindings)
+        parent-env (-> (h/default-bindings)
                        (with-binding 'a (env/cell-binding a-id) 0)
                        (with-binding 'b (env/cell-binding b-id) 0))
         outer-env (-> (h/default-bindings)
@@ -2773,9 +2688,9 @@
         right-6-8 (behavior-view [(hist/point-record 6 7)
                                   (hist/point-record 8 10)]
                                  #{[:b 6] [:b 8]})
-        [a-id n1] (behavior-cell (behavior-protocol-net) left-6)
+        [a-id n1] (behavior-cell net/empty-net left-6)
         [b-id n2] (behavior-cell n1 right-6)
-        parent-env (-> (h/behavior-bindings)
+        parent-env (-> (h/default-bindings)
                        (with-binding 'a (env/cell-binding a-id) 0)
                        (with-binding 'b (env/cell-binding b-id) 0))
         outer-env (-> (h/default-bindings)
@@ -2803,9 +2718,9 @@
         right-6-8 (behavior-view [(hist/point-record 6 7)
                                   (hist/point-record 8 10)]
                                  #{[:b 6] [:b 8]})
-        [a-id n1] (behavior-cell (behavior-protocol-net) left-6)
+        [a-id n1] (behavior-cell net/empty-net left-6)
         [b-id n2] (behavior-cell n1 right-6)
-        inner-env (-> (h/behavior-bindings)
+        inner-env (-> (h/default-bindings)
                       (with-binding 'a (env/cell-binding a-id) 0)
                       (with-binding 'b (env/cell-binding b-id) 0))
         outer-env (-> (h/default-bindings)

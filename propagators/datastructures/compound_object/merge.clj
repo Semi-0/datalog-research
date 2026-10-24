@@ -346,17 +346,6 @@
     (evidence/strongest content)
     content))
 
-(defn- behavior-value?
-  [v]
-  (boolean
-   (when-let [behavior-value? (requiring-resolve
-                               'propagators.datastructures.behavior/behavior-value?)]
-     (behavior-value? v))))
-
-(defn- merge-behavior
-  [a b]
-  ((requiring-resolve 'propagators.datastructures.behavior/merge-content) a b))
-
 (declare merge-named-network-content)
 
 (defn- merge-source-slot-value
@@ -365,7 +354,6 @@
     (nil? a) b
     (nil? b) a
     (= a b) a
-    (and (behavior-value? a) (behavior-value? b)) (merge-behavior a b)
     (and (accessor-network? a) (accessor-network? b)) (merge-named-network-content a b)
     (and (named/named-network? a) (named/named-network? b)) (named/join a b)
     :else b))

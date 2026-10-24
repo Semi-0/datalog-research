@@ -152,7 +152,7 @@ session/generation boundaries.
 ## Verification
 
 ```sh
-clojure -M:test propagators.semantic-trace.logic-test graph.lain-editor.semantic-scope-test graph.lain-editor.semantic-gallery-test graph.lain-editor.call-inspection-test propagators.relationship-dataflow-test propagators.relationship-observer-test propagators.experimental.compound-tracer-test propagators.experimental.tracer-topology-test
+clojure -M:test propagators.semantic-trace.logic-test graph.lain-editor.inspection.semantic-scope-test graph.lain-editor.inspection.semantic-gallery-test graph.lain-editor.inspection.calls-test propagators.relationship-dataflow-test propagators.relationship-observer-test propagators.experimental.compound-tracer-test propagators.experimental.tracer-topology-test
 ```
 
 The rule tests cover scope barriers, compiler wrappers, producer aliases,

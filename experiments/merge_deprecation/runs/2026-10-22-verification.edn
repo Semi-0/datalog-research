@@ -1,0 +1,53 @@
+{:run/id "merge-removal-2026-10-22-verification"
+ :source/base "2e2e26a6f6e5a1e4cb57ae4e69d10e569365f959"
+ :source/dirty? true
+ :source/tracked-diff-sha256 "ec028b4be7be3e5f9e285becf556425670a85fa57586d766146143710e73edcd"
+ :source/hash-command "git diff --no-ext-diff -- deps.edn extensions graph propagators run_tests.clj test propagators_compiler_2_tms_chain_bench.clj | shasum -a 256"
+ :source/new-file-hashes "2026-10-22-audit.edn"
+ :source/published? false
+ :environment {:clojure "1.12.6" :java "27" :os "Mac OS X" :arch "aarch64"}
+ :verification
+ [{:scope :propagators-and-focused-integration
+   :command "clojure -M:test propagators propagators.visualizer-test propagators.compiler-2.runtime.boundary-test propagators.compiler-2.runtime.integration.boundary-test propagators.compiler-2.runtime.integration.file-loader-test"
+   :pass 4770 :fail 0 :error 0}
+  {:scope :graph
+   :command "clojure -M:test graph"
+   :pass 1292 :fail 1 :error 0
+   :baseline-failure-tests [existing-recorder-and-reducer-retain-published-learning-frames]}
+  {:scope :runtime-server
+   :command "clojure -M:test graph.vijual.compiler-2-runtime-server-test"
+   :pass 300 :fail 8 :error 3
+   :baseline {:pass 300 :fail 8 :error 3}}
+  {:scope :xr-runtime
+   :command "clojure -M:test graph.xr-runtime-test"
+   :pass 198 :fail 7 :error 2
+   :baseline {:pass 165 :fail 41 :error 2}
+   :remaining-failure-tests [runtime-server-starts-xr-lazily-when-xr-io-is-compiled
+                             io-xr-tracks-default-event-arithmetic-from-slider-panel-alias
+                             effectful-trace-auto-output-block-stays-live]
+   :remaining-error-tests [runtime-server-starts-xr-lazily-when-xr-io-is-compiled
+                           io-xr-relaunches-on-widget-update-after-be-block-rebuild]
+   :note "Remaining failing tests also failed on the baseline. Removed behavior-only tests and migrated fixtures mean raw suite totals are not identical populations."}
+  {:scope :mirrored-session-versioned-commit
+   :command "clojure -M:test propagators.compiler-2.runtime.session.versioned-commit-test"
+   :pass 71 :fail 2 :error 0
+   :baseline {:pass 72 :fail 2 :error 0}
+   :baseline-failure-tests [edited-network-definition-reactivates-existing-application
+                            signature-repair-uses-stable-placeholders-and-visible-warnings]}
+  {:scope :frontend
+   :commands ["clojure -M:editor/cljs-test" "node target/lain-editor/tests.js"]
+   :main-test-count 79 :main-assertions 699 :fail 0 :error 0
+   :additional-remote-files-summary {:test 3 :assertions 33 :fail 0 :error 0}}
+  {:scope :whitespace :command "git diff --check" :exit 0}]
+ :observability
+ {:audit-summary "2026-10-22-audit.edn"
+  :live-instrumentation false
+  :gortex-guards :none-configured
+  :gortex-contract :high-risk-warning
+  :gortex-test-links :incomplete
+  :note "Graph test-link discovery found no coverage for several dynamically composed paths; executed test results above are the verification evidence."}
+ :limitations ["No warmed performance benchmark or instrumentation-overhead study was run."
+               "No live editor server restart or manual browser acceptance was performed."
+               "The final widget-only normalization fix and its four-assertion fixture were verified by the final XR run; the preceding 4770-assertion run preceded that isolated fix."
+               "No live capabilities were serialized."
+               "Baseline failures are not waived as proof of correctness; no new unresolved failure was identified in the compared checks."]}

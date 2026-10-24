@@ -8,7 +8,7 @@
 
 (defn- xr-bindings
   [{:keys [boundary-outbox-id]}]
-  [['xr-io (xr/xr-io-operator boundary-outbox-id)]
+  [['xr-io (xr/xr-io-operator boundary-outbox-id :snapshot)]
    ['io:xr (xr/io-xr-operator boundary-outbox-id)]])
 
 (defn- widget-bindings

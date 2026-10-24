@@ -93,7 +93,7 @@ errors. A root with no usable value can still have observable topology.
 ## Checks
 
 ```sh
-clojure -M:test propagators.compiler-2.runtime.semantic-traversal-test propagators.observer-test propagators.compiler-2.runtime.network-observation-test propagators.compiler-2.runtime.trace-cycle-test graph.lain-editor.semantic-gallery-test graph.lain-editor.semantic-scope-test network-replay
+clojure -M:test propagators.compiler-2.runtime.semantic-traversal-test propagators.observer-test propagators.compiler-2.runtime.network-observation-test propagators.compiler-2.runtime.trace-cycle-test graph.lain-editor.inspection.semantic-gallery-test graph.lain-editor.inspection.semantic-scope-test network-replay
 ```
 
 Tests cover normal Lain loading, arbitrary wrapper names, frozen snapshots,

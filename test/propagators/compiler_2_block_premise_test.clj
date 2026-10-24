@@ -8,7 +8,6 @@
             [propagators.compiler-2.language.parser :as parser]
             [propagators.compiler-2.operators.block-premise :as premise]
             [propagators.core :as core]
-            [propagators.datastructures.event :as event]
             [propagators.datastructures.tms.distributed :as tms]
             [propagators.ids :as ids]
             [propagators.message :refer [message]]
@@ -64,7 +63,7 @@
         n2 (nb/run-propagators n1 [prop-id])]
     (is (= 4 (semantic-value n2 out-id)))
     (is (= #{:upstream/p [:block :v0]} (active-premises n2 out-id)))
-    (is (not (event/event-content? (net/network-cell-content n2 out-id))))
+    (is (tms/distributed-value? (net/network-cell-content n2 out-id)))
     (let [n3 (run-message n2 (message state-id
                                       (premise/retract-update context 1)))]
       (is (value/nothing? (semantic-value n3 out-id)))
