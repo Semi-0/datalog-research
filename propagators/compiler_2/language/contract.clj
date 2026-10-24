@@ -8,6 +8,9 @@
     :sequence (ast/body expression)
     :let-cell [(ast/body expression)]
     :let (conj (mapv second (ast/bindings expression)) (ast/body expression))
+    :if [(ast/condition expression)
+         (ast/then-expression expression)
+         (ast/else-expression expression)]
     :when-topology [(ast/condition expression) (ast/body expression)]
     :def (if-let [body (ast/body expression)] [body] [])
     :apply (into [(ast/operator expression)] (ast/args expression))

@@ -5,6 +5,7 @@
             [propagators.compiler-2.compiler.cell-names :as cell-names]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.compiler.basis :as h]
+            [propagators.compiler-2.compiler.rewrite :as rewrite]
             [propagators.compiler-2.runtime.lazy-topology :as lazy-topology]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-common.cps :as cps]
@@ -91,6 +92,16 @@
     (cps/call compile-k body-state body
               (fn [state' binding]
                 (cps/continue k (assoc state' :env outer-env) binding)))))
+
+(defn compile-conditional
+  [compile-k state expr k]
+  (cps/call compile-k (h/child state :conditional)
+            (rewrite/conditional->application
+             (h/select-operator)
+             (ast/condition expr)
+             (ast/then-expression expr)
+             (ast/else-expression expr))
+            k))
 
 (defn compile-when-topology
   [compile-k state expr k]

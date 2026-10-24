@@ -16,7 +16,10 @@
         forms ["(define f (network [x] x))"
                "(define f (network [x] (+ x 1)))"
                "(define same (network [x y] (<-> x y) (list x y)))"
-               "(+ 1 2)"]]
+               "(+ 1 2)"
+               "(if true (+ 1 2) (* 3 4))"
+               "(cond [false 1 true (+ 1 2) else (* 3 4)])"
+               "(define f (network [flag] (if flag 1 2)))"]]
     (doseq [source forms
             :let [once (block-compiler/rewrite-expr
                         context (parser/parse-string source))]]

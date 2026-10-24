@@ -35,8 +35,7 @@
 (def session-extension
   (extension/extension-bundle
    {:id ::branching
-    :bindings [['if (basis/if-operator)]
-               ['select (branching-operator :if (basis/select-operator))]
+    :bindings [['select (branching-operator :if (basis/select-operator))]
                ['switch (branching-operator :switch (basis/switch-operator))]
                ['branch (branching-operator :branch (basis/branch-operator))]]
     :effects []}))

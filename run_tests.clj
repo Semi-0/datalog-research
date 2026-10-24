@@ -23,6 +23,7 @@
     propagators.compiler-2-block-premise-test
     propagators.compiler-2-composition-test
     propagators.compiler-2-cps-test
+    propagators.compiler-2-conditional-syntax-test
     propagators.compiler-2-lazy-conditional-test
     propagators.compiler-2-rest-parameters-test
     propagators.compiler-2-network-observation-test

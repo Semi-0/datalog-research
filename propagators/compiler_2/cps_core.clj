@@ -32,6 +32,7 @@
    (cps/on predicates/let-cell?
            (cps/transform-expr rewrite/let-cell->let handlers/compile-let))
    (cps/on predicates/let? handlers/compile-let)
+   (cps/on predicates/conditional? handlers/compile-conditional)
    (cps/on predicates/when-topology? handlers/compile-when-topology)
    (cps/on predicates/network? handlers/compile-network)
    (cps/on predicates/definition? handlers/compile-def)

@@ -143,6 +143,16 @@
       (is (zero? @calls))
       (run-compiled compiled)
       (is (= 1 @calls))))
+  (testing "conditional conditions and selected branches"
+    (let [calls (atom 0)
+          compile* (compiler-with-custom calls)
+          compiled (cps-core/compile-expr-with-bindings
+                    (ast/if* (custom-expr true) (custom-expr 42) (custom-expr 99))
+                    (h/default-bindings) {:compiler compile*})]
+      (is (= 1 @calls) "Only the condition is compiled initially")
+      (let [result-net (run-compiled compiled)]
+        (is (= 2 @calls) "Only the selected branch uses the composed compiler")
+        (is (= 42 (semantic-value result-net (:cell compiled)))))))
   (testing "direct list operands"
     (let [calls (atom 0)
           compile* (compiler-with-custom calls)]

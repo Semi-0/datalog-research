@@ -300,6 +300,11 @@
                            [name (rewrite-expr* context block-level? value)])
                          (ast/bindings expr))
                     (rewrite-expr* context block-level? (ast/body expr)))
+    :if (ast/app
+         (ast/lit (dependency-term-operator context))
+         (ast/if* (rewrite-expr* context false (ast/condition expr))
+                  (rewrite-expr* context false (ast/then-expression expr))
+                  (rewrite-expr* context false (ast/else-expression expr))))
     :when-topology (ast/when-topology
                     (rewrite-expr* context block-level? (ast/condition expr))
                     (rewrite-expr* context block-level? (ast/body expr)))

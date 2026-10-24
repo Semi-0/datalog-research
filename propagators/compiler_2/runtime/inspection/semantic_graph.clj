@@ -260,6 +260,12 @@
             [state _] (ensure-semantic-node state entry)]
         [state entry])
 
+      :if
+      (add-operator-semantics state env app-id path "if"
+                              [(ast/condition expr)
+                               (ast/then-expression expr)
+                               (ast/else-expression expr)])
+
       :apply
       (let [operator (ast/operator expr)
             operator-label (demo/ast-label operator)

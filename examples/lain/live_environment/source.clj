@@ -34,6 +34,11 @@
       :let (let [local (into bound (map first (ast/bindings expression)))]
              (apply set/union (free-body (ast/body expression) local)
                     (map #(free-names (second %) local) (ast/bindings expression))))
+      :if (apply set/union #{}
+                 (map #(free-names % bound)
+                      [(ast/condition expression)
+                       (ast/then-expression expression)
+                       (ast/else-expression expression)]))
       :when-topology (set/union (free-names (ast/condition expression) bound)
                                 (free-body (ast/body expression) bound))
       (throw (ex-info "Unsupported file source expression" {:kind (ast/type expression)})))))

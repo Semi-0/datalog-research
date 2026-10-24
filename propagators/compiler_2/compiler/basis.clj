@@ -6,7 +6,6 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.context :as context]
             [propagators.compiler-2.compiler.dispatch :as compiler-dispatch]
-            [propagators.compiler-2.compiler.rewrite :as rewrite]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.operators.call-graph :as call-graph]
@@ -704,22 +703,6 @@
                (let [[condition then-input else-input explicit] arguments]
                  (conditional/install network condition then-input else-input (or explicit fallback))))}))
 
-(defn conditional-compiler-operands
-  [selector compile-k state operands _out-id continuation]
-  (when-not (= 3 (count operands))
-    (throw (ex-info "if expects condition, then expression, and else expression"
-                    {:operands operands})))
-  (let [[condition then-expression else-expression] operands]
-    (fn []
-      (compile-k (child state :conditional)
-                 (rewrite/conditional->application selector condition then-expression else-expression)
-                 continuation))))
-
-(defn if-operator []
-  (operator-value/operator-closure
-   {:name 'if
-    :compiler-operands (partial conditional-compiler-operands (select-operator))}))
-
 (defn branch-operator []
   (operator-value/propagator-operator
    {:name 'branch
@@ -831,7 +814,6 @@
     ['not (operator-builder core/not)]
     ['str (operator-builder core/str)]
     ['switch (switch-operator)]
-    ['if (if-operator)]
     ['select (select-operator)]
     ['branch (branch-operator)]
     ['nothing? (predicate-operator 'nothing? :nothing)]

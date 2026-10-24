@@ -6,7 +6,7 @@
   (case (ast/type expr)
     :def [(ast/name expr)]
     :sequence (mapcat declaration-names (ast/body expr))
-    (:literal :symbol :apply :let :let-cell :when-topology :network
+    (:literal :symbol :apply :if :let :let-cell :when-topology :network
      :compound :def-net :def-constraint) []
     (throw (ex-info "Unsupported call-graph syntax" {:type (ast/type expr)}))))
 
@@ -20,6 +20,8 @@
       :let (let [bindings (ast/bindings expr)]
              (conj (mapv #(child (second %) bound) bindings)
                    (child (ast/body expr) (into bound (map first bindings)))))
+      :if (mapv #(child % bound)
+                [(ast/condition expr) (ast/then-expression expr) (ast/else-expression expr)])
       :when-topology [(child (ast/condition expr) bound) (child (ast/body expr) bound)]
       :def (if-let [body (ast/body expr)] [(child body bound)] [])
       (:network :compound :def-net :def-constraint :literal :symbol) []

@@ -11,6 +11,7 @@
 (def sequence? (partial kind? :sequence))
 (def let-cell? (partial kind? :let-cell))
 (def let? (partial kind? :let))
+(def conditional? (partial kind? :if))
 (def when-topology? (partial kind? :when-topology))
 (def network? (partial kind? :network))
 (def compound? (partial kind? :compound))

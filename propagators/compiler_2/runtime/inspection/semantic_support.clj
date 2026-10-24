@@ -31,6 +31,7 @@
     (case (ast/type expr)
       :symbol (display-name (ast/name expr))
       :literal (display-name (ast/value expr))
+      :if "(if ...)"
       :network "::"
       :compound "::"
       :apply (str "(" (ast-label (ast/operator expr)) " ...)")

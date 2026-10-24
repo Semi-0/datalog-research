@@ -100,7 +100,7 @@
   (when-not (= 3 (count operands))
     (parse-error "if expects condition, then expression, and else expression"
                  {:operands operands}))
-  (apply ast/app (ast/sym 'if) (map parse-form operands)))
+  (apply ast/if* (map parse-form operands)))
 
 (defn- parse-when [[condition & body]]
   (when (or (nil? condition)
@@ -132,14 +132,12 @@
                   (parse-form expr))
 
                 (seq more)
-                (ast/app (ast/sym 'if)
-                         (parse-form condition)
+                (ast/if* (parse-form condition)
                          (parse-form expr)
                          (build more))
 
                 :else
-                (ast/app (ast/sym 'if)
-                         (parse-form condition)
+                (ast/if* (parse-form condition)
                          (parse-form expr)
                          (ast/lit value/nothing)))))]
     (build (partition 2 clauses))))

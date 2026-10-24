@@ -170,7 +170,7 @@
         declaration (application/callable-declaration (strongest network closure-id))
         graph (call-graph/potential-call-graph network closure-id declaration)
         computed (for [[id info] (:values graph)
-                       :when (= ":apply" (:call/operator info))]
+                       :when (= ":if" (:call/operator info))]
                    (second (first (filter #(= id (first %)) (:edges graph)))))]
     (is (= 2 (count computed)))
     (is (= 2 (count (set computed))))

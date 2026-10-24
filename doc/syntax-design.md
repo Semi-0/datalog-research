@@ -221,18 +221,31 @@ and application. No constraint-specific compiler form is involved.
 
 ## Conditional topology and recursion
 
-`if` is a value-selection operator: both operand expressions are compiled.
-Use callable selection to compile only the selected recursive body:
+`if` is core syntax with exactly three expression children: condition, then,
+and else. Its `:if` AST is constructed with `ast/if*` and inspected with
+`ast/condition`, `ast/then-expression`, and `ast/else-expression`. Declaration
+identity and syntax traversal include all three children. `cond` is parser
+sugar for nested `if` nodes; an unmatched final condition returns `nothing`.
+
+The composed compiler dispatch handles conditionals before application. It
+lowers each conditional to a selector over two suspended branch networks and
+invokes only the selected network. Conditions remain reactive, branches capture
+lexical cells, and previously constructed branch topology is reused:
 
 ```clojure
 (define fib
   (network (n)
-    ((if (<= n 1)
-       (network () n)
-       (network ()
-         (+ (fib (- n 1))
-            (fib (- n 2))))))))
+    (if (<= n 1)
+      n
+      (+ (fib (- n 1))
+         (fib (- n 2))))))
 ```
+
+There is no built-in first-class `if` operator binding. Conditional syntax is
+independent of environment bindings named `if`; ordinary identifier binding
+rules still apply. `select`, `switch`, and `branch` remain operators. The generic
+compiler operand hook remains available to primitives such as `list` and the
+web bridge. Saved source and workspace syntax are unchanged.
 
 `when` declares body topology on availability. A usable `false` is available;
 `when false ...` therefore declares its body. For boolean guarding, compose a
