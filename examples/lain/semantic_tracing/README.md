@@ -104,7 +104,7 @@ metadata remains under Runtime details. Cell nodes show their names; values are 
 ## Verification
 
 ```sh
-clojure -M:test graph.lain-editor.semantic-gallery-test propagators.relationship-dataflow-test propagators.experimental.compound-tracer-test propagators.experimental.tracer-topology-test
+clojure -M:test graph.lain-editor.inspection.semantic-gallery-test propagators.relationship-dataflow-test propagators.experimental.compound-tracer-test propagators.experimental.tracer-topology-test
 ```
 
 Gallery checks require every `.lain` file in both workspace variants, require the

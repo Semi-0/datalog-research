@@ -33,7 +33,7 @@ scene is rendered by the editor, with browser acceptance still tracked in the
 experiment report. Review the data contracts before extending the host. Verify with:
 
 ```sh
-clojure -M:test graph.lain-editor.stack-design-test
+clojure -M:test graph.lain-editor.stack.stack-design-test
 ```
 
 ## Earlier checkpoint experiment
@@ -86,7 +86,7 @@ not passed into `layers-view`; its eventual role is another explicit decision.
 Verification:
 
 ```sh
-clojure -M:test graph.lain-editor.top-down-scanner-test
+clojure -M:test graph.lain-editor.stack.top-down-scanner-test
 ```
 
 The focused suite passes two tests / 14 assertions. It checks checkpoint

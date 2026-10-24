@@ -29,9 +29,9 @@ Repository foundations relevant to the proposal:
   composes network declarations and ordinary application. Conditional topology
   and recursion have their own evaluation rules; not every syntactically present
   branch represents active work.
-- [Call inspection](../graph/lain_editor/call_inspection.clj) presents waiting
+- [Call inspection](../editor/src/graph/lain_editor/inspection/calls.clj) presents waiting
   and contradictory values and follows actual application topology.
-- [Structural inspection](../graph/lain_editor/structural_value.clj) distinguishes
+- [Structural inspection](../editor/src/graph/lain_editor/inspection/structural_value.clj) distinguishes
   pending list tails, completed empty tails, unavailable observations, and
   contradictions.
 - [The multi-repository workspace](../multi-repo/README.md) dispatches commands

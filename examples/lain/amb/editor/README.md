@@ -138,7 +138,7 @@ not persist an old runtime history across reloads.
 The new editor suite passed **4 tests / 28 assertions**:
 
 ```sh
-clojure -M:test graph.lain-editor.amb-test
+clojure -M:test graph.lain-editor.inspection.amb-test
 ```
 
 Coverage includes contextual no-good rows, empty knowledge versus empty

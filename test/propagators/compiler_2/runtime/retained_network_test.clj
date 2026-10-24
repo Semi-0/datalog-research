@@ -1,8 +1,8 @@
 (ns propagators.compiler-2.runtime.retained-network-test
   (:require [clojure.test :refer [deftest is use-fixtures]]
             [clojure.string :as str]
-            [graph.lain-editor.display :as display]
-            [graph.lain-editor.runtime :as editor]
+            [graph.lain-editor.runtime.display :as display]
+            [graph.lain-editor.runtime.session :as editor]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.retained-network :as retained]
             [propagators.compiler-2.runtime.session.input :as input]

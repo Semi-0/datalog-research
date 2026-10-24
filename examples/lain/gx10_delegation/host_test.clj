@@ -1,6 +1,6 @@
 (ns gx10-delegation.host-test
   (:require [clojure.test :refer [deftest is testing run-tests]]
-            [graph.lain-editor.runtime :as editor]
+            [graph.lain-editor.runtime.session :as editor]
             [gx10-delegation.host :as host]))
 
 (defn with-program [path f]

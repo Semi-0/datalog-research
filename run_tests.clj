@@ -15,10 +15,6 @@
 (def propagators-test-namespaces
   '[propagators.bool4-test
     propagators.error-layer-test
-    propagators.behavior-algebra-test
-    propagators.behavior-arithmetic-test
-    propagators.behavior-compiler-test
-    propagators.behavior-test
     propagators.cell-protocol-test
     propagators.combinator-test
     propagators.compile-2-test
@@ -59,6 +55,9 @@
     propagators.reducer-cell-test
     propagators.runner-test
     propagators.semantic-trace.capture-test
+    propagators.semantic-trace.graph-union-test
+    propagators.source-publication-test
+    propagators.compiler-2-tms-bootstrap-test
     propagators.structural-records-test
     propagators.support-test
     propagators.support-collection-test
@@ -72,17 +71,18 @@
     propagators.tms-test])
 
 (def graph-test-namespaces
-  '[graph.lain-editor.retained-relationship-test
-    graph.lain-editor.source-files-test
-    graph.lain-editor.slot-spawn-test
-    graph.lain-editor.tracer-directions-test
-    graph.lain-editor.workspace-commands-test
-    graph.lain-editor.block-display-test
-    graph.lain-editor.semantic-scene-test
-    graph.lain-editor.semantic-gallery-test
-    graph.lain-editor.recursive-semantic-test
-    graph.lain-editor.amb-test
-    graph.lain-editor.graph-layout-test
+  '[graph.lain-editor.inspection.retained-relationship-test
+    graph.lain-editor.workspace.source-files-test
+    graph.lain-editor.workspace.commands-test
+    graph.lain-editor.runtime.slot-spawn-test
+    graph.lain-editor.runtime.extension-error-test
+    graph.lain-editor.inspection.tracer-directions-test
+    graph.lain-editor.frontend.workspace.block-display-test
+    graph.lain-editor.inspection.semantic-scene-test
+    graph.lain-editor.inspection.semantic-gallery-test
+    graph.lain-editor.inspection.recursive-semantic-test
+    graph.lain-editor.inspection.amb-test
+    graph.lain-editor.layout.graph-layout-test
     graph.ttms-view-live-test
     graph.vijual.math-test
     propagators.compiler-2.runtime.tui.version-history-test
@@ -123,8 +123,8 @@
     propagators.experimental.ttms-reducer-test])
 
 (def network-replay-test-namespaces
-  '[graph.lain-editor.network-replay-test
-    graph.lain-editor.replay-model-test])
+  '[graph.lain-editor.inspection.network-replay-test
+    graph.lain-editor.frontend.topology.replay-model-test])
 
 (def leapfrog-test-namespaces
   '[leapfrog.pure-test

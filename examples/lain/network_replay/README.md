@@ -48,7 +48,7 @@ Capture occurs when the semantic graph publishes a changed observation. It is no
 ## Checks
 
 ```sh
-clojure -M:test propagators.membership-collection-test network-replay graph.lain-editor-test
+clojure -M:test propagators.membership-collection-test network-replay graph.lain-editor.integration.editor-test
 clojure -M:editor/cljs-test
 node target/lain-editor/tests.js
 ```

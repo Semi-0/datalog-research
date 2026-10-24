@@ -1,7 +1,7 @@
 (ns experiments.amb-search.profile
   "Isolated synchronous diagnostic. Run with clojure -M -m experiments.amb-search.profile."
   (:require [clojure.string :as str]
-            [graph.lain-editor.runtime :as editor]
+            [graph.lain-editor.runtime.session :as editor]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.operators.network-observation :as observation]
             [propagators.experimental.amb.learning :as learning]

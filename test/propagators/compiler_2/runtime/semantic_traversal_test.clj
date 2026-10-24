@@ -1,7 +1,7 @@
 (ns propagators.compiler-2.runtime.semantic-traversal-test
   (:require [clojure.test :refer [deftest is]]
-            [graph.lain-editor.display :as display]
-            [graph.lain-editor.runtime :as editor]
+            [graph.lain-editor.runtime.display :as display]
+            [graph.lain-editor.runtime.session :as editor]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.one-time-network :as once]
             [propagators.compiler-2.runtime.operators.network-observation :as observation]

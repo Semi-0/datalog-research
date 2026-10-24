@@ -43,9 +43,9 @@ Verification:
 
 ```sh
 clojure -M:test \
-  graph.lain-editor.stack-design-test \
-  graph.lain-editor.stack-primitives-test \
-  graph.lain-editor.stack-incremental-integration-test \
-  graph.lain-editor.stack-experiment-test \
-  graph.lain-editor.stack-scene-test
+  graph.lain-editor.stack.stack-design-test \
+  graph.lain-editor.stack.primitives-test \
+  graph.lain-editor.stack.stack-incremental-integration-test \
+  graph.lain-editor.experiments.stack-experiment-test \
+  graph.lain-editor.stack.scene-test
 ```

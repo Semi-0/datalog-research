@@ -2,8 +2,8 @@
   "Compile the specification first; install native primitives and refine its session."
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [graph.lain-editor.runtime :as editor]
-            [graph.lain-editor.structural-value :as structural]
+            [graph.lain-editor.runtime.session :as editor]
+            [graph.lain-editor.inspection.structural-value :as structural]
             [gx10-benchmark.primitives :as primitives]
             [propagators.cells.value :as value]
             [propagators.compiler-2.model.env :as env]

@@ -1,7 +1,7 @@
 (ns experiments.recursive-semantic-views.step-triangle
   "Bounded diagnostic driver over the standard iterator."
   (:refer-clojure :exclude [run!])
-  (:require [graph.lain-editor.runtime :as editor]
+  (:require [graph.lain-editor.runtime.session :as editor]
             [propagators.compiler-2.cps-core :as compiler]
             [propagators.compiler-2.model.env :as env]
             [propagators.debug :as debug]

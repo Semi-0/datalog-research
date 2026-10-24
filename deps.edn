@@ -1,4 +1,4 @@
-{:paths ["." "deprecated" "leapfrog" "reference" "differential_leapfrog"]
+{:paths ["." "editor/src" "editor/resources" "target/lain-editor" "deprecated" "leapfrog" "reference" "differential_leapfrog"]
  :deps {danlentz/clj-uuid {:mvn/version "0.2.5"}
         clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
         io.github.TimoKramer/charm.clj {:git/url "https://github.com/TimoKramer/charm.clj"
@@ -6,50 +6,52 @@
         meander/epsilon {:mvn/version "0.0.650"}
         org.clojure/core.match {:mvn/version "1.1.0"}
         org.clojure/core.async {:mvn/version "1.8.741"}}
- :aliases {:editor/cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
+ :aliases {:gx10/watch {:extra-deps {org.clojure/data.json {:mvn/version "2.5.2"}}
+                        :main-opts ["scripts/watch_gx10_stream.clj"]}
+           :editor/cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
                                           hoplon/javelin {:mvn/version "3.9.3"}}
                            :main-opts ["-m" "graph.lain-editor.build"]}
            :editor/cljs-test {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
                                                hoplon/javelin {:mvn/version "3.9.3"}}
-                             :extra-paths ["test"]
+                             :extra-paths ["test" "editor/test"]
                              :main-opts ["-m" "graph.lain-editor.build" "test"]}
            :differential-v3 {:main-opts ["-m" "deprecated.differential-v3"]}
            :example/synth {:main-opts ["-m" "examples.lain.overtone-synth.main"]}
            :example/overtone {:extra-deps {overtone/overtone {:mvn/version "0.16.3331"}}}
            :differential-v5 {:main-opts ["-m" "deprecated.differential-v5"]}
            :test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests"]}
            :bench
            {:main-opts ["-m" "bench-compare"]}
            :bench-verify
            {:main-opts ["-m" "bench-compare" "verify"]}
            :bench-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "differential-dataflow.bench-compare-test"]}
            :differential-dataflow-v1-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "differential-dataflow.v1-test"]}
            :multiset-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "differential-dataflow.multiset-test"]}
            :graph-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "differential-dataflow.graph-test"]}
            :stream-ops-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "differential-dataflow.stream-ops-test"]}
            :frontier-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "differential-dataflow.frontier-test"]}
            :differential-leapfrog-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "leapfrog.differential-test"]}
            :leapfrog-pure-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "leapfrog.pure-test"]}
            :propagators-test
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "run-tests" "propagators"]}
            :propagators-bench
            {:main-opts ["-m" "propagators-chain-bench"]}
@@ -60,12 +62,10 @@
            :gur-subenv-bench
            {:main-opts ["-m" "propagators-gur-subenv-bench"]}
            :gur-accumulating-bench
-           {:extra-paths ["test"]
+           {:extra-paths ["test" "editor/test"]
             :main-opts ["-m" "propagators-gur-accumulating-bench"]}
            :compiler-2-application-bench
            {:main-opts ["-m" "propagators-compiler-2-application-bench"]}
-           :compiler-2-tms-chain-bench
-           {:main-opts ["-m" "propagators-compiler-2-tms-chain-bench"]}
            :propagators-profile
            {:main-opts ["-m" "propagators-compound-profile"]}
            :wired/server

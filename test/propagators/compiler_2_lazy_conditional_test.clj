@@ -1,6 +1,6 @@
 (ns propagators.compiler-2-lazy-conditional-test
   (:require [clojure.test :refer [deftest is use-fixtures]]
-            [graph.lain-editor.runtime :as editor]
+            [graph.lain-editor.runtime.session :as editor]
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.declarations :as declarations]
             [propagators.compiler-2.cps-core :as compiler]
