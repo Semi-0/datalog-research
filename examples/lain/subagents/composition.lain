@@ -1,0 +1,65 @@
+;; Complete harness composition for discussion; missing operations stay partial.
+;; Compound slots remain connected. Feedback must not require whole-object readiness.
+;; Only outside session handlers perform I/O; :observe never launches Pi children.
+(def-cells harbor-input user-commands recorded-observations plugin)
+(def-cells effect-receipts pi-responses inspection)
+(define backend :observe)
+
+;; Harbor supplies a trial; the adapter exposes session, commands and Pi config.
+(define trial (harbor:trial-input harbor-input))
+(define session (p:slot :session trial))
+(define pi-config (p:slot :pi-config trial))
+(define commands
+  (subagent:commands (p:slot :commands trial) user-commands))
+
+;; Observations are facts returned by the boundary/interpreter, or recorded replay.
+(define observations
+  (subagent:observations backend
+    (p:slot :observations effect-boundary)
+    (p:slot :observations interpreted-effects)
+    recorded-observations))
+(define events (subagent:accumulate commands observations))
+(define transition (subagent:fsm events))
+(define current-state (p:slot :state transition))
+(define effect-requests (p:slot :effects transition))
+
+;; Session ownership, admission, deduplication and receipts surround execution.
+;; These are dataflow connections, not another copy of the FSM transition rules.
+(define effect-boundary
+  (subagent:effect-boundary backend session effect-requests effect-receipts))
+(define interpreted-effects
+  (subagent:effect-interpreter pi-config
+    (p:slot :admitted-requests effect-boundary) pi-responses))
+
+;; The actualizer is an outside capability exposed through the session extension.
+;; It returns Pi responses; the interpreter normalizes them into receipts/facts.
+(define pi-actualization
+  (pi:actualize backend session plugin pi-config
+    (p:slot :operations interpreted-effects)))
+(-> (p:slot :responses pi-actualization) pi-responses)
+(-> (p:slot :receipts interpreted-effects) effect-receipts)
+
+;; Harbor receives execution evidence and keeps ownership of task grading.
+(define harbor-output
+  (harbor:trial-output
+    (p:slot :trial-id trial)
+    current-state
+    (p:slot :results interpreted-effects)
+    effect-receipts
+    (p:slot :artifacts pi-actualization)))
+
+;; Inspect the complete composition, including unresolved boundary capabilities.
+(p:slot :trial trial inspection)
+(p:slot :commands commands inspection)
+(p:slot :observations observations inspection)
+(p:slot :events events inspection)
+(p:slot :state current-state inspection)
+(p:slot :effect-requests effect-requests inspection)
+(p:slot :effect-boundary effect-boundary inspection)
+(p:slot :effect-interpreter interpreted-effects inspection)
+(p:slot :pi-actualizer pi-actualization inspection)
+(p:slot :harbor-output harbor-output inspection)
+(display
+  (relationship:with-values
+    (relationship:dataflow
+      (relationship:roots inspection))))
