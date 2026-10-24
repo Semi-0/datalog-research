@@ -1,5 +1,7 @@
 (ns graph.lain-editor.runtime.session
-  "One standard runtime session per editor pane. Candidates commit after loading."
+  "Backend-owned live sessions, attached to one pane or held in the detached registry.
+  Registry transitions are serialized by the server's editor command lock.
+  Candidates commit after loading; detach and reopen only transfer ownership."
   (:refer-clojure :exclude [run!])
   (:require [graph.lain-editor.workspace.model :as workspace]
             [graph.lain-editor.runtime.display :as display]
@@ -138,7 +140,9 @@
   (or (get @detached session-id)
       (throw (ex-info "Detached session not found or already attached" {:sessionId session-id}))))
 
-(defn detach! [editors detached {:keys [pane generation]}]
+(defn detach!
+  "Transfer an executed pane into detached ownership without touching its runtime."
+  [editors detached {:keys [pane generation]}]
   (let [entry (require-pane editors pane)]
     (require-generation entry generation)
     (swap! detached assoc (:sessionId entry) (assoc entry :pane pane))
@@ -149,7 +153,9 @@
   {:sessions (mapv #(select-keys % [:sessionId :pane :source :extensions])
                    (sort-by :sessionId (vals @detached)))})
 
-(defn reopen! [editors detached {:keys [pane sessionId]}]
+(defn reopen!
+  "Transfer a detached session into a free pane, preserving its generation."
+  [editors detached {:keys [pane sessionId]}]
   (when-not (and (string? pane) (not (empty? pane)))
     (throw (ex-info "Pane id required" {})))
   (when (contains? @editors pane)

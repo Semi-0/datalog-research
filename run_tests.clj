@@ -76,6 +76,7 @@
     graph.lain-editor.workspace.commands-test
     graph.lain-editor.runtime.slot-spawn-test
     graph.lain-editor.runtime.extension-error-test
+    graph.lain-editor.runtime.detached-session-test
     graph.lain-editor.inspection.tracer-directions-test
     graph.lain-editor.inspection.semantic-scene-test
     graph.lain-editor.inspection.semantic-gallery-test
