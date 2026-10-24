@@ -1,76 +1,75 @@
-;; Application vocabulary: three actor data structures and two composing networks.
-;; Constructors/accessors are reactive interfaces; their slot-backed bodies remain
-;; unresolved. They must preserve partial fields, not unwrap complete actor values.
+;; Three actors; four high-level interactions. Pi owns its child agents.
+;; Actor data, accessors and task policies remain partial until session extension.
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+(def-cells harbor user-input pi-runtime session-context)
+(define backend :observe)
 
-;; Harbor: trial inputs and execution reports. Harbor alone grades correctness.
-(define harbor:make)
+;; Reactive actor accessors; field representation is deferred.
 (define harbor:trials)
 (define harbor:report)
-
-;; Interactive user: commands in, state/receipts/diagnostics out.
-(define user:make)
 (define user:commands)
 (define user:feedback)
-
-;; Pi/subagent runtime: intended requests in, observations/artifacts out.
-(define pi:make)
-(define pi:requests)
 (define pi:observations)
+(define pi:requests)
 
-;; Coordination is a declaration of the internal harness, to be refined later
-;; into ordered event accumulation, the pure FSM and the session effect boundary.
-;; Its outputs are intentions and evidence; it never performs external I/O.
-(define subagent:coordinate)
-(define subagent:requests)
-(define subagent:feedback)
-(define subagent:report)
+;; Application policies, supplied later: intake, dispatch, reporting and feedback.
+;; Dispatch reconciles task requests with Pi's run IDs/receipts; it does not
+;; implement another child lifecycle. Harbor alone grades task correctness.
+(define tasks:intake)
+(define tasks:dispatch)
+(define trials:report)
+(define tasks:feedback)
 
-;; Connect domain ports without choosing their representation or transport.
-(define connect-actors
-  (network [harbor user-input pi-runtime]
-    (define coordination
-      (subagent:coordinate
-        (harbor:trials harbor)
-        (user:commands user-input)
-        (pi:observations pi-runtime)))
-    (define requests (pi:requests pi-runtime))
-    (define feedback (user:feedback user-input))
-    (define report (harbor:report harbor))
-    (-> (subagent:requests coordination) requests)
-    (-> (subagent:feedback coordination) feedback)
-    (-> (subagent:report coordination) report)
-    coordination))
+;; Harbor + user -> queued work and user controls.
+(define accept-work
+  (network [harbor user-input tasks controls]
+    (let-cell [trials commands]
+      (harbor:trials harbor trials)
+      (user:commands user-input commands)
+      (tasks:intake trials commands tasks controls))
+    (list tasks controls)))
 
-;; These interfaces will connect actor accessors to the session extension's
-;; external effect/observation ports. Outside handlers own bridges, sockets/RPC,
-;; child processes, receipts and cleanup; these declarations do not invoke them.
-(define harbor:interpret)
-(define user:interpret)
-(define pi:interpret)
+;; Queued work + controls + Pi observations -> Pi requests and queue progress.
+(define dispatch-to-pi
+  (network [tasks controls pi-runtime requests progress]
+    (let-cell [observations]
+      (pi:observations pi-runtime observations)
+      (tasks:dispatch tasks controls observations requests progress)
+      (pi:requests pi-runtime requests))
+    (list requests progress)))
 
-(define interpret-actors
-  (network [backend session harbor user-input pi-runtime]
-    (define harbor-connection (harbor:interpret backend session harbor))
-    (define user-connection (user:interpret backend session user-input))
-    (define pi-connection (pi:interpret backend session pi-runtime))
-    (list harbor-connection user-connection pi-connection)))
+;; Pi results + task progress -> execution evidence for Harbor.
+(define report-to-harbor
+  (network [harbor progress pi-runtime report]
+    (let-cell [observations]
+      (pi:observations pi-runtime observations)
+      (trials:report progress observations report)
+      (harbor:report harbor report))
+    (list report)))
 
-;; Construct the actors, then compose their internal wiring and outside bindings.
-;; One session extension will supply the interpreter capabilities. Observation
-;; mode leaves external work unresolved; recorded replay must use recorded facts
-;; and must never resolve live handlers. Reopening this file launches no children.
-(def-cells session-context)
-(define backend :observe)
-(define harbor (harbor:make :harbor))
-(define user-input (user:make :user-input))
-(define pi-runtime (pi:make :pi-runtime))
-(define coordination (connect-actors harbor user-input pi-runtime))
-(define interpretation
+;; Task progress + Pi observations -> feedback to the user.
+(define inform-user
+  (network [user-input progress pi-runtime feedback]
+    (let-cell [observations]
+      (pi:observations pi-runtime observations)
+      (tasks:feedback progress observations feedback)
+      (user:feedback user-input feedback))
+    (list feedback)))
+
+;; Shared cells connect the interactions in both directions; returned lists
+;; expose their outputs without materializing the actors or their field values.
+(define orchestration
+  (let-cell [tasks controls requests progress report feedback]
+    (accept-work harbor user-input tasks controls)
+    (dispatch-to-pi tasks controls pi-runtime requests progress)
+    (report-to-harbor harbor progress pi-runtime report)
+    (inform-user user-input progress pi-runtime feedback)
+    (list tasks controls requests progress report feedback)))
+
+;; A later session extension connects these actors to outside handlers.
+;; Observation/replay must never invoke live Pi handlers.
+(define interpret-actors)
+(define outside
   (interpret-actors backend session-context harbor user-input pi-runtime))
 
-;; Inspect actor structures and both networks through the existing tracer.
-(display
-  (relationship:with-values
-    (relationship:dataflow
-      (relationship:roots
-        (list harbor user-input pi-runtime coordination interpretation)))))
+(display (trace:root-semantic (list orchestration outside)))
