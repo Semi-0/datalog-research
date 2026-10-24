@@ -37,7 +37,9 @@ jobs:
             echo '::error::Set LAIN_READ_TOKEN with read-only access to both Lain repositories.'
             exit 1
           fi
+          gh api repos/Semi-0/lain-editor/contents/contracts/deps.edn --jq .path
           gh auth setup-git --hostname github.com
+          git ls-remote https://github.com/Semi-0/lain-editor.git HEAD
       - name: Backend Clojure suite
         run: clojure -M:test
       - name: Pinned editor ClojureScript contract suite

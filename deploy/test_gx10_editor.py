@@ -104,6 +104,23 @@ class DeploymentTests(unittest.TestCase):
                 build.assert_called_once()
                 activate.assert_not_called()
 
+    def test_main_advancing_during_preflight_prevents_activation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            pair = {role: {"repository": repo, "sha": "abc", "ci_run": "ci"}
+                    for role, repo in deployment.REPOS.items()}
+            with mock.patch.object(deployment, "ROOT", root), \
+                 mock.patch.object(deployment, "approved_pair", side_effect=[pair, None]), \
+                 mock.patch.object(deployment, "checkout"), \
+                 mock.patch.object(deployment, "build") as build, \
+                 mock.patch.object(deployment, "activate") as activate:
+                deployment.poll()
+                build.assert_called_once()
+                activate.assert_not_called()
+                receipt = json.loads((root / "last-attempt.json").read_text())
+                self.assertEqual("superseded", receipt["status"])
+                self.assertFalse((root / "current").exists())
+
     def test_candidate_children_are_reaped_when_preflight_fails(self):
         children = []
         real_popen = subprocess.Popen

@@ -230,6 +230,10 @@ def poll(retry=False):
             for role, source in pair.items():
                 checkout(source["repository"], source["sha"], release / role)
             build(release)
+            if approved_pair() != pair:
+                save(attempt, dict(receipt, status="superseded", finished_at=time.time()))
+                print("Main or its CI changed during preflight; leaving the current release unchanged", flush=True)
+                return
             save(release / "release.json", dict(receipt, status="verified"))
             activate(ROOT, release)
             run(["systemctl", "--user", "enable", *UNITS])

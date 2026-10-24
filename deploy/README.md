@@ -24,7 +24,7 @@ The installer owns only the `gx10-lain-*` user services/timer and `~/.local/shar
 
 ## Deployment and evidence
 
-Each candidate has separate backend/frontend checkouts at exact SHAs. The backend consumes that candidate frontend's local contracts. GX10 builds the frontend, runs HTTP transport tests, backend editor integration tests, a real frontend-to-backend computation probe and browser acceptance before promotion. Candidate processes run in owned process groups and are reaped after verification.
+Each candidate has separate backend/frontend checkouts at exact SHAs. The backend consumes that candidate frontend's local contracts. GX10 builds the frontend, runs HTTP transport tests, backend editor integration tests, a real frontend-to-backend computation probe and browser acceptance before promotion. Candidate processes run in owned process groups and are reaped after verification. Main revisions and CI are checked again after preflight; a candidate superseded during the build is not activated.
 
 Promotion atomically changes `current`, then restarts the owned services and checks the computation again. A failure restores the previous symlink and restarts the previous release. Earlier releases are retained. Failed candidate pairs are recorded and are not automatically retried at every timer tick; inspect the failure and explicitly run `python3 ~/.local/share/lain-editor-deploy/driver.py poll --retry` when appropriate.
 
