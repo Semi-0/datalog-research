@@ -1,5 +1,48 @@
 # Compiler-2 Runtime TODO
 
+## Known bug: semantic tracer omits reverse `<->` direction
+
+Status: reproduced on 2026-10-25; deferred, not fixed.
+
+```clojure
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+(def-cells left right)
+(<-> left right)
+(display (trace:root-semantic left))
+```
+
+The returned semantic graph currently exposes `left -> <-> -> right`, with no
+reverse directed edges. The same omission occurs through partial accessor calls,
+for example `(<-> (assignments user) (assignments evaluation-framework))`.
+This is present in the graph payload before frontend rendering.
+
+Runtime propagation works in both directions: in separate fresh sessions,
+seeding either endpoint with `7` makes the other endpoint display `7`.
+Do not replace the application's bidirectional relationship to work around its
+visualization. The exact defect within semantic capture/projection is not yet
+isolated.
+
+Acceptance: a regression must check both propagation directions and the semantic
+graph's reverse connectivity for plain cells and accessor-based endpoints. Verify
+that a genuinely directional `->` connection remains directional. Recheck the
+editor rendering after the graph contract is corrected.
+
+## Planned: remove session extensions from the command palette
+
+Status: requested on 2026-10-25; documentation only, implementation deferred.
+
+Add a palette action for selecting and removing an applied extension from the
+current block. Preserve the base draft, remaining extension edits and their
+order, pending extension draft, and neighboring blocks. Workspace save/reopen
+must retain the resulting extension list.
+
+Before implementation, decide how removal updates the running session: retract
+supported declarations or invalidate/dispose that block and require an explicit
+Run. Do not silently replay external effects. A failed operation must preserve
+an inspectable, coherent document/runtime state. Verify command targeting,
+first/middle/last removal, dependent remaining extensions, session cleanup,
+save/reopen, and absence of unintended replay.
+
 ## Unify Reflective Application Inspection
 
 The runtime can execute versioned closure applications, retain their topology,
