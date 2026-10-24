@@ -1,75 +1,21 @@
-;; Three actors; four high-level interactions. Pi owns its child agents.
-;; Actor data, accessors and task policies remain partial until session extension.
+;; Three actors connected by declarative relations. Actor implementations and
+;; outside handlers remain partial until a session extension supplies them.
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
-(def-cells harbor user-input pi-runtime session-context)
-(define backend :observe)
+(load-lain "examples/lain/subagents/evaluation-framework.lain")
 
-;; Reactive actor accessors; field representation is deferred.
-(define harbor:trials)
-(define harbor:report)
-(define user:commands)
-(define user:feedback)
-(define pi:observations)
-(define pi:requests)
+(def-cells user evaluation-framework runtime)
+(define execute-assignment)
+(make-evaluation-framework evaluation-framework)
 
-;; Application policies, supplied later: intake, dispatch, reporting and feedback.
-;; Dispatch reconciles task requests with Pi's run IDs/receipts; it does not
-;; implement another child lifecycle. Harbor alone grades task correctness.
-(define tasks:intake)
-(define tasks:dispatch)
-(define trials:report)
-(define tasks:feedback)
+(<-> (assignments user)
+     (assignments evaluation-framework))
 
-;; Harbor + user -> queued work and user controls.
-(define accept-work
-  (network [harbor user-input tasks controls]
-    (let-cell [trials commands]
-      (harbor:trials harbor trials)
-      (user:commands user-input commands)
-      (tasks:intake trials commands tasks controls))
-    (list tasks controls)))
+(-> (on-going-assignment evaluation-framework)
+    (execute-assignment runtime))
 
-;; Queued work + controls + Pi observations -> Pi requests and queue progress.
-(define dispatch-to-pi
-  (network [tasks controls pi-runtime requests progress]
-    (let-cell [observations]
-      (pi:observations pi-runtime observations)
-      (tasks:dispatch tasks controls observations requests progress)
-      (pi:requests pi-runtime requests))
-    (list requests progress)))
+(-> (assignment-result runtime)
+    (assignment-result evaluation-framework))
 
-;; Pi results + task progress -> execution evidence for Harbor.
-(define report-to-harbor
-  (network [harbor progress pi-runtime report]
-    (let-cell [observations]
-      (pi:observations pi-runtime observations)
-      (trials:report progress observations report)
-      (harbor:report harbor report))
-    (list report)))
-
-;; Task progress + Pi observations -> feedback to the user.
-(define inform-user
-  (network [user-input progress pi-runtime feedback]
-    (let-cell [observations]
-      (pi:observations pi-runtime observations)
-      (tasks:feedback progress observations feedback)
-      (user:feedback user-input feedback))
-    (list feedback)))
-
-;; Shared cells connect the interactions in both directions; returned lists
-;; expose their outputs without materializing the actors or their field values.
-(define orchestration
-  (let-cell [tasks controls requests progress report feedback]
-    (accept-work harbor user-input tasks controls)
-    (dispatch-to-pi tasks controls pi-runtime requests progress)
-    (report-to-harbor harbor progress pi-runtime report)
-    (inform-user user-input progress pi-runtime feedback)
-    (list tasks controls requests progress report feedback)))
-
-;; A later session extension connects these actors to outside handlers.
-;; Observation/replay must never invoke live Pi handlers.
-(define interpret-actors)
-(define outside
-  (interpret-actors backend session-context harbor user-input pi-runtime))
-
-(display (trace:root-semantic (list orchestration outside)))
+;; Shared assignment facts include framework progress and graded outcomes.
+;; Socket/RPC adapters, Harbor preparation/grading and Pi effects stay outside.
+(display (trace:root-semantic user))
