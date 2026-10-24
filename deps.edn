@@ -1,5 +1,8 @@
-{:paths ["." "editor/src" "editor/resources" "target/lain-editor" "deprecated" "leapfrog" "reference" "differential_leapfrog"]
- :deps {danlentz/clj-uuid {:mvn/version "0.2.5"}
+{:paths ["." "editor/src" "target/lain-editor" "deprecated" "leapfrog" "reference" "differential_leapfrog"]
+ :deps {lain-editor/contracts {:git/url "https://github.com/Semi-0/lain-editor.git"
+                              :git/sha "08cc13c70f8571ef8efb0a683b42c68e0c0bf623"
+                              :deps/root "contracts"}
+        danlentz/clj-uuid {:mvn/version "0.2.5"}
         clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
         io.github.TimoKramer/charm.clj {:git/url "https://github.com/TimoKramer/charm.clj"
                                          :git/sha "38e6823dc85ec932eefe2ad9c1f204307674c24f"}
@@ -9,10 +12,19 @@
  :aliases {:gx10/watch {:extra-deps {org.clojure/data.json {:mvn/version "2.5.2"}}
                         :main-opts ["scripts/watch_gx10_stream.clj"]}
            :editor/cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
-                                          hoplon/javelin {:mvn/version "3.9.3"}}
+                                          lain-editor/build {:git/url "https://github.com/Semi-0/lain-editor.git"
+                                                :git/sha "08cc13c70f8571ef8efb0a683b42c68e0c0bf623"
+                                                :deps/root "build"}}
                            :main-opts ["-m" "graph.lain-editor.build"]}
-           :editor/cljs-test {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
-                                               hoplon/javelin {:mvn/version "3.9.3"}}
+           :editor/cljs-test {:extra-deps {lain-editor/frontend {:git/url "https://github.com/Semi-0/lain-editor.git"
+                                                                    :git/sha "08cc13c70f8571ef8efb0a683b42c68e0c0bf623"}
+                                               lain-editor/tests {:git/url "https://github.com/Semi-0/lain-editor.git"
+                                                                 :git/sha "08cc13c70f8571ef8efb0a683b42c68e0c0bf623"
+                                                                 :deps/root "test"}
+                                               org.clojure/clojurescript {:mvn/version "1.12.145"}
+                                               lain-editor/build {:git/url "https://github.com/Semi-0/lain-editor.git"
+                                                :git/sha "08cc13c70f8571ef8efb0a683b42c68e0c0bf623"
+                                                :deps/root "build"}}
                              :extra-paths ["test" "editor/test"]
                              :main-opts ["-m" "graph.lain-editor.build" "test"]}
            :differential-v3 {:main-opts ["-m" "deprecated.differential-v3"]}
@@ -21,6 +33,8 @@
            :differential-v5 {:main-opts ["-m" "deprecated.differential-v5"]}
            :test
            {:extra-paths ["test" "editor/test"]
+            :extra-deps {lain-editor/frontend {:git/url "https://github.com/Semi-0/lain-editor.git"
+                                                :git/sha "08cc13c70f8571ef8efb0a683b42c68e0c0bf623"}}
             :main-opts ["-m" "run-tests"]}
            :bench
            {:main-opts ["-m" "bench-compare"]}

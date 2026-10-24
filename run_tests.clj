@@ -77,7 +77,6 @@
     graph.lain-editor.runtime.slot-spawn-test
     graph.lain-editor.runtime.extension-error-test
     graph.lain-editor.inspection.tracer-directions-test
-    graph.lain-editor.frontend.workspace.block-display-test
     graph.lain-editor.inspection.semantic-scene-test
     graph.lain-editor.inspection.semantic-gallery-test
     graph.lain-editor.inspection.recursive-semantic-test
@@ -123,8 +122,7 @@
     propagators.experimental.ttms-reducer-test])
 
 (def network-replay-test-namespaces
-  '[graph.lain-editor.inspection.network-replay-test
-    graph.lain-editor.frontend.topology.replay-model-test])
+  '[graph.lain-editor.inspection.network-replay-test])
 
 (def leapfrog-test-namespaces
   '[leapfrog.pure-test
