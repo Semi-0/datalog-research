@@ -1,5 +1,5 @@
-;; The evaluation framework is an actor constructed from an explicit parameters
-;; cell. Its protocol relations coexist; textual order is not a workflow schedule.
+;; The evaluation framework constructs a fresh actor without configuration inputs.
+;; Its protocol relations coexist; textual order is not a workflow schedule.
 ;; Slot storage and pure policy bodies remain open to session extension.
 
 ;; Public protocol ports. Accessors connect partial cells without unwrapping the
@@ -7,7 +7,6 @@
 (define assignments)
 (define on-going-assignment)
 (define assignment-result)
-(define evaluation:parameters)
 (define evaluation:observations)
 (define evaluation:requests)
 (define evaluation:trials)
@@ -25,9 +24,9 @@
 ;; Assignment facts constrain trials; assessments contribute assignment outcomes.
 ;; Updates retain stable assignment/trial/run identities and merge monotonically.
 (define evaluation:assignment-protocol
-  (network [parameters shared-assignments trials assessments]
+  (network [shared-assignments trials assessments]
     (let-cell [updates]
-      (evaluation:assignment-trials parameters shared-assignments trials)
+      (evaluation:assignment-trials shared-assignments trials)
       (evaluation:assessment-updates trials assessments updates)
       (-> updates shared-assignments))
     (list shared-assignments trials)))
@@ -36,43 +35,43 @@
 ;; same assignments/trials, exposed through the ongoing-assignment protocol cell.
 ;; Pi owns child lifecycle; this relation does not synchronize a second FSM.
 (define evaluation:execution-protocol
-  (network [parameters shared-assignments trials runtime-observations ongoing-assignment]
+  (network [shared-assignments trials runtime-observations ongoing-assignment]
     (evaluation:trial-execution trials runtime-observations)
-    (evaluation:runnable-assignments parameters shared-assignments trials ongoing-assignment)
+    (evaluation:runnable-assignments shared-assignments trials ongoing-assignment)
     (list trials ongoing-assignment)))
 
-;; Harbor observations constrain trial contexts and assessments under parameters.
+;; Harbor observations constrain trial contexts and assessments.
 (define evaluation:assessment-protocol
-  (network [parameters trials framework-observations assessments]
-    (evaluation:trial-contexts parameters trials framework-observations)
-    (evaluation:trial-assessments parameters trials framework-observations assessments)
+  (network [trials framework-observations assessments]
+    (evaluation:trial-contexts trials framework-observations)
+    (evaluation:trial-assessments trials framework-observations assessments)
     (list trials assessments)))
 
 ;; Preparation/grading requests are derived protocol facts for outside handlers.
 ;; Demand requires positive evidence; an unresolved observation is not failure.
 ;; Stable effect identities/receipts prevent reevaluation from repeating effects.
 (define evaluation:external-protocol
-  (network [parameters shared-assignments trials assessments framework-requests]
-    (evaluation:required-actions parameters shared-assignments trials assessments framework-requests)
+  (network [shared-assignments trials assessments framework-requests]
+    (evaluation:required-actions shared-assignments trials assessments framework-requests)
     (list framework-requests)))
 
-;; Parameters are an explicit input. Actor is the output. Every construction has
+;; Actor is a locally constructed output, never an input. Every construction has
 ;; fresh protocol cells; only this constructor composes the internal networks.
 (define make-evaluation-framework
-  (network [parameters actor]
+  (network []
+    (define actor)
     (let-cell [shared-assignments ongoing-assignment trials assessments
                runtime-observations framework-observations framework-requests]
       (assignments actor shared-assignments)
       (on-going-assignment actor ongoing-assignment)
       (assignment-result actor runtime-observations)
-      (evaluation:parameters actor parameters)
       (evaluation:observations actor framework-observations)
       (evaluation:requests actor framework-requests)
       (evaluation:trials actor trials)
       (evaluation:assessments actor assessments)
 
-      (evaluation:assignment-protocol parameters shared-assignments trials assessments)
-      (evaluation:execution-protocol parameters shared-assignments trials runtime-observations ongoing-assignment)
-      (evaluation:assessment-protocol parameters trials framework-observations assessments)
-      (evaluation:external-protocol parameters shared-assignments trials assessments framework-requests))
+      (evaluation:assignment-protocol shared-assignments trials assessments)
+      (evaluation:execution-protocol shared-assignments trials runtime-observations ongoing-assignment)
+      (evaluation:assessment-protocol trials framework-observations assessments)
+      (evaluation:external-protocol shared-assignments trials assessments framework-requests))
     (list actor)))
