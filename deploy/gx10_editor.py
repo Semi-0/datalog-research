@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Pull CI-tested main revisions; build, probe, promote or roll back one editor pair."""
+"""Run CI on GX10, report commit statuses, and deploy a verified editor pair."""
 import argparse
 import contextlib
 import fcntl
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import signal
@@ -36,26 +37,22 @@ def save(path, value):
     temporary.replace(path)
 
 
-def successful_run(repo, sha, runs):
-    """Only this repository's successful main push at the exact requested SHA."""
-    valid = [r for r in runs if r.get("head_sha") == sha
-             and r.get("head_branch") == "main" and r.get("event") == "push"
-             and r.get("status") == "completed" and r.get("conclusion") == "success"
-             and r.get("head_repository", {}).get("full_name") == repo]
-    return max(valid, key=lambda r: (r["run_number"], r.get("run_attempt", 1)), default=None)
-
-
-def approved_pair():
+def source_pair():
+    """Only configured repositories' main heads are eligible for local CI."""
     pair = {}
     for role, repo in REPOS.items():
         sha = json.loads(run(["gh", "api", f"repos/{repo}/commits/main"], capture=True).stdout)["sha"]
-        endpoint = f"repos/{repo}/actions/workflows/ci.yml/runs?branch=main&event=push&head_sha={sha}&per_page=100"
-        runs = json.loads(run(["gh", "api", endpoint], capture=True).stdout)["workflow_runs"]
-        passed = successful_run(repo, sha, runs)
-        if passed is None:
-            return None
-        pair[role] = {"repository": repo, "sha": sha, "ci_run": passed["html_url"]}
+        if not isinstance(sha, str) or re.fullmatch(r"[0-9a-f]{40}", sha) is None:
+            raise ValueError("GitHub returned an invalid source revision")
+        pair[role] = {"repository": repo, "sha": sha}
     return pair
+
+
+def report_status(pair, context, state, description):
+    for source in pair.values():
+        endpoint = f"repos/{source['repository']}/statuses/{source['sha']}"
+        run(["gh", "api", "--method", "POST", endpoint, "-f", f"state={state}",
+             "-f", f"context=gx10/{context}", "-f", f"description={description}"], capture=True)
 
 
 def checkout(repo, sha, destination):
@@ -68,7 +65,8 @@ def checkout(repo, sha, destination):
 
 def service_environment():
     env = dict(os.environ)
-    env["PATH"] = str(Path.home() / ".local/bin") + os.pathsep + env.get("PATH", "")
+    env["PATH"] = os.pathsep.join([str(Path.home() / ".local/bin"),
+                                    str(Path.home() / ".cargo/bin"), env.get("PATH", "")])
     env.setdefault("JAVA_TOOL_OPTIONS", "-Xmx4g")
     return env
 
@@ -146,13 +144,15 @@ def probe(url):
         api(url, {"op": "close", "pane": pane})
 
 
+def run_ci(release):
+    env = service_environment()
+    run(["bash", "deploy/ci.sh"], cwd=release / "backend", env=env, timeout=3600)
+    run(["bash", "scripts/ci.sh"], cwd=release / "frontend", env=env, timeout=1800)
+
+
 def build(release):
     env = service_environment()
     frontend = release / "frontend"
-    run(["clojure", "-M:editor/cljs"], cwd=frontend, env=env)
-    run(["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"], cwd=frontend, env=env)
-    run(["npm", "run", "test:server"], cwd=frontend, env=env)
-    run(["npx", "playwright", "install", "chromium"], cwd=frontend, env=env)
     run(["clojure", "-Sdeps", DEPS, "-M:test", "graph.lain-editor.runtime.slot-spawn-test",
          "graph.lain-editor.runtime.extension-error-test", "graph.lain-editor.workspace.source-files-test",
          "graph.lain-editor.inspection.retained-relationship-test"],
@@ -209,13 +209,11 @@ def poll(retry=False):
     ROOT.mkdir(parents=True, exist_ok=True)
     with (ROOT / "pull.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        pair = approved_pair()
-        if pair is None:
-            print("Waiting for successful CI on both current main revisions", flush=True)
-            return
+        pair = source_pair()
         current = ROOT / "current/release.json"
         if current.exists() and json.loads(current.read_text())["pair"] == pair:
-            print("Current release already matches tested main revisions", flush=True)
+            report_status(pair, "deploy", "success", "Verified editor pair is active on GX10")
+            print("Current release already matches locally tested main revisions", flush=True)
             return
         attempt = ROOT / "last-attempt.json"
         if attempt.exists() and not retry:
@@ -226,22 +224,33 @@ def poll(retry=False):
         release = ROOT / "releases" / uuid.uuid4().hex
         release.mkdir(parents=True)
         receipt = {"pair": pair, "release": str(release), "started_at": time.time()}
+        phase = "ci"
+        save(attempt, dict(receipt, status="running", phase=phase))
         try:
+            report_status(pair, "ci", "pending", "Tests running locally on GX10")
             for role, source in pair.items():
                 checkout(source["repository"], source["sha"], release / role)
+            run_ci(release)
+            report_status(pair, "ci", "success", "Backend and frontend CI passed on GX10")
+            phase = "deploy"
+            save(attempt, dict(receipt, status="running", phase=phase))
+            report_status(pair, "deploy", "pending", "Verifying editor integration on GX10")
             build(release)
-            if approved_pair() != pair:
+            if source_pair() != pair:
                 save(attempt, dict(receipt, status="superseded", finished_at=time.time()))
-                print("Main or its CI changed during preflight; leaving the current release unchanged", flush=True)
+                report_status(pair, "deploy", "error", "Main advanced during local verification")
+                print("Main changed during preflight; leaving the current release unchanged", flush=True)
                 return
-            save(release / "release.json", dict(receipt, status="verified"))
+            save(release / "release.json", dict(receipt, status="verified", ci="gx10-local"))
             activate(ROOT, release)
             run(["systemctl", "--user", "enable", *UNITS])
-            save(attempt, dict(receipt, status="active", finished_at=time.time()))
-            print(f"Activated {release}", flush=True)
         except Exception as error:
-            save(attempt, dict(receipt, status="failed", error=str(error), finished_at=time.time()))
+            save(attempt, dict(receipt, status="failed", phase=phase, error=str(error), finished_at=time.time()))
+            report_status(pair, phase, "failure", f"GX10 {phase} failed; inspect the pull-service journal")
             raise
+        save(attempt, dict(receipt, status="active", finished_at=time.time()))
+        report_status(pair, "deploy", "success", "Verified editor pair is active on GX10")
+        print(f"Activated {release}", flush=True)
 
 
 def serve(role):
@@ -264,7 +273,7 @@ def install():
     shutil.copyfile(Path(__file__).resolve(), ROOT / "driver.py")
     units = Path.home() / ".config/systemd/user"
     units.mkdir(parents=True, exist_ok=True)
-    common = f"Environment=LAIN_DEPLOY_ROOT={ROOT}\nEnvironment=PATH={Path.home()}/.local/bin:/usr/local/bin:/usr/bin:/bin\n"
+    common = f"Environment=LAIN_DEPLOY_ROOT={ROOT}\nEnvironment=PATH={Path.home()}/.local/bin:{Path.home()}/.cargo/bin:/usr/local/bin:/usr/bin:/bin\n"
     for role in REPOS:
         (units / f"gx10-lain-{role}.service").write_text(
             f"[Unit]\nDescription=GX10 Lain {role}\n[Service]\n{common}"
@@ -272,10 +281,10 @@ def install():
             "Restart=on-failure\nRestartSec=5\nKillMode=control-group\nTimeoutStopSec=20\nMemoryMax=8G\n"
             "[Install]\nWantedBy=default.target\n")
     (units / "gx10-lain-pull.service").write_text(
-        f"[Unit]\nDescription=Pull CI-tested Lain releases\n[Service]\nType=oneshot\n{common}"
-        f"ExecStart=/usr/bin/python3 {ROOT}/driver.py poll\nTimeoutStartSec=3600\nMemoryMax=12G\n")
+        f"[Unit]\nDescription=Run local CI and deploy Lain\n[Service]\nType=oneshot\n{common}"
+        f"ExecStart=/usr/bin/python3 {ROOT}/driver.py poll\nTimeoutStartSec=7200\nMemoryMax=12G\n")
     (units / "gx10-lain-pull.timer").write_text(
-        "[Unit]\nDescription=Check GitHub for tested Lain updates\n[Timer]\n"
+        "[Unit]\nDescription=Check GitHub for Lain source updates\n[Timer]\n"
         "OnBootSec=45\nOnUnitInactiveSec=60\n[Install]\nWantedBy=timers.target\n")
     run(["systemctl", "--user", "daemon-reload"])
     run(["systemctl", "--user", "enable", "--now", "gx10-lain-pull.timer"])
