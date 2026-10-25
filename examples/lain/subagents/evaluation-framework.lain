@@ -58,12 +58,13 @@
     (-> (evaluation:assessment-updates trials assessments) shared-assignments)
     (list shared-assignments trials assessments)))
 
-;; Execution evidence and user priority jointly constrain pending work.
+;; Assignment results arrive from the runner through the assignment-result port.
+;; Those results enrich trial execution facts; user priority constrains pending work.
 ;; Reordering changes pending priority only; already-running work continues.
 ;; Pi owns child lifecycle. The ongoing output is derived, not another queue.
 (define evaluation:execution-protocol
-  (network [shared-assignments trials runtime-observations ongoing-assignment]
-    (evaluation:trial-execution trials runtime-observations)
+  (network [shared-assignments trials runtime-results ongoing-assignment]
+    (evaluation:trial-execution trials runtime-results)
     (-> (evaluation:runnable-assignments shared-assignments trials) ongoing-assignment)
     (list trials ongoing-assignment)))
 
@@ -87,16 +88,16 @@
 ;; and a distinct Harbor transport endpoint; no provider must invent its slots.
 (define make-evaluation-framework
   (network []
-    (let-cell [shared-assignments ongoing-assignment runtime-observations
+    (let-cell [shared-assignments ongoing-assignment runtime-results
                trials assessments]
       (define harbor (make-harbor))
       (evaluation:assignment-protocol shared-assignments trials assessments)
       (evaluation:execution-protocol shared-assignments trials
-                                     runtime-observations ongoing-assignment)
+                                     runtime-results ongoing-assignment)
       (evaluation:assessment-protocol trials (harbor:observations harbor) assessments)
       (evaluation:external-protocol shared-assignments trials
                                     assessments (harbor:requests harbor))
       (struct :assignments shared-assignments
               :on-going-assignment ongoing-assignment
-              :assignment-result runtime-observations
+              :assignment-result runtime-results
               :harbor harbor))))

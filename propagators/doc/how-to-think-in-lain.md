@@ -258,7 +258,7 @@ The framework has an explicit orchestration interface:
 | --- | --- |
 | `assignments` | Shared assignment facts: user ordering enters and completed evaluation results feed back. |
 | `on-going-assignment` | Derived work offered to the runtime. |
-| `assignment-result` | Runtime execution observations enter. |
+| `assignment-result` | Assignment results from the runner enter; this port shares the internal `runtime-results` cell. |
 | `evaluation:harbor` | A separate Harbor endpoint with `harbor:requests` and `harbor:observations`. |
 
 Trials and assessments are internal cells. Each internal protocol accepts only the cells it relates, rather than receiving the framework bundle. The constructor makes their shared dependencies visible:
@@ -266,18 +266,18 @@ Trials and assessments are internal cells. Each internal protocol accepts only t
 ```clojure
 (define make-evaluation-framework
   (network []
-    (let-cell [shared-assignments ongoing-assignment runtime-observations
+    (let-cell [shared-assignments ongoing-assignment runtime-results
                trials assessments]
       (define harbor (make-harbor))
       (evaluation:assignment-protocol shared-assignments trials assessments)
       (evaluation:execution-protocol shared-assignments trials
-                                     runtime-observations ongoing-assignment)
+                                     runtime-results ongoing-assignment)
       (evaluation:assessment-protocol trials (harbor:observations harbor) assessments)
       (evaluation:external-protocol shared-assignments trials
                                     assessments (harbor:requests harbor))
       (struct :assignments shared-assignments
               :on-going-assignment ongoing-assignment
-              :assignment-result runtime-observations
+              :assignment-result runtime-results
               :harbor harbor))))
 ```
 
