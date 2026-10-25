@@ -188,7 +188,7 @@ Construct explicit interfaces with `struct`:
 ;; 42, without resolving request
 ```
 
-`struct` connects cells; it does not snapshot their current values. Nested structures preserve those connections. Slot labels are unique literal keywords; an odd number of arguments, non-keyword labels, or duplicate labels is an error. Empty and partially informed structures are valid. This is a primitive extension through ordinary application syntax, not a compiler grammar change.
+`struct` connects cells; it does not snapshot their current values. Nested structures preserve those connections. Slot labels are unique literal keywords; an odd number of arguments, non-keyword labels, or duplicate labels is an error. Empty and partially informed structures are valid. `struct` composes the existing fixed-key slot-accessor propagators; it does not inspect field contents or implement separate slot storage. This is a primitive extension through ordinary application syntax, not a compiler grammar change.
 
 ## 7. Make time, identity and retention explicit
 
