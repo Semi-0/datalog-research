@@ -1,0 +1,32 @@
+;; Composable relationships. See propagators/doc/how-to-think-in-lain.md.
+;; Import once per session; primitive factories install ordinary propagators.
+(load-primitive-environment
+  "propagators/compiler_2/runtime/operators/combinator.clj"
+  :propagators.compiler-2.runtime.operators.combinator/primitive-bindings
+  0)
+
+;; |> connects unary stages left to right. compose returns a unary stage and
+;; applies its stages right to left. Empty compositions preserve an endpoint.
+(define |> combinator:pipe)
+(define compose combinator:compose)
+
+;; A slot is a connected view, including when the owner is only partially known.
+;; switch(predicate) publishes its input only when that predicate returns true.
+;; The existing two-argument switch(value, condition) form remains available.
+(define slot combinator:slot)
+;; switch is installed directly by the session extension, so it does not merge
+;; with the existing core binding. Its two-argument behavior is preserved.
+
+;; Each applied history stage owns bounded recording state inside this session.
+;; It records incoming publications in arrival order, ignoring reevaluation of
+;; the same publication. The result is the vector of at most n recent values.
+(define history combinator:history)
+
+;; Three justified directions of the same arithmetic relationship. The ports
+;; are explicit; their textual ordering does not schedule the computations.
+(define constraint:+
+  (network [a b c]
+    (-> (+ a b) c)
+    (-> (- c b) a)
+    (-> (- c a) b)
+    (list a b c)))

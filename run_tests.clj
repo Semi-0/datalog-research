@@ -26,6 +26,7 @@
     propagators.compiler-2-conditional-syntax-test
     propagators.compiler-2-lazy-conditional-test
     propagators.compiler-2-rest-parameters-test
+    propagators.compiler-2-combinator-test
     propagators.compiler-2-network-observation-test
     propagators.compiler-2.runtime.semantic-traversal-test
     propagators.compiler-2.runtime.retained-network-test

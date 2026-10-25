@@ -1,114 +1,109 @@
-;; Harbor supplies the evaluation-framework actor through a session extension.
-;; These relationships are simultaneous constraints, not workflow steps.
-;; Unresolved primitives deliberately leave a traceable partial network.
+;; Relationships first: the framework is a shared protocol endpoint, not a
+;; coordinator that interprets steps. Primitive bodies arrive by session extension.
+(load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-;; Deferred provider and public protocol accessors. Harbor denotes a protocol
-;; provider, not a process launch; outside handlers own preparation/grading I/O.
+;; The abstraction owns its representation. Each accessor is a bidirectional
+;; partial view; callers neither allocate its slots nor unwrap the whole actor.
+(define assignments (slot :assignments))
+(define on-going-assignment (slot :on-going-assignment))
+(define assignment-result (slot :assignment-result))
+(define evaluation:observations (slot :evaluation/observations))
+(define evaluation:requests (slot :evaluation/requests))
+(define evaluation:trials (slot :evaluation/trials))
+(define evaluation:assessments (slot :evaluation/assessments))
+
+;; Deferred primitives normalize observations or derive request facts. They do
+;; not perform Harbor I/O. Outside handlers own effects, receipts and cleanup.
 (define harbor:framework)
 (define harbor:observe-context)
 (define harbor:observe-assessment)
 (define harbor:prepare)
 (define harbor:grade)
+(define evaluation:assignment-trials)
+(define evaluation:assessment-updates)
+(define evaluation:trial-execution)
+(define evaluation:runnable-assignments)
 
 (define harbor
   (network []
     (define evaluation-framework)
     (harbor:framework evaluation-framework)
-    (list evaluation-framework)))
-(define assignments)
-(define on-going-assignment)
-(define assignment-result)
-(define evaluation:observations)
-(define evaluation:requests)
-(define evaluation:trials)
-(define evaluation:assessments)
+    evaluation-framework))
 
-;; Pure relationships supplied by the session extension. Each connects focused
-;; cells; implementations must not require a resolved whole actor or workflow.
-(define evaluation:assignment-trials)
-(define evaluation:assessment-updates)
-(define evaluation:trial-execution)
-(define evaluation:runnable-assignments)
-;; Named Harbor relationships remain visible while primitive bodies are partial.
-;; These primitives normalize facts or derive requests; they do not invoke I/O.
+;; Named relationships remain inspectable while their primitive bodies are open.
 (define harbor:trial-contexts
   (network [trials observations]
     (harbor:observe-context trials observations)
     (list trials)))
 
 (define harbor:trial-assessments
-  (network [trials observations assessments]
+  (network [trials observations]
+    (define assessments)
     (harbor:observe-assessment trials observations assessments)
-    (list assessments)))
+    assessments))
 
 (define harbor:preparation-requests
-  (network [shared-assignments trials requests]
+  (network [shared-assignments trials]
+    (define requests)
     (harbor:prepare shared-assignments trials requests)
-    (list requests)))
+    requests))
 
 (define harbor:grading-requests
-  (network [trials assessments requests]
+  (network [trials assessments]
+    (define requests)
     (harbor:grade trials assessments requests)
-    (list requests)))
+    requests))
 
-;; Shared assignment facts constrain trials. Assessments constrain assignment
-;; outcomes through updates to that same fact collection, not a second queue.
+;; Trials and graded outcomes enrich the same assignment facts.
 (define evaluation:assignment-protocol
-  (network [shared-assignments trials assessments]
-    (let-cell [updates]
-      (evaluation:assignment-trials shared-assignments trials)
-      (evaluation:assessment-updates trials assessments updates)
-      (-> updates shared-assignments))
-    (list shared-assignments trials)))
+  (network [framework]
+    (evaluation:assignment-trials
+      (assignments framework) (evaluation:trials framework))
+    (-> (evaluation:assessment-updates
+          (evaluation:trials framework) (evaluation:assessments framework))
+        (assignments framework))
+    (list framework)))
 
-;; Runtime observations contribute execution evidence to trials. Prepared trial
-;; context and assignment eligibility constrain the ongoing-assignment output.
-;; Pi owns child lifecycle; no second child FSM is introduced here.
+;; Prepared contexts and execution observations constrain eligible work.
+;; The ongoing assignment is a derived view, never a second task queue or Pi FSM.
 (define evaluation:execution-protocol
-  (network [shared-assignments trials runtime-observations ongoing-assignment]
-    (evaluation:trial-execution trials runtime-observations)
-    (evaluation:runnable-assignments shared-assignments trials ongoing-assignment)
-    (list trials ongoing-assignment)))
+  (network [framework]
+    (evaluation:trial-execution
+      (evaluation:trials framework) (assignment-result framework))
+    (-> (evaluation:runnable-assignments
+          (assignments framework) (evaluation:trials framework))
+        (on-going-assignment framework))
+    (list framework)))
 
-;; Harbor observations contribute prepared contexts and grading outcomes.
-;; Trial/run identities correlate observations with the corresponding evidence.
+;; Harbor observations contribute trial contexts and assessments.
 (define evaluation:assessment-protocol
-  (network [trials framework-observations assessments]
-    (harbor:trial-contexts trials framework-observations)
-    (harbor:trial-assessments trials framework-observations assessments)
-    (list trials assessments)))
+  (network [framework]
+    (harbor:trial-contexts
+      (evaluation:trials framework) (evaluation:observations framework))
+    (-> (harbor:trial-assessments
+          (evaluation:trials framework) (evaluation:observations framework))
+        (evaluation:assessments framework))
+    (list framework)))
 
-;; Preparation demand depends on assigned trials; grading demand depends on
-;; completed execution evidence. Missing information is not evidence of failure.
-;; These outputs are request facts, never calls that perform external work.
+;; Preparation and grading are distinct request relationships. The extension
+;; merges their facts with stable identities; unresolved facts do not mean failure.
 (define evaluation:external-protocol
-  (network [shared-assignments trials assessments framework-requests]
-    (let-cell [preparation-requests grading-requests]
-      (harbor:preparation-requests shared-assignments trials preparation-requests)
-      (harbor:grading-requests trials assessments grading-requests)
-      (-> preparation-requests framework-requests)
-      (-> grading-requests framework-requests))
-    (list framework-requests)))
+  (network [framework]
+    (-> (harbor:preparation-requests
+          (assignments framework) (evaluation:trials framework))
+        (evaluation:requests framework))
+    (-> (harbor:grading-requests
+          (evaluation:trials framework) (evaluation:assessments framework))
+        (evaluation:requests framework))
+    (list framework)))
 
-;; No constructor inputs are needed. The Harbor-backed framework is the output.
-;; Only this constructor composes the internal networks and exposes their cells.
-;; Event/request facts require session-local associative, commutative, idempotent
-;; merge, stable identities and receipts; external handlers reconcile uncertainty.
+;; Zero inputs; one Harbor-backed framework output. These four relationships
+;; coexist on its views. Their textual order is not an execution schedule.
 (define make-evaluation-framework
   (network []
-    (define evaluation-framework (harbor))
-    (let-cell [shared-assignments ongoing-assignment trials assessments
-               runtime-observations framework-observations framework-requests]
-      (assignments evaluation-framework shared-assignments)
-      (on-going-assignment evaluation-framework ongoing-assignment)
-      (assignment-result evaluation-framework runtime-observations)
-      (evaluation:observations evaluation-framework framework-observations)
-      (evaluation:requests evaluation-framework framework-requests)
-      (evaluation:trials evaluation-framework trials)
-      (evaluation:assessments evaluation-framework assessments)
-
-      (evaluation:assignment-protocol shared-assignments trials assessments)
-      (evaluation:execution-protocol shared-assignments trials runtime-observations ongoing-assignment)
-      (evaluation:assessment-protocol trials framework-observations assessments)
-      (evaluation:external-protocol shared-assignments trials assessments framework-requests))
-    (list evaluation-framework)))
+    (define framework (harbor))
+    (evaluation:assignment-protocol framework)
+    (evaluation:execution-protocol framework)
+    (evaluation:assessment-protocol framework)
+    (evaluation:external-protocol framework)
+    framework))
