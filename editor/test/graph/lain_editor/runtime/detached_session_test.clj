@@ -76,11 +76,20 @@
             initial (get-in (fixture/inspect-pane editors "clock" display) [:replay :frames])]
         (is (seq initial))
         (command! {:op "detach-session" :pane "clock" :generation (:generation run)})
-        (Thread/sleep 250)
+        (let [deadline (+ (System/nanoTime) 5000000000)
+              detached-frames
+              (loop []
+                (let [frames (get-in (fixture/inspect-pane detached (:sessionId run) display)
+                                     [:replay :frames])]
+                  (if (or (> (count frames) (count initial))
+                          (>= (System/nanoTime) deadline))
+                    frames
+                    (do (Thread/sleep 50) (recur)))))]
+          (is (> (count detached-frames) (count initial))
+              "Clock history must advance while the session is still detached"))
         (command! {:op "reopen-session" :sessionId (:sessionId run) :pane "reopened"})
         (is (identical? live (:session (get @editors "reopened"))))
         (let [latest (get-in (fixture/inspect-pane editors "reopened" display) [:replay :frames])]
-          (is (> (count latest) (count initial)))
           (is (= initial (subvec latest 0 (count initial))))))
       (finally (session/close! editors) (session/close! detached)))))
 

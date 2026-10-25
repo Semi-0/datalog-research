@@ -13,7 +13,9 @@
   (let [states (state/states-of result)
         state-update (collection/content {:premise-state states})]
     (if (and (datum/layer-present? result :base)
-             (not (value/unusable? result)))
+             (or (not (value/unusable? result))
+                 (seq (datum/support-of result))
+                 (value/contradiction? (datum/layer-value result :base))))
       (collection/merge-content
        state-update
        (collection/content {:base (datum/layer-value result :base)
@@ -23,7 +25,10 @@
 (defn content [result]
   (if (datum/layer-present? result :membership)
     (let [states (state/states-of result)]
-      (if (value/unusable? result)
+      (if (and (value/unusable? result)
+               (empty? (datum/support-of result))
+               (empty? (datum/membership-of result))
+               (not (value/contradiction? (datum/layer-value result :base))))
         (membership/content {:premise-state states})
         (membership/content {:base (datum/layer-value result :base)
                              :support (datum/support-of result)

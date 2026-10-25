@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.runtime.returned-outputs
   "Declare one stable outbound port for each returned linked-list member."
   (:require [propagators.compiler-2.runtime.list-interface :as list-interface]
+            [propagators.compiler-2.runtime.declaration-effects :as effects]
             [propagators.compiler-2.model.env :as env]
             [propagators.cells.cell :as cell]
             [propagators.cells.value :as value]
@@ -55,12 +56,20 @@
         (throw (ex-info "Cyclic output interfaces are unsupported" {:list-id list-id})))
       (case (list-interface/list-shape network list-id)
         :cons
-        (let [head (obj/existing-slot-cell-id network :car list-id)
-              tail (obj/existing-slot-cell-id network :cdr list-id)]
-          {:effects
-           (into (output-boundary-effects context project routes application-id position head)
-                 (scan-output-effect project routes application-id (inc position) tail
-                                     (conj seen list-id)))})
+        (let [prepared (effects/begin network)
+              [head head-props prepared]
+              (obj/install-slot-access prepared :car list-id
+                                       (gur/stable-node-id [application-id :output-head position]))
+              [tail tail-props prepared]
+              (obj/install-slot-access prepared :cdr list-id
+                                       (gur/stable-node-id [application-id :output-tail position]))
+              declared (effects/result
+                        (effects/register-props prepared (concat head-props tail-props)))
+              context (assoc context :network prepared)]
+          (update declared :effects into
+                  (into (output-boundary-effects context project routes application-id position head)
+                        (scan-output-effect project routes application-id (inc position) tail
+                                            (conj seen list-id)))))
         :empty (complete-output-effects application-id position :list)
         :wait {:effects []}
         :scalar

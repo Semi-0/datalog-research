@@ -169,11 +169,27 @@ generic compound-object representation.
   (apply add (list 2 3)))
 ```
 
-`apply` obtains argument cell IDs from a finite compound linked-list spine;
-it does not materialize argument values. It waits for an unavailable spine and
-declares the call when its shape is known. A direct call knows the argument
-count immediately, so the two forms can declare topology at different times.
-Arity mismatches, malformed list tails, and cycles are explicit errors.
+`apply` obtains argument cell IDs from the compound linked-list spine; it does
+not materialize argument values. Known empty tails establish finite completion.
+Unavailable element values do not prevent declaration once their cells are
+addressable. Arity mismatches, malformed list tails, and cycles are explicit
+errors.
+
+The current compiler-2 open-call contract uses a declared network interface:
+a fixed-arity network can connect its required argument cells while the final
+tail is still unresolved. A variadic network receives the live remaining tail
+as its rest argument, so later list growth remains visible. An unresolved tail
+is not treated as empty or as a frozen final argument count. Primitive operators
+without a declared input interface require a known completed argument list;
+the runtime does not guess their arity.
+
+A call preserves the availability, support, and premise state of each consumed
+cons owner, even if the callee returns a constant and never reads its arguments.
+Withdrawing a consumed owner withdraws the call result without inventing an
+argument value. A primitive call additionally depends on the explicit empty
+completion marker; retracting that marker withdraws its result. A declared
+fixed-arity call does not acquire a dependency on its unresolved final tail.
+These contracts are covered by the open-call suite's 13 tests / 71 assertions.
 
 Fixed formals remain sufficient for a generic constructor:
 
@@ -219,24 +235,27 @@ uses `switch` to make a false branch unavailable:
 
 ## Higher-order linked-list programs
 
+The current compiler-2 session loads these networks from the
+[list standard library](../propagators/compiler_2/runtime/lain/list.md):
+
 ```clojure
-(let []
-  (define map-list
-    (network (f xs)
-      (let-cell [answer]
-        (when (switch true (= xs :compiler-2/list-empty))
-          (define answer (list)))
-        (when (switch true (not (= xs :compiler-2/list-empty)))
-          (define answer
-            (cons (f (car xs)) (map-list f (cdr xs)))))
-        answer)))
-  (map-list (network (x) (+ x 1)) (list 1 2 3)))
+(load-lain "propagators/compiler_2/runtime/lain/list.lain")
+(map-list (network [x] (+ x 1)) (list 1 2 3))
 ```
 
-The result is a compound list with members `2`, `3`, and `4`. Map/filter chains
-and `zip-with` compose using the same operators and closures. Recursion grows
-missing topology as list tails become available. This is recursive topology
-construction, not a claim of tail-call optimization or bounded total size.
+The result is a complete compound list with members `2`, `3`, and `4` and a
+known empty tail. `(list)` denotes the known empty list; `(list 1 2 3)` closes
+its final tail with that value. `empty-list?` distinguishes known emptiness
+from a nonempty cons and from an unresolved cell. The list networks use that
+predicate through reactive `if` relationships, without comparing raw markers.
+
+Open tails remain supported explicitly, for example `(cons 1 later)` where
+`later` is an unresolved cell. Mapping publishes its available prefix and
+waits for that tail to become another cons or known empty. Unknown does not
+assert completion. `when` retains its separate topology-installation semantics.
+This is recursive topology construction, not a claim of tail-call optimization
+or bounded total size. The session loader shown here is distinct from the
+historical experiment's single-expression compilation API described above.
 
 ## Effects
 

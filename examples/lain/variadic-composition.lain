@@ -1,6 +1,6 @@
-(define pipe-list (network [x stages out] (when (switch true (= stages :compiler-2/list-empty)) (-> x out)) (-> (when (switch true (not (= stages :compiler-2/list-empty))) (pipe-list ((car stages) x) (cdr stages) out)) out) (list out)))
+(define pipe-list (network [x stages out] (when (switch true (empty-list? stages)) (-> x out)) (-> (when (switch true (not (empty-list? stages))) (pipe-list ((car stages) x) (cdr stages) out)) out) (list out)))
 (define pipe (network [x & stages] (let-cell [out] (pipe-list x stages out) out)))
-(define compose-list (network [x stages out] (when (switch true (= stages :compiler-2/list-empty)) (-> x out)) (-> (when (switch true (not (= stages :compiler-2/list-empty))) (let-cell [tail-result] (compose-list x (cdr stages) tail-result) (-> ((car stages) tail-result) out))) out) (list out)))
+(define compose-list (network [x stages out] (when (switch true (empty-list? stages)) (-> x out)) (-> (when (switch true (not (empty-list? stages))) (let-cell [tail-result] (compose-list x (cdr stages) tail-result) (-> ((car stages) tail-result) out))) out) (list out)))
 (define compose (network [& stages] (network [x] (let-cell [out] (compose-list x stages out) out))))
 (define inc1 (network [x] (+ x 1)))
 (define double (network [x] (* x 2)))

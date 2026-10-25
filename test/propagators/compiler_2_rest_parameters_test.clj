@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is]]
             [clojure.string :as str]
             [propagators.compiler-2.compiler.basis :as basis]
+            [propagators.cells.value :as value]
             [propagators.compiler-2.main :as compiler]
             [propagators.compiler-2.model.closure-value :as closure-value]
             [propagators.compiler-2.model.env :as env]
@@ -44,15 +45,14 @@
   (is (= 3 (evaluate "(let-cell [out] ((network [x y] (-> x y) (list y)) 3 out) out)"))))
 
 (deftest rest-lists-cover-zero-one-and-many
-  (is (= :compiler-2/list-empty (evaluate "(list)")))
-  (is (= :compiler-2/list-empty (evaluate "((network [& xs] xs))")))
-  (is (= :compiler-2/list-empty (evaluate "((network [x & xs] xs) 9)")))
+  (is (= basis/list-empty-marker (evaluate "(list)")))
+  (is (= basis/list-empty-marker (evaluate "((network [& xs] xs))")))
+  (is (= basis/list-empty-marker (evaluate "((network [x & xs] xs) 9)")))
   (is (= 4 (evaluate "((network [& xs] (car xs)) 4)")))
   (is (= 4 (evaluate "((network [& xs] (car xs)) 4)")))
   (is (= 5 (evaluate "((network [x & xs] (+ x (car xs))) 2 3)")))
   (is (= 6 (evaluate "((network [& xs] (car (cdr (cdr xs)))) 4 5 6)")))
-  (is (= :compiler-2/list-empty
-         (evaluate "((network [& xs] (cdr xs)) 4)"))))
+  (is (= basis/list-empty-marker (evaluate "((network [& xs] (cdr xs)) 4)"))))
 
 (deftest rest-wrapper-retains-an-ordinary-fixed-arity-closure
   (let [wrapped (evaluate "(network [x & xs] x)")
@@ -89,7 +89,7 @@
       (is (= (subvec invocation 1) (:argument-ids topology))))))
 
 (def pipeline-definitions
-  "(define walk (network [x stages out] (when (switch true (= stages :compiler-2/list-empty)) (-> x out)) (-> (when (switch true (not (= stages :compiler-2/list-empty))) (walk ((car stages) x) (cdr stages) out)) out) (list out)))\n(define pipe (network [x & stages] (let-cell [out] (walk x stages out) out)))\n(define walk-right (network [x stages out] (when (switch true (= stages :compiler-2/list-empty)) (-> x out)) (-> (when (switch true (not (= stages :compiler-2/list-empty))) (let-cell [tail-result] (walk-right x (cdr stages) tail-result) (-> ((car stages) tail-result) out))) out) (list out)))\n(define compose (network [& stages] (network [x] (let-cell [out] (walk-right x stages out) out))))\n(define inc1 (network [x] (+ x 1)))\n(define double (network [x] (* x 2)))")
+  "(define walk (network [x stages out] (when (switch true (empty-list? stages)) (-> x out)) (-> (when (switch true (not (empty-list? stages))) (walk ((car stages) x) (cdr stages) out)) out) (list out)))\n(define pipe (network [x & stages] (let-cell [out] (walk x stages out) out)))\n(define walk-right (network [x stages out] (when (switch true (empty-list? stages)) (-> x out)) (-> (when (switch true (not (empty-list? stages))) (let-cell [tail-result] (walk-right x (cdr stages) tail-result) (-> ((car stages) tail-result) out))) out) (list out)))\n(define compose (network [& stages] (network [x] (let-cell [out] (walk-right x stages out) out))))\n(define inc1 (network [x] (+ x 1)))\n(define double (network [x] (* x 2)))")
 
 (deftest lain-defined-pipelines-and-returned-closures
   (doseq [[call expected] [["(pipe 3)" 3]

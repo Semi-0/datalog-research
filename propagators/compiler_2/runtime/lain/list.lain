@@ -1,0 +1,30 @@
+;; Reactive linked-list transformations over cons/car/cdr cells.
+;; Load with (load-lain "propagators/compiler_2/runtime/lain/list.lain").
+;; Empty is known completion; an unresolved cons tail remains open.
+
+(define map-list
+  (network [f xs]
+    (if (empty-list? xs)
+      (list)
+      (cons (f (car xs)) (map-list f (cdr xs))))))
+
+(define filter-list
+  (network [predicate xs]
+    (if (empty-list? xs)
+      (list)
+      (let [head (car xs)
+            tail (filter-list predicate (cdr xs))]
+        (if (predicate head) (cons head tail) tail)))))
+
+(define zip-with
+  (network [f xs ys]
+    (if (empty-list? xs)
+      (list)
+      (if (empty-list? ys)
+        (list)
+        (cons (f (car xs) (car ys))
+              (zip-with f (cdr xs) (cdr ys)))))))
+
+(define zip
+  (network [xs ys]
+    (zip-with (network [x y] (list x y)) xs ys)))

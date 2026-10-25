@@ -13,6 +13,9 @@
             [propagators.datastructures.compound-object.network-slot :as network-slot]
             [propagators.datastructures.dependency :as dependency]
             [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support-collection :as support-collection]
+            [propagators.datastructures.membership-collection :as membership-collection]
+            [propagators.stdlib.premise-state :as premise-state]
             [propagators.stdlib.membership :as membership]
             [propagators.datastructures.scope-source :as scope-source]
             [propagators.datastructures.tms.distributed :as tms]
@@ -148,7 +151,7 @@
       [(-> state''
            (assoc :net (if (empty? element-ids)
                          (seed-cell network' out-id list-empty-marker)
-                         network'))
+                         (nb/ensure-cell network' out-id)))
            (add-props installed-prop-ids))
        (env/cell-binding out-id)])))
 
@@ -367,13 +370,24 @@
     (fn [network arg-ids out-id]
       (let [{:keys [value-id collection-id result-id]}
             (accessor-plan name arg-ids out-id)]
-        (install-live-accessor network slot-key installer
-                               value-id collection-id result-id)))
+        (if (= 1 (count arg-ids))
+          (install-live-accessor
+           network slot-key
+           (fn [target source]
+             (prop/construct-propagator
+              [:compiler-2/read-slot slot-key]
+              (network-slot/read-slot-activation slot-key target source)
+              [source target] [target source]))
+           value-id collection-id result-id)
+          (install-live-accessor network slot-key installer
+                                 value-id collection-id result-id))))
     :activate
     (fn [network _context-id arg-ids out-id]
       (let [{:keys [value-id collection-id]}
             (accessor-plan name arg-ids out-id)]
-        (slot-messages slot-key value-id collection-id network)))}))
+        (if (= 1 (count arg-ids))
+          ((network-slot/read-slot-activation slot-key value-id collection-id) nil nil network)
+          (slot-messages slot-key value-id collection-id network))))}))
 
 (defn slot-accessor
   "Construct a fixed-key accessor with the canonical live slot connections."
@@ -436,9 +450,13 @@
                                             network)]
                          [network' [id] result-id])))))
       :activate (fn [network _context-id arg-ids out-id]
-                  (let [{:keys [slot-key-id value-id collection-id]}
-                        (plan arg-ids out-id)]
-                    (slot-key-messages network slot-key-id value-id collection-id)))})))
+                  (let [{:keys [slot-key-id value-id collection-id read?]}
+                        (plan arg-ids out-id)
+                        slot-key (net/network-cell-strongest network slot-key-id)]
+                    (if (and read? (not (value/unusable? slot-key)))
+                      ((network-slot/read-slot-activation slot-key value-id collection-id)
+                       nil nil network)
+                      (slot-key-messages network slot-key-id value-id collection-id))))})))
 
 (defn contextual-operator?
   [operator]
@@ -745,36 +763,43 @@
                     :else
                     (forward-sync-messages current-net else-in else-out))))}))
 
+(defn- predicate-base [pred v]
+  (cond
+    (value/nothing? v) value/nothing
+    (value/contradiction? v) (case pred :contradiction true :value false false)
+    :else (case pred
+            :nothing false
+            :contradiction false
+            :value true
+            :symbol (core/symbol? v)
+            :string (core/string? v)
+            :number (core/number? v)
+            :boolean (or (true? v) (false? v))
+            :cell (ids/node-id? v)
+            :network (net/net? v)
+            :empty-list (= list-empty-marker v)
+            :closure ((requiring-resolve
+                       'propagators.compiler-2.model.closure-value/closure-info?) v)
+            :tms (tms/distributed-value? v)
+            false)))
+
 (defn- predicate-messages
   [network pred value-id out-id]
   (let [v (net/network-cell-strongest network value-id)]
     (cond
-      (value/nothing? v)
-      []
+      (and (datum/layer-present? v :base)
+           (datum/layer-present? v :support))
+      (let [result {:base (predicate-base pred (datum/layer-value v :base))
+                    :support (datum/support-of v)
+                    :premise-state (premise-state/states-of v)}
+            publication (if (datum/layer-present? v :membership)
+                          (membership-collection/content
+                           (assoc result :membership (datum/membership-of v)))
+                          (support-collection/content result))]
+        [(message out-id publication)])
 
-      (value/contradiction? v)
-      [(message out-id (case pred
-                         :contradiction true
-                         :value false
-                         false))]
-
-      :else
-      [(message out-id
-                (case pred
-                  :nothing false
-                  :contradiction false
-                  :value true
-                  :symbol (core/symbol? v)
-                  :string (core/string? v)
-                  :number (core/number? v)
-                  :boolean (or (true? v) (false? v))
-                  :cell (ids/node-id? v)
-                  :network (net/net? v)
-                  :closure ((requiring-resolve
-                             'propagators.compiler-2.model.closure-value/closure-info?)
-                            v)
-                  :tms (tms/distributed-value? v)
-                  false))])))
+      (value/nothing? v) []
+      :else [(message out-id (predicate-base pred v))])))
 
 (defn predicate-operator
   [name pred]
@@ -833,6 +858,7 @@
     ['boolean? (predicate-operator 'boolean? :boolean)]
     ['cell? (predicate-operator 'cell? :cell)]
     ['network? (predicate-operator 'network? :network)]
+    ['empty-list? (predicate-operator 'empty-list? :empty-list)]
     ['closure? (predicate-operator 'closure? :closure)]
     ['tms? (predicate-operator 'tms? :tms)]
     ['p:cons (cons-operator)]

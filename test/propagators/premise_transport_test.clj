@@ -119,10 +119,22 @@
       (is (= 22 (datum/layer-value (net/network-cell-strongest recovered out) :base)))
       (is (= recovered (publish recovered source (state-update (p source 4 :active))))))))
 
-(deftest publication-suppresses-unusable-payload-not-state
-  (let [source (ids/new-node-id) states #{(p source 1 :active)}]
+(deftest publication-preserves-supported-unusable-observations-and-state
+  (let [source (ids/new-node-id) supports #{(p source 1 :active)}]
     (doseq [base [value/nothing value/contradiction]]
-      (let [result (publication/content (obj/compound-object {:base base :support states :premise-state states}))]
+      (let [result (publication/content
+                    (obj/compound-object {:base base :support supports :premise-state supports}))
+            expected (collection/content {:base base :support supports :premise-state supports})
+            projected (project result)]
+        (is (= expected result))
+        (is (= base (datum/layer-value projected :base)))
+        (is (= supports (datum/support-of projected)))))))
+
+(deftest publication-suppresses-information-free-bottom-and-retains-state
+  (let [source (ids/new-node-id)]
+    (doseq [states [#{} #{(p source 1 :retracted)}]]
+      (let [result (publication/content
+                    (obj/compound-object {:base value/nothing :support #{} :premise-state states}))]
         (is (= #{} (:support/observations result)))
         (is (= states (:support/states result)))))))
 

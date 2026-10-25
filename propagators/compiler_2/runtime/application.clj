@@ -231,6 +231,18 @@
      (ex-info "Unsupported closure output declaration"
               {:output output}))))
 
+(defn callable-argument-count
+  "Declared argument count for a closure, including explicit output ports.
+   Returns nil for primitives without a declared input interface."
+  [candidate]
+  (let [declaration (callable-declaration candidate)]
+    (when (closure-value/closure-info? declaration)
+      (let [output (closure-value/closure-output declaration)]
+        (+ (count (closure-value/closure-inputs declaration))
+           (if (closure-value/implicit-return-output? output)
+             0
+             (count (output-symbols output))))))))
+
 (defn- closure-call
   [closure-info argument-ids result-id]
   (let [parameters (closure-value/closure-inputs closure-info)

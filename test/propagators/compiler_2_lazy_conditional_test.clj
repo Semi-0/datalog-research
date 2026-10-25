@@ -4,6 +4,7 @@
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.declarations :as declarations]
             [propagators.compiler-2.cps-core :as compiler]
+            [propagators.compiler-2-functional-network-gur-test :as functional]
             [propagators.compiler-2.language.ast :as ast]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.runtime.session.input :as input]
@@ -56,6 +57,33 @@
                     (swap! calls conj (ast/name (ast/operator expression)))
                     (declare state expression))]
       (f calls))))
+
+;; Keep one bare-if regression fixture: the canonical stdlib mapper uses when.
+(def bare-if-regression-mapper
+  "(define map-partial
+     (network [f xs]
+       (if (value? xs)
+         (cons (f (car xs)) (map-partial f (cdr xs)))
+         (let-cell [empty] empty))))
+   (define increment (network [x] (+ x 1)))
+   (define double (network [x] (* x 2)))
+   (define decrement (network [x] (- x 1)))
+   (define xs (let-cell [end] (cons 1 (cons 2 (cons 3 end)))))")
+
+(defn- evaluate-partial-list [expression]
+  (evaluate (str "(let [] " bare-if-regression-mapper " " expression ")")))
+
+(deftest recursive-if-mapper-propagates-beyond-the-first-member
+  (is (= 3 (evaluate-partial-list "(car (cdr (map-partial increment xs)))"))))
+
+(deftest recursive-if-mappers-compose-through-three-partial-lists
+  (is (= 7 (evaluate-partial-list
+            "(car (cdr (cdr (map-partial decrement (map-partial double (map-partial increment xs))))))"))))
+
+(deftest stdlib-map-filter-map-preserves-the-second-kept-member
+  (is (= 7 (functional/scalar
+            (str functional/list-library functional/mappers)
+            "(car (cdr (map-list increment (filter-list (network [x] (>= x 4)) (map-list double (list 1 2 3))))))"))))
 
 (deftest if-and-cond-defer-recursion-and-capture-lexical-cells
   (doseq [body ["(if (<= n 0) acc (sum-to (- n 1) (+ acc n)))"

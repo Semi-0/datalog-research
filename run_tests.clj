@@ -25,6 +25,14 @@
     propagators.compiler-2-cps-test
     propagators.compiler-2-conditional-syntax-test
     propagators.compiler-2-lazy-conditional-test
+    propagators.compiler-2-empty-list-test
+    propagators.compiler-2-open-apply-test
+    propagators.compiler-2-functional-network-test
+    propagators.compiler-2-supported-compound-if-test
+    propagators.compiler-2-supported-publication-test
+    propagators.supported-slot-test
+    propagators.compiler-2-functional-network-gur-test
+    propagators.compiler-2-gur-tms-integration-test
     propagators.compiler-2-rest-parameters-test
     propagators.compiler-2-combinator-test
     propagators.compiler-2-network-observation-test
@@ -174,6 +182,8 @@
   (require ns-sym)
   (let [{:keys [pass fail error]} (run-tests ns-sym)]
     (println (str ns-sym ":") pass "pass," fail "fail," error "error")
+    (when (zero? (+ (or pass 0) (or fail 0) (or error 0)))
+      (throw (ex-info "Test suite ran zero assertions" {:namespace ns-sym})))
     {:pass (or pass 0) :fail (or fail 0) :error (or error 0)}))
 
 (defn- requested-suites [args]

@@ -44,6 +44,12 @@
   ;; is explicitly empty, not a freshly invented source. Extra layers still fail.
   (let [base (base-of result)]
     (cond
+      ;; Keep information-free pending output at bottom. A support collection
+      ;; here would conflict with a later plain callable; supported pending
+      ;; observations and premise-state updates must still be published.
+      (and (value/nothing? base)
+           (empty? (datum/support-of result))
+           (empty? (state/states-of result))) value/nothing
       ;; Static callable selection needs no candidate gate or extra body frame.
       (and (gur/recursive-closure? base)
            (empty? (datum/support-of result))

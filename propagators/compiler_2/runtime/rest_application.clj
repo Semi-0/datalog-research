@@ -13,6 +13,20 @@
   (and (application/compiler-callable? candidate)
        (contains? candidate rest-callable-key)))
 
+(defn required-argument-count
+  "Number of leading cells a linked call needs before it can be connected."
+  [candidate]
+  (if (rest-callable? candidate)
+    (count (:required (:parameters (get candidate rest-callable-key))))
+    (application/callable-argument-count candidate)))
+
+(defn linked-callable
+  "Use an existing rest-list cell instead of packing a finite argument vector."
+  [candidate]
+  (if (rest-callable? candidate)
+    (:callable (get candidate rest-callable-key))
+    candidate))
+
 (defn- pack-arguments
   "Use inbound proxies so cons access cannot write back to caller cells."
   [network application-id arguments]

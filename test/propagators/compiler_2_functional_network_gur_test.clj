@@ -5,6 +5,8 @@
             [propagators.compiler-2.language.parser :as parser]
             [propagators.compiler-2.runtime.linked-application :as linked]
             [propagators.compiler-2.cps-core :as compiler]
+            [propagators.compiler-2.model.env :as env]
+            [propagators.compiler-2.runtime.session.file-loader :as loader]
             [propagators.compiler-2-functional-network-test :as fixture]
             [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
@@ -31,45 +33,15 @@
           (network () n)
           (network () (+ (fib (- n 1)) (fib (- n 2))))))))")
 
-(def map-list
-  "(define map-list
-     (network (f xs)
-       (let-cell [answer]
-         (when (switch true (= xs :compiler-2/list-empty))
-           (define answer (list)))
-         (when (switch true (not (= xs :compiler-2/list-empty)))
-           (define answer
-             (cons (f (car xs)) (map-list f (cdr xs)))))
-         answer)))")
+(def list-library
+  "(load-lain \"propagators/compiler_2/runtime/lain/list.lain\")")
 
-(def filter-list
-  "(define filter-list
-     (network (predicate xs)
-       (let-cell [answer]
-         (when (switch true (= xs :compiler-2/list-empty))
-           (define answer (list)))
-         (when (switch true (not (= xs :compiler-2/list-empty)))
-           (let [head (car xs)
-                 tail (filter-list predicate (cdr xs))
-                 keep (predicate head)]
-             (when (switch true keep) (define answer (cons head tail)))
-             (when (switch true (not keep)) (define answer tail))))
-         answer)))")
+;; Compatibility names for diagnostic callers: definitions are loaded from Lain.
+(def map-list list-library)
 
-(def zip-with
-  "(define zip-with
-     (network (f xs ys)
-       (let-cell [answer]
-         (when (switch true (= xs :compiler-2/list-empty))
-           (define answer (list)))
-         (when (switch true (not (= xs :compiler-2/list-empty)))
-           (when (switch true (= ys :compiler-2/list-empty))
-             (define answer (list)))
-           (when (switch true (not (= ys :compiler-2/list-empty)))
-             (define answer
-               (cons (f (car xs) (car ys))
-                     (zip-with f (cdr xs) (cdr ys))))))
-         answer)))")
+(def filter-list list-library)
+
+(def zip-with list-library)
 
 (def mappers
   "(define increment (network (x) (+ x 1)))
@@ -77,7 +49,15 @@
    (define decrement (network (x) (- x 1)))")
 
 (defn compile-program [definitions expression]
-  (compiler/compile-source (str "(let [] " definitions " " expression ")")))
+  (let [session (loader/load-session-from-source "0")
+        loaded (loader/load-source! session
+                 (str definitions "\n(define stdlib-test-result " expression ")"))]
+    (when-let [error (:error (:load-result loaded))]
+      (throw (ex-info "Lain test source failed" {:error error})))
+    (let [state @session
+          network (:program/net state)
+          result-id (env/resolve-binding-id network (:program/env state) 'stdlib-test-result)]
+      {:net network :props [] :cell result-id})))
 
 (defn scalar [definitions expression]
   (let [compiled (compile-program definitions expression)]
@@ -216,6 +196,43 @@
     (is (value/nothing? (net/network-cell-strongest initial answer)))
     (is (= 2 (net/network-cell-strongest activated answer)))))
 
+(deftest list-stdlib-preserves-empty-and-partial-information
+  (is (= [] (list-result (str list-library mappers) "(map-list increment (list))")))
+  (is (= [] (list-result list-library "(filter-list (network [x] false) (list 1 2 3))")))
+  (is (= [] (list-result list-library "(zip-with + (list) (list 10 20))")))
+  (is (= [value/nothing 3]
+         (list-result (str list-library mappers)
+                      "(let-cell [head] (map-list increment (list head 2)))"))))
+
+(deftest list-stdlib-zip-exposes-the-shared-available-prefix
+  (is (= [11] (list-result list-library "(zip-with + (list 1 2 3) (list 10))")))
+  (is (= [11] (list-result list-library "(zip-with + (list 1) (list 10 20 30))")))
+  (is (= 20 (scalar list-library "(car (cdr (car (cdr (zip (list 1 2) (list 10 20))))))"))))
+
+(deftest zip-waits-for-and-grows-with-a-late-input-prefix
+  (let [compiled (compile-program list-library
+                   "(let-cell [right]
+                      (define answer (zip-with + (list 1 2) right))
+                      (list right answer))")
+        initial (fixture/run compiled)
+        [right answer] (fixture/list-ids initial (:cell compiled))
+        [head tail next-head end] (mapv gur/stable-node-id
+                                    [[:zip-test :head] [:zip-test :tail]
+                                     [:zip-test :next] [:zip-test :end]])
+        prepared (reduce nb/ensure-cell initial [head tail next-head end])
+        [props attached] ((obj/p:cons head tail right) prepared)
+        first-prefix (nb/run-propagators (nb/seed-cell attached head 10) props)
+        [tail-props extended] ((obj/p:cons next-head end tail) first-prefix)
+        completed (nb/run-propagators (nb/seed-cell extended next-head 20) tail-props)
+        repeated (fixture/wake completed [right tail head next-head])]
+    (is (value/nothing? (net/network-cell-strongest initial answer)))
+    (is (= [11] (fixture/values first-prefix answer)))
+    (is (= [11 22] (fixture/values completed answer)))
+    (is (= (net/net-graph completed) (net/net-graph repeated)))
+    (is (= (experiment/outputs completed) (experiment/outputs repeated)))
+    (is (= (set (keys (net/net-env completed)))
+           (set (keys (net/net-env repeated)))))))
+
 (deftest three-map-stages-compose-through-compound-lists
   (is (= [3 5 7]
          (list-result (str map-list mappers)
@@ -225,22 +242,22 @@
 
 (deftest map-filter-map-compose-through-compound-lists
   (is (= [5 7]
-         (list-result (str map-list filter-list mappers)
+         (list-result (str list-library mappers)
                       "(map-list increment
                          (filter-list (network (x) (>= x 4))
                            (map-list double (list 1 2 3))))"))))
 
 (deftest higher-order-network-combines-two-lists-then-maps
   (is (= [12 23]
-         (list-result (str map-list zip-with mappers)
+         (list-result (str list-library mappers)
                       "(map-list increment
                          (zip-with (network (a b) (+ a b))
                            (list 1 2) (list 10 20)))"))))
 
 (deftest late-tail-grows-a-three-stage-pipeline-without-repeat-growth
   (let [compiled
-        (compiler/compile-source
-         (str "(let-cell [tail] " map-list mappers
+        (compile-program (str list-library mappers)
+         (str "(let-cell [tail] "
               " (define xs (cons 1 tail))"
               " (define ys (map-list decrement"
               "   (map-list double (map-list increment xs))))"
@@ -251,8 +268,7 @@
         [head end] (mapv gur/stable-node-id [[:gur-test :head] [:gur-test :end]])
         prepared (reduce nb/ensure-cell initial [head end])
         [props attached] ((obj/p:cons head end tail) prepared)
-        seeded (-> attached (nb/seed-cell head 2)
-                   (nb/seed-cell end basis/list-empty-marker))
+        seeded (nb/seed-cell attached head 2)
         activated (nb/run-propagators seeded
                                      (concat props (nb/neighbor-propagator-ids seeded tail)))
         repeated (fixture/wake activated [tail head])]

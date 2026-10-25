@@ -4,7 +4,9 @@
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object.merge :as compound-merge]
             [propagators.datastructures.compound-object.membership-slot :as membership-slot]
+            [propagators.datastructures.compound-object.supported-slot :as supported-slot]
             [propagators.datastructures.membership-collection :as membership]
+            [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.compound-object.patch :as compound-patch]
             [propagators.datastructures.evidence-set :as evidence]
             [propagators.effectful-execution :as effect]
@@ -63,9 +65,11 @@
   ([network slot-key collection-id]
    (existing-slot-cell-id network slot-key collection-id nil))
   ([network slot-key collection-id preferred-id]
-   (let [collection (-> network
-                        (net/network-cell-strongest collection-id)
-                        compound-merge/as-accessor-network)
+   (let [current (net/network-cell-strongest network collection-id)
+         current (if (datum/layer-present? current :base)
+                   (datum/layer-value current :base)
+                   current)
+         collection (compound-merge/as-accessor-network current)
          parent-ids (when-not (value/contradiction? collection)
                       (->> (compound-merge/accessor-parent-ids collection slot-key)
                            (filter #(network-cell-present? network %))
@@ -242,8 +246,16 @@
   [slot-key parent-id collection-id]
   (let [guarded (delay (membership-slot/activation slot-key parent-id collection-id))]
     (fn [inputs outputs parent-net]
-      (if (or (membership/content? (net/network-cell-content parent-net collection-id))
-              (membership/content? (net/network-cell-content parent-net parent-id)))
+      (if (supported-slot/supported-owner? parent-net collection-id)
+        ((supported-slot/activation slot-key parent-id collection-id)
+         inputs outputs parent-net)
+        (if (or (membership/content? (net/network-cell-content parent-net collection-id))
+              ;; A supported leaf does not make an existing structural owner
+              ;; membership evidence. Keep its canonical accessor connections;
+              ;; they carry the leaf's content without wrapping the cons topology.
+              (and (membership/content? (net/network-cell-content parent-net parent-id))
+                   (not (compound-merge/accessor-network?
+                         (net/network-cell-content parent-net collection-id)))))
         (@guarded inputs outputs parent-net)
         (let [collection-net (-> parent-net
                                  (net/network-cell-strongest collection-id)
@@ -254,7 +266,7 @@
                                    slot-key
                                    parent-id
                                    parent-net
-                                   collection-net)))))))
+                                   collection-net))))))))
 
 (defn p:network-slot
   [slot-key parent-id collection-id]
@@ -269,19 +281,30 @@
         [parent-id collection-id])
        network))))
 
+(defn read-slot-activation
+  "Read an owner without declaring an owner while it is unavailable."
+  [slot-key target collection-id]
+  (let [activate (network-slot-activation slot-key target collection-id)]
+    (fn [inputs outputs network]
+      (if (and (value/nothing? (net/network-cell-strongest network collection-id))
+               (value/unusable? (net/network-cell-strongest network target)))
+        []
+        (activate inputs outputs network)))))
+
 (defn install-slot-access
   "Return `[cell-id prop-ids network]` for one slot access.
 
   Existing outer slot cells are returned directly. Missing or ambiguous slots
   retain the general live accessor behavior by declaring `fallback-id`."
   [network slot-key collection-id fallback-id]
-  (if-let [cell-id (existing-slot-cell-id network
-                                          slot-key
-                                          collection-id
-                                          fallback-id)]
+  (if-let [cell-id (when-not (supported-slot/supported-owner? network collection-id)
+                    (existing-slot-cell-id network slot-key collection-id fallback-id))]
     [cell-id [] network]
     (let [network* (nb/ensure-cell network fallback-id)
-          [prop-id network'] ((p:network-slot slot-key fallback-id collection-id)
+          [prop-id network'] ((prop/construct-propagator
+                               [:compound-object/read-slot slot-key]
+                               (read-slot-activation slot-key fallback-id collection-id)
+                               [collection-id fallback-id] [fallback-id collection-id])
                               network*)]
       [fallback-id [prop-id] network'])))
 

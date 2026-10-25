@@ -49,13 +49,9 @@
 (bounded
  (fn []
    (let [pane (editor/prepare
-               (str "(define map-if
-                       (network [f xs]
-                         (if (= xs :compiler-2/list-empty)
-                             (list)
-                             (cons (f (car xs)) (map-if f (cdr xs))))))"
+               (str "(load-lain \"propagators/compiler_2/runtime/lain/list.lain\")"
                     gur-test/mappers
-                    "(define mapped (map-if decrement (map-if double (map-if increment (list 1 2 3)))))
+                    "(define mapped (map-list decrement (map-list double (map-list increment (list 1 2 3)))))
                      (define first-value (car mapped))
                      (define second-value (car (cdr mapped)))
                      (define third-value (car (cdr (cdr mapped))))") [])]
@@ -102,4 +98,5 @@
        (check! :return-to-updated-first-object 12 (read-value pane 'answer))
        (finally (editor/close-session! (:session pane)))))))
 (prn {:passed (count (filter :pass @checks)) :failed (count (remove :pass @checks))})
-(System/exit (if (every? :pass @checks) 0 1))
+(shutdown-agents)
+(System/exit (if (and (seq @checks) (every? :pass @checks)) 0 1))

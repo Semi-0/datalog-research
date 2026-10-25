@@ -1,8 +1,9 @@
 (ns propagators.compiler-2.runtime.supported-application.publication
-  "Live candidate gates and stable returned-list ports. No source stamping."
+  "Live candidate gates over immutable returned owners. No source stamping."
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.runtime.declaration-effects :as effects]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.compound-object.supported-slot :as supported-slot]
             [propagators.datastructures.layered-value :as datum]
             [propagators.datastructures.support-collection :as collection]
             [propagators.datastructures.support :as support]
@@ -23,8 +24,10 @@
 
 (defn- update-content [operator source enabled?]
   (let [states (support/join (state/states-of operator) (state/states-of source))]
-    (if (and enabled? (not (value/nothing? source))
-             (not (value/nothing? (base source))))
+    (if (and enabled?
+             (or (not (value/nothing? (base source)))
+                 (seq (datum/support-of source))
+                 (seq (state/states-of source))))
       (collection/content
        {:base (base source)
         :support (support/combine (datum/support-of operator) (datum/support-of source))
@@ -58,8 +61,18 @@
      id ::gate
      (fn [_ _ network]
        (let [callable (net/network-cell-strongest network operator)
-             current (net/network-cell-strongest network source)]
-         [(message target (update-content callable current (active? callable key)))]))
+             current (net/network-cell-strongest network source)
+             destination (net/network-cell-strongest network target)
+             enabled? (active? callable key)]
+         (if (and (:legacy-field? config)
+                  (not (datum/layer-present? destination :base))
+                  (not (value/unusable? destination)))
+           ;; A concrete plain caller field remains a constraint owned by the
+           ;; caller. Its scalar merge accepts equality and detects conflict.
+           (if (and enabled? (not (value/nothing? (base current))))
+             [(message target (base current))]
+             [])
+           [(message target (update-content callable current enabled?))])))
      [operator source] [target])))
 
 (defn- install-gate [network config source target]
@@ -71,15 +84,18 @@
   (let [id (gur/stable-node-id [::interface target])
         old (when (contains? (net/net-env network) id)
               (net/network-cell-strongest network id))]
-    (if (or (nil? old) (value/nothing? old) (= old shape))
+    (cond
+      (or (nil? old) (value/nothing? old) (= old shape))
       (effects/seed-cell (effects/ensure-cell network id) id shape)
+      (and (= :compound shape) (vector? old) (= :list (first old))) network
+      :else
       (throw (ex-info "Supported candidates have incompatible return interfaces"
                       {:target target :expected old :actual shape})))))
 
 (declare publisher)
 
 (defn- source-list [network source]
-  (loop [id source members [] watched #{} seen #{}]
+  (loop [id source members [] owners [] watched #{} seen #{}]
     (if (contains? seen id)
       (throw (ex-info "Cyclic supported return interface" {:source source}))
       (let [v (net/network-cell-strongest network id)
@@ -87,46 +103,78 @@
             tail (obj/existing-slot-cell-id network :cdr id)
             watched (conj watched id)]
         (cond
-          (and head tail) (recur tail (conj members head) watched (conj seen id))
-          (= :compiler-2/list-empty v) {:members members :watched watched :ready? true}
+          (and head tail)
+          (recur tail (conj members head) (conj owners id) watched (conj seen id))
+          (= :compiler-2/list-empty (base v))
+          {:members members :owners owners :watched watched :ready? true}
           (value/contradiction? (base v)) {:scalar? true :watched watched :ready? true}
-          (or head tail (value/unusable? v) (obj/accessor-network? v))
-          {:members members :watched watched :ready? false}
+          (or head tail (value/unusable? (base v)) (obj/accessor-network? (base v)))
+          {:members members :owners owners :watched watched :ready? false}
           :else {:scalar? true :watched watched :ready? true})))))
 
-(defn- install-list [network config target members]
-  (let [network (interface! network target [:list (count members)])
-        tails (into [target] (map #(gur/stable-node-id [::tail target %])
-                                 (range 1 (inc (count members)))))
-        network (effects/seed-cell (effects/ensure-cell network (peek tails))
-                                   (peek tails) :compiler-2/list-empty)]
-    (reduce (fn [network [i source]]
-              (let [head (gur/stable-node-id [::member target i])
-                    ready (reduce effects/ensure-cell network [head (tails i) (tails (inc i))])
-                    known? (get-in (net/network-dict-entry ready gur/name-bindings-key)
-                                   [::list-ports [target i]])
-                    declared (if known?
-                               ready
-                               (let [[ids installed] ((obj/p:cons head (tails (inc i)) (tails i)) ready)
-                                     recorded (effects/register-props installed (flatten [ids]))
-                                     [_ marked] (effects/eval-activation-result
-                                                 (gur/bind-name ::list-ports [target i] head) recorded)]
-                                 marked))
-                    [gate-id gated] ((publisher config source head) declared)]
-                (effects/register-props gated [gate-id])))
-            network (map-indexed vector members))))
+(defn- validate-legacy-interface! [network source target]
+  (let [current (net/network-cell-strongest network target)
+        interface-id (gur/stable-node-id [::interface target])
+        recorded (when (contains? (net/net-env network) interface-id)
+                   (net/network-cell-strongest network interface-id))
+        target-layout (when (and (not (datum/layer-present? current :base))
+                                 (obj/accessor-network? current))
+                        (source-list network target))
+        shape (cond
+                (and (vector? recorded) (= :list (first recorded))) recorded
+                (and (:ready? target-layout) (not (:scalar? target-layout)))
+                [:list (count (:members target-layout))]
+                :else nil)]
+    (when shape
+      (let [actual (source-list network source)]
+        (when (and (:ready? actual)
+                   (not (value/unusable? (base (net/network-cell-strongest network source))))
+                   (or (:scalar? actual)
+                       (not= (second shape) (count (:members actual)))))
+          (throw (ex-info "Supported candidates have incompatible return interfaces"
+                          {:target target :expected shape
+                           :actual (if (:scalar? actual)
+                                     :scalar
+                                     [:list (count (:members actual))])})))
+        {:shape shape :watched (:watched actual) :owners (:owners actual)
+         :targets (:members (or target-layout (source-list network target)))}))))
+
+(defn- install-legacy-fields [network config target legacy]
+  (reduce
+   (fn [current [owner field]]
+     (let [port (gur/stable-node-id [::legacy-field config target owner field])
+           projection (prop/construct-propagator
+                       (gur/stable-node-id [::legacy-projection config target owner field])
+                       ::legacy-projection
+                       (supported-slot/activation :car port owner) [owner] [port])
+           [id installed] (projection (effects/ensure-cell current port))]
+       (install-gate (effects/register-props installed [id])
+                     (assoc config :legacy-field? true) port field)))
+   network (map vector (:owners legacy) (:targets legacy))))
 
 (defn- publish-effects [config source target network]
   (let [operator (net/network-cell-strongest network (:operator config))
-        layout (source-list network source)
+        current (net/network-cell-strongest network source)
+        candidate (base current)
+        legacy (when (active? operator (:key config))
+                 (validate-legacy-interface! network source target))
         prepared (effects/begin network)
-        prepared
-        (cond
-          (not (active? operator (:key config))) prepared
-          (not (:ready? layout)) prepared
-          (:scalar? layout) (install-gate (interface! prepared target :scalar) config source target)
-          :else (install-list prepared config target (:members layout)))
-        ;; Watches are declared topology; late list tails can complete the interface.
+        prepared (if-let [shape (:shape legacy)]
+                   (interface! prepared target shape)
+                   prepared)
+        ;; The owner contains immutable live accessor references. Publishing it
+        ;; directly keeps an open tail open and leaves field availability to the
+        ;; canonical accessor gates instead of reconstructing a closed layout.
+        prepared (if (and (active? operator (:key config))
+                          (not (value/unusable? candidate)))
+                   (interface! prepared target
+                               (if (or (obj/accessor-network? candidate)
+                                       (= :compiler-2/list-empty candidate))
+                                 :compound
+                                 :scalar))
+                   prepared)
+        ;; Only a genuinely closed legacy target imposes a length contract.
+        ;; Its bounded source-prefix watches revalidate later tail topology.
         prepared (reduce (fn [n watch]
                            (let [id (gur/stable-node-id [::watch config source target watch])
                                  installer (prop/construct-propagator
@@ -135,8 +183,15 @@
                                             [watch] [target])
                                  [id installed] (installer n)]
                              (effects/register-props installed [id])))
-                         prepared (:watched layout))]
-    (effects/result prepared)))
+                         prepared (:watched legacy))]
+    (effects/result
+     (cond
+       legacy (install-legacy-fields prepared config target legacy)
+       ;; An inactive candidate has no claim on a caller's plain owner. The
+       ;; publisher's operator watch installs its field gates if selected later.
+       (and (not (active? operator (:key config)))
+            (obj/accessor-network? (net/network-cell-strongest network target))) prepared
+       :else (install-gate prepared config source target)))))
 
 (defn publisher [config source target]
   (prop/construct-propagator

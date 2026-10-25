@@ -9,6 +9,7 @@
             [propagators.compiler-2.cps-core :as compiler]
             [propagators.core :as core]
             [propagators.datastructures.compound-object :as obj]
+            [propagators.datastructures.layered-value :as datum]
             [propagators.gur :as gur]
             [propagators.network :as net]
             [propagators.network-builder :as nb]))
@@ -29,17 +30,31 @@
   (nb/run-propagators (:net compiled) (:props compiled)))
 
 (defn list-ids [network root]
-  (loop [id root result []]
-    (if (= basis/list-empty-marker (net/network-cell-strongest network id))
-      result
-      (let [head (obj/existing-slot-cell-id network :car id)
-            tail (obj/existing-slot-cell-id network :cdr id)]
-        (if (and head tail)
-          (recur tail (conj result head))
-          (throw (ex-info "List lacks addressable topology" {:id id})))))))
+  ;; Read the currently available prefix; an unresolved tail may grow later.
+  (loop [id root result [] seen #{}]
+    (let [current (net/network-cell-strongest network id)
+          candidate (if (datum/layer-present? current :base)
+                      (datum/layer-value current :base) current)]
+      (cond
+        (contains? seen id)
+        (throw (ex-info "List has cyclic topology" {:id id}))
+
+        (value/nothing? candidate) result
+        (= basis/list-empty-marker candidate) result
+
+        :else
+        (let [head (obj/existing-slot-cell-id network :car id)
+              tail (obj/existing-slot-cell-id network :cdr id)]
+          (if (and head tail)
+            (recur tail (conj result head) (conj seen id))
+            (throw (ex-info "List lacks addressable topology" {:id id}))))))))
 
 (defn values [network root]
-  (mapv #(net/network-cell-strongest network %) (list-ids network root)))
+  (mapv (fn [id]
+          (let [current (net/network-cell-strongest network id)]
+            (if (datum/layer-present? current :base)
+              (datum/layer-value current :base) current)))
+        (list-ids network root)))
 
 (def constraint-builder
   "(define define-constraint
