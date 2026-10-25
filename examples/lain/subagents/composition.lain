@@ -5,7 +5,8 @@
 
 (def-cells user runtime)
 (define execute-assignment)
-(define evaluation-framework (make-evaluation-framework))
+(define harbor (make-harbor))
+(define evaluation-framework (evaluation-framework-from-harbor harbor))
 
 (<-> (assignments user)
      (assignments evaluation-framework))

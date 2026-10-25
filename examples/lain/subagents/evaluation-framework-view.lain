@@ -3,6 +3,7 @@
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 (load-lain "examples/lain/subagents/evaluation-framework.lain")
 
-(define evaluation-framework (make-evaluation-framework))
+(define harbor (make-harbor))
+(define evaluation-framework (evaluation-framework-from-harbor harbor))
 
 (display (trace:children evaluation-framework))

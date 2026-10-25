@@ -236,7 +236,8 @@ The existing tracer can inspect a partial declaration:
 ```clojure
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 (load-lain "examples/lain/subagents/evaluation-framework.lain")
-(define framework (make-evaluation-framework))
+(define harbor (make-harbor))
+(define framework (evaluation-framework-from-harbor harbor))
 (display (trace:children framework))
 ```
 
@@ -258,34 +259,47 @@ The framework has an explicit orchestration interface:
 | --- | --- |
 | `assignments` | Shared assignment facts: user ordering enters and completed evaluation results feed back. |
 | `on-going-assignment` | Derived work offered to the runtime. |
-| `assignment-result` | Assignment results from the runner enter; this port shares the internal `runtime-results` cell. |
-| `evaluation:harbor` | A separate Harbor endpoint with `harbor:requests` and `harbor:observations`. |
+| `assignment-result` | Assignment results from the runner enter; an explicit connection feeds the internal `runtime-results` cell. |
 
-Trials and assessments are internal cells. Each internal protocol accepts only the cells it relates, rather than receiving the framework bundle. The constructor makes their shared dependencies visible:
+`make-evaluation-framework` only exposes three supplied endpoints. `evaluation-framework-from-harbor` separately composes the Harbor-backed relationships over explicit cells. Harbor is a separate request/observation endpoint, not a hidden choice made by the constructor.
+
+Name a subnetwork for the transformation it performs. Plan trials, accept runner results, offer work, request preparation, attach contexts, request grading, derive assessments, and update assignments are separately visible relationships. Broad assignment/execution/assessment/external protocol groups hide their dependencies. Each action takes its responsible source cells and returns derived facts; the caller explicitly connects those facts to their destination. An input parameter is not used as an implicit output channel.
+
+The composition exposes the responsible cells and their shared dependencies:
 
 ```clojure
 (define make-evaluation-framework
-  (network []
-    (let-cell [shared-assignments ongoing-assignment runtime-results
-               trials assessments]
-      (define harbor (make-harbor))
-      (evaluation:assignment-protocol shared-assignments trials assessments)
-      (evaluation:execution-protocol shared-assignments trials
-                                     runtime-results ongoing-assignment)
-      (evaluation:assessment-protocol trials (harbor:observations harbor) assessments)
-      (evaluation:external-protocol shared-assignments trials
-                                    assessments (harbor:requests harbor))
-      (struct :assignments shared-assignments
-              :on-going-assignment ongoing-assignment
-              :assignment-result runtime-results
-              :harbor harbor))))
+  (network [assignments ongoing-assignment assignment-result]
+    (struct :assignments assignments
+            :on-going-assignment ongoing-assignment
+            :assignment-result assignment-result)))
+
+(define evaluation-framework-from-harbor
+  (network [harbor]
+    (let-cell [shared-assignments ongoing-assignment runtime-results trials assessments]
+      (define framework
+        (make-evaluation-framework shared-assignments ongoing-assignment runtime-results))
+      (<-> (assignments framework) shared-assignments)
+      (<-> (on-going-assignment framework) ongoing-assignment)
+      (<-> (assignment-result framework) runtime-results)
+      (-> (evaluation:plan-trials shared-assignments) trials)
+      (-> (evaluation:accept-runner-results trials runtime-results) trials)
+      (-> (evaluation:offer-next-assignment shared-assignments trials) ongoing-assignment)
+      (-> (harbor:request-preparation shared-assignments trials) (harbor:requests harbor))
+      (-> (harbor:attach-contexts trials (harbor:observations harbor)) trials)
+      (-> (harbor:request-grading trials assessments) (harbor:requests harbor))
+      (-> (harbor:derive-assessments trials (harbor:observations harbor)) assessments)
+      (-> (evaluation:update-assignments trials assessments) shared-assignments)
+      framework)))
 ```
 
-`make-harbor` constructs `(struct :requests requests :observations observations)` from two local cells. The framework no longer depends on `harbor:framework` to invent its structure. These cells identify actual independently supplied facts and derived ports, rather than steps in an execution sequence. Keep the protocol calls as concurrent fan-out.
+The explicit `<->` connections bind the returned interface back to the coordinated cells. Passing input values into a constructor does not by itself declare these reverse relationships across its network boundary. Interface construction, interface connection, and domain coordination are separate visible relationships.
+
+`make-harbor` constructs `(struct :requests requests :observations observations)` from two local cells. Supply that endpoint explicitly to `evaluation-framework-from-harbor`. Trials and assessments remain internal. These cells identify independently supplied facts and derived ports. All eight action networks coexist; their verbs name maintained relationships, not imperative steps or live process launches. Named actions remain inspectable while policy primitives are unresolved.
 
 Assignments need stable identities. Their order and result facts are separate contributions: user reorder changes pending priority, completed results attach to the matching ID, and already-running work continues. Result feedback must preserve the current user order. A structured assignment view can connect separate order and results cells so feedback need not replace an entire ordered snapshot. Order updates require explicit source revisions; monotonically merging two ordered vectors does not implement reordering.
 
-The `evaluation:assignment-trials`, `evaluation:runnable-assignments`, `evaluation:assessment-updates` and Harbor policy bodies remain session-extension points. They must implement the ordering/result contract above, exclude completed work, and preserve stable request IDs across reorder. The local synthetic fixture verifies order propagation to runtime/Harbor ports and result feedback without overwriting order; it does not certify a live Harbor scheduler. Outside effect handlers still own acknowledgements, uncertain-launch reconciliation and cleanup. Constructing or tracing the interface launches no live work.
+The `evaluation:derive-trials`, `evaluation:incorporate-results`, `evaluation:select-pending-assignment`, `evaluation:derive-assignment-updates` and Harbor policy bodies remain session-extension points. They must implement the ordering/result contract above, exclude completed work, and preserve stable request IDs across reorder. The local synthetic fixture verifies order propagation to runtime/Harbor ports and result feedback without overwriting order; it does not certify a live Harbor scheduler. Outside effect handlers still own acknowledgements, uncertain-launch reconciliation and cleanup. Constructing or tracing the interface launches no live work.
 
 ## 11. Choose small, reusable abstractions
 
@@ -325,6 +339,7 @@ Complete and review constraints before filling in primitive bodies. Verify the c
 
 - [ ] The program can be explained as a network of relationships.
 - [ ] Important transformations and public endpoints are immediately visible.
+- [ ] Subnetworks name domain actions and take their responsible cells directly.
 - [ ] Symmetry is semantically justified; lossy operations remain directional.
 - [ ] `->`, `<->` and pipes preserve the intended partial-information behavior.
 - [ ] Intermediate cells represent meaningful state or are hidden by composition.

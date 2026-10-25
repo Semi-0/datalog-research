@@ -9,12 +9,12 @@
             [propagators.compiler-2.runtime.session.file-loader :as loader]
             [propagators.compiler-2.runtime.operators.bounded-history :as history]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.message :refer [message]]
             [propagators.helpers.task-queue :as queue]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
             [propagators.runner :as runner]
-            [propagators.stdlib.source-publication :as publication]))
+            [propagators.stdlib.source-publication :as publication]
+            [propagators.stdlib.observation :as observation]))
 
 (def library-source
   "(load-lain \"propagators/compiler_2/runtime/lain/combinator.lain\")\n")
@@ -225,9 +225,9 @@
 
 (deftest harbor-transformer-wrappers-return-facts-without-an-extra-list
   (doseq [[wrapper leaf fact]
-          [['harbor:trial-assessments 'harbor:observe-assessment :assessment]
-           ['harbor:preparation-requests 'harbor:prepare :preparation-request]
-           ['harbor:grading-requests 'harbor:grade :grading-request]]]
+          [['harbor:derive-assessments 'harbor:observe-assessment :assessment]
+           ['harbor:request-preparation 'harbor:prepare :preparation-request]
+           ['harbor:request-grading 'harbor:grade :grading-request]]]
     (testing wrapper
       (let [loaded (session
                     (str "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
@@ -246,27 +246,27 @@
     :output-selector (fn [arguments fallback]
                        (if (some? destination-index) (nth arguments destination-index) fallback))
     :messages (fn [network {:keys [inputs outputs]}]
-                [(message (first outputs) (net/network-cell-strongest network (first inputs)))])}))
+                (observation/activation inputs outputs network))}))
 
 (defn synthetic-policy-extension []
   ;; Controlled policies exercise the declared connections, not Harbor scheduling.
   (extension/extension-bundle
    {:id ::synthetic-policies
-    :bindings [['evaluation:assignment-trials (copy-test-port ::trials 0 1)]
-               ['evaluation:runnable-assignments (copy-test-port ::runnable 1 nil)]
+    :bindings [['evaluation:derive-trials (copy-test-port ::trials 0 1)]
+               ['evaluation:select-pending-assignment (copy-test-port ::runnable 1 nil)]
                ['harbor:prepare (copy-test-port ::prepare 0 2)]
                ['harbor:observe-assessment (copy-test-port ::assessment 1 2)]
-               ['evaluation:assessment-updates (copy-test-port ::feedback 1 nil)]]
+               ['evaluation:derive-assignment-updates (copy-test-port ::feedback 1 nil)]]
     :effects []}))
 
 (deftest the-evaluation-framework-has-explicit-independent-interfaces
   (let [loaded (session
                 "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
-                 (define framework (make-evaluation-framework))
-                 (define harbor (evaluation:harbor framework))
+                 (define harbor (make-harbor))
+                 (define framework (evaluation-framework-from-harbor harbor))
                  (define pending (on-going-assignment framework))
                  (define requests (harbor:requests harbor))")]
-    (is (= #{:assignments :on-going-assignment :assignment-result :harbor}
+    (is (= #{:assignments :on-going-assignment :assignment-result}
            (set (obj/accessor-slot-keys (binding-value loaded 'framework)))))
     (is (= #{:requests :observations}
            (set (obj/accessor-slot-keys (binding-value loaded 'harbor)))))
@@ -281,8 +281,8 @@
                    "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
                     (define order)
                     (define results)
-                    (define framework (make-evaluation-framework))
-                    (define harbor (evaluation:harbor framework))
+                    (define harbor (make-harbor))
+                    (define framework (evaluation-framework-from-harbor harbor))
                     (<-> (struct :order order :results results) (assignments framework))
                     (define scheduled ((slot :order) (on-going-assignment framework)))
                     (define requested ((slot :order) (harbor:requests harbor)))
@@ -298,6 +298,26 @@
     (is (= :a-complete (binding-value loaded 'completed)))
     (is (= [:b :a] (binding-value loaded 'requested))
         "Feedback enriches results without replacing the current user order")))
+
+(deftest runner-results-reach-harbor-grading-through-the-public-port
+  (let [policies (extension/extension-bundle
+                  {:id ::runner-result-policies
+                   :bindings [['evaluation:incorporate-results (copy-test-port ::execution 1 2)]
+                              ['harbor:grade (copy-test-port ::grading 0 2)]]
+                   :effects []})
+        loaded (-> (loader/load-session-from-source "0" {:extensions [policies]})
+                   (checked-load! library-source)
+                   (checked-load!
+                    "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
+                     (define harbor (make-harbor))
+                     (define framework (evaluation-framework-from-harbor harbor))
+                     (define runner-result)
+                     (<-> runner-result (assignment-result framework))
+                     (define grading-input (harbor:requests harbor))"))]
+    (is (value/nothing? (binding-value loaded 'grading-input)))
+    (publish! loaded 'runner-result ::runner 0 :assignment-completed)
+    (is (= :assignment-completed (binding-value loaded 'grading-input))
+        "The runner's assignment result reaches trial execution and then Harbor grading demand")))
 
 (deftest addition-constraint-supports-each-justified-direction
   (doseq [[known expected]
