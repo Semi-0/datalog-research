@@ -3,14 +3,12 @@
             [propagators.cells.cell :as cell]
             [propagators.cells.merge :as merge]
             [propagators.cells.value :as value]
-            [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.model.operator-value :as operator]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
             [propagators.compiler-2.runtime.operators.bounded-history :as history]
             [propagators.datastructures.compound-object :as obj]
-            [propagators.datastructures.compound-object.core :as compound]
             [propagators.message :refer [message]]
             [propagators.helpers.task-queue :as queue]
             [propagators.network :as net]
@@ -86,6 +84,40 @@
 (deftest importing-the-library-installs-its-primitive-extension
   (let [loaded (session "(define answer (|> 3 (network [x] (+ x 1))))")]
     (is (= 4 (binding-value loaded 'answer)))))
+
+(deftest structs-declare-connected-partial-endpoints
+  (let [loaded (session
+                "(def-cells incoming feedback untouched)
+                 (define object (struct :incoming incoming :feedback feedback
+                                        :untouched untouched))
+                 (define read-input ((slot :incoming) object))
+                 (-> 42 ((slot :feedback) object))")]
+    (is (= #{:incoming :feedback :untouched}
+           (set (obj/accessor-slot-keys (binding-value loaded 'object)))))
+    (is (value/nothing? (binding-value loaded 'read-input)))
+    (is (= 42 (binding-value loaded 'feedback)))
+    (is (value/nothing? (binding-value loaded 'untouched)))
+    (publish! loaded 'incoming ::input 0 1)
+    (is (= 1 (binding-value loaded 'read-input)))
+    (publish! loaded 'incoming ::input 1 2)
+    (is (= 2 (binding-value loaded 'read-input)))
+    (let [before (count (net/net-env (:program/net @loaded)))
+          settled (reevaluate! loaded)]
+      (is (= before (count (net/net-env settled))))
+      (is (= 42 (binding-value loaded 'feedback))))))
+
+(deftest nested-structs-preserve-writeback-to-the-original-cell
+  (let [loaded (session
+                "(define result)
+                 (define framework (struct :harbor (struct :observations result)))
+                 (-> 7 (|> framework (slot :harbor) (slot :observations)))
+                 (define empty (struct))")]
+    (is (= 7 (binding-value loaded 'result)))
+    (is (empty? (obj/accessor-slot-keys (binding-value loaded 'empty))))))
+
+(deftest malformed-struct-interfaces-are-rejected
+  (doseq [source ["(struct :one)" "(struct 1 2)" "(struct :one 1 :one 2)"]]
+    (is (thrown? Exception (session source)) source)))
 
 (deftest unary-pipes-and-composition-have-explicit-direction
   (doseq [[description source expected]
@@ -207,41 +239,65 @@
         (is (= fact (binding-value loaded 'answer))
             "The wrapper's final expression is its fact value, not a list constructor")))))
 
-(defn synthetic-provider-extension []
-  (let [actor (reduce (fn [actor key]
-                        (compound/add-slot-cell actor key value/nothing))
-                      (compound/empty-compound-object)
-                      [:assignments :on-going-assignment :assignment-result
-                       :evaluation/observations :evaluation/requests
-                       :evaluation/trials :evaluation/assessments])
-        provider (operator/propagator-operator
-                  {:name ::synthetic-framework
-                   :input-selector (fn [_arguments _fallback _context] [])
-                   :output-selector (fn [arguments _fallback] (first arguments))
-                   :messages (fn [_network {:keys [outputs]}]
-                               [(message (first outputs) actor)])})]
-    (if-let [copy (get (into {} (basis/default-bindings)) '->)]
-      (extension/extension-bundle
-       {:id ::synthetic-harbor
-        :bindings [['harbor:framework provider]
-                   ['evaluation:assignment-trials copy]]
-        :effects []})
-      (throw (ex-info "The synthetic provider requires the core directed-copy primitive" {})))))
+(defn copy-test-port [name source-index destination-index]
+  (operator/propagator-operator
+   {:name name
+    :input-selector (fn [arguments _fallback _context] [(nth arguments source-index)])
+    :output-selector (fn [arguments fallback]
+                       (if (some? destination-index) (nth arguments destination-index) fallback))
+    :messages (fn [network {:keys [inputs outputs]}]
+                [(message (first outputs) (net/network-cell-strongest network (first inputs)))])}))
 
-(deftest the-evaluation-framework-shares-slots-across-its-protocols
+(defn synthetic-policy-extension []
+  ;; Controlled policies exercise the declared connections, not Harbor scheduling.
+  (extension/extension-bundle
+   {:id ::synthetic-policies
+    :bindings [['evaluation:assignment-trials (copy-test-port ::trials 0 1)]
+               ['evaluation:runnable-assignments (copy-test-port ::runnable 1 nil)]
+               ['harbor:prepare (copy-test-port ::prepare 0 2)]
+               ['harbor:observe-assessment (copy-test-port ::assessment 1 2)]
+               ['evaluation:assessment-updates (copy-test-port ::feedback 1 nil)]]
+    :effects []}))
+
+(deftest the-evaluation-framework-has-explicit-independent-interfaces
+  (let [loaded (session
+                "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
+                 (define framework (make-evaluation-framework))
+                 (define harbor (evaluation:harbor framework))
+                 (define pending (on-going-assignment framework))
+                 (define requests (harbor:requests harbor))")]
+    (is (= #{:assignments :on-going-assignment :assignment-result :harbor}
+           (set (obj/accessor-slot-keys (binding-value loaded 'framework)))))
+    (is (= #{:requests :observations}
+           (set (obj/accessor-slot-keys (binding-value loaded 'harbor)))))
+    (is (value/nothing? (binding-value loaded 'pending)))
+    (is (value/nothing? (binding-value loaded 'requests)))))
+
+(deftest assignment-order-and-result-feedback-share-the-declared-ports
   (let [loaded (-> (loader/load-session-from-source
-                   "0" {:extensions [(synthetic-provider-extension)]})
+                   "0" {:extensions [(synthetic-policy-extension)]})
                   (checked-load! library-source)
                   (checked-load!
                    "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
+                    (define order)
+                    (define results)
                     (define framework (make-evaluation-framework))
-                    (-> 42 (assignments framework))
-                    (define answer (evaluation:trials framework))
-                    (define pending (evaluation:assessments framework))"))]
-    (is (= 42 (binding-value loaded 'answer))
-        "An assignment fact must reach a sibling protocol port through the same partially resolved actor")
-    (is (value/nothing? (binding-value loaded 'pending))
-        "Unrelated unresolved assessments must not block assignment/trial coordination")))
+                    (define harbor (evaluation:harbor framework))
+                    (<-> (struct :order order :results results) (assignments framework))
+                    (define scheduled ((slot :order) (on-going-assignment framework)))
+                    (define requested ((slot :order) (harbor:requests harbor)))
+                    (define completed ((slot :results) (assignments framework)))"))]
+    (publish! loaded 'order ::user-order 0 [:a :b])
+    (is (= [:a :b] (binding-value loaded 'scheduled)))
+    (is (= [:a :b] (binding-value loaded 'requested)))
+    (publish! loaded 'order ::user-order 1 [:b :a])
+    (is (= [:b :a] (binding-value loaded 'scheduled)))
+    (is (= [:b :a] (binding-value loaded 'requested)))
+    (checked-load! loaded
+      "(-> (struct :results :a-complete) (harbor:observations harbor))")
+    (is (= :a-complete (binding-value loaded 'completed)))
+    (is (= [:b :a] (binding-value loaded 'requested))
+        "Feedback enriches results without replacing the current user order")))
 
 (deftest addition-constraint-supports-each-justified-direction
   (doseq [[known expected]

@@ -3,7 +3,6 @@
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.operator-value :as operator]
-            [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.compiler-2.runtime.operators.bounded-history :as bounded-history]
             [propagators.compiler-2.runtime.session.extension :as extension]
             [propagators.datastructures.compound-object :as obj]
@@ -98,15 +97,7 @@
 (defn- slot-stage [key]
   (when-not (or (keyword? key) (symbol? key) (string? key))
     (throw (ex-info "slot expects a keyword, symbol or string key" {:key key})))
-  (operator/operator-closure
-   {:name ['slot key]
-    :install
-    (fn [network arguments output]
-      (require-arity 'slot arguments 1)
-      (let [owner (first arguments)
-            prepared (reduce nb/ensure-cell network [owner output])
-            [id installed] ((obj/p:slot key output owner) prepared)]
-        [installed [id] output]))}))
+  (basis/slot-accessor key))
 
 (defn- scalar [name f]
   (primitives/scalar-operator name (prop/concrete-primitive-propagator name f)))
@@ -162,8 +153,36 @@
           (throw (ex-info "switch expects a predicate, or the existing value+condition form"
                           {:arguments arguments}))))})))
 
+(defn- struct-messages [network {:keys [arg-ids out-id]}]
+  (when (odd? (count arg-ids))
+    (throw (ex-info "struct expects keyword/cell pairs" {:arguments arg-ids})))
+  (let [pairs (partition 2 arg-ids)
+        keys (mapv #(data/payload (net/network-cell-strongest network (first %))) pairs)]
+    (cond
+      (some value/contradiction? keys) [(message out-id value/contradiction)]
+      (some value/nothing? keys) []
+      :else
+      (do
+        (when-not (every? keyword? keys)
+          (throw (ex-info "struct slot names must be keywords" {:keys keys})))
+        (when-not (= (count keys) (count (distinct keys)))
+          (throw (ex-info "struct slot names must be unique" {:keys keys})))
+        [(message out-id
+                  (reduce (fn [object [key [_ endpoint]]]
+                            (obj/register-accessor-parent object key endpoint))
+                          (obj/empty-accessor-network)
+                          (map vector keys pairs)))]))))
+
+(def struct-operator
+  (operator/operator-closure
+   {:name 'struct
+    :compiler-activate (fn [_ network _context arguments output]
+                         {:messages (struct-messages network {:arg-ids arguments
+                                                              :out-id output})})}))
+
 (defn primitive-bindings []
-  [['combinator:pipe pipe-operator]
+  [['combinator:struct struct-operator]
+   ['combinator:pipe pipe-operator]
    ['combinator:compose compose-operator]
    ['combinator:slot (factory-operator 'slot slot-stage)]
    ['combinator:switch switch-operator]

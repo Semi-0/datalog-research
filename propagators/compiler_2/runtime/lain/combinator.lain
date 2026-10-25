@@ -7,6 +7,7 @@
 
 ;; |> connects unary stages left to right. compose returns a unary stage and
 ;; applies its stages right to left. Empty compositions preserve an endpoint.
+(define struct combinator:struct)
 (define |> combinator:pipe)
 (define compose combinator:compose)
 

@@ -112,6 +112,7 @@ The library installs its primitive environment through the existing primitive-ex
 | `(|> input stage-a stage-b)` | Apply unary stages left to right and expose the final endpoint. With no stages, expose the input endpoint. |
 | `(compose outer inner)` | Produce a unary transformation that applies `inner`, then `outer`. With no stages, produce a bidirectional identity endpoint. |
 | `(slot :field)` | Produce a bidirectional partial field accessor; it does not extract a complete owner value. |
+| `(struct :field endpoint :other endpoint)` | Construct a compound object whose unique keyword slots are connected to the supplied cells, including unresolved cells. `(struct)` constructs an empty object. |
 | `(switch predicate)` | Produce a unary gated transformation. A known true predicate contributes the input; false or unresolved predicates contribute no new value. Non-boolean predicate results are errors. |
 | `(switch value condition)` | Preserve the compiler's existing value-first two-argument gate form. |
 | `(constraint:+ a b c)` | Declare `a + b = c`, including both subtraction inferences. |
@@ -177,11 +178,23 @@ For application-defined data abstractions, centralize slot names in named access
 
 The abstraction's implementation owns its representation. Application networks use those accessors consistently, including in tests of the public contract.
 
+Construct explicit interfaces with `struct`:
+
+```clojure
+(def-cells request observation)
+(define harbor (struct :requests request :observations observation))
+(-> 42 ((slot :observations) harbor))
+(display observation)
+;; 42, without resolving request
+```
+
+`struct` connects cells; it does not snapshot their current values. Nested structures preserve those connections. Slot labels are unique literal keywords; an odd number of arguments, non-keyword labels, or duplicate labels is an error. Empty and partially informed structures are valid. This is a primitive extension through ordinary application syntax, not a compiler grammar change.
+
 ## 7. Make time, identity and retention explicit
 
 Reactive reevaluation is not an event clock. A recorder must identify what constitutes a distinct observation, which order it uses and what it retains. Repeating propagation must not duplicate an incoming observation merely because a propagator ran again.
 
-`(history 5)` records incoming values inside the current session. Each stage application owns an independent recorder, even when two applications reuse the same factory value. The output is a vector of up to five values, oldest retained value first. An unresolved input initially produces an empty vector:
+`(history 5)` records incoming values in the propagator graph. Each stage application owns an independent recorder, even when two applications reuse the same factory value. A session may host that graph and manage its lifetime, but history does not inherently depend on an editor session. The output is a vector of up to five values, oldest retained value first. An unresolved input initially produces an empty vector:
 
 ```clojure
 (define incoming)
@@ -239,35 +252,40 @@ Lain composes these relationships. It does not duplicate an existing runtime's c
 
 ## 10. Simplify the evaluation-framework constructor
 
-The evaluation framework exposes assignment facts, an ongoing-assignment view, runtime results, trial facts, Harbor observations, assessments and effect requests. Its internal networks declare four relationships:
+The framework has an explicit orchestration interface:
 
-- Assignment facts constrain trials, and assessments enrich the same assignment facts.
-- Prepared contexts and runtime observations constrain eligible work.
-- Harbor observations contribute contexts and assessments.
-- Trial evidence constrains preparation and grading request facts.
+| Accessor | Relationship |
+| --- | --- |
+| `assignments` | Shared assignment facts: user ordering enters and completed evaluation results feed back. |
+| `on-going-assignment` | Derived work offered to the runtime. |
+| `assignment-result` | Runtime execution observations enter. |
+| `evaluation:harbor` | A separate Harbor endpoint with `harbor:requests` and `harbor:observations`. |
 
-These are simultaneous constraints. An ongoing assignment is derived information, not a second mutable task queue.
-
-The constructor therefore only chooses the Harbor provider and composes those relationships:
+Trials and assessments are internal cells. Each internal protocol accepts only the cells it relates, rather than receiving the framework bundle. The constructor makes their shared dependencies visible:
 
 ```clojure
 (define make-evaluation-framework
   (network []
-    (define framework (harbor))
-    (evaluation:assignment-protocol framework)
-    (evaluation:execution-protocol framework)
-    (evaluation:assessment-protocol framework)
-    (evaluation:external-protocol framework)
-    framework))
+    (let-cell [shared-assignments ongoing-assignment runtime-observations
+               trials assessments]
+      (define harbor (make-harbor))
+      (evaluation:assignment-protocol shared-assignments trials assessments)
+      (evaluation:execution-protocol shared-assignments trials
+                                     runtime-observations ongoing-assignment)
+      (evaluation:assessment-protocol trials (harbor:observations harbor) assessments)
+      (evaluation:external-protocol shared-assignments trials
+                                    assessments (harbor:requests harbor))
+      (struct :assignments shared-assignments
+              :on-going-assignment ongoing-assignment
+              :assignment-result runtime-observations
+              :harbor harbor))))
 ```
 
-Each protocol network connects named accessor endpoints directly. Slot allocation is delegated to the accessors; the constructor does not enumerate seven transport cells just to pass them to other networks. The shared framework argument names an abstraction whose views are related, rather than a mutable central coordinator.
+`make-harbor` constructs `(struct :requests requests :observations observations)` from two local cells. The framework no longer depends on `harbor:framework` to invent its structure. These cells identify actual independently supplied facts and derived ports, rather than steps in an execution sequence. Keep the protocol calls as concurrent fan-out.
 
-Keep the four calls as explicit fan-out. Chaining them merely to make the constructor look like a pipe would obscure that they coexist on the same framework. A combinator is useful when it clarifies the relationship, not when it hides a small, meaningful declaration.
+Assignments need stable identities. Their order and result facts are separate contributions: user reorder changes pending priority, completed results attach to the matching ID, and already-running work continues. Result feedback must preserve the current user order. A structured assignment view can connect separate order and results cells so feedback need not replace an entire ordered snapshot. Order updates require explicit source revisions; monotonically merging two ordered vectors does not implement reordering.
 
-The Harbor provider and pure policy primitives remain open for session extension. Choosing Harbor inside the constructor does not launch Harbor or make live requests. A partial declaration can be traced before that extension is installed; meaningful trial execution additionally requires the provider and policy bindings. A traceable constructor is not evidence that an unbound Harbor provider already executes the harness.
-
-The `harbor:framework` primitive supplies the actor's protocol structure up front: named slot-cell references whose values may still be unknown. Each construction gets its own actor; reevaluation of that construction preserves its instance and port identities instead of creating fresh ports. An unresolved provider leaves an inspectable partial declaration, not a fully instantiated actor ready to consume arbitrary runtime facts.
+The `evaluation:assignment-trials`, `evaluation:runnable-assignments`, `evaluation:assessment-updates` and Harbor policy bodies remain session-extension points. They must implement the ordering/result contract above, exclude completed work, and preserve stable request IDs across reorder. The local synthetic fixture verifies order propagation to runtime/Harbor ports and result feedback without overwriting order; it does not certify a live Harbor scheduler. Outside effect handlers still own acknowledgements, uncertain-launch reconciliation and cleanup. Constructing or tracing the interface launches no live work.
 
 ## 11. Choose small, reusable abstractions
 

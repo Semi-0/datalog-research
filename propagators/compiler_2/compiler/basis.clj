@@ -375,6 +375,14 @@
             (accessor-plan name arg-ids out-id)]
         (slot-messages slot-key value-id collection-id network)))}))
 
+(defn slot-accessor
+  "Construct a fixed-key accessor with the canonical live slot connections."
+  [slot-key]
+  (accessor-operator slot-key
+                     (fn [value-id collection-id]
+                       (obj/p:slot slot-key value-id collection-id))
+                     ['slot slot-key]))
+
 (defn- slot-key-messages
   [network slot-key-id value-id collection-id]
   (let [slot-key (net/network-cell-strongest network slot-key-id)]
