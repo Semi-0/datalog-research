@@ -22,6 +22,9 @@ defined in [`tools/lain_example_runner.clj`](../../tools/lain_example_runner.clj
 | `[1 2 3]` | a connected list known to be complete |
 | `[1 :unresolved]` | a connected list with an open tail (the guide's `(1 . ?)`) |
 
+Struct-valued bindings are live accessor networks rather than plain data, so
+assert on their `(slot …)` readings instead of on the struct binding itself.
+
 Recursive networks always put the completeness guard first, exactly as
 `propagators/compiler_2/runtime/lain/list.lain` does:
 `(if (empty-list? xs) base (... (position-of x (cdr xs)) ...))`. A recursive
@@ -430,6 +433,26 @@ convenient description of the underlying cons-cell network.
 (define raw (list 1 2 3))
 ;; => answer true
 ;; => raw [1 2 3]
+```
+
+Structs are discovered the same way, and that has a consequence: nothing declares
+their slot set, so a write through an unmentioned slot creates it, and a slot
+that is still pending reads exactly like a slot that will never arrive. There is
+no completeness signal for a struct, and `nothing?` is not one; code that cares
+says so with an explicit cell. Deriving completion from type descriptions is
+tasked in `propagators/doc/TODO.md`.
+
+```lain+
+(define object (struct :a 1))
+(-> 2 (|> object (slot :b)))
+(define a-value (|> object (slot :a)))
+(define b-value (|> object (slot :b)))
+(define absent (|> object (slot :never)))
+(define is-nothing (nothing? object))
+;; => a-value 1
+;; => b-value 2
+;; => absent :unresolved
+;; => is-nothing false
 ```
 
 ## 18. Complete lists and open prefixes

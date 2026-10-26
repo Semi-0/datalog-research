@@ -1,5 +1,90 @@
 # Compiler-2 Runtime TODO
 
+## Implement completion for `struct` through type descriptions
+
+Status: proposed on 2026-10-26; design direction recorded, nothing implemented.
+
+A list can say whether it is finished. `(list 1 2)` carries a known empty
+terminal tail, `(cons 1 ?)` does not, and `(empty-list? tail)` distinguishes the
+two from inside the network. A struct has no equivalent. `struct` builds an
+accessor network from the keyword/cell pairs it is handed
+(`propagators.compiler_2.runtime.operators.combinator/struct-slots`) and the
+slot set then grows on demand: writing through a slot the constructor never
+mentioned creates it.
+
+Verified on Compiler-2 at `bb882a5`:
+
+```clojure
+(load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
+(define object (struct :a 1))
+(-> 2 (|> object (slot :b)))
+(define a-value (|> object (slot :a)))    ; 1
+(define b-value (|> object (slot :b)))    ; 2, :b did not exist before this write
+(define absent (|> object (slot :never))) ; :unresolved
+```
+
+Because no shape is declared, three different situations collapse into the same
+`:unresolved` reading: a slot whose information is pending, a slot that will
+never arrive, and a misspelled slot. `empty-list?` and `nothing?` both answer
+`false` for a struct, so neither is a completeness test, and no operator reports
+the expected slot set. Slot-wise unification through `<->` already works
+(`(<-> (struct :a 1) (struct :a 2))` reads `:contradiction`), so the missing
+piece is not merging but a description of what a given struct is supposed to
+contain.
+
+Proposal: give structs a **type description** — a propagator value describing the
+shape of a struct: its slot keys, which of them are required, the descriptions
+of nested structs, and whether additional slots are permitted. Completion is then
+derived from the description rather than guessed from the slots observed so far:
+
+- the description supplies the expected slot set, so completion means every
+  required slot holds usable information, recursively where nested descriptions
+  exist;
+- completion is a cell in the network, so it can be produced, consumed,
+  retracted and gated like any other information instead of being a host-side
+  reflection query;
+- access to an undeclared slot becomes detectable rather than silently widening
+  the shape;
+- descriptions may arrive partially and be refined over time, matching how slot
+  keys already arrive as cell payloads, with completion re-derived monotonically.
+
+Decisions to settle before implementation:
+
+1. Where a description is attached: a `struct` variant that takes one, a
+   dedicated slot on the accessor network, or a separate declaration that
+   `struct` references by name.
+2. Whether an undeclared slot contradicts a closed description or refines it, and
+   what closed means for a description that is itself incomplete.
+3. How two differing descriptions meet under `<->`, given that conflicting slot
+   values already contradict.
+4. Whether completion ever gates consumers. It should not by default: partial
+   structs are useful today, and `(slot :a)` answers `1` while `:b` is pending.
+5. How retraction behaves. Withdrawing evidence for a required slot must return
+   completion to its unfinished state without deleting retained slot topology;
+   see "Unify Reflective Application Inspection" for the active-truth versus
+   retained-topology distinction.
+6. How the editor renders a described struct: pending required slots, and
+   whether descriptions appear as nodes in the semantic graph.
+
+Acceptance:
+
+- A described struct requiring `:a :b` reports unfinished while `:b` is pending
+  and complete after `(-> 2 (|> object (slot :b)))` in the same session.
+- Retracting the evidence for `:b` returns completion to unfinished while `:a`
+  keeps its value and the slot topology stays inspectable.
+- Accessing a slot outside a closed description is distinguishable from a pending
+  slot and must not read as plain `:unresolved`.
+- Nested descriptions propagate: an outer struct completes only when its required
+  nested structs complete.
+- Conflicting descriptions unified with `<->` produce either a coherent meet or a
+  `:contradiction`, never a silent pass.
+- Undescribed structs keep today's behavior: filled slots answer, `empty-list?`
+  and `nothing?` keep answering `false` for structs, and
+  `propagators.compiler-2-combinator-test` stays green.
+- `how-to-think-in-lain.md` §19 and `how-to-think-in-lain-examples.md` §17, which
+  document the current open-shape behavior, are updated together with the
+  implementation.
+
 ## Known bug: semantic tracer omits reverse `<->` direction
 
 Status: reproduced on 2026-10-25; deferred, not fixed.

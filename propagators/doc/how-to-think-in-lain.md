@@ -565,6 +565,7 @@ The following examples use the production Compiler-2 source/session loader. Run 
 | Declare rest parameters | `(network [head & tail] ...)` | The rest parameter is a linked list, not a host vector. |
 | Construct a complete list | `(list)`, `(list 1 2)` | The constructor supplies a known empty terminal tail. |
 | Construct an open prefix | `(cons head unresolved-tail)` | Unknown tail information must not be interpreted as a final length. |
+| Ask whether a structure is finished | `(empty-list? tail)` for lists; no form for structs | A struct discovers its slots through use, so completeness needs an explicit cell (§19). |
 
 Lain uses an EDN-backed reader; do not assume every Clojure special form exists. In particular, the removed `def`, `def-net`, `def-constraint`, `cell-expr`, `compound`, and `do` forms are not substitutes for current syntax. Use keywords for the slot keys shown here rather than assuming a host quote form.
 
@@ -720,6 +721,33 @@ For a mathematical relation, make its justified directions explicit:
 answer
 ;; 2, inferred through the declared reverse arithmetic relationship.
 ```
+
+### A struct shape is discovered, not declared
+
+Nothing declares the slot set of a struct. A write through a slot the constructor never mentioned creates it, and reads of an unknown slot behave exactly like reads of a known but unfilled one.
+
+```clojure
+(load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
+(define object (struct :a 1))
+(-> 2 (|> object (slot :b)))
+(define a-value (|> object (slot :a)))
+(define b-value (|> object (slot :b)))
+(define absent (|> object (slot :never)))
+;; a-value = 1, b-value = 2, absent = :unresolved.
+```
+
+A pending field is therefore indistinguishable from a field that will never arrive:
+
+```clojure
+(load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
+(define pending)
+(define object (struct :a 1 :b pending))
+(define waiting (|> object (slot :b)))
+(define absent (|> object (slot :c)))
+;; waiting = :unresolved, absent = :unresolved.
+```
+
+`empty-list?` and `nothing?` both answer `false` for a struct, so neither is a completeness test, and no operator reports how many slots a struct expects. A struct has no completion marker comparable to a list's terminal tail: partial structs are ordinary, useful values, and code that must know whether the information it needs has arrived states that with an explicit cell. Deriving completion from type descriptions is tracked in `propagators/doc/TODO.md`.
 
 ## 20. Distinguish Complete Lists from Open Prefixes
 
