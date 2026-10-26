@@ -12,8 +12,8 @@ original `propagators/NOTES.md` design (restored in [Four Core Features](four-co
 |---|---------|------------------|
 | 1 | **Networked semantics** | Done — immutable `graph` + `env`, installers, compile |
 | 2 | **Fixpoint evaluation** | Done — `run-tasks` and inner subnet quiescence |
-| 3 | **Partial information** | Done — named-network merge, layered/compound objects; contradiction stub |
-| 4 | **Dependence tracking** | Done — merge-time subsystem (`cell-merge`); not `eval-cell` |
+| 3 | **Partial information** | Done — `bool4` lattice (`nothing` / `contradiction`), named-network merge, layered/compound objects; contradiction is a stored value with provenance and error layers |
+| 4 | **Dependence tracking** | Done — merge-time subsystem (`cell-merge`) for support-carrying domains (TTMS, membership, TMS claims, network evidence); not `eval-cell` |
 
 See [Four Core Features](four-core-features.md) for definitions, MIT comparison, and a milestone log since the doc refactor.
 

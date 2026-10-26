@@ -5,7 +5,11 @@ evaluation** (feature 2) from [Four Core Features](four-core-features.md).
 **Partial information** (feature 3) is domain-specific via `cell-merge` /
 `strongest-value`. **Dependence tracking** (feature 4) is **not** part of
 `eval-propagator` or `eval-cell` (MIT-shaped: a separate subsystem wired only at
-**`cell-merge`** when messages are absorbed). It is not implemented yet.
+**`cell-merge`** when messages are absorbed). That subsystem exists: justification
+and retraction live in the merge-time content domains
+(`propagators/datastructures/support.clj`, `support_collection.clj`,
+`membership_collection.clj`, `tms/core.clj`, `evidence_set.clj`), never in the evaluator. See
+[TTMS](ttms.md) and [Four Core Features](four-core-features.md).
 
 Source files:
 
@@ -160,9 +164,21 @@ immaterial at quiescence; flush **placement** is not — see
 
 ## Current Limits
 
-- contradiction handling is still a stub
-- dependence tracking is not implemented (intended hook: `cell-merge` only)
-- backtracking is not implemented (depends on merge-time dependence subsystem)
+- Contradiction is a value, not a halt: `:bool4/contradiction` is the top of the
+  knowledge lattice, is stored, propagates, and is *unusable for computation*
+  (`value/unusable?`) while still being transported. Merge failures become
+  contradictions carrying an `:error` evidence layer
+  ([Cell Errors](cell-errors.md)).
+- Justification and retraction are **opt-in per content domain**. Support-carrying
+  content records premises, dominates old versions, and projects `nothing` when its
+  support is withdrawn; plain scalars carry no justification record, so merging two
+  different numbers yields a bare contradiction.
+- Legacy ordinary TMS output cells are not retracted when their inputs are
+  withdrawn, and dead evidence is never garbage collected
+  (`propagators/datastructures/tms.clj`).
+- There is no worldview search driven by contradiction inside the runtime; the
+  policy hook is `merge/handle-contradiction`, and backtracking is expressed
+  in-network ([Dependency-Directed Backtracking](dependency-directed-backtracking.md)).
 - richer domains need explicit `cell-merge` and `strongest-value` methods
 
 The design favors explicit data flow over hidden runtime mutation. That makes
