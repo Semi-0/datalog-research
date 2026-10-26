@@ -49,10 +49,21 @@ def source_pair():
 
 
 def report_status(pair, context, state, description):
+    """Report a commit status without letting the report gate local CI or a deploy.
+
+    GitHub rejects a status when the revision already holds the maximum number of
+    statuses, which happens routinely to a repository that has not advanced while
+    the other one keeps moving. The deploy decision belongs to CI and the
+    integration probe, never to the status API.
+    """
     for source in pair.values():
         endpoint = f"repos/{source['repository']}/statuses/{source['sha']}"
-        run(["gh", "api", "--method", "POST", endpoint, "-f", f"state={state}",
-             "-f", f"context=gx10/{context}", "-f", f"description={description}"], capture=True)
+        try:
+            run(["gh", "api", "--method", "POST", endpoint, "-f", f"state={state}",
+                 "-f", f"context=gx10/{context}", "-f", f"description={description}"], capture=True)
+        except Exception as error:
+            print(f"warning: could not report gx10/{context}={state} for "
+                  f"{source['repository']}@{source['sha'][:7]}: {error}", flush=True)
 
 
 def checkout(repo, sha, destination):

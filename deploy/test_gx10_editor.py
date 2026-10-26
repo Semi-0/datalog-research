@@ -57,6 +57,39 @@ class DeploymentTests(unittest.TestCase):
                 if phase == "ci":
                     build.assert_not_called()
 
+    def test_status_report_rejection_is_swallowed_and_logged(self):
+        error = subprocess.CalledProcessError(1, ["gh", "api"],
+                                              stderr="maximum number of statuses")
+        with mock.patch.object(deployment, "run", side_effect=error), \
+             mock.patch("builtins.print") as printed:
+            deployment.report_status(source_pair(), "deploy", "pending", "Verifying")
+        warnings = [call[0][0] for call in printed.call_args_list]
+        self.assertEqual(len(deployment.REPOS), len(warnings))
+        for repository, warning in zip(deployment.REPOS.values(), warnings):
+            self.assertIn(f"could not report gx10/deploy=pending for {repository}@", warning)
+
+    def test_status_api_rejection_does_not_prevent_activation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            order = []
+
+            def runner(args, **_kwargs):
+                if "statuses" in " ".join(args):
+                    raise subprocess.CalledProcessError(1, args, stderr="maximum number of statuses")
+                return mock.Mock(stdout="")
+
+            with mock.patch.object(deployment, "ROOT", root), \
+                 mock.patch.object(deployment, "source_pair", return_value=source_pair()), \
+                 mock.patch.object(deployment, "checkout"), \
+                 mock.patch.object(deployment, "run", side_effect=runner), \
+                 mock.patch.object(deployment, "run_ci", side_effect=lambda _: order.append("ci")), \
+                 mock.patch.object(deployment, "build", side_effect=lambda _: order.append("preflight")), \
+                 mock.patch.object(deployment, "activate", side_effect=lambda *_: order.append("activate")), \
+                 mock.patch("builtins.print"):
+                deployment.poll()
+            self.assertEqual(["ci", "preflight", "activate"], order)
+            self.assertEqual("active", json.loads((root / "last-attempt.json").read_text())["status"])
+
     def test_success_runs_ci_then_preflight_then_activation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
