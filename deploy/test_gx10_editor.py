@@ -1,8 +1,10 @@
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -185,6 +187,97 @@ class DeploymentTests(unittest.TestCase):
                         raise RuntimeError("probe failed")
         self.assertEqual(2, len(children))
         self.assertTrue(all(process.poll() is not None for process in children))
+
+
+class PruneTests(unittest.TestCase):
+    @staticmethod
+    def make_release(root, name, age_seconds):
+        release = root / "releases" / name
+        (release / "backend").mkdir(parents=True)
+        (release / "backend" / "blob").write_bytes(b"x" * 1024)
+        stamp = time.time() - age_seconds
+        os.utime(release, (stamp, stamp))
+        return release
+
+    def test_prune_keeps_the_live_release_and_the_newest_revisions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            oldest = self.make_release(root, "a" * 32, 300)
+            middle = self.make_release(root, "b" * 32, 200)
+            newest = self.make_release(root, "c" * 32, 100)
+            deployment.point_current(root, middle)
+            removed = deployment.prune_releases(root, keep=2)
+            self.assertEqual([oldest.name], [path.name for path, _size in removed])
+            self.assertTrue(middle.is_dir() and newest.is_dir())
+
+    def test_prune_never_removes_the_live_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            oldest = self.make_release(root, "a" * 32, 300)
+            middle = self.make_release(root, "b" * 32, 200)
+            newest = self.make_release(root, "c" * 32, 100)
+            deployment.point_current(root, oldest)
+            removed = deployment.prune_releases(root, keep=1)
+            self.assertEqual([middle.name], [path.name for path, _size in removed])
+            self.assertTrue(oldest.is_dir() and newest.is_dir())
+
+    def test_prune_ignores_entries_the_driver_did_not_create(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            old = self.make_release(root, "a" * 32, 300)
+            newest = self.make_release(root, "c" * 32, 100)
+            manual = root / "releases" / "manual-snapshot"
+            manual.mkdir()
+            (root / "releases" / "notes.txt").write_text("keep me")
+            deployment.point_current(root, newest)
+            removed = deployment.prune_releases(root, keep=1)
+            self.assertEqual([old.name], [path.name for path, _size in removed])
+            self.assertTrue(manual.is_dir() and (root / "releases" / "notes.txt").is_file())
+
+    def test_prune_reports_reclaimed_space_and_survives_an_unstoppable_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            old = self.make_release(root, "a" * 32, 300)
+            newest = self.make_release(root, "c" * 32, 100)
+            deployment.point_current(root, newest)
+            with mock.patch.object(deployment.shutil, "rmtree", side_effect=OSError("disk busy")), \
+                 mock.patch("builtins.print") as printed:
+                self.assertEqual([], deployment.prune_releases(root, keep=1))
+            self.assertTrue(old.is_dir())
+            self.assertIn("disk busy", printed.call_args[0][0])
+
+    def test_poll_prunes_superseded_releases_after_activation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            order = []
+            with mock.patch.object(deployment, "ROOT", root), \
+                 mock.patch.object(deployment, "source_pair", return_value=source_pair()), \
+                 mock.patch.object(deployment, "checkout"), \
+                 mock.patch.object(deployment, "run_ci"), \
+                 mock.patch.object(deployment, "build"), \
+                 mock.patch.object(deployment, "report_status"), \
+                 mock.patch.object(deployment, "run"), \
+                 mock.patch.object(deployment, "activate", side_effect=lambda *_: order.append("activate")), \
+                 mock.patch.object(deployment, "prune_releases", side_effect=lambda *_: order.append("prune")):
+                deployment.poll()
+            self.assertEqual(["activate", "prune"], order)
+            self.assertEqual("active", json.loads((root / "last-attempt.json").read_text())["status"])
+
+    def test_a_failing_prune_does_not_undo_an_activation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            with mock.patch.object(deployment, "ROOT", root), \
+                 mock.patch.object(deployment, "source_pair", return_value=source_pair()), \
+                 mock.patch.object(deployment, "checkout"), \
+                 mock.patch.object(deployment, "run_ci"), \
+                 mock.patch.object(deployment, "build"), \
+                 mock.patch.object(deployment, "report_status"), \
+                 mock.patch.object(deployment, "run"), \
+                 mock.patch.object(deployment, "activate"), \
+                 mock.patch.object(deployment, "prune_releases", side_effect=OSError("disk busy")), \
+                 mock.patch("builtins.print"):
+                deployment.poll()
+            self.assertEqual("active", json.loads((root / "last-attempt.json").read_text())["status"])
 
 
 if __name__ == "__main__":

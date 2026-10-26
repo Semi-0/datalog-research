@@ -21,6 +21,8 @@ ROOT = Path(os.environ.get("LAIN_DEPLOY_ROOT", str(Path.home() / ".local/share/l
 BACKEND_PORT = 4785
 FRONTEND_PORT = 4782
 UNITS = ["gx10-lain-backend.service", "gx10-lain-frontend.service"]
+RELEASE_RETENTION = int(os.environ.get("LAIN_RELEASE_RETENTION", "3"))
+RELEASE_NAME = re.compile(r"[0-9a-f]{32}")
 
 
 def run(args, cwd=None, env=None, timeout=1800, capture=False):
@@ -235,6 +237,49 @@ def activate(root, release, restart_services=restart):
         raise
 
 
+def directory_bytes(path):
+    total = 0
+    for directory, _directories, files in os.walk(path, onerror=lambda _error: None):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(directory, name)).st_size
+            except OSError:
+                pass
+    return total
+
+
+def prune_releases(root=ROOT, keep=None):
+    """Delete superseded release directories, keeping the live one plus the newest few.
+
+    Every poll clones both repositories and builds inside the checkout, so one
+    activated release costs hundreds of megabytes and nothing else ever removes
+    them. Only directories the driver created itself (32 hex characters) are
+    eligible, and whatever `current` points at is never touched, so a rollback
+    stays possible and a hand-made directory in releases/ survives.
+    """
+    root = Path(root)
+    keep = RELEASE_RETENTION if keep is None else max(1, int(keep))
+    releases = root / "releases"
+    if not releases.is_dir():
+        return []
+    live = (root / "current").resolve(strict=False)
+    candidates = [path for path in releases.iterdir()
+                  if path.is_dir() and RELEASE_NAME.fullmatch(path.name)]
+    removed = []
+    for index, path in enumerate(sorted(candidates, key=lambda item: item.stat().st_mtime, reverse=True)):
+        if index < keep or path.resolve() == live:
+            continue
+        try:
+            size = directory_bytes(path)
+            shutil.rmtree(path)
+        except OSError as error:
+            print(f"warning: could not prune release {path.name}: {error}", flush=True)
+            continue
+        removed.append((path, size))
+        print(f"pruned release {path.name} ({size // 1024 // 1024} MB reclaimed)", flush=True)
+    return removed
+
+
 def poll(retry=False):
     ROOT.mkdir(parents=True, exist_ok=True)
     with (ROOT / "pull.lock").open("w") as lock:
@@ -281,6 +326,10 @@ def poll(retry=False):
         save(attempt, dict(receipt, status="active", finished_at=time.time()))
         report_status(pair, "deploy", "success", "Verified editor pair is active on GX10")
         print(f"Activated {release}", flush=True)
+        try:
+            prune_releases(ROOT)
+        except Exception as error:
+            print(f"warning: release retention pass failed: {error}", flush=True)
 
 
 def serve(role):
@@ -332,12 +381,16 @@ def install():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=["poll", "install", "serve-backend", "serve-frontend"])
+    parser.add_argument("operation", choices=["poll", "prune", "install", "serve-backend", "serve-frontend"])
     parser.add_argument("--retry", action="store_true")
+    parser.add_argument("--keep", type=int, default=None,
+                        help="how many releases a prune retains (default: 3, or LAIN_RELEASE_RETENTION)")
     arguments = parser.parse_args()
     if arguments.operation == "install":
         install()
     elif arguments.operation == "poll":
         poll(arguments.retry)
+    elif arguments.operation == "prune":
+        prune_releases(ROOT, arguments.keep)
     else:
         serve(arguments.operation.removeprefix("serve-"))

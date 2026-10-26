@@ -26,6 +26,14 @@ Activation atomically replaces the `current` symlink, restarts the owned editor 
 
 Release checkouts and receipts live under `~/.local/share/lain-editor-deploy/`. Inspect `last-attempt.json` for the pair, CI/deployment phase and failures, and `current/release.json` for the active pair. Build output is in the pull-service journal. The installed driver is copied at installation; changes to the controller itself require rerunning install from the updated backend checkout.
 
+## Release retention
+
+A release checkout costs hundreds of megabytes because CI builds inside it, so a successful activation prunes superseded releases and keeps the live one plus the newest two. `--keep` or `LAIN_RELEASE_RETENTION` changes how many are retained (minimum 1). Only 32-hex-character directories the driver created are eligible, whatever `current` points at is never removed, and a retention failure logs a warning without disturbing the active release. Prune on demand with:
+
+```sh
+python3 ~/.local/share/lain-editor-deploy/driver.py prune --keep 3
+```
+
 ## Access
 
 This deployment uses local editor mode: frontend listens on GX10 loopback port 4782 and backend on loopback 4785. Forward it privately:
@@ -54,4 +62,4 @@ Open the HTTPS origin printed by the installer. Trust the public local CA certif
 
 Stop LAN ingress with `systemctl --user stop gx10-lain-gateway.service`. Removing LAN configuration requires first disabling ingress and deliberately restoring local configuration; failures never expose an unauthenticated LAN fallback.
 
-Stop automatic updates with `systemctl --user stop gx10-lain-pull.timer`. Existing releases remain available for inspection and rollback; the driver does not prune them automatically.
+Stop automatic updates with `systemctl --user stop gx10-lain-pull.timer`. Retained releases remain available for inspection and rollback (see Release retention).
