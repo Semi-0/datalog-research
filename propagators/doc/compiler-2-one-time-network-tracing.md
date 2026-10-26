@@ -59,10 +59,12 @@ Load the primitives and Lain code through the existing environment boundary:
  0)
 ```
 
-Inside lazily compiled closure bodies, use the canonical
-`:compiler-2/list-empty` value for an empty list. The zero-argument `(list)`
-compiler path currently seeds its value outside the additive topology diff, so
-it can remain unavailable in a flat-GUR body.
+The current list constructor works inside these flat-GUR closure bodies:
+`(list)` produces a known empty list, and `(list 1 2)` has a known empty tail.
+Use `empty-list?` to distinguish that end from an unresolved cons tail. With the
+default compound projection, the corresponding one-time results are `[]` and
+`[1 2]`. The earlier internal-marker workaround is no longer required for these
+cases; prefer the public constructors and predicate.
 
 ## Current performance gap
 
