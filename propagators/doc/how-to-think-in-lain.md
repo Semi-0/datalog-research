@@ -486,6 +486,60 @@ Data abstraction rules
 A high-level network should remain understandable even if the internal representation of its cells or propagators changes.
 Heuristic: Abstractions should preserve the meaning of relationships while allowing their implementation to evolve.
 
+### Design interfaces with minimal assumptions about their use
+
+A good interface makes as few assumptions as possible about which components will use it and how they will be connected. Name its endpoints for the information or responsibility they represent. Compose producer identity, routing, annotation, filtering, and presentation around that interface.
+
+An interface tied to today's component arrangement makes callers depend on that arrangement:
+
+```clojure
+;; Schematic counterexample: a and b are supplied endpoints.
+(define controller
+  (struct :feedback-from-a-components a
+          :failure-from-b b))
+```
+
+When the controller's responsibility is to receive error facts and general information, expose those meanings directly:
+
+```clojure
+(load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
+(define errors-of (slot :errors))
+(define general-info-of (slot :general-info))
+(define make-controller
+  (network []
+    (let-cell [errors general-info]
+      (struct :errors errors :general-info general-info))))
+(define controller (make-controller))
+```
+
+The constructor chooses neither a producer nor a consumer. Its cells are meaningful public endpoints, and their values may remain unknown. As in the interface construction example in section 2, separate network expressions can attach the relationships:
+
+```clojure
+;; Schematic: component-a, user, and the domain helpers require definitions.
+(-> (annotate-failure (component-name-of component-a)
+                     (errors-of component-a))
+    (errors-of controller))
+
+(error-message-to (errors-of controller)
+                  (message-in user))
+```
+
+Here `component-name-of` exposes a component's name; `annotate-failure` takes that name and its failure-fact endpoint and returns annotated failure facts. `error-message-to` is a two-endpoint relationship that derives message requests from error facts into a destination accepting those requests. These application helpers are not built-in operators; their definitions must preserve the agreed fact schema, identities, and provenance. An outside interpreter handles any actual message delivery.
+
+Annotate facts before combining producers when their origin matters. Annotating the controller's entire aggregate as component A would misattribute failures from other components. Adding or replacing a producer should change its connecting expression, while the controller continues to expose `errors-of` and `general-info-of`. Likewise, a display, recorder, or socket adapter can consume the same public interface through a different relationship. These declarations coexist; their order is not a delivery schedule.
+
+Minimal assumptions still require precise contracts. Keep errors distinct from ordinary information, define accepted facts and merge behavior, and normalize transport-specific messages at the boundary. `:general-info` should have a stated domain meaning, not become a universal escape hatch for unrelated data. Preserve useful roles such as assignment results or cancellation requests when they have different invariants.
+
+Before finalizing an interface, check:
+
+* Could another producer or consumer connect without renaming the public ports?
+* Does each port describe necessary information or responsibility rather than a particular caller or transport?
+* Are routing and provenance expressed through composition instead of constructor-specific branches?
+* Can a caller use one endpoint while unrelated endpoints remain unresolved?
+* Do tests construct the abstraction and use its named accessors, including independent producers and preserved provenance, without inspecting its representation?
+
+Choose the smallest set of meaningful endpoints required by the current responsibility. Avoid adding hypothetical ports or erasing domain distinctions merely to appear generic.
+
 ⸻
 
 ## 12. Build a Vocabulary of Small, Reusable Transformations
