@@ -1,0 +1,62 @@
+;; Pi owns execution and its children. This actor declares coordination only.
+(load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
+
+;; A connected command endpoint accepts the evaluation framework's work offer.
+;; Commands here are assignment requests, not arbitrary plugin tool calls.
+(define execute-assignment (slot :commands))
+(define runtime:result (slot :assignment-result))
+(define runtime:controls (slot :controls))
+(define runtime:status (slot :status))
+(define make-runtime
+  (network []
+    (let-cell [commands results controls status]
+      (struct :commands commands
+              :assignment-result results
+              :controls controls
+              :status status))))
+
+;; The outside interpreter selects exactly one admitted Pi plugin per session.
+;; Its package-specific API remains behind this request/observation boundary.
+(define pi:requests (slot :requests))
+(define pi:observations (slot :observations))
+(define make-pi
+  (network []
+    (let-cell [requests observations]
+      (struct :requests requests :observations observations))))
+
+;; Session-extension policies fold identified observations into normalized facts.
+;; Receipts and uncertain launches participate in request derivation. A request
+;; is not a launch; the outside interpreter owns deduplication/reconciliation.
+(define pi:normalize-observations)
+(define pi:derive-execution-requests)
+(define pi:derive-control-requests)
+(define pi:derive-completions)
+(define pi:derive-status)
+
+(define runtime:request-with
+  (network [pi]
+    (network [commands controls observations]
+      (-> (pi:derive-execution-requests commands observations) (pi:requests pi))
+      (-> (pi:derive-control-requests controls observations) (pi:requests pi))
+      (list commands controls observations))))
+
+;; Only completion normalization supplies assignment results. Progress, launch
+;; receipts and failures remain observations/status until their policy says more.
+(define runtime:incorporate-observations
+  (network [observations results status]
+    (-> (pi:derive-completions observations) results)
+    (-> (pi:derive-status observations) status)
+    (list observations results status)))
+
+(define runtime-from-pi
+  (network [pi]
+    (let [runtime (make-runtime)]
+      (let-cell [observations]
+        (-> (pi:normalize-observations (pi:observations pi)) observations)
+        ((runtime:request-with pi) (execute-assignment runtime)
+                                   (runtime:controls runtime)
+                                   observations)
+        (runtime:incorporate-observations observations
+                                         (runtime:result runtime)
+                                         (runtime:status runtime))
+        runtime))))

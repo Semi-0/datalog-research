@@ -35,6 +35,7 @@
     propagators.compiler-2-gur-tms-integration-test
     propagators.compiler-2-rest-parameters-test
     propagators.compiler-2-combinator-test
+    propagators.compiler-2-subagent-harness-test
     propagators.how-to-think-in-lain-examples-test
     propagators.compiler-2-network-observation-test
     propagators.compiler-2.runtime.semantic-traversal-test

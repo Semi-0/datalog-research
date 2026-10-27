@@ -1,0 +1,59 @@
+;; The user is a connected interface, independent of a particular socket server.
+(load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
+
+(define user:assignments (slot :assignments))
+(define user:controls (slot :controls))
+(define user:feedback (slot :feedback))
+(define make-user
+  (network []
+    (let-cell [assignment-facts controls feedback]
+      (struct :assignments assignment-facts
+              :controls controls
+              :feedback feedback))))
+
+;; The outside socket interpreter supplies observations and consumes requests.
+;; Opening this declaration does not listen on a port or send a message.
+(define socket:requests (slot :requests))
+(define socket:observations (slot :observations))
+(define make-socket
+  (network []
+    (let-cell [requests observations]
+      (struct :requests requests :observations observations))))
+
+;; Session-extension policies normalize identified, ordered command facts.
+;; Submission/reorder enrich assignment facts; cancellation becomes a control.
+(define socket:normalize-commands)
+(define user:derive-assignments)
+(define user:derive-controls)
+(define user:describe-commands)
+(define user:describe-assignments)
+(define socket:encode-feedback)
+
+(define user:accept-commands
+  (network [commands assignment-facts controls]
+    (-> (user:derive-assignments commands) assignment-facts)
+    (-> (user:derive-controls commands) controls)
+    (list commands assignment-facts controls)))
+
+;; Evaluation outcomes and runtime status share feedback, not command input.
+;; Encoding produces bounded transport requests; the interpreter performs I/O.
+(define user:publish-feedback
+  (network [assignment-facts feedback requests]
+    (-> (user:describe-assignments assignment-facts) feedback)
+    (-> (socket:encode-feedback feedback) requests)
+    (list assignment-facts feedback requests)))
+
+(define user-from-socket
+  (network [socket]
+    (let [user (make-user)]
+      (let-cell [commands]
+        (-> (socket:normalize-commands (socket:observations socket)) commands)
+        (user:accept-commands commands
+                              (user:assignments user)
+                              (user:controls user))
+        ;; Acknowledgements/rejections need feedback even without work/control.
+        (-> (user:describe-commands commands) (user:feedback user))
+        (user:publish-feedback (user:assignments user)
+                               (user:feedback user)
+                               (socket:requests socket))
+        user))))

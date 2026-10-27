@@ -1,11 +1,15 @@
-;; Three actors connected by declarative relations. Actor implementations and
-;; outside handlers remain partial until a session extension supplies them.
+;; Three actors connected by concurrent relations. Constructors expose partial
+;; interfaces; session extensions supply policies and outside interpreters.
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 (load-lain "examples/lain/subagents/evaluation-framework.lain")
+(load-lain "examples/lain/subagents/user-socket.lain")
+(load-lain "examples/lain/subagents/runtime-pi.lain")
 
-(def-cells user runtime)
-(define execute-assignment)
+(define socket (make-socket))
+(define pi (make-pi))
 (define harbor (make-harbor))
+(define user (user-from-socket socket))
+(define runtime (runtime-from-pi pi))
 (define evaluation-framework (evaluation-framework-from-harbor harbor))
 
 (<-> (assignments user)
@@ -17,6 +21,9 @@
 (-> (assignment-result runtime)
     (assignment-result evaluation-framework))
 
-;; Shared assignment facts include framework progress and graded outcomes.
-;; Socket/RPC adapters, Harbor preparation/grading and Pi effects stay outside.
+(-> (user:controls user) (runtime:controls runtime))
+(-> (runtime:status runtime) (user:feedback user))
+
+;; Evaluation outcomes return through shared assignments; runtime status returns
+;; through feedback. Socket, Harbor and Pi effects remain outside this network.
 (display (trace:root-semantic user))
