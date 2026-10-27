@@ -1,13 +1,21 @@
-;; Compose maintained relationships around verbs, not workflow phases.
-;; Policy primitives remain partial; outside interpreters own all live effects.
+;; Construct a partial interface; compose the relationships that maintain it.
+;; Policy primitives remain partial. Outside interpreters own all live effects.
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-;; Three public framework ports. Assignment results come back from the runner.
+;; The orchestrator connects these three ports. Results come from the runner,
+;; not directly from Harbor observations; graded outcomes enrich assignments.
 (define assignments (slot :assignments))
 (define on-going-assignment (slot :on-going-assignment))
 (define assignment-result (slot :assignment-result))
 
-;; Harbor has its own request/observation interface, supplied to the composition.
+(define make-evaluation-framework
+  (network []
+    (let-cell [assignment-facts ongoing runner-results]
+      (struct :assignments assignment-facts
+              :on-going-assignment ongoing
+              :assignment-result runner-results))))
+
+;; Harbor is an independently injected request/observation interface.
 (define harbor:requests (slot :requests))
 (define harbor:observations (slot :observations))
 (define make-harbor
@@ -15,8 +23,8 @@
     (let-cell [requests observations]
       (struct :requests requests :observations observations))))
 
-;; Pure policy and translation primitives supplied by a session extension.
-;; Outputs are facts or requests; these declarations invoke no external I/O.
+;; A session extension supplies pure policy/translation propagators.
+;; These declarations do not bind a bridge, run Pi, or invoke Harbor.
 (define evaluation:derive-trials)
 (define evaluation:incorporate-results)
 (define evaluation:select-pending-assignment)
@@ -26,78 +34,70 @@
 (define harbor:prepare)
 (define harbor:grade)
 
-(define evaluation:plan-trials
-  (network [shared-assignments]
-    (define trials)
-    (evaluation:derive-trials shared-assignments trials)
-    trials))
-
-(define evaluation:accept-runner-results
-  (network [trials runtime-results]
-    (define updates)
-    (evaluation:incorporate-results trials runtime-results updates)
-    updates))
-
-;; Select pending work in user order; preserve already-running work.
-;; Pi owns execution and child lifecycle. This output is a view, not another queue.
-(define evaluation:offer-next-assignment
-  (network [shared-assignments trials]
-    (evaluation:select-pending-assignment shared-assignments trials)))
-
+;; Expose the requested fact directly, rather than wrapping it in a list.
 (define harbor:request-preparation
-  (network [shared-assignments trials]
-    (define requests)
-    (harbor:prepare shared-assignments trials requests)
-    requests))
-
-(define harbor:attach-contexts
-  (network [trials observations]
-    (define updates)
-    (harbor:observe-context trials observations updates)
-    updates))
+  (network [assignment-facts trials]
+    (let-cell [requests]
+      (harbor:prepare assignment-facts trials requests)
+      requests)))
 
 (define harbor:request-grading
   (network [trials assessments]
-    (define requests)
-    (harbor:grade trials assessments requests)
-    requests))
+    (let-cell [requests]
+      (harbor:grade trials assessments requests)
+      requests)))
 
 (define harbor:derive-assessments
   (network [trials observations]
-    (define assessments)
-    (harbor:observe-assessment trials observations assessments)
-    assessments))
+    (let-cell [assessments]
+      (harbor:observe-assessment trials observations assessments)
+      assessments)))
 
-;; Feed evaluation outcomes into the same assignment facts, by stable ID.
-;; Feedback preserves user order. Request identity is independent of priority.
-(define evaluation:update-assignments
-  (network [trials assessments]
-    (evaluation:derive-assignment-updates trials assessments)))
+;; Trial plans and runner completions contribute facts to the same trial cell.
+;; The installed policies must merge facts by stable assignment/event IDs.
+(define evaluation:maintain-trials
+  (network [assignment-facts runner-results trials]
+    (evaluation:derive-trials assignment-facts trials)
+    (evaluation:incorporate-results trials runner-results trials)
+    (list assignment-facts runner-results trials)))
 
-;; Construction only exposes supplied endpoints; it chooses no implementation.
-(define make-evaluation-framework
-  (network [assignments ongoing-assignment assignment-result]
-    (struct :assignments assignments
-            :on-going-assignment ongoing-assignment
-            :assignment-result assignment-result)))
+;; Inject Harbor once; the returned relationship takes only the cells it relates.
+;; Requests and observations coexist, rather than defining workflow steps.
+(define harbor:prepare-with
+  (network [harbor]
+    (network [assignment-facts trials]
+      (-> (harbor:request-preparation assignment-facts trials)
+          (harbor:requests harbor))
+      (harbor:observe-context trials (harbor:observations harbor) trials)
+      (list assignment-facts trials))))
 
-;; Every arrow names a transformation and its destination. These relationships
-;; coexist; their textual order is not an execution schedule.
+(define harbor:assess-with
+  (network [harbor]
+    (network [trials assessments]
+      (-> (harbor:request-grading trials assessments)
+          (harbor:requests harbor))
+      (-> (harbor:derive-assessments trials (harbor:observations harbor))
+          assessments)
+      (list trials assessments))))
+
+;; Composition chooses the dependency; construction only exposes the interface.
+;; Only trials and assessments are additional shared internal endpoints.
 (define evaluation-framework-from-harbor
   (network [harbor]
-    (let-cell [shared-assignments ongoing-assignment runtime-results trials assessments]
-      (define framework
-        (make-evaluation-framework shared-assignments ongoing-assignment runtime-results))
-      (<-> (assignments framework) shared-assignments)
-      (<-> (on-going-assignment framework) ongoing-assignment)
-      (<-> (assignment-result framework) runtime-results)
+    (let [framework (make-evaluation-framework)]
+      (let-cell [trials assessments]
+        (evaluation:maintain-trials
+          (assignments framework) (assignment-result framework) trials)
+        ((harbor:prepare-with harbor) (assignments framework) trials)
+        ((harbor:assess-with harbor) trials assessments)
 
-      (-> (evaluation:plan-trials shared-assignments) trials)
-      (-> (evaluation:accept-runner-results trials runtime-results) trials)
-      (-> (evaluation:offer-next-assignment shared-assignments trials) ongoing-assignment)
-      (-> (harbor:request-preparation shared-assignments trials) (harbor:requests harbor))
-      (-> (harbor:attach-contexts trials (harbor:observations harbor)) trials)
-      (-> (harbor:request-grading trials assessments) (harbor:requests harbor))
-      (-> (harbor:derive-assessments trials (harbor:observations harbor)) assessments)
-      (-> (evaluation:update-assignments trials assessments) shared-assignments)
-      framework)))
+        ;; Select pending work in user order; retain already-running work.
+        ;; This is a derived offer, not a second mutable runtime queue.
+        (-> (evaluation:select-pending-assignment (assignments framework) trials)
+            (on-going-assignment framework))
+
+        ;; Stable-ID graded outcomes enrich the original assignment facts.
+        ;; Feedback preserves user order; reordering affects pending work only.
+        (-> (evaluation:derive-assignment-updates trials assessments)
+            (assignments framework))
+        framework))))

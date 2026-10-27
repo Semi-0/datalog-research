@@ -273,6 +273,25 @@
     (is (value/nothing? (binding-value loaded 'pending)))
     (is (value/nothing? (binding-value loaded 'requests)))))
 
+(deftest framework-construction-exposes-independent-partial-interfaces
+  (let [loaded (session
+                "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
+                 (define first-framework (make-evaluation-framework))
+                 (define second-framework (make-evaluation-framework))
+                 (define incoming)
+                 (<-> incoming (assignments first-framework))
+                 (define first-assignment (assignments first-framework))
+                 (define other-assignment (assignments second-framework))
+                 (define result (assignment-result first-framework))")]
+    (is (value/nothing? (binding-value loaded 'first-assignment)))
+    (publish! loaded 'incoming ::assignment 0 :task-a)
+    (is (= :task-a (binding-value loaded 'first-assignment)))
+    (publish! loaded 'incoming ::assignment 1 :task-b)
+    (is (= :task-b (binding-value loaded 'first-assignment)))
+    (is (value/nothing? (binding-value loaded 'other-assignment)))
+    (is (value/nothing? (binding-value loaded 'result))
+        "Construction does not install policy or fabricate a runner result")))
+
 (deftest assignment-order-and-result-feedback-share-the-declared-ports
   (let [loaded (-> (loader/load-session-from-source
                    "0" {:extensions [(synthetic-policy-extension)]})
@@ -318,6 +337,34 @@
     (publish! loaded 'runner-result ::runner 0 :assignment-completed)
     (is (= :assignment-completed (binding-value loaded 'grading-input))
         "The runner's assignment result reaches trial execution and then Harbor grading demand")))
+
+(deftest orchestrator-preserves-user-runtime-and-harbor-connections
+  (let [runner-policies (extension/extension-bundle
+                         {:id ::orchestrator-runner-policies
+                          :bindings [['evaluation:incorporate-results
+                                      (copy-test-port ::execution 1 2)]
+                                     ['harbor:grade (copy-test-port ::grading 0 2)]]
+                          :effects []})
+        loaded (-> (loader/load-session-from-source
+                    "0" {:extensions [(synthetic-policy-extension) runner-policies]})
+                   (checked-load!
+                    "(load-lain \"examples/lain/subagents/composition.lain\")
+                     (define execute-assignment (slot :commands))
+                     (define order)
+                     (<-> (struct :order order) (assignments user))
+                     (define offered ((slot :order) ((slot :commands) runtime)))
+                     (define graded-input ((slot :execution) (harbor:requests harbor)))
+                     (define completed ((slot :results) (assignments user)))"))]
+    (publish! loaded 'order ::orchestrated-order 0 [:a :b])
+    (is (= [:a :b] (binding-value loaded 'offered)))
+    (checked-load! loaded
+      "(-> (struct :execution :a-finished) (assignment-result runtime))")
+    (is (= :a-finished (binding-value loaded 'graded-input)))
+    (checked-load! loaded
+      "(-> (struct :results :a-graded) (harbor:observations harbor))")
+    (is (= :a-graded (binding-value loaded 'completed)))
+    (is (= [:a :b] (binding-value loaded 'offered))
+        "Graded feedback preserves the user's order through the real orchestrator")))
 
 (deftest addition-constraint-supports-each-justified-direction
   (doseq [[known expected]
