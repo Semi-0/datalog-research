@@ -45,9 +45,11 @@ Observation/synthetic mode is the default until the session is explicitly extend
 
 ## Session-extension policy contracts
 
-The following names are deliberately unresolved policy propagators. A session
-extension supplies their pure transformations, using its ordinary source-loading
-or primitive-extension mechanism; it may do so after construction.
+The Lain files declare the following policy propagators without choosing their
+implementations. `harness-session/session-extension` supplies their pure
+transformations together as one ordinary session extension. The socket, Harbor,
+and Pi primitive modules can also be installed separately for focused tests;
+loading a declaration file alone still performs no outside I/O.
 
 | Policy | Inputs | Output |
 | --- | --- | --- |
@@ -90,8 +92,9 @@ ownership, and cleanup verification. Repeated propagation of an acknowledged
 effect must not launch another child. A socket disconnect is not implicitly a
 cancellation. Session disposal and explicit cancellation have distinct contracts.
 Recorded replay supplies recorded observations with live handlers disabled.
-These are required adapter contracts, not guarantees established by unresolved
-policy names alone.
+The implemented pure policies, session-scoped fact merge, effect boundary, and
+controlled transport tests exercise these contracts. They do not by themselves
+establish real plugin confinement, remote delivery, or live grading acceptance.
 
 ## Pi package boundary
 
@@ -107,24 +110,116 @@ Package-specific request/response translation belongs behind the Pi interface.
 Pi owns its children; this harness does not duplicate Pi's lifecycle interpreter
 or the FSM's transition rules. See the [pinned comparison setup](../../../benchmark/pi-subagent-comparison/README.md).
 
-## Verification and remaining implementation
+## One session extension and its outside interpreters
 
-Run from the repository root:
+The host entry point is `examples.lain.subagents.harness-session`. Its
+`session-extension` combines socket/user, evaluation/Harbor, and Pi primitive
+bindings. `open!` loads the actual orchestration with that extension and composes
+the session's runner with the fact domain; no global merge methods are installed.
+`FactLog` is an immutable leaf value containing identified event facts ordered by
+`[order id]`. Its merge rejects foreign sessions and conflicting reuse of an event
+ID, and is associative, commutative, and idempotent. The current scheduling offer
+is a derived value with withdrawal support, separate from accumulated facts.
+The three host ingress cells are explicitly connected to the actor observation
+endpoints; publishing to an observed copy of a slot is not an input connection.
+
+| API | Responsibility |
+| --- | --- |
+| `(session-extension identity pi-config)` | Construct the one primitive-extension bundle; no outside calls. |
+| `(open! identity options)` | Create the owned session, load the orchestration, and attach explicitly selected interpreter dependencies. |
+| `(observe! owner channel fact-log)` | Publish facts through the owning `:socket`, `:pi`, or `:harbor` inlet. |
+| `(pump! owner)` / `(pump! owner max-steps)` | Claim and dispatch currently eligible requests up to a bound, returning observations; no duplicated FSM transition rules. |
+| `(poll! owner poll-id)` | Perform one explicitly identified Pi collection pulse; the caller owns timing and retention. |
+| `(facts-at owner port)` | Inspect a fact port, such as `:assignments` or `:results`, through its public leaf interface. |
+| `(current-offer owner)` | Inspect the current assignment offer; unavailable information is not an empty queue. |
+| `(socket-port owner)` | Inspect the optional owned loopback listener's port. |
+| `(artifacts owner)` | Export bounded plain ordered facts, receipt-entry vectors, and ownership metadata. |
+| `(close! owner)` | Dispose owned resources and cache the cleanup outcome; incomplete cleanup is an error. |
+
+`artifacts` returns plain transport data, not `FactLog` records, vector-keyed maps,
+or actor graphs. Harbor and socket receipts are entry vectors. Pi receipts expose
+trial entries by assignment and polling entries by assignment/poll identity.
+The export is checked by the shared bounded-data validator. `close!` marks ingress
+closed under the harness lock, then joins resources outside that lock so a client
+callback cannot deadlock while waiting to publish a late observation. Repeated
+close calls return the same recorded success or failure.
+
+`pi-config` explicitly identifies `:plugin`, its pinned `:version`, `:provider`,
+`:model`, an absolute `:cwd`, and the admitted `:tools` vector. Execution supplies
+`:pi-hooks` with `:call!`, `:reconcile!`, and `:dispose!`, and `:harbor-callbacks`
+with `:prepare`, `:grade`, and `:dispose!`. These are dependencies, not inferred
+capabilities. Pi receipt recording can be supplied through `:pi-hooks :recording`;
+`:recording-paths` selects the Harbor and socket boundary recordings.
+
+| Mode | Behavior |
+| --- | --- |
+| `:observe` (default) | Derive and inspect relationships; `pump!` invokes no live handlers and no socket listener is opened. |
+| `:synthetic` | Invoke explicitly supplied controlled callbacks. Registered fixtures require no model inference; a controlled loopback socket is optional. |
+| `:replay` | Supply recorded observations through the inlets; the pump invokes no live handlers and live socket options are rejected. |
+| `:live` | Invoke explicitly admitted Pi and Harbor interpreters. A user socket still requires `:socket-options {:mode :live}`. |
+
+The socket binds only `127.0.0.1`, using an ephemeral port by default. It is an
+application command boundary, not the protected editor's instance/debug API.
+Foreign-session envelopes, malformed JSON/UTF-8, and oversized frames are wire
+rejections. A well-framed unsupported command produces domain rejection feedback
+without fabricating an assignment or cancellation. Disconnect alone is not a
+cancellation. `close!` releases the listener and owned client threads.
+
+## Effect receipts and bounded transport
+
+The outside effect boundary records a stable claim before invoking an interpreter.
+Acknowledged effects are not redispatched by reactive reevaluation. Uncertain
+execution, including a possibly partial socket write, requires reconciliation or
+an explicit operator decision rather than a blind retry. Recordings preserve the
+session and effect identities; one session cannot consume another's receipts.
+
+The socket's `received` response acknowledges framing and retention, before domain
+feedback. A successful `send!` reports local writes, not a remote client's delivery
+acknowledgement. No connected recipient reports `:not-connected`; a possibly
+partial write reports `:uncertain` with the completed-write count. These outcomes
+must remain visible in receipts.
+
+Transport adapters serialize bounded resolved event/request fields. They do not
+materialize an actor, workflow, state graph, or the complete propagator network.
+Unknown or contradictory fields, unsupported objects, and exceeded transport
+bounds fail explicitly. Socket feedback projection and Pi bridge translation are
+outside boundaries; the live relationships continue to use connected slot views.
+
+## Verification and live acceptance
+
+Run controlled checks from the repository root:
 
 ```sh
-clojure -M:test propagators.compiler-2-subagent-harness-test \
+clojure -M:test \
+  propagators.compiler-2-harness-primitives-test \
+  propagators.compiler-2-harbor-extension-test \
+  propagators.compiler-2-harness-effect-boundary-test \
+  propagators.compiler-2-socket-extension-test \
+  propagators.compiler-2-pi-extension-test \
+  propagators.compiler-2-harness-session-test \
+  propagators.compiler-2-subagent-harness-test \
   propagators.compiler-2-combinator-test
+node --test examples/lain/subagents/pi_bridge_test.mjs
 ```
 
-The harness tests load the actual `composition.lain`, extend deferred policies,
-and exercise connected fields, user ordering, runtime commands/status/completion,
-Harbor grading feedback, repeated publications, controlled replay, and independent
-sessions. Fixture policies use small normalized field shapes and perform no I/O.
-They establish composition behavior, not a real pending-work scheduler or a
-production socket/Pi protocol implementation.
+The six primitive/boundary/session suites are registered in the ordinary Clojure
+CI floor. `deploy/ci.sh` also runs the offline Node bridge fixtures and already
+requires Node explicitly. Those fixtures exercise package translation and protocol
+validation without invoking a live plugin or model. The composition tests load the
+actual Lain files and exercise late binding, ordering, separate status/completion
+paths, feedback, duplicates, replay, and independent sessions. Socket tests also
+use controlled loopback connections and verify owned cleanup.
 
-Still required before live acceptance: production policy primitives, the selected
-Pi adapter and socket interpreter, real receipt/reconciliation persistence,
-protocol validation, and cancellation/disposal cleanup probes. These declarations
-are ready for those session extensions; they are not a completed live Harbor/Pi
-benchmark and do not change grading.
+Controlled checks and the combined synthetic harness are distinct from live
+Harbor/Pi acceptance. The admitted live bridge currently targets pinned
+`pi-better-subagents` 0.19.1 in the existing pilot environment; pure request/response
+translation for both pinned packages does not establish both live integrations.
+Real child tool inventory, confinement, durable reconciliation, task correctness,
+and verified lifecycle cleanup still require live evidence. Grading is unchanged.
+
+At the current GX10 handoff, no new live experiment or model inference was run:
+the established SSH control connection stopped responding, and fresh public-key
+authentication was denied. Earlier inventory also showed other active Docker
+jobs, so available RAM alone was not sufficient admission evidence. Restore the
+connection and repeat the existing ownership/resource admission before running a
+live smoke. This is not a deployment or scored-benchmark acceptance claim.

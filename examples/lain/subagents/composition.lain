@@ -24,6 +24,11 @@
 (-> (user:controls user) (runtime:controls runtime))
 (-> (runtime:status runtime) (user:feedback user))
 
+;; Claims and active execution are scheduling facts too. Keep this progress path
+;; distinct from the terminal assignment-result port so pending reorder cannot
+;; replace already-claimed/running work.
+(-> (runtime:status runtime) (assignments evaluation-framework))
+
 ;; Evaluation outcomes return through shared assignments; runtime status returns
 ;; through feedback. Socket, Harbor and Pi effects remain outside this network.
 (display (trace:root-semantic user))

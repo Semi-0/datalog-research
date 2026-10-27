@@ -36,6 +36,12 @@
     propagators.compiler-2-rest-parameters-test
     propagators.compiler-2-combinator-test
     propagators.compiler-2-subagent-harness-test
+    propagators.compiler-2-harness-primitives-test
+    propagators.compiler-2-harbor-extension-test
+    propagators.compiler-2-harness-effect-boundary-test
+    propagators.compiler-2-socket-extension-test
+    propagators.compiler-2-pi-extension-test
+    propagators.compiler-2-harness-session-test
     propagators.how-to-think-in-lain-examples-test
     propagators.compiler-2-network-observation-test
     propagators.compiler-2.runtime.semantic-traversal-test
