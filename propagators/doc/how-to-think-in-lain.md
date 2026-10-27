@@ -5,10 +5,10 @@ Checked against the current Compiler-2 language on 2026-10-26. The domain illust
 
 ## 1. Core Philosophy: Compose Relationships into Expressions
 Lain is a Lisp-like, propagator-based coordination language for describing high-level interactions between components.
-Its central programming abstraction is the composition of transformations and relationships. Drawing on lambda calculus and functional composition, Lain allows programmers to construct, connect, and transform propagator networks through reusable abstractions.
+Its central programming abstraction is the composition of transformations and relationships. Drawing on lambda calculus and functional composition, Lain allows programmers to construct, connect, and transform propagator networks through reusable abstractions. P
 Compose verbs into sentences. Do not concatenate nouns into names.
 A Lain program should read like a meaningful expression describing how components relate, constrain, coordinate, and transform one another.
-Think of a synthesizer, an electrical circuit, or a chemical reaction. The essential structure emerges from how components interact and what relationships their interactions maintain.
+Think of a synthesizer, an electrical circuit, or a chemical reaction. The essential structure emerges from how components interact and what relationships their interactions maint Pin.
 Cells provide the medium through which information propagates. They support the network’s operation, while the program’s primary expression concerns the relationships between its components.
 This philosophy is related to Alan Kay’s emphasis on messaging and interaction in object-oriented programming. Lain extends this perspective through compositional network transformations and multidirectional information propagation.
 Fundamental principles:
@@ -64,6 +64,145 @@ The goal is to express relationships with clear propagation semantics.
 A composition may legitimately be directional. A constraint may be multidirectional. A network may contain several concurrently active relationships.
 Choose the appropriate structure according to the semantics of the problem.
 Heuristic: Before introducing a new named protocol, ask whether its meaning can be expressed through the composition of existing transformations.
+
+### Compose a sentence that coordinates components
+
+A useful sentence exposes the participants, the relationship, and the endpoints through which they interact. An accessor supplies a phrase such as “messages from agent A” or “commands into agent B”; a verb describes the relationship between those phrases. Nesting and composition give the sentence structure without requiring a new name for every complete interaction.
+
+The examples below use canonical `define` and `network` forms. Load `combinator.lain` for `compose`, `switch`, `history`, and `struct`. Domain verbs, predicates, and accessors such as `message?`, `history-insight`, and `put` are illustrative application definitions, not additional compiler syntax. Their contracts must be supplied before running those examples.
+
+#### Receive selected messages from one component into another
+
+First define a reusable transformation: “receive information that satisfies the message predicate.” The library's unary predicate-switch constructor takes a predicate callable; the predicate is then applied to each incoming value.
+
+```clojure
+;; Schematic: message? is an application-defined unary predicate.
+(define receive
+  (network [incoming]
+    ((switch message?) incoming)))
+
+(-> (receive (message-out agent-a))
+    (command-in agent-b))
+```
+
+Read the connection as “receive selected messages from agent A into agent B's command endpoint.” The returned endpoint remains connected to the incoming information; it is not a copied message snapshot. A rejected or unresolved value supplies no usable output through the switch. This declaration alone does not define a durable message queue, delivery acknowledgments, or exactly-once execution.
+
+If connecting a destination is itself the reusable operation, give that verb two explicit endpoints:
+
+```clojure
+(define receive-to
+  (network [incoming destination]
+    (-> (receive incoming) destination)
+    destination))
+
+(receive-to (message-out agent-a)
+            (command-in agent-b))
+```
+
+The unary `receive` and binary `receive-to` have different contracts. Do not call a unary network with an extra destination argument and assume wiring happens implicitly. Also establish whether messages are valid commands; when translation is required, compose a `message-to-command` transformation before the destination.
+
+#### Compose filtering with retained history
+
+“Record recent errors into the agent's history assessor” combines selection, retention, and coordination:
+
+```clojure
+;; Schematic: error? and the agent accessors require definitions.
+(define recent-errors
+  (compose (history 5) (switch error?)))
+
+(-> (recent-errors (event-out generic-agent))
+    (history-assessor generic-agent))
+```
+
+`compose` applies right to left: select incoming error publications, then retain at most five accepted publications. Each applied history stage owns its recording state. The destination must accept the bounded history representation returned by `history`; it is not receiving an individual error event. This differs from filtering a previously accumulated collection, which needs a collection-filter transformation with its own contract.
+
+A vocabulary such as `(compose history:acc (event:filter error?))` can express the same idea once those application operators are defined. State whether `event:filter` selects individual publications or filters a collection, and whether `history:acc` is bounded. Similar sentence structure does not make those contracts interchangeable.
+
+#### Relate views of two components
+
+A relationship can consume meaningful views without taking either complete component as a parameter:
+
+```clojure
+;; Schematic: interact:history/knowledge is a domain relationship.
+(interact:history/knowledge
+  (history-insight agent-a)
+  (knowledge-extract agent-b))
+```
+
+This reads as “relate A's history insights to B's extracted knowledge.” Define the relationship's directions explicitly. If it only turns insights into knowledge updates, expose that simpler directed meaning:
+
+```clojure
+(-> (insight-to-knowledge (history-insight agent-a))
+    (knowledge-in agent-b))
+```
+
+If the domain genuinely supports mutual inference, implement the justified directions inside `interact:history/knowledge`. A relation name does not make lossy extraction reversible. Feedback also needs a convergence or event-identity policy when it can produce further updates.
+
+#### Let nested phrases identify a destination
+
+The same principle can be expressed without agent terminology:
+
+```clojure
+;; Schematic domain vocabulary, using ordinary nested application.
+(put elephant (on-the (table-of room-b)))
+```
+
+`table-of` exposes the relevant table; `on-the` constructs or exposes its placement relation; `put` relates the elephant to that destination. Each phrase contributes meaning. Avoid inserting an identity wrapper merely to imitate English: omit `on-the` if `table-of` already returns precisely the placement endpoint that `put` accepts.
+
+Define whether `put` maintains a placement constraint, emits a placement request, or invokes an external effect. For a physical actuator, the network should expose the request to the outside interpreter and receive the observed placement separately; declaring the request is not evidence that the elephant moved.
+
+#### Let a conditional supply a phrase to a verb
+
+A sentence can select its modifier while keeping the action and component visible:
+
+```clojure
+;; Schematic: ring-bell, times, midnight?, and morning? need definitions.
+((ring-bell bell-a)
+  (cond [(midnight? clock) (times 1)
+         (morning? clock) (times 2)
+         else (times 0)]))
+```
+
+Read this as “ring bell A once at midnight, twice in the morning, and zero times otherwise.” `(ring-bell bell-a)` returns a unary network accepting a repetition specification; `(times n)` constructs that specification. The conditional supplies the appropriate phrase to the same verb. These are application contracts expressed through ordinary higher-order application, not special bell or scheduling syntax.
+
+The current prefix form is `(times 1)`, rather than `(1 times)`: the callable occupies the first position. `cond` takes one vector of test/result pairs. The first matching case wins; an unresolved earlier test leaves selection unresolved. Both predicates should describe the same clock observation so the selected count has a coherent meaning.
+
+This declares how the repetition request depends on clock information. An actual bell interpreter still needs an occurrence identity, such as the bell and scheduled instant, and receipts so reactive reevaluation does not ring again for the same occurrence. A changing clock level alone does not define a once-per-morning event.
+
+#### Construct an interface, then compose relationships around it
+
+Construction and dependency injection can also be separate network expressions. The constructor exposes a partial interface; another network relates it to an explicitly supplied dependency:
+
+```clojure
+(load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
+
+(define interface-a-maker
+  (network []
+    (let-cell [interface-slot-a interface-slot-b]
+      (struct :slot-a interface-slot-a
+              :slot-b interface-slot-b))))
+
+;; Schematic: relation-a and relation-b are application-defined networks.
+(define inject-interface-a
+  (network [dependency]
+    (let [interface (interface-a-maker)]
+      (relation-a dependency interface)
+      (relation-b dependency interface)
+      interface)))
+
+;; Given an application-defined dependency:
+(define connected-interface (inject-interface-a dependency))
+```
+
+`interface-a-maker` names construction; `inject-interface-a` names composition with the dependency. The two relationship calls describe concurrently existing connections around the same interface. Their textual order does not mean that relation A finishes before relation B begins. The `let` binding makes both refer to the same constructed interface.
+
+The explicit cells here have a purpose: they are the interface's shared endpoints. `struct` exposes their live connections while their values can remain unknown. Attaching relationships does not require materializing the interface or waiting for every slot to fill. Use named accessors such as `(define slot-a-of (slot :slot-a))` inside the relationship definitions. When a relationship is responsible for only one endpoint, pass that endpoint directly, for example `(relation-a dependency (slot-a-of interface))`, and define its contract accordingly.
+
+The current forms are `(network [] ...)` for a zero-argument constructor, `(define name expression)` for a binding, and alternating key/value arguments to `struct`. Return `interface` when the public result is the compound interface itself. Returning `(list interface)` is also deliberate and valid when callers need a one-element list interface; callers then reach the object through `car`. It does not mean “return all the object's slots.”
+
+This pattern separates **which endpoints exist** from **which relationships connect them**, allowing the same constructor to participate in different compositions without hiding their topology in its implementation.
+
+Across these examples, the design question is: **Which small verbs and endpoint phrases compose into the relationship we mean?** Keep the endpoint contracts explicit, use simultaneous connections for coordination, and introduce retained state or external interpretation where their semantics require it.
 
 ⸻
 
@@ -421,99 +560,192 @@ If the latter, reconsider the decomposition.
 ⸻
 
 ## 14. Common Anti-Patterns
-A. Imperative pipelines disguised as networks
-Symptom: Propagators are arranged as a fixed sequence of processing stages, with each stage treated as a command that must execute after the previous one.
-Problem: The implementation reproduces imperative control flow using propagator syntax. The network’s relational semantics become secondary to a predetermined execution path.
-Correction: Identify the relationships and dependencies that genuinely exist in the domain. Express them as network connections rather than procedural steps.
+
+### A. Imperative pipelines disguised as networks
+
+**Symptom:** Propagators are arranged as a fixed sequence of processing stages, with each stage treated as a command that must execute after the previous one.
+
+**Problem:** The implementation reproduces imperative control flow using propagator syntax. The network’s relational semantics become secondary to a predetermined execution path.
+
+**Correction:** Identify the relationships and dependencies that genuinely exist in the domain. Express them as network connections rather than procedural steps.
+
 A directional pipeline is appropriate when the domain is inherently directional. The anti-pattern is assuming that every computation must be organized this way.
-Heuristic: Ask whether the network describes relationships or merely schedules operations.
-B. Monolithic protocols that hide collections of cells
-Symptom: A large protocol contains numerous cells, propagators, accessors, and internal connections, often accompanied by an excessively long descriptive name.
-Problem: The abstraction hides the network’s composition instead of expressing it. The programmer must understand the protocol’s implementation to discover the relationships it represents.
-Correction: Decompose the protocol into small, reusable transformations. Compose these transformations directly to express the intended behavior.
+
+**Heuristic:** Ask whether the network describes relationships or merely schedules operations.
+
+### B. Monolithic protocols that hide collections of cells
+
+**Symptom:** A large protocol contains numerous cells, propagators, accessors, and internal connections, often accompanied by an excessively long descriptive name.
+
+**Problem:** The abstraction hides the network’s composition instead of expressing it. The programmer must understand the protocol’s implementation to discover the relationships it represents.
+
+**Correction:** Decompose the protocol into small, reusable transformations. Compose these transformations directly to express the intended behavior.
+
 Introduce a named protocol only when it represents a coherent, reusable abstraction with meaningful semantics.
-Heuristic: If a protocol’s name describes a sequence of operations rather than a concept, consider replacing it with a compositional expression.
-C. Concatenating nouns instead of composing verbs
-Symptom: Complex behavior is represented by increasingly elaborate identifiers that combine entity names, processing stages, and implementation details.
+
+**Heuristic:** If a protocol’s name describes a sequence of operations rather than a concept, consider replacing it with a compositional expression.
+
+### C. Concatenating nouns instead of composing verbs
+
+**Symptom:** Complex behavior is represented by increasingly elaborate identifiers that combine entity names, processing stages, and implementation details.
+
 For example:
-user-input-validation-state-update-history-protocol
-Problem: The name compresses a network into an opaque identity. Its internal grammar is lost at the call site.
-Correction: Express the behavior through smaller transformations and explicit relationships.
+
+`user-input-validation-state-update-history-protocol`
+
+**Problem:** The name compresses a network into an opaque identity. Its internal grammar is lost at the call site.
+
+**Correction:** Express the behavior through smaller transformations and explicit relationships.
+
 Conceptually:
+
+```clojure
 (-> (|> user-input
         normalize
         validate)
     state)
-The pipe is implemented by combinator.lain; normalize and validate remain application-defined.
-Heuristic: Compose meaning through expressions. Use names to identify reusable concepts, not to substitute for composition.
-D. Cell-first design
-Symptom: Implementation begins by allocating numerous cells before determining what relationships the network should express.
-Problem: The resulting architecture is organized around storage locations rather than information relationships. Intermediate cells may reflect procedural stages instead of meaningful state.
-Correction: Identify the domain relationships first. Compose transformations, then introduce cells wherever independently meaningful information must be retained, shared, or refined.
-Heuristic: Every explicitly introduced cell should have a clear semantic purpose.
-E. Manual plumbing instead of generic coordination
-Symptom: The code repeatedly manipulates internal slots, allocates intermediate structures, or installs low-level connections to express simple relationships.
-Problem: Implementation details obscure the network’s meaning and increase coupling to internal representations.
-Correction: Use existing accessors, constructors, and generic coordination operators.
+```
+
+The pipe is implemented by `combinator.lain`; `normalize` and `validate` remain application-defined.
+
+**Heuristic:** Compose meaning through expressions. Use names to identify reusable concepts, not to substitute for composition.
+
+### D. Cell-first design
+
+**Symptom:** Implementation begins by allocating numerous cells before determining what relationships the network should express.
+
+**Problem:** The resulting architecture is organized around storage locations rather than information relationships. Intermediate cells may reflect procedural stages instead of meaningful state.
+
+**Correction:** Identify the domain relationships first. Compose transformations, then introduce cells wherever independently meaningful information must be retained, shared, or refined.
+
+**Heuristic:** Every explicitly introduced cell should have a clear semantic purpose.
+
+### E. Manual plumbing instead of generic coordination
+
+**Symptom:** The code repeatedly manipulates internal slots, allocates intermediate structures, or installs low-level connections to express simple relationships.
+
+**Problem:** Implementation details obscure the network’s meaning and increase coupling to internal representations.
+
+**Correction:** Use existing accessors, constructors, and generic coordination operators.
+
 Prefer:
+
+```clojure
 (-> (output-of component-a)
     (input-of component-b))
+```
+
 over manually reproducing the mechanics of the connection.
-Heuristic: Expose meaningful endpoints and compose their relationships.
-F. Unnecessary one-way computation
-Symptom: A relationship with useful algebraic or structural symmetry is implemented only as a forward calculation.
-Problem: The implementation discards opportunities to infer information from other combinations of known values.
-Correction: Examine the underlying relationship for meaningful multidirectional inference. Where justified, express the relationship through cooperating propagators or reusable constraints.
-Heuristic: Ask what can be inferred when different endpoints become known.
-G. Unjustified bidirectionality
-Symptom: A transformation is connected bidirectionally merely because symmetric syntax is available.
-Problem: Not every transformation has a meaningful inverse. Filtering, aggregation, and lossy transformations may destroy information required for reverse inference.
-Correction: Distinguish genuine relational symmetry from directed information transformation.
-Use <-> only when the participating endpoints and relationship support its intended semantics.
-Heuristic: Bidirectionality is a semantic property, not a stylistic preference.
-H. Hidden execution-order assumptions
-Symptom: Correctness depends on the order in which propagators happen to execute or on the textual order of network declarations.
-Problem: The program relies on scheduling behavior that may not be guaranteed by the network semantics.
-Correction: Represent causal dependencies through explicit relationships. Model sequencing, synchronization, buffering, and temporal behavior when they are necessary.
-Heuristic: A network declaration describes topology, not an execution script.
-I. Accidental feedback and unsupported convergence assumptions
-Symptom: Cyclic networks are introduced without examining how information propagates through feedback paths.
-Problem: Feedback may cause repeated updates, nontermination, conflicting information, or unexpected state growth, depending on the propagators and information domains.
-Correction: Examine cycles explicitly. Determine whether the transformations are monotonic, whether convergence is expected, and how conflicting information is handled.
+
+**Heuristic:** Expose meaningful endpoints and compose their relationships.
+
+### F. Unnecessary one-way computation
+
+**Symptom:** A relationship with useful algebraic or structural symmetry is implemented only as a forward calculation.
+
+**Problem:** The implementation discards opportunities to infer information from other combinations of known values.
+
+**Correction:** Examine the underlying relationship for meaningful multidirectional inference. Where justified, express the relationship through cooperating propagators or reusable constraints.
+
+**Heuristic:** Ask what can be inferred when different endpoints become known.
+
+### G. Unjustified bidirectionality
+
+**Symptom:** A transformation is connected bidirectionally merely because symmetric syntax is available.
+
+**Problem:** Not every transformation has a meaningful inverse. Filtering, aggregation, and lossy transformations may destroy information required for reverse inference.
+
+**Correction:** Distinguish genuine relational symmetry from directed information transformation.
+
+Use `<->` only when the participating endpoints and relationship support its intended semantics.
+
+**Heuristic:** Bidirectionality is a semantic property, not a stylistic preference.
+
+### H. Hidden execution-order assumptions
+
+**Symptom:** Correctness depends on the order in which propagators happen to execute or on the textual order of network declarations.
+
+**Problem:** The program relies on scheduling behavior that may not be guaranteed by the network semantics.
+
+**Correction:** Represent causal dependencies through explicit relationships. Model sequencing, synchronization, buffering, and temporal behavior when they are necessary.
+
+**Heuristic:** A network declaration describes topology, not an execution script.
+
+### I. Accidental feedback and unsupported convergence assumptions
+
+**Symptom:** Cyclic networks are introduced without examining how information propagates through feedback paths.
+
+**Problem:** Feedback may cause repeated updates, nontermination, conflicting information, or unexpected state growth, depending on the propagators and information domains.
+
+**Correction:** Examine cycles explicitly. Determine whether the transformations are monotonic, whether convergence is expected, and how conflicting information is handled.
+
 Do not assume that every cyclic network converges or that the runtime automatically resolves inconsistencies.
-Heuristic: Every feedback relationship should have an understood propagation and convergence model.
-J. Hidden temporal state
-Symptom: Propagators implicitly depend on previous values, event ordering, or accumulated history without making those dependencies visible.
-Problem: Temporal semantics become embedded in implementation details, making the network difficult to reason about and reuse.
-Correction: Express history, accumulation, delay, sampling, and synchronization through explicit stateful transformations.
-Heuristic: If time affects correctness, time belongs in the network’s semantics.
-K. Mixing domain logic with infrastructure
-Symptom: Logging, tracing, debugging, persistence, and bookkeeping are embedded directly into domain transformations.
-Problem: The central relationships become difficult to read, and infrastructure concerns are tightly coupled to domain behavior.
-Correction: Compose supporting capabilities through separate relationships where the required semantics permit.
-Heuristic: Keep domain relationships visible. Attach orthogonal capabilities compositionally.
-L. Premature specialization
-Symptom: A new application-specific protocol or wiring operator is introduced for every coordination problem.
-Problem: The system accumulates overlapping abstractions instead of developing a small, reusable vocabulary.
-Correction: Search for existing transformations and combinators before introducing a specialized abstraction.
+
+**Heuristic:** Every feedback relationship should have an understood propagation and convergence model.
+
+### J. Hidden temporal state
+
+**Symptom:** Propagators implicitly depend on previous values, event ordering, or accumulated history without making those dependencies visible.
+
+**Problem:** Temporal semantics become embedded in implementation details, making the network difficult to reason about and reuse.
+
+**Correction:** Express history, accumulation, delay, sampling, and synchronization through explicit stateful transformations.
+
+**Heuristic:** If time affects correctness, time belongs in the network’s semantics.
+
+### K. Mixing domain logic with infrastructure
+
+**Symptom:** Logging, tracing, debugging, persistence, and bookkeeping are embedded directly into domain transformations.
+
+**Problem:** The central relationships become difficult to read, and infrastructure concerns are tightly coupled to domain behavior.
+
+**Correction:** Compose supporting capabilities through separate relationships where the required semantics permit.
+
+**Heuristic:** Keep domain relationships visible. Attach orthogonal capabilities compositionally.
+
+### L. Premature specialization
+
+**Symptom:** A new application-specific protocol or wiring operator is introduced for every coordination problem.
+
+**Problem:** The system accumulates overlapping abstractions instead of developing a small, reusable vocabulary.
+
+**Correction:** Search for existing transformations and combinators before introducing a specialized abstraction.
+
 When a new abstraction is necessary, prefer one that generalizes a recurring relational pattern.
-Heuristic: Extend the compositional vocabulary rather than multiplying specialized containers.
-M. Abstraction without composability
-Symptom: A component hides its implementation but cannot participate naturally in larger network expressions.
-Problem: Encapsulation alone does not guarantee useful abstraction. A component may become an isolated object requiring specialized coordination code.
-Correction: Design abstractions with meaningful endpoints, explicit propagation semantics, and compatibility with general network transformations.
-Heuristic: A good abstraction should be easy to compose, not merely easy to name.
-N. Over-abstraction that obscures relationships
-Symptom: The program introduces numerous layers of higher-order transformations, wrappers, or generic combinators without improving the clarity of the network.
-Problem: Composition becomes an end in itself. The resulting expression may be harder to understand than the relationships it was intended to describe.
-Correction: Keep abstractions proportional to their semantic value. Prefer direct relational expressions when they communicate the intention more clearly.
-Heuristic: Composition should reveal meaning, not conceal it.
-O. Assuming proposed syntax or runtime capabilities exist
-Symptom: An implementation uses conceptual operators, hypothetical propagators, or assumed runtime behavior without verifying their availability.
-Problem: A conceptually elegant network may not be executable or may rely on semantics that the implementation does not provide.
-Correction: Distinguish existing Lain features from proposed extensions and illustrative pseudocode.
+
+**Heuristic:** Extend the compositional vocabulary rather than multiplying specialized containers.
+
+### M. Abstraction without composability
+
+**Symptom:** A component hides its implementation but cannot participate naturally in larger network expressions.
+
+**Problem:** Encapsulation alone does not guarantee useful abstraction. A component may become an isolated object requiring specialized coordination code.
+
+**Correction:** Design abstractions with meaningful endpoints, explicit propagation semantics, and compatibility with general network transformations.
+
+**Heuristic:** A good abstraction should be easy to compose, not merely easy to name.
+
+### N. Over-abstraction that obscures relationships
+
+**Symptom:** The program introduces numerous layers of higher-order transformations, wrappers, or generic combinators without improving the clarity of the network.
+
+**Problem:** Composition becomes an end in itself. The resulting expression may be harder to understand than the relationships it was intended to describe.
+
+**Correction:** Keep abstractions proportional to their semantic value. Prefer direct relational expressions when they communicate the intention more clearly.
+
+**Heuristic:** Composition should reveal meaning, not conceal it.
+
+### O. Assuming proposed syntax or runtime capabilities exist
+
+**Symptom:** An implementation uses conceptual operators, hypothetical propagators, or assumed runtime behavior without verifying their availability.
+
+**Problem:** A conceptually elegant network may not be executable or may rely on semantics that the implementation does not provide.
+
+**Correction:** Distinguish existing Lain features from proposed extensions and illustrative pseudocode.
+
 Verify operator availability, endpoint compatibility, propagation semantics, and runtime guarantees before implementation.
-Heuristic: Design conceptually, but implement against the actual language.
+
+**Heuristic:** Design conceptually, but implement against the actual language.
 
 ⸻
 
