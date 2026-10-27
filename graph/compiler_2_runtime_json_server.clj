@@ -71,7 +71,10 @@
       :close (fn []
                (reset! running? false)
                (.close socket)
-               (.interrupt ^Thread accept-thread))})))
+               (.interrupt ^Thread accept-thread)
+               ;; Closing the listener initiates shutdown; join establishes that
+               ;; its accept loop has released the listening socket before return.
+               (.join ^Thread accept-thread))})))
 
 (defn request
   ([command]

@@ -196,6 +196,44 @@
             session
             (assoc-in manifest [:commits 3 :text] "(+ 40 10)")))))))
 
+(deftest json-socket-close-waits-for-the-accept-thread-to-exit
+  (let [start-thread json-server/daemon-thread
+        accept-thread (atom nil)
+        exiting (promise)
+        release-exit (java.util.concurrent.Semaphore. 0)
+        runtime-server
+        (with-redefs [json-server/daemon-thread
+                      (fn [name f]
+                        (let [thread
+                              (start-thread
+                               name
+                               (fn []
+                                 (try
+                                   (f)
+                                   (finally
+                                     (deliver exiting true)
+                                     ;; Hold thread exit independently of interrupt timing.
+                                     (.acquireUninterruptibly release-exit)))))]
+                          (reset! accept-thread thread)
+                          thread))]
+          (json-server/start-server 0 (fn [_] {:ok true})))
+        closed (promise)
+        _ (start-thread "compiler-2-json-test-close"
+                        #(deliver closed
+                                  (try
+                                    ((:close runtime-server))
+                                    :closed
+                                    (catch Throwable error error))))]
+    (try
+      (is (= true (deref exiting 5000 :timeout)))
+      (is (= :waiting (deref closed 100 :waiting))
+          "Close must not return while the listener thread still owns shutdown")
+      (finally
+        (.release release-exit)))
+    (is (= :closed (deref closed 5000 :timeout)))
+    (is (not (.isAlive ^Thread @accept-thread)))
+    ((:close runtime-server))))
+
 (deftest json-socket-rejects-malformed-schema-without-mutating-and-closes
   (let [runtime-server (start-json-runtime)
         port (:json-port runtime-server)
