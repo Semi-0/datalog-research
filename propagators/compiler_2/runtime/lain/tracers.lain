@@ -17,6 +17,8 @@
 (define trace:roots relationship:roots)
 (define trace:dataflow relationship:dataflow)
 (define trace:with-values relationship:with-values)
+;; Explicit component names (or node identities) select the high-level boundaries.
+(define trace:high-level relationship:high-level)
 
 (define trace:root-semantic
   (network [root]

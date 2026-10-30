@@ -3,6 +3,7 @@
   (:require [propagators.compiler-2.runtime.operators.retained-relationship :as retained]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.operators.graph-modifiers :as graph-modifiers]
+            [propagators.compiler-2.runtime.operators.high-level-trace :as high-level]
             [propagators.compiler-2.runtime.operators.visualizer :as visualizer]
             [propagators.compiler-2.runtime.operators.xr :as xr]
             [propagators.compiler-2.runtime.session.extension :as extension]))
@@ -20,6 +21,7 @@
      ['relationship:roots-semantic (retained/roots-semantic-operator)]
                ['relationship:children (retained/children-operator)]
      ['relationship:with-values (graph-modifiers/with-values-operator)]
+     ['relationship:high-level (high-level/high-level-operator)]
      ['cell-window (visualizer/cell-window-operator)]
      ['cell-history (visualizer/cell-history-operator)]
      ['propagator-references (visualizer/propagator-references-operator)]

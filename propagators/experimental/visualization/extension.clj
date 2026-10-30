@@ -4,6 +4,7 @@
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.operators.xr :as xr]
             [propagators.compiler-2.runtime.operators.graph-modifiers :as graph-modifiers]
+            [propagators.compiler-2.runtime.operators.high-level-trace :as high-level]
             [propagators.experimental.visualization.collections :as collections]
             [propagators.experimental.visualization.observation :as observation]
             [propagators.experimental.visualization.presentation :as presentation]
@@ -30,6 +31,7 @@
                ['relationship:roots-semantic (retained/roots-semantic-operator)]
                ['relationship:children (retained/children-operator)]
                ['relationship:with-values (graph-modifiers/with-values-operator)]
+               ['relationship:high-level (high-level/high-level-operator)]
                ['relationship:caller-view (graph-modifiers/caller-view-operator)]
                ['xr:io (xr/xr-io-operator (runtime-ids/boundary-outbox-id))]]
     :effects []}))
