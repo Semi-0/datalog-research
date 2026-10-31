@@ -158,18 +158,74 @@
                 (assoc (select-keys observation [:child :result :failure :cleanup-verified])
                        :assignment-id assignment-id))))
 
+(defn current-request-intents
+  "The CURRENT Pi intents only: recomputed from the present offer, controls and
+  observations, and retracted when they stop being current. This is the graph-side
+  owner of Pi eligibility; the delivery pump never recomputes it."
+  [session config offer controls observations]
+  (->> (facts/merge-logs (derive-execution-requests session config offer observations)
+                         (derive-control-requests session config controls observations))
+       (facts/ordered-facts)
+       (mapv #(select-keys % [:session :id :order :kind :assignment-id :request]))))
+
+(def pi-request-kind
+  "The native boundary kind of this component's effect. Effect identity is
+  [kind intent-id], the same identity scheme the runtime's own effect-operator
+  builds with :effect/identity-parts."
+  :harness/pi-request)
+
+(defn deliver-intent
+  "Session-owned Pi delivery handler (registered natively, resolved from this
+  qualified symbol). Claims are published by the pump before invocation. Outside
+  pump ownership the effect is only declared: nothing leaves this session."
+  [services state request]
+  (if-not (primitives/transport-armed?)
+    (primitives/deferred-receipt state request)
+    (let [intent (:boundary/payload request)
+          order (:order services)]
+      (when-not (= [pi-request-kind (:id intent)] (:boundary/id request))
+        (throw (ex-info "Pi effect identity does not match its intent"
+                        {:effect-id (:boundary/id request)})))
+      {:state state
+       :receipt {:status :delivered
+                 :observations (transport/dispatch! (:pi services) (:assignment-id intent)
+                                                    (assoc (:request intent) :order order))}})))
+
+(def pi-request-effect
+  {:effect/symbol 'pi:declare-request
+   :boundary/port :harness
+   :boundary/kind pi-request-kind
+   :effect/arities #{1}
+   :effect/handler-symbol 'examples.lain.subagents.pi-extension/deliver-intent
+   :effect/identity-parts (comp vector :id)
+   :effect/normalize (fn [_ [intents]]
+                       (cond
+                         (nil? intents) {:status :wait}
+                         (not (every? map? intents))
+                         {:status :invalid :reason :invalid-intents
+                          :message "pi:declare-request needs bounded intent maps"
+                          :data {:intents (count intents)}}
+                         :else {:status :ready :payload (vec intents)}))})
+
 (defn session-extension [session config]
   (transport/validate-config config)
   (extension/extension-bundle
    {:id ::pi
     :bindings
-    (mapv (fn [[name input-kinds f]]
-            [name (primitives/leaf-operator name
-                    {:arity (count input-kinds) :inputs (vec (range (count input-kinds)))
-                     :input-kinds input-kinds :output nil :session session :kind :facts} f)])
-          [['pi:normalize-observations [:facts] #(normalize-observations session %)]
-           ['pi:derive-execution-requests [:value :facts] #(derive-execution-requests session config %1 %2)]
-           ['pi:derive-control-requests [:facts :facts] #(derive-control-requests session config %1 %2)]
-           ['pi:derive-completions [:facts] #(derive-completions session %)]
-           ['pi:derive-status [:facts] #(derive-status session %)]])
-    :effects []}))
+    (into
+     (mapv (fn [[name input-kinds f]]
+             [name (primitives/leaf-operator name
+                     {:arity (count input-kinds) :inputs (vec (range (count input-kinds)))
+                      :input-kinds input-kinds :output nil :session session :kind :facts} f)])
+           [['pi:normalize-observations [:facts] #(normalize-observations session %)]
+            ['pi:derive-execution-requests [:value :facts] #(derive-execution-requests session config %1 %2)]
+            ['pi:derive-control-requests [:facts :facts] #(derive-control-requests session config %1 %2)]
+            ['pi:derive-completions [:facts] #(derive-completions session %)]
+            ['pi:derive-status [:facts] #(derive-status session %)]])
+     [['pi:current-requests
+       (primitives/leaf-operator 'pi:current-requests
+        {:arity 3 :inputs [0 1 2] :input-kinds [:value :facts :facts]
+         :output nil :session session :kind :value}
+        (partial current-request-intents session config))]
+      ['pi:emit-requests (primitives/intent-effect-operator pi-request-effect)]])
+    :effects [pi-request-effect]}))

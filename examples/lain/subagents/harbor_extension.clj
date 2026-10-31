@@ -2,6 +2,7 @@
   "Pure Harbor/evaluation propagators plus an explicitly invoked Harbor boundary.
   FactLog values are bounded domain leaves, never materialized actor graphs."
   (:require [examples.lain.subagents.assignment-model :as assignments]
+            [examples.lain.subagents.effect-boundary :as effects]
             [examples.lain.subagents.facts :as facts]
             [examples.lain.subagents.primitives :as primitives]
             [propagators.compiler-2.runtime.session.extension :as extension]))
@@ -148,6 +149,58 @@
       [])
     [(interpret-request! (:session request) callbacks request)]))
 
+(defn current-request-intents
+  "Graph-side Harbor eligibility: exactly the prepare/grade intents the current
+  trial schedule asks for. Retracted when the schedule no longer wants them, so
+  the delivery pump never asks whether a Harbor request 'is eligible'."
+  [assignment-facts results observations]
+  (let [trials (-> (facts/merge-logs (trial-facts assignment-facts)
+                                     (facts/select-kinds observations trial-kinds))
+                   (incorporate-results results))
+        assessments (assessment-facts trials observations)]
+    (->> (facts/merge-logs (preparation-requests (trial-facts assignment-facts) trials)
+                           (grading-requests trials assessments))
+         (facts/ordered-facts)
+         (mapv #(select-keys % [:session :id :order :kind :assignment-id :task
+                                :context :result])))))
+
+(def harbor-request-kind
+  "Native boundary kind of this component's Harbor effect; effect identity is
+  [kind intent-id], the runtime's own identity scheme."
+  :harness/harbor-request)
+
+(defn deliver-intent
+  "Session-owned Harbor delivery handler: one durable claimed-before-invoke call
+  to the admitted callbacks through this session's outside boundary. Outside pump
+  ownership the intent is declared but never performed."
+  [services state request]
+  (if-not (primitives/transport-armed?)
+    (primitives/deferred-receipt state request)
+    (let [intent (:boundary/payload request)]
+      (when-not (= [harbor-request-kind (:id intent)] (:boundary/id request))
+        (throw (ex-info "Harbor effect identity does not match its intent"
+                        {:effect-id (:boundary/id request)})))
+      {:state state
+       :receipt {:status :delivered
+                 :observations (effects/dispatch! (:harbor services) intent
+                                                  (:order services))}})))
+
+(def harbor-request-effect
+  {:effect/symbol 'harbor:declare-request
+   :boundary/port :harness
+   :boundary/kind harbor-request-kind
+   :effect/arities #{1}
+   :effect/handler-symbol 'examples.lain.subagents.harbor-extension/deliver-intent
+   :effect/identity-parts (comp vector :id)
+   :effect/normalize (fn [_ [intents]]
+                       (cond
+                         (nil? intents) {:status :wait}
+                         (not (every? map? intents))
+                         {:status :invalid :reason :invalid-intents
+                          :message "harbor:declare-request needs bounded intent maps"
+                          :data {:intents (count intents)}}
+                         :else {:status :ready :payload (vec intents)}))})
+
 (defn- primitive-binding [session symbol arity inputs output kind f]
   [symbol (primitives/leaf-operator
            symbol {:arity arity :inputs inputs :input-kinds (vec (repeat (count inputs) :facts))
@@ -157,12 +210,20 @@
   (facts/empty-log session)
   (extension/extension-bundle
    {:id ::harbor
-    :bindings [(primitive-binding session 'evaluation:derive-trials 2 [0] 1 :facts trial-facts)
-               (primitive-binding session 'evaluation:incorporate-results 3 [0 1] 2 :facts incorporate-results)
-               (primitive-binding session 'evaluation:select-pending-assignment 2 [0 1] nil :value current-offer)
-               (primitive-binding session 'evaluation:derive-assignment-updates 2 [0 1] nil :facts assignment-updates)
-               (primitive-binding session 'harbor:prepare 3 [0 1] 2 :facts preparation-requests)
-               (primitive-binding session 'harbor:grade 3 [0 1] 2 :facts grading-requests)
-               (primitive-binding session 'harbor:observe-context 3 [0 1] 2 :facts context-facts)
-               (primitive-binding session 'harbor:observe-assessment 3 [0 1] 2 :facts assessment-facts)]
-    :effects []}))
+    :bindings (conj
+               (mapv (partial apply primitive-binding session)
+                     [['evaluation:derive-trials 2 [0] 1 :facts trial-facts]
+                      ['evaluation:incorporate-results 3 [0 1] 2 :facts incorporate-results]
+                      ['evaluation:select-pending-assignment 2 [0 1] nil :value current-offer]
+                      ['evaluation:derive-assignment-updates 2 [0 1] nil :facts assignment-updates]
+                      ['harbor:prepare 3 [0 1] 2 :facts preparation-requests]
+                      ['harbor:grade 3 [0 1] 2 :facts grading-requests]
+                      ['harbor:observe-context 3 [0 1] 2 :facts context-facts]
+                      ['harbor:observe-assessment 3 [0 1] 2 :facts assessment-facts]])
+               ['harbor:current-requests
+                (primitives/leaf-operator 'harbor:current-requests
+                 {:arity 3 :inputs [0 1 2] :input-kinds [:facts :facts :facts]
+                  :output nil :session session :kind :value}
+                 current-request-intents)]
+               ['harbor:emit-requests (primitives/intent-effect-operator harbor-request-effect)])
+    :effects [harbor-request-effect]}))

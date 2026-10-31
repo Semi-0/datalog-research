@@ -40,7 +40,10 @@
     (if (or (= :none (:operation request)) (#{:observe :replay} (:mode boundary)))
       []
       (if-let [prior (get (receipts boundary) (:id request))]
-        (:observations prior)
+        (do
+          (when-not (= request (:request prior))
+            (throw (ex-info "Conflicting reused effect identity" {:id (:id request)})))
+          (:observations prior))
         (do
           (when-not (= (:id request) (model/effect-id (:identity boundary) (:operation request)))
             (throw (ex-info "Invalid effect identity" {:id (:id request)})))

@@ -1,0 +1,317 @@
+{
+  "base_commit": "c1ed279b095d87efc65c7fd5a60f6d34197444a7",
+  "files": [
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/editor/src/graph/lain_editor/harness_glue.clj",
+      "path": "editor/src/graph/lain_editor/harness_glue.clj",
+      "bytes": 15959,
+      "sha256": "dc8a24daad4259c0112717555ed3a19f4d64e7f05ab62ad1490062d2e6648f83"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/examples/lain/subagents/boundary.clj",
+      "path": "examples/lain/subagents/boundary.clj",
+      "bytes": 4665,
+      "sha256": "868f6f6ea3ddb628d901c2548bf1529c2bc8b78347cc6689f32ab63acdff8dda"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/examples/lain/subagents/harbor_extension.clj",
+      "path": "examples/lain/subagents/harbor_extension.clj",
+      "bytes": 11980,
+      "sha256": "3437c0debb0b6bfd85c3be4048d65f34c545e540f9a915120138d486b4ea494e"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/examples/lain/subagents/harness_session.clj",
+      "path": "examples/lain/subagents/harness_session.clj",
+      "bytes": 29158,
+      "sha256": "8e5289bbe01b0e07c46e23b7fec757c79dda1ec6a53b7fe94c8a5700b15c8fd5"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/examples/lain/subagents/pi_extension.clj",
+      "path": "examples/lain/subagents/pi_extension.clj",
+      "bytes": 14092,
+      "sha256": "1403de50579778eb1ea1c87f075fdfa05a3ceb5a34831353fe57767426f9b2f7"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/examples/lain/subagents/pi_transport.clj",
+      "path": "examples/lain/subagents/pi_transport.clj",
+      "bytes": 8709,
+      "sha256": "b07598eb0b7b2b462a11bd4b5f2d5d6013d54f21f7a15526d88e87b0ad3ffb04"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/examples/lain/subagents/primitives.clj",
+      "path": "examples/lain/subagents/primitives.clj",
+      "bytes": 15188,
+      "sha256": "75bda17f40bbc0166fca18bf74443c28cdd8d8b1aa31209af91d24b9d7129fbc"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/examples/lain/subagents/socket_extension.clj",
+      "path": "examples/lain/subagents/socket_extension.clj",
+      "bytes": 10636,
+      "sha256": "65e919f53879e7952628298057d651cba74b89b9cc587bdbbe817a426f4730c1"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/test/editor/harness_glue_attach_detach_test.clj",
+      "path": "test/editor/harness_glue_attach_detach_test.clj",
+      "bytes": 14334,
+      "sha256": "4c337af24a2886cde0b457b4bf6363282881e5c316535e397a76375e04015b4d"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/test/propagators/compiler_2/runtime/session_extension_test.clj",
+      "path": "test/propagators/compiler_2/runtime/session_extension_test.clj",
+      "bytes": 21097,
+      "sha256": "f54c9a53e03f297e305a76f6bbdf002bc4ba752c1868d43b6ccd255337bebb13"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/test/propagators/compiler_2_harbor_grading_contract_test.clj",
+      "path": "test/propagators/compiler_2_harbor_grading_contract_test.clj",
+      "bytes": 11445,
+      "sha256": "fee20285528f16fb6738c56b65dc409066258699eb533e84980b9818c1d756c3"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/test/propagators/compiler_2_harness_session_test.clj",
+      "path": "test/propagators/compiler_2_harness_session_test.clj",
+      "bytes": 13142,
+      "sha256": "d318e184f88c612de98e541995145512206ac89fa0ec821b13d108730e2c2c64"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/test/propagators/compiler_2_pi_extension_test.clj",
+      "path": "test/propagators/compiler_2_pi_extension_test.clj",
+      "bytes": 11509,
+      "sha256": "077f6f7e274773a507f4f77915fffc09e740928c39568400823d8ac1858419e5"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/candidate/test/propagators/compiler_2_pi_transport_test.clj",
+      "path": "test/propagators/compiler_2_pi_transport_test.clj",
+      "bytes": 14765,
+      "sha256": "13e2f8ae8fcc9ea989c8be245d7fb39e7f292c726a23f27cbe8fd5db69b9748d"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/docs/NEXT-COORDINATOR-RUN.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/docs/NEXT-COORDINATOR-RUN.md",
+      "bytes": 1354,
+      "sha256": "3f28522bda0660aea6d2b2228762497ed50bffb144c7a4610177bf40752e3f1f"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/docs/ORCHESTRATOR-BLAZUX.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/docs/ORCHESTRATOR-BLAZUX.md",
+      "bytes": 2960,
+      "sha256": "9060a781cfe4f35b3dcaa42a55e36c3d17fe2c833f3caf4d03a6495ba82b6b9a"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/docs/ORCHESTRATOR.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/docs/ORCHESTRATOR.md",
+      "bytes": 7641,
+      "sha256": "40f84320621b0f2d4cce11f3e29395b4a42a2419bc5ef9e9909ab4fe23c04ef7"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/docs/integration-design.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/docs/integration-design.md",
+      "bytes": 7166,
+      "sha256": "ed6d40504189da21302f8a50980adeab66e78fe00e69c39091c52ee98e7610dd"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/docs/live-run-checklist.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/docs/live-run-checklist.md",
+      "bytes": 3591,
+      "sha256": "5d12405324c4b817c22708d7a4540517c84e5dfed0d8c523c658f0c838effbd5"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/docs/operating-mode.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/docs/operating-mode.md",
+      "bytes": 3076,
+      "sha256": "e59fbb7d2c37e70cc8353810a24fca83bbd203dff114fd9cd090e270ece5b6e3"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/deps.edn",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/deps.edn",
+      "bytes": 7880,
+      "sha256": "8dedd1a02aef56a3de0e23f0015bb6fbdcdf305619bbc0417d19f79434bde889"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/flash_once.clj",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/flash_once.clj",
+      "bytes": 25375,
+      "sha256": "ce22041011aabdde36369535dcc945b944841219f336d2b0dba64daeb2003be6"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/test/balance_check.py",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/test/balance_check.py",
+      "bytes": 1385,
+      "sha256": "d3bb5cdee95041630ac511ae52d98b036d55784d5dde1a27304ed6835dbb7d9b"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/test/run_w17.clj",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/test/run_w17.clj",
+      "bytes": 1095,
+      "sha256": "a6974196d83796c3edc7a7977ffd908f4a79c28d7c6d4122da0e2aed6a606cef"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/test/run_w19.clj",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/test/run_w19.clj",
+      "bytes": 1408,
+      "sha256": "3b16f9a19fc3ce1a9242d88fa73e5aa46fda83f344afda193235c20645045317"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/test/run_w23.clj",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/test/run_w23.clj",
+      "bytes": 1036,
+      "sha256": "03986a8b0315ae9caa3fcbbc398c073990accc34d9ce38dcea5528d6871361ca"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/test/w17_contract_test.clj",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/test/w17_contract_test.clj",
+      "bytes": 13338,
+      "sha256": "cfae9995e437b6bc681d20452011c16299ed5fd5a4da43741074f6fe30d6a3a1"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/test/w19_classpath_test.clj",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/test/w19_classpath_test.clj",
+      "bytes": 17438,
+      "sha256": "42605550f5f9ab206376a61f9d475573af27103ccb5114873ee7f70ae7c820b2"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/test/w23_contract_test.clj",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/test/w23_contract_test.clj",
+      "bytes": 8896,
+      "sha256": "893772298d0b12a1720ea21b94f460796554dd611dcd2fb92de125cb33b70bbe"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/drivers/test/w23_fake_bridge.clj",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/drivers/test/w23_fake_bridge.clj",
+      "bytes": 3676,
+      "sha256": "5be173f247010e84b0cc862ef3e96ad42077d2a2b1dc6e9f333687068085af21"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/APPARMOR-LOAD.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/APPARMOR-LOAD.md",
+      "bytes": 19712,
+      "sha256": "f91888f28cd355695f67c74f59a1c1cad18a682d21d7ff42d49b21d1385c4d87"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/BATTERY-V2.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/BATTERY-V2.md",
+      "bytes": 13904,
+      "sha256": "b5acc7ed6a5b7602b479cf2525fc7c455fbe369fa081b124d69324b173c3a245"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/BOOT-GAP-SWEEP.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/BOOT-GAP-SWEEP.md",
+      "bytes": 12952,
+      "sha256": "b466576372a48a9d72b04edaafcc86c2b94353b24c5485bcf1693fae4c42fbab"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/DRIVER-REGATE.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/DRIVER-REGATE.md",
+      "bytes": 9142,
+      "sha256": "0e1258b8dded4939b860a2ac7a27a0ff747f87d085d31f4ba41139cb26937657"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/EDITOR-PROCEED.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/EDITOR-PROCEED.md",
+      "bytes": 1941,
+      "sha256": "703ce18db32859afb0b52002ec7bab2246bcfdfbb3e3c67f46cdcf007d5d9e06"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/EDITOR-SESSION-SURVEY.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/EDITOR-SESSION-SURVEY.md",
+      "bytes": 6766,
+      "sha256": "4dfd75b5b7a86c8690e7e8e2f9504a2142c027373d60e4d1a9bfa1a8c330e6ce"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/LAUNCH-SCRIPT-RECHECK.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/LAUNCH-SCRIPT-RECHECK.md",
+      "bytes": 10025,
+      "sha256": "93514078f31af95c67cf5e2fb1270e5c7ec5a6cf4cacce66e6f861cc8db42327"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/LAUNCH-SCRIPT-REVIEW.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/LAUNCH-SCRIPT-REVIEW.md",
+      "bytes": 15761,
+      "sha256": "df0283f95cfc76ed048eadb41c88a82c1e55dc1b1fc1c920a4f7810fc8b5fdb6"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/MAIN-BRINGUP-DISSECT.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/MAIN-BRINGUP-DISSECT.md",
+      "bytes": 16302,
+      "sha256": "055e9d69e5595d5039a4744d8b5b882c6ca96a3664c717bb8500a950b2f2755a"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/OWNER-A-CHECKPOINT.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/OWNER-A-CHECKPOINT.md",
+      "bytes": 3814,
+      "sha256": "be6fa92518dd959b40a0cf69432372d28b130f99ccfb1c2a921b8d5d0fd13c15"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/RECOVERY-PLAN.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/RECOVERY-PLAN.md",
+      "bytes": 3333,
+      "sha256": "bd2a0d86a1cf6b82c5deb99bc676525ec30e9f3eb4d0de9ef80a981134888685"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/RECOVERY-STATUS.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/RECOVERY-STATUS.md",
+      "bytes": 12545,
+      "sha256": "97d45e4b3d9e62d19de6642c37a2dcc42d34d1824eee405ff5443ac4957888b2"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/REPORT.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/REPORT.md",
+      "bytes": 3636,
+      "sha256": "2444c6c19288cfbc202ef05eee16bd6c01315f1f1c94ee5bb9b6845838bb4f05"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/TASK.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/TASK.md",
+      "bytes": 8595,
+      "sha256": "7f839c1d767eefb4bb0ccaf98c9935a322ce96721883931c0dcebb6b8e0c175f"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/TRACER-BRANCH-HANDOFF.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/TRACER-BRANCH-HANDOFF.md",
+      "bytes": 820,
+      "sha256": "08e0c7963a4cf258be3c00723e805c0c07f9d18a09e439ab3880d331f0cc4f90"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/contract-review-A2.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/contract-review-A2.md",
+      "bytes": 10429,
+      "sha256": "9dcc283311d31cf9b1b8db5891f45d40f7874a71e6b8e86b0bb5e1fb8ff67445"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/final-battery-summary-20261030-v2.txt",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/final-battery-summary-20261030-v2.txt",
+      "bytes": 592,
+      "sha256": "3dd84e3df40dcc4fc89136717cc8fe7d1898271d15bc564f7ec95f39e5b396b5"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/final-battery-summary-20261030.txt",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/final-battery-summary-20261030.txt",
+      "bytes": 434,
+      "sha256": "cf1727e9853afaf80569b18f0aefa4232e7427bff7669bc2d497ba31646e6641"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/final-gate-20261030-v2.sh",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/final-gate-20261030-v2.sh",
+      "bytes": 7350,
+      "sha256": "d04d42f54cfdd603eae047690b43934dca529f5f3cbbc7022630fef5e33d32b2"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/final-gate-20261030.sh",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/final-gate-20261030.sh",
+      "bytes": 5456,
+      "sha256": "3f37f1e27b5a4c13d4561fe81bda5e2b1308b5bd94be25a20f6f0f00f6e1181e"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/incident.md",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/incident.md",
+      "bytes": 551,
+      "sha256": "28cce1d34ed777196bb0c85efdb31a601596b39bf63dc4c101452ddb4daac1dc"
+    },
+    {
+      "source": "/home/lain/experiments/lain-harness-flash-once-20261027/observations/recovery-20261030/launch-main-20261030.sh",
+      "path": "benchmark/gx10-lain-harness-backup-20261031/observations/recovery-20261030/launch-main-20261030.sh",
+      "bytes": 3900,
+      "sha256": "62a2baa8cc276d7c39b90590459f3d9c335788d88e1cae20be8cb68d71ca7cf8"
+    }
+  ]
+}

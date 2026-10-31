@@ -75,7 +75,10 @@
     (is (= observations (pi/derive-status "s" observations)))
     (is (empty? (facts/ordered-facts (pi/derive-execution-requests "s" config nil observations))))
     (is (= #{'pi:normalize-observations 'pi:derive-execution-requests 'pi:derive-control-requests
-             'pi:derive-completions 'pi:derive-status}
+             'pi:derive-completions 'pi:derive-status
+             ;; W18's native per-intent emission: the CURRENT-intents value leaf and
+             ;; its per-intent effect declarer are part of the declared binding set.
+             'pi:current-requests 'pi:emit-requests}
            (set (map first (extension/extension-bindings (pi/session-extension "s" config))))))))
 
 (deftest pinned-plugin-translation-is-explicit
