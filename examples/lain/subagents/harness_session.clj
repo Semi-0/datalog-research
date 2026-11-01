@@ -81,7 +81,7 @@
 
 (def path-directives
   "Directives whose first argument is a file path. The runtime canonicalizes them against the
-   process working directory, so the declaration rewrites them to absolute before compiling." 
+   process working directory, so the declaration rewrites them to absolute before compiling."
   #{'load-primitive-environment 'load-blocks})
 
 (defn- absolute-directive
