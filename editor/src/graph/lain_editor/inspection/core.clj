@@ -8,6 +8,7 @@
             [graph.lain-editor.inspection.semantic-capture :as semantic-capture]
             [graph.lain-editor.inspection.semantic-scene :as semantic-scene]
             [graph.lain-editor.stack.scene :as stack-scene]
+            [graph.lain-editor.inspection.printing :as printing]
             [graph.lain-editor.inspection.value-labels :as value-labels]
             [graph.lain-editor.inspection.value-grid :as value-grid]
             [graph.lain-editor.inspection.structural-value :as structure]
@@ -32,8 +33,7 @@
             [propagators.semantic-trace.modifiers :as modifiers]))
 
 (defn printed [x]
-  (let [text (binding [*print-length* 30 *print-level* 5] (pr-str x))]
-    (if (> (count text) 12000) (str (subs text 0 12000) "…") text)))
+  (printing/printed x))
 
 (defn render-value
   "Shared direct/replay value renderer. No reads from a live network."

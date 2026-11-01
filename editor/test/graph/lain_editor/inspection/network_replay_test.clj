@@ -20,6 +20,17 @@
 
 (def display {:cell "@display" :mode "graph" :direction "both"})
 
+(deftest diagnostic-printing-stops-at-the-character-budget
+  (let [visited (atom 0)
+        later (proxy [Object] [] (toString [] (swap! visited inc) "later"))
+        text (inspection/printed [(apply str (repeat 20000 "x")) later])]
+    (is (= 12001 (count text)))
+    (is (str/ends-with? text "…"))
+    (is (zero? @visited)))
+  (is (thrown-with-msg? Exception #"formatter failed"
+        (inspection/printed
+          (proxy [Object] [] (toString [] (throw (ex-info "formatter failed" {}))))))))
+
 (defn- inspect
   ([editors] (inspect editors "replay"))
   ([editors id]
@@ -67,6 +78,39 @@
             (is (seq (values-named extended "doubled")))
             (is (apply <= (map :elapsedMs extended)))
             (is (= (range (count extended)) (map :sequence extended))))))
+      (finally (editor/close! editors)))))
+
+(deftest bounded-recording-retains-ten-and-preserves-frame-identity
+  (let [advance (fn [recording n]
+                  (history/next-bounded-recording recording
+                    {:semantic-trace/graph true :nodes {n n} :edges #{}}
+                    #{n} (+ 1000 n) 10))
+        recording (reduce advance nil (range 25))
+        frames (history/field recording :history/frames)]
+    (is (= 10 (count frames)))
+    (is (= (range 15 25) (map :sequence frames)))
+    (is (= (range 15 25) (map :elapsedMs frames)))
+    (is (= (map hash-set (range 15 25)) (map :source-support frames)))
+    (is (identical? recording (advance recording 24)))
+    (is (thrown? Exception (history/next-bounded-recording recording {} #{} 2000 5)))
+    (doseq [capacity [0 -1 1.5 nil]]
+      (is (thrown? Exception (history/next-bounded-recording nil {} #{} 0 capacity))))))
+
+(deftest latest-ten-tracer-publishes-after-eviction-and-renders-replay
+  (let [editors (atom {})]
+    (try
+      (editor/run! editors {:pane "replay"
+        :source (str "(load-lain \"propagators/compiler_2/runtime/lain/tracers.lain\")\n"
+                     "(def-cells input)\n(define result (+ input 1))\n"
+                     "(display (trace:history-latest (trace:root-semantic input) 10))")})
+      (doseq [version (range 1 16)] (send-input! editors version version))
+      (let [frames (get-in (inspect editors) [:replay :frames])]
+        (is (= 10 (count frames)))
+        (is (apply < (map :sequence frames)))
+        (is (> (:sequence (last frames)) 10))
+        (is (apply <= (map :elapsedMs frames)))
+        (is (contains? (values-named [(last frames)] "result") "16"))
+        (is (= frames (get-in (inspect editors) [:replay :frames]))))
       (finally (editor/close! editors)))))
 
 (defn- shape [frame]

@@ -154,8 +154,10 @@
 (defn- load-declaration
   "New session, extensions and declaration, keeping the value load-session-from-source discards:
    file_loader.clj:84-90 drops load-source!'s return, so [:load-result :error] can never be read
-   back out of session state." [identity bundle text]
+   back out of session state." [identity bundle text extensions]
   (let [session (runtime/new-session)]
+    (doseq [[extension config] extensions]
+      (runtime/install-session-extension! session extension config))
     (binding [runner/*advance-transform*
               (runner/compose-advance-transforms runner/*advance-transform*
                                                  (primitives/runner-transform identity))]
@@ -231,9 +233,10 @@
 
 (defn open!
   "Observation mode is default. Execution requires explicit Pi and Harbor hooks.
-  A live socket is opt-in via :socket-options {:mode :live}; it stays loopback-only."
+  A live socket is opt-in via :socket-options {:mode :live}; it stays loopback-only.
+  Optional :extensions contains [bundle config] pairs installed before compiling the declaration."
   [identity {:keys [mode pi-config pi-hooks harbor-callbacks socket-options
-                    socket-invoke! recording-paths]
+                    socket-invoke! recording-paths extensions]
              :or {mode :observe socket-options {}}}]
   (when-not (#{:observe :synthetic :live :replay} mode)
     (throw (ex-info "Unsupported harness mode" {:mode mode})))
@@ -243,7 +246,7 @@
   (when (and (#{:observe :replay} mode) (= :live (:mode socket-options)))
     (throw (ex-info "Observation/replay cannot open a live socket" {})))
   (let [bundle (session-extension identity pi-config)
-        {:keys [session load-result]} (load-declaration identity bundle (declaration-source))
+        {:keys [session load-result]} (load-declaration identity bundle (declaration-source) extensions)
         _ (when-let [failures (seq (declaration-failures load-result @session))]
             (throw (ex-info "Harness declaration failed to load"
                             (merge {:failures failures

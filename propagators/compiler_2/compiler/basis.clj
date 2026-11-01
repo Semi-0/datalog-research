@@ -229,7 +229,9 @@
                           slot-key parent-id value-id :inbound)
           [parent-id]
           [value-id]
-          (prop/concrete-propagator concrete-copy-activation))]))
+          ;; Copy transport state even when its current base is nothing or
+          ;; contradiction: these revisions withdraw earlier accessor values.
+          concrete-copy-activation)]))
     (obj/accessor-parent-ids collection slot-key))))
 
 (defn- live-accessor-activation
@@ -304,7 +306,9 @@
                           slot-key parent-id value-id :inbound)
           [parent-id]
           [value-id]
-          (prop/concrete-propagator concrete-copy-activation))]))
+          ;; Copy transport state even when its current base is nothing or
+          ;; contradiction: these revisions withdraw earlier accessor values.
+          concrete-copy-activation)]))
     (obj/accessor-parent-ids collection slot-key))))
 
 (defn- live-accessor-activation

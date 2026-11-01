@@ -34,7 +34,9 @@
 ;; Display only the three semantic actors. Adapter and primitive nodes stay hidden;
 ;; projected edges retain the connections through those internal nodes.
 (display
-  (trace:with-values
-    (trace:high-level
-      (trace:roots user)
-      "user" "evaluation-framework" "runtime")))
+  (trace:history-latest
+    (trace:with-values
+      (trace:high-level
+        (trace:roots user)
+        "user" "evaluation-framework" "runtime"))
+    10))

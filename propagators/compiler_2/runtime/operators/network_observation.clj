@@ -194,21 +194,22 @@
           :else value/nothing)}))
   SemanticSnapshot
   (snapshot-semantic-graph [_ root]
-    (semantic/root-graph source-net root observation))
+    (captured-slot-values (semantic/root-graph source-net root observation) source-net))
   RelationshipSnapshot
   (snapshot-value [_ node]
     ((requiring-resolve 'propagators.experimental.visualization.data/payload)
      (net/network-cell-strongest source-net node)))
   (snapshot-dataflow [_ graph]
-    (dataflow/dataflow-graph source-net graph))
+    (captured-slot-values (dataflow/dataflow-graph source-net graph) source-net))
   (snapshot-roots [_ roots]
     (let [output (:output observation)
           selected ((relationships/connected-root-node-keys roots #{output}) source-net)]
-      (assoc (relationships/snapshot source-net selected)
-             :dataflow/seeds (set (map #(vector [:outer] %) (facts/root-seeds source-net roots)))
-             :dataflow/observer-outputs #{[[:outer] output]})))
+      (-> (relationships/snapshot source-net selected)
+          (assoc :dataflow/seeds (set (map #(vector [:outer] %) (facts/root-seeds source-net roots)))
+                 :dataflow/observer-outputs #{[[:outer] output]})
+          (captured-slot-values source-net))))
   (snapshot-children [_ parent]
-    (dataflow/child-semantic-network-graph source-net parent)))
+    (captured-slot-values (dataflow/child-semantic-network-graph source-net parent) source-net)))
 
 (defn frozen-snapshot
   ([network] (frozen-snapshot network {}))

@@ -1,0 +1,10 @@
+;; Retain the latest ten changed graph snapshots, including their values.
+;; Timestamps and sequence numbers survive eviction of older snapshots.
+;; Extend this session with (-> 7 input), then (-> 9 input), to record changes.
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+
+(def-cells input)
+(define result (+ input 1))
+
+(display
+  (trace:history-latest (trace:root-semantic input) 10))

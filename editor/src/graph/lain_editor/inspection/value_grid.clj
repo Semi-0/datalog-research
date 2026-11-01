@@ -2,6 +2,7 @@
   "Complete public values as rows, including TTMS source identities."
   (:require [propagators.semantic-trace.capture :as capture]
             [graph.lain-editor.inspection.calls :as calls]
+            [graph.lain-editor.inspection.printing :as printing]
             [graph.lain-editor.inspection.value-labels :as labels]
             [graph.lain-editor.inspection.structural-value :as structure]
             [propagators.cells.value :as value]
@@ -23,7 +24,7 @@
     [{:key title :value (:reason result) :depth depth}]))
 
 (defn- object-rows [title v depth reader]
-  (let [keys (sort-by pr-str (labels/public-keys v))]
+  (let [keys (sort-by printing/printed (labels/public-keys v))]
     (if (seq keys)
       (into (if (seq title) [{:key title :value "" :depth depth}] [])
             (mapcat #(read-rows (key-text %) (structure/slot v % reader)
@@ -57,7 +58,7 @@
     (structure/linked? v) (list-rows title v depth reader)
     (calls/callable-inputs v) [{:key title :value (labels/datum-text v) :depth depth}]
     (or (net/net? v) (map? v)) (object-rows title v depth reader)
-    (set? v) (collection-rows title (if (seq v) (sort-by pr-str v) v) depth reader)
+    (set? v) (collection-rows title (if (seq v) (sort-by printing/printed v) v) depth reader)
     (sequential? v) (collection-rows title v depth reader)
     :else [{:key title :value (labels/datum-text v) :depth depth}]))
 

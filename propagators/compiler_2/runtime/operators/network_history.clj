@@ -10,6 +10,7 @@
             [propagators.experimental.network-history :as history]
             [propagators.experimental.ttms-primitives :as primitives]
             [propagators.experimental.visualization.data :as data]
+            [propagators.ids :as ids]
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
@@ -31,6 +32,53 @@
                        [id installed] ((history/p:record (first inputs) out) prepared)]
                    [installed [id] out])
                  (throw (ex-info "history:record expects one graph cell" {}))))}))
+
+(defn- record-latest-operator []
+  (operator/operator-closure
+   {:name 'history:record-latest
+    :install (fn [network inputs out]
+               (when-not (= 2 (count inputs))
+                 (throw (ex-info "history:record-latest expects a graph and capacity" {})))
+               (let [prepared (nb/ensure-cell network out)
+                     prepared (net/assoc-net-cell prepared out
+                                (merge/merge-cell-entry (net/network-env-lookup prepared out)
+                                  (membership/content {:premise-state #{}}) prepared))
+                     [id installed] ((history/p:record-latest (first inputs) (second inputs) out) prepared)]
+                 [installed [id] out]))}))
+
+(defn- replay-publisher [recording out]
+  (prop/construct-propagator
+   ::replay
+   (fn [_inputs _outputs network]
+     (if (prop/concrete-inputs? network [recording])
+       (let [input (net/network-cell-strongest network recording)
+             value (data/payload input)
+             replay (reduce history/append-frame (history/empty-replay)
+                            (history/field value :history/frames))]
+         [(message out (membership/content
+                        {:base replay :support (datum/support-of input)
+                         :membership (datum/membership-of input)
+                         :premise-state (state/states-of input)}))])
+       []))
+   [recording] [out]))
+
+(defn- latest-operator []
+  (operator/operator-closure
+   {:name 'history:latest
+    :install
+    (fn [network inputs out]
+      (when-not (= 2 (count inputs))
+        (throw (ex-info "history:latest expects a graph and capacity" {})))
+      (let [recording (ids/new-node-id)
+            prepared (reduce (fn [network id]
+                               (let [network (nb/ensure-cell network id)]
+                                 (net/assoc-net-cell network id
+                                   (merge/merge-cell-entry (net/network-env-lookup network id)
+                                     (membership/content {:premise-state #{}}) network))))
+                             network [recording out])
+            [recorder recorded] ((history/p:record-latest (first inputs) (second inputs) recording) prepared)
+            [publisher installed] ((replay-publisher recording out) recorded)]
+        [installed [recorder publisher] out]))}))
 
 (defn- finite-values [v]
   (cond
@@ -63,6 +111,8 @@
   (extension/extension-bundle
    {:id ::history
     :bindings [['history:record (record-operator)]
+               ['history:record-latest (record-latest-operator)]
+               ['history:latest (latest-operator)]
                ['history:between (primitive 'history:between history/between)]
                ['history:empty (primitive 'history:empty history/empty-replay)]
                ['history:append (primitive 'history:append history/append-frame)]

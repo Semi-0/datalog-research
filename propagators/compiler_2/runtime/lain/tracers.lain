@@ -76,4 +76,8 @@
       (relationship:with-values (observe-semantic-captured root :both))
       start end)))
 
+;; Retain the latest n changed graph snapshots for the existing replay visualizer.
+;; The recorder owns the bound; eviction does not reset timestamps or sequence IDs.
+(define trace:history-latest history:latest)
+
 (define trace:calls call-graph)

@@ -111,7 +111,8 @@
   (loop [line (.readLine r)]
     (when line (.put q line) (recur (.readLine r)))))
 
-(def bridge-script "/app/pi_bridge.mjs")
+;; Pi protects extension-code directories from writes; keep this outside /app.
+(def bridge-script "/usr/local/lib/pilot/lain-bridge/pi_bridge.mjs")
 (def bridge-config-path "/logs/agent/trial-config.json")
 (def bridge-stderr-log "/home/lain/experiments/lain-harness-flash-once-20261027/logs/bridge-stderr.log")
 
@@ -318,12 +319,46 @@
                  "; stage/app retained as trial evidence; Pi dispose verifies child cleanup")})}))
 
 ;; ---------------------------------------------------------------- session bring-up
-(def pi-config-map
-  "Pinned Pi config (pi_transport pins + report.json pi_config); :app cwd is bridge-mandated."
-  {:plugin :pi-better-subagents :version "0.19.1"
-   :provider "gx10-flash-next-autoround"
-   :model "qwen3.8-flash-next-autoround"
-   :cwd "/app" :tools ["read" "bash"]})
+(defn pi-config-from-environment
+  "Select an explicit provider/model pair at startup, or retain the original profile.
+  Both variables are required together; a partial or blank selection fails closed.
+  This config controls the Lain Pi requests. The bridge must use the same pair."
+  [environment]
+  (let [provider (get environment "LAIN_PI_PROVIDER")
+        model (get environment "LAIN_PI_MODEL")
+        configured? (or (some? provider) (some? model))
+        defaults {:plugin :pi-better-subagents :version "0.19.1"
+                  :provider "gx10-flash-next-autoround"
+                  :model "qwen3.8-flash-next-autoround"
+                  :cwd "/app" :tools ["read" "bash"]}]
+    (when (and configured?
+               (not (and (string? provider) (not (str/blank? provider))
+                         (string? model) (not (str/blank? model)))))
+      (throw (ex-info "LAIN_PI_PROVIDER and LAIN_PI_MODEL require a nonblank pair" {})))
+    (if configured?
+      (assoc defaults :provider provider :model model)
+      defaults)))
+
+(def pi-config-map (pi-config-from-environment (System/getenv)))
+
+(defn validate-bridge-configuration
+  "Reject disagreement between the MAIN identity/profile and its wire adapter before launch."
+  [configuration]
+  (when-not (map? configuration)
+    (throw (ex-info "Bridge configuration must be an object" {})))
+  (let [fields [:session :provider :model :cwd :tools]
+        expected (assoc (select-keys pi-config-map fields) :session sid)
+        expected (update expected :tools set)
+        actual (update (select-keys configuration fields) :tools set)
+        mismatched (filterv #(not= (get expected %) (get actual %)) fields)]
+    (when (seq mismatched)
+      (throw (ex-info "Bridge configuration disagrees with MAIN session/profile"
+                      {:mismatched-fields mismatched})))
+    configuration))
+
+(defn check-bridge-configuration! []
+  (validate-bridge-configuration
+   (json/parse-string (read-raw (io/file root "container-logs" "trial-config.json")) true)))
 
 (defn live-session-config
   "The :live hs/open! config: explicit Pi RPC hooks (the driver-owned bridge) plus the REQUIRED
@@ -375,6 +410,7 @@
     :else {:action :recur :exit nil :reason nil}))
 
 (defn -main [& _]
+  (check-bridge-configuration!)
   (let [task "Read /app/task.txt and answer it. The file contains two integers; write their sum to /app/answer.txt."]
     (if-not (memory-ok?)
       (do (log "abort.memory" {:mem-available-gib (mem-available-gib)}) (System/exit 2))

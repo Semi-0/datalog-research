@@ -24,7 +24,9 @@ export default function childAdmission(pi) {
   const policy = JSON.parse(encoded);
   pi.on('before_agent_start', async (_event, ctx) => {
     const active = [...pi.getActiveTools()].sort();
-    const expected = [...policy.tools].sort();
+    // Pinned pi-better-subagents 0.19.1 always adds this worker diagnostic.
+    // It is absent from the parent's tool inventory; admit it explicitly here.
+    const expected = [...new Set([...policy.tools, 'failure_disposition'])].sort();
     const extraCallable = pi.getAllTools().filter((tool) =>
       ['codemode', 'deferred'].includes(tool.exposure) && !expected.includes(tool.name));
     const admitted = JSON.stringify(active) === JSON.stringify(expected)
@@ -37,6 +39,35 @@ export default function childAdmission(pi) {
     if (!admitted) { throw new Error('Actual child tool/model/cwd admission mismatch'); }
   });
   pi.on('cache_warming_decision', async () => ({ action: 'stop' }));
+}
+
+export function admittedPiCliPath(packageRoot, previousPath = '') {
+  const bin = path.join(packageRoot, '.bin');
+  const sdk = path.join(packageRoot, '@earendil-works/pi-coding-agent', 'dist');
+  const candidates = ['cli.js', path.join('bundle', 'cli.js')]
+    .map((entry) => path.join(sdk, entry)).filter((entry) => fs.existsSync(entry))
+    .map((entry) => fs.realpathSync(entry));
+  const executable = fs.realpathSync(path.join(bin, 'pi'));
+  if (!candidates.includes(executable)) {
+    throw new Error('Pinned SDK CLI does not match the admitted pi executable');
+  }
+  const remaining = previousPath.split(path.delimiter)
+    .filter((entry) => entry.length > 0 && entry !== bin);
+  return [bin, ...remaining].join(path.delimiter);
+}
+
+function noLaunchFailure(launch) {
+  if (launch?.status !== 'not-launched' || !Array.isArray(launch.launched)
+      || launch.launched.length !== 0 || !Array.isArray(launch.failed)
+      || launch.failed.length !== 1 || !Array.isArray(launch.skipped)
+      || launch.skipped.length !== 0) {
+    return null;
+  }
+  let message = 'Pi rejected the launch before creating a child';
+  if (typeof launch.failed[0]?.reason === 'string') {
+    message += ': ' + launch.failed[0].reason.slice(0, 2048);
+  }
+  return { status: 'failed', failure: { code: 'not-launched', message } };
 }
 
 export function validateConfig(config) {
@@ -72,7 +103,7 @@ export function decodeResult(child, raw, transcript) {
   if (status === 'completed') {
     if (!transcript?.admission?.admitted) { throw new Error('Completed child lacks actual inventory admission'); }
     return bounded({ status: 'completed', child, result: {
-      text: transcript.text, transcript: transcript.artifact,
+      child, text: transcript.text, transcript: transcript.artifact,
       tools: transcript.admission.tools, provider: transcript.admission.provider,
       model: transcript.admission.model,
     } });
@@ -119,6 +150,8 @@ export function createBridge({ session, root, control, transcript, verifyStopped
           if (!fs.existsSync(file)) { continue; }
           const receipt = JSON.parse(fs.readFileSync(file, 'utf8'));
           const launch = (receipt.result ?? receipt)?.structuredContent;
+          const rejected = noLaunchFailure(launch);
+          if (rejected) { return bounded(rejected); }
           const children = launch?.launched;
           if (Array.isArray(children) && children.length === 1 && typeof children[0].id === 'string') {
             const child = children[0].id; owned.add(child); persist();
@@ -169,6 +202,8 @@ export function createBridge({ session, root, control, transcript, verifyStopped
         try { receipt = await control({ id, operation: 'subagent_spawn_batch', jobs: [{ worker: 0, prompt }] }); }
         finally { launching = false; }
         const launch = receipt?.structuredContent;
+        const rejected = noLaunchFailure(launch);
+        if (rejected) { return bounded(rejected); }
         if (!Array.isArray(launch?.launched) || launch.launched.length !== 1
             || launch.failed?.length || launch.skipped?.length) { throw new Error('Uncertain or partial launch; reconcile original receipt'); }
         const child = launch.launched[0].id;
@@ -230,7 +265,8 @@ export async function openConfined(config) {
   const nonce = crypto.randomUUID();
   process.env.LAIN_PI_CHILD_POLICY = JSON.stringify({ nonce, cwd: config.cwd, tools: config.tools,
     provider: config.provider, model: config.model });
-  Object.assign(process.env, { PI_CODING_AGENT_DIR: agentDir, TMPDIR: runtime, HOME: path.join(runtime, 'home') });
+  Object.assign(process.env, { PI_CODING_AGENT_DIR: agentDir, TMPDIR: runtime, HOME: path.join(runtime, 'home'),
+    PATH: admittedPiCliPath(packageRoot, process.env.PATH) });
   fs.mkdirSync(process.env.HOME, { recursive: true, mode: 0o700 });
   const model = { id: config.model, name: 'Explicit admitted local child', reasoning: false, input: ['text'],
     contextWindow: config.contextWindow, maxTokens: config.maxTokens,

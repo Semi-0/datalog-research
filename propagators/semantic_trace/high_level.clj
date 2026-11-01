@@ -35,22 +35,19 @@
             (if (map? (get result field))
               (update result field select-keys boundaries)
               result))
-          graph [:nodes :values :node-kinds :node-ui :expansions]))
+          ;; Visibility does not determine the frozen values needed by public slots.
+          graph [:nodes :node-kinds :node-ui :expansions]))
 
 (defn- project [graph selectors]
   (let [boundaries (set (map #(resolve-boundary (:nodes graph) %) selectors))
         outgoing (reduce (fn [result [source target]]
                            (update result source (fnil conj #{}) target))
                          {} (:edges graph))
-        edges (into #{} (mapcat #(boundary-edges outgoing boundaries %)) boundaries)
-        aliases (into {} (keep (fn [[source targets]]
-                                 (let [visible (set/intersection boundaries (set targets))]
-                                   (when (seq visible) [source visible]))))
-                      (:node-aliases graph))]
+        edges (into #{} (mapcat #(boundary-edges outgoing boundaries %)) boundaries)]
     (directions/annotate
      (-> (select-node-maps graph boundaries)
+         ;; Keep the source's frozen values and reference aliases for inspection.
          (assoc :edges (vec (sort-by pr-str edges))
-                :node-aliases aliases
                 :dataflow/representation :high-level
                 :dataflow/seeds (set/intersection boundaries (set (:dataflow/seeds graph)))
                 :dataflow/observer-applications

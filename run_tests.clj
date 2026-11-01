@@ -91,6 +91,8 @@
 
 (def graph-test-namespaces
   '[graph.lain-editor.inspection.high-level-trace-test
+    graph.lain-editor.inspection.high-level-value-history-test
+    graph.lain-editor.inspection.harness-assignment-withdrawal-test
     graph.lain-editor.inspection.retained-relationship-test
     graph.lain-editor.workspace.source-files-test
     graph.lain-editor.workspace.commands-test

@@ -13,7 +13,7 @@
 
 (def instrumentation #{'xr:io 'io:xr 'display 'relationship:dataflow 'relationship:roots 'relationship:semantic 'relationship:roots-semantic 'relationship:children 'relationship:with-values 'relationship:caller-view
                        'observe-network 'observe-network-retained 'observe-semantic-captured 'semantic-snapshot 'traverse
-                       'history:record 'history:between 'history:empty 'history:append})
+                       'history:record 'history:record-latest 'history:latest 'history:between 'history:empty 'history:append})
 
 (def observation-adapters
   "Inspection calls remain visible in full graphs, but caller views cut them."

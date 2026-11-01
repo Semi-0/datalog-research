@@ -46,10 +46,11 @@
                       [[:a :x] [:x :b]]
                       {:a :pending :x :private :b :contradiction :c :unavailable})
         after (assoc before :values {:a {:task 1} :x :private :b :recovered :c :unavailable})]
-    (is (= {:a :pending :b :contradiction :c :unavailable}
-           (:values (high-level/view before ["a" "b" "isolated"]))))
-    (is (= {:a {:task 1} :b :recovered :c :unavailable}
-           (:values (high-level/view after ["a" "b" "isolated"]))))
+    (is (identical? (:values before)
+                    (:values (high-level/view before ["a" "b" "isolated"]))))
+    (is (identical? (:values after)
+                    (:values (high-level/view after ["a" "b" "isolated"]))))
+    (is (not (contains? (:nodes (high-level/view before ["a" "b" "isolated"])) :x)))
     (is (= (:nodes (high-level/view before ["a" "b" "isolated"]))
            (:nodes (high-level/view after ["a" "b" "isolated"]))))))
 
