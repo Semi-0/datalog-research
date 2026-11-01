@@ -1,7 +1,7 @@
 (ns graph.lain-editor.runtime.session
-  "Backend-owned live sessions, attached to one pane or held in the detached registry.
+  "Editor-owned sessions and read-only views of independently owned sessions.
   Registry transitions are serialized by the server's editor command lock.
-  Candidates commit after loading; detach and reopen only transfer ownership."
+  Owned sessions transfer; external views retain discovery and their generation."
   (:refer-clojure :exclude [run!])
   (:require [graph.lain-editor.workspace.model :as workspace]
             [graph.lain-editor.runtime.display :as display]
@@ -142,24 +142,30 @@
           (merge planned (extend! editors (assoc command :source (:source planned)))))))))
 
 (defn restore! [editors document]
-  (doseq [entry (vals @editors)] (require-owned! entry))
   (workspace/validate document)
-  (let [candidates (atom {})]
+  (let [external (into {} (filter (fn [[_ entry]] (= :external (:ownership entry)))) @editors)
+        visible-external (select-keys external (map :id (:panes document)))
+        candidates (atom {})]
     (try
       (doseq [pane (:panes document)]
-        (when (some? (:executedSource pane))
-          (swap! candidates assoc (:id pane)
-                 (prepare (:executedSource pane) (:extensions pane)))))
+        (if-let [entry (get external (:id pane))]
+          (when-not (and (= (:executedSource pane) (:source entry))
+                         (= (:extensions pane) (:extensions entry)))
+            (require-owned! entry))
+          (when (some? (:executedSource pane))
+            (swap! candidates assoc (:id pane)
+                   (prepare (:executedSource pane) (:extensions pane))))))
       (doseq [pane (vals @candidates)]
         (runtime/schedule-clock-subscriptions! (:session pane))
         (runtime/refresh-trace-subscriptions! (:session pane)))
       (let [previous @editors]
-        (reset! editors @candidates)
+        (reset! editors (merge external @candidates))
         (doseq [pane (vals previous)] (close-entry! pane)))
-      {:generations (into {} (map (fn [[id pane]] [id (:generation pane)])) @candidates)
-       :displayModes (into {} (keep (fn [[id pane]]
-                                     (when-let [mode (display/mode (:program/net @(:session pane)))]
-                                       [id mode]))) @candidates)}
+      (let [restored (merge visible-external @candidates)]
+        {:generations (into {} (map (fn [[id pane]] [id (:generation pane)])) restored)
+         :displayModes (into {} (keep (fn [[id pane]]
+                                       (when-let [mode (display/mode (:program/net @(:session pane)))]
+                                         [id mode]))) restored)})
       (catch Throwable error
         (doseq [pane (vals @candidates)] (close-entry! pane))
         (throw error)))))
@@ -182,7 +188,8 @@
                    (sort-by :sessionId (vals @detached)))})
 
 (defn reopen!
-  "Transfer a detached session into a free pane, preserving its generation."
+  "Transfer an owned session, or attach another view of an external owner.
+  External discovery entries remain available without acquiring lifetime authority."
   [editors detached {:keys [pane sessionId]}]
   (when-not (and (string? pane) (not (empty? pane)))
     (throw (ex-info "Pane id required" {})))
@@ -193,7 +200,8 @@
         result (cond-> (select-keys entry [:sessionId :generation :source :extensions])
                  mode (assoc :displayMode mode))]
     (swap! editors assoc pane (dissoc entry :pane))
-    (swap! detached dissoc sessionId)
+    (when-not (= :external (:ownership entry))
+      (swap! detached dissoc sessionId))
     result))
 
 (defn stop-detached! [detached {:keys [sessionId]}]
