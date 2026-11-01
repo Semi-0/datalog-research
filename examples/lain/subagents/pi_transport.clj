@@ -119,6 +119,12 @@
                 raw (try (invoke! adapter request)
                          (catch Exception error
                            {:status :failed :failure {:message (.getMessage error)}}))
+                ;; A poll always describes the OWNED child it was issued against
+                ;; (polling already requires an acknowledged owned child). A
+                ;; completed/stopped frame may omit the child identity; stamp the
+                ;; acknowledged owned child when absent so the FSM's child
+                ;; evidence stays anchored. This never invents a new identity.
+                raw (if (contains? raw :child) raw (assoc raw :child child))
                 result (if (= :running (:status raw))
                          [{:session (:session request) :id (pr-str (:id request))
                            :order order :kind :progress :child child}]

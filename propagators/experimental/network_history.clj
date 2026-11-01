@@ -48,24 +48,58 @@
                  :graph graph :source-support source-support}]
       (assoc previous :history/latest graph :history/frames (conj frames frame)))))
 
+(defn next-bounded-recording
+  "Retain the latest capacity changed graphs, with monotonic sequence numbers.
+  Capacity is fixed for a recording; elapsed time remains relative to its start."
+  [previous graph source-support now capacity]
+  (when-not (pos-int? capacity)
+    (throw (ex-info "History capacity must be a positive integer" {:capacity capacity})))
+  (when (and (recording? previous)
+             (not= capacity (field previous :history/capacity)))
+    (throw (ex-info "History capacity cannot change within a recording" {})))
+  (let [next (next-recording previous graph source-support now)]
+    (if (= previous next)
+      previous
+      (let [frames (field next :history/frames)
+            last-sequence (get (peek (field previous :history/frames)) :sequence -1)
+            newest (assoc (peek frames) :sequence (inc last-sequence))]
+        (assoc next :history/capacity capacity
+                    :history/frames (vec (take-last capacity (conj (pop frames) newest))))))))
+
 (defn- captured-support [input graph]
   (apply support/combine (map datum/support-of (cons input (vals (:values (capture/root-graph graph)))))))
+
+(defn- recording-messages [source out network advance]
+  (let [input (net/network-cell-strongest network source)
+        graph (data/payload input)]
+    (cond
+      (value/nothing? graph) []
+      (not (capture/semantic-graph? graph))
+      (throw (ex-info "history:record expects a semantic tracer graph" {}))
+      :else
+      (let [old (data/payload (net/network-cell-strongest network out))
+            next (advance old graph (captured-support input graph) (System/currentTimeMillis))]
+        (if (= old next)
+          []
+          (let [revision (inc (:sequence (peek (:history/frames next))))
+                premise {:source out :timestamp revision :premises-status :active}]
+            [(message out (membership/content {:base next :support #{premise} :membership #{}}))]))))))
 
 (defn p:record [source out]
   (prop/construct-propagator
    ::record
    (fn [_inputs _outputs network]
-     (let [input (net/network-cell-strongest network source)
-           graph (data/payload input)]
-       (cond
-         (value/nothing? graph) []
-         (not (capture/semantic-graph? graph))
-         (throw (ex-info "history:record expects a semantic tracer graph" {}))
-         :else
-         (let [old (data/payload (net/network-cell-strongest network out))
-               next (next-recording old graph (captured-support input graph) (System/currentTimeMillis))]
-           (if (= old next)
-             []
-             (let [premise {:source out :timestamp (count (:history/frames next)) :premises-status :active}]
-               [(message out (membership/content {:base next :support #{premise} :membership #{}}))]))))))
+     (recording-messages source out network next-recording))
    [source] [out]))
+
+(defn p:record-latest [source capacity-id out]
+  (prop/construct-propagator
+   ::record-latest
+   (fn [_inputs _outputs network]
+     (let [capacity (data/payload (net/network-cell-strongest network capacity-id))]
+       (if (value/nothing? capacity)
+         []
+         (recording-messages source out network
+                             (fn [previous graph support now]
+                               (next-bounded-recording previous graph support now capacity))))))
+   [source capacity-id] [out]))

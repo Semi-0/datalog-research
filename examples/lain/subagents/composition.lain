@@ -31,4 +31,12 @@
 
 ;; Evaluation outcomes return through shared assignments; runtime status returns
 ;; through feedback. Socket, Harbor and Pi effects remain outside this network.
-(display (trace:root-semantic user))
+;; Display only the three semantic actors. Adapter and primitive nodes stay hidden;
+;; projected edges retain the connections through those internal nodes.
+(display
+  (trace:history-latest
+    (trace:with-values
+      (trace:high-level
+        (trace:roots user)
+        "user" "evaluation-framework" "runtime"))
+    10))

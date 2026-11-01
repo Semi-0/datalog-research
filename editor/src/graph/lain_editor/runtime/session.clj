@@ -23,6 +23,28 @@
   (runtime/stop-clocks! session)
   (doseq [trace (vals (:traces @session))] ((:stop trace))))
 
+(defn- require-owned! [entry]
+  (when (= :external (:ownership entry))
+    (throw (ex-info "This pane observes an externally owned session; use its owner to change or stop it"
+                    {:external-session true}))))
+
+(defn- close-entry! [entry]
+  (when-not (= :external (:ownership entry))
+    (close-session! (:session entry))))
+
+(defn observe!
+  "Register a read-only view of an existing session. No clock, pump, or cleanup is acquired."
+  [editors {:keys [pane session sessionId source]}]
+  (when-not (and (string? pane) (string? sessionId)
+                 (instance? clojure.lang.IAtom session) (string? source))
+    (throw (ex-info "Observer requires pane, session atom, sessionId, and source" {})))
+  (when (contains? @editors pane)
+    (throw (ex-info "Target pane is occupied" {:pane pane})))
+  (let [entry {:session session :sessionId sessionId :source source :extensions []
+               :generation (str (random-uuid)) :ownership :external}]
+    (swap! editors assoc pane entry)
+    (select-keys entry [:generation :sessionId])))
+
 (defn load-checked! [session source]
   (when-not (string? source) (throw (ex-info "Source must be a string" {})))
   (let [loaded (loader/load-source! session source)]
@@ -63,11 +85,13 @@
 
 (defn promote! [editors id candidate]
   (let [previous (get @editors id)]
+    (when previous (require-owned! previous))
+    (require-owned! candidate)
     (try
       (runtime/schedule-clock-subscriptions! (:session candidate))
       (runtime/refresh-trace-subscriptions! (:session candidate))
       (swap! editors assoc id candidate)
-      (when previous (close-session! (:session previous)))
+      (when previous (close-entry! previous))
       (cond-> (select-keys candidate [:generation :sessionId])
         (display/mode (:program/net @(:session candidate)))
         (assoc :displayMode (display/mode (:program/net @(:session candidate)))))
@@ -79,11 +103,13 @@
   (when-not (string? pane) (throw (ex-info "Pane id required" {})))
   (when-not (and (vector? extensions) (every? string? extensions))
     (throw (ex-info "Extensions must be a vector of source strings" {})))
+  (when-let [previous (get @editors pane)] (require-owned! previous))
   (promote! editors pane (prepare source extensions)))
 
 (defn extend! [editors {:keys [pane source generation]}]
   (let [previous (require-pane editors pane)
         _ (require-generation previous generation)
+        _ (require-owned! previous)
         original (:session previous)]
     (locking original
       ;; The immutable Net and binding IDs survive; only the candidate atom is new.
@@ -106,6 +132,7 @@
 (defn spawn-slots! [editors {:keys [pane generation] :as command}]
   (let [previous (require-pane editors pane)
         _ (require-generation previous generation)
+        _ (require-owned! previous)
         session (:session previous)]
     (locking session
       (let [state @session
@@ -115,6 +142,7 @@
           (merge planned (extend! editors (assoc command :source (:source planned)))))))))
 
 (defn restore! [editors document]
+  (doseq [entry (vals @editors)] (require-owned! entry))
   (workspace/validate document)
   (let [candidates (atom {})]
     (try
@@ -127,13 +155,13 @@
         (runtime/refresh-trace-subscriptions! (:session pane)))
       (let [previous @editors]
         (reset! editors @candidates)
-        (doseq [pane (vals previous)] (close-session! (:session pane))))
+        (doseq [pane (vals previous)] (close-entry! pane)))
       {:generations (into {} (map (fn [[id pane]] [id (:generation pane)])) @candidates)
        :displayModes (into {} (keep (fn [[id pane]]
                                      (when-let [mode (display/mode (:program/net @(:session pane)))]
                                        [id mode]))) @candidates)}
       (catch Throwable error
-        (doseq [pane (vals @candidates)] (close-session! (:session pane)))
+        (doseq [pane (vals @candidates)] (close-entry! pane))
         (throw error)))))
 
 (defn detached-entry [detached session-id]
@@ -170,15 +198,16 @@
 
 (defn stop-detached! [detached {:keys [sessionId]}]
   (let [entry (detached-entry detached sessionId)]
-    (close-session! (:session entry))
+    (require-owned! entry)
+    (close-entry! entry)
     (swap! detached dissoc sessionId)
     {:stopped sessionId}))
 
 (defn remove! [editors id]
-  (when-let [pane (get @editors id)] (close-session! (:session pane)))
+  (when-let [pane (get @editors id)] (close-entry! pane))
   (swap! editors dissoc id)
   {:closed id})
 
 (defn close! [editors]
-  (doseq [pane (vals @editors)] (close-session! (:session pane)))
+  (doseq [pane (vals @editors)] (close-entry! pane))
   (reset! editors {}))

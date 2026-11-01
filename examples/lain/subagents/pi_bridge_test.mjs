@@ -57,7 +57,7 @@ test('actual child loadout is checked and persisted before inference', async () 
   const previous = process.env.LAIN_PI_CHILD_POLICY;
   process.env.LAIN_PI_CHILD_POLICY = JSON.stringify({ ...config, nonce: 'fixture-nonce' });
   const handlers = new Map(); const entries = [];
-  const pi = { on: (kind, f) => handlers.set(kind, f), getActiveTools: () => ['read'], getAllTools: () => [],
+  const pi = { on: (kind, f) => handlers.set(kind, f), getActiveTools: () => ['read', 'failure_disposition'], getAllTools: () => [],
     appendEntry: (...entry) => entries.push(entry) };
   try {
     childAdmission(pi);
@@ -65,9 +65,17 @@ test('actual child loadout is checked and persisted before inference', async () 
     await handlers.get('before_agent_start')({}, ctx);
     assert.equal(entries[0][0], 'lain-child-admission');
     assert.equal(entries[0][1].admitted, true);
-    pi.getActiveTools = () => ['read', 'bash'];
+    pi.getActiveTools = () => ['read', 'bash', 'failure_disposition'];
     await assert.rejects(handlers.get('before_agent_start')({}, ctx), /admission mismatch/);
     assert.equal(entries[1][1].admitted, false);
+    pi.getActiveTools = () => ['read'];
+    await assert.rejects(handlers.get('before_agent_start')({}, ctx), /admission mismatch/);
+    pi.getActiveTools = () => ['read', 'failure_disposition'];
+    await assert.rejects(handlers.get('before_agent_start')({}, { ...ctx, cwd: '/foreign' }), /admission mismatch/);
+    await assert.rejects(handlers.get('before_agent_start')({}, { ...ctx,
+      model: { provider: 'foreign', id: 'never-requested' } }), /admission mismatch/);
+    pi.getAllTools = () => [{ name: 'unadmitted', exposure: 'codemode' }];
+    await assert.rejects(handlers.get('before_agent_start')({}, ctx), /admission mismatch/);
   } finally {
     if (previous === undefined) { delete process.env.LAIN_PI_CHILD_POLICY; }
     else { process.env.LAIN_PI_CHILD_POLICY = previous; }
@@ -81,6 +89,8 @@ test('pinned ToolResult progress, terminal answer and admission normalization', 
   const result = decodeResult('c', { details: { status: 'completed' } },
     { text: 'nonce', artifact: 'child.jsonl', admission: { admitted: true, tools: ['read'] } });
   assert.equal(result.result.text, 'nonce');
+  assert.equal(result.result.child, result.child);
+  assert.equal(result.result.transcript, 'child.jsonl');
   assert.throws(() => decodeResult('c', { details: { status: 'new-unrecognized-state' } }));
 });
 

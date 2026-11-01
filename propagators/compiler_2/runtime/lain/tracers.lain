@@ -17,6 +17,8 @@
 (define trace:roots relationship:roots)
 (define trace:dataflow relationship:dataflow)
 (define trace:with-values relationship:with-values)
+;; Explicit component names (or node identities) select the high-level boundaries.
+(define trace:high-level relationship:high-level)
 
 (define trace:root-semantic
   (network [root]
@@ -73,5 +75,9 @@
     (trace:graph-history
       (relationship:with-values (observe-semantic-captured root :both))
       start end)))
+
+;; Retain the latest n changed graph snapshots for the existing replay visualizer.
+;; The recorder owns the bound; eviction does not reset timestamps or sequence IDs.
+(define trace:history-latest history:latest)
 
 (define trace:calls call-graph)

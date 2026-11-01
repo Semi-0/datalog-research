@@ -74,6 +74,7 @@
     propagators.runner-test
     propagators.semantic-trace.capture-test
     propagators.semantic-trace.graph-union-test
+    propagators.semantic-trace.high-level-test
     propagators.source-publication-test
     propagators.compiler-2-tms-bootstrap-test
     propagators.structural-records-test
@@ -89,7 +90,10 @@
     propagators.tms-test])
 
 (def graph-test-namespaces
-  '[graph.lain-editor.inspection.retained-relationship-test
+  '[graph.lain-editor.inspection.high-level-trace-test
+    graph.lain-editor.inspection.high-level-value-history-test
+    graph.lain-editor.inspection.harness-assignment-withdrawal-test
+    graph.lain-editor.inspection.retained-relationship-test
     graph.lain-editor.workspace.source-files-test
     graph.lain-editor.workspace.commands-test
     graph.lain-editor.runtime.slot-spawn-test

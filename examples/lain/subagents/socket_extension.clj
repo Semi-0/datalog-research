@@ -1,6 +1,7 @@
 (ns examples.lain.subagents.socket-extension
   "Pure user-command and feedback policies over session-scoped fact logs."
   (:require [clojure.string :as str]
+            [examples.lain.subagents.effect-boundary :as effects]
             [examples.lain.subagents.facts :as facts]
             [examples.lain.subagents.primitives :as primitives]
             [graph.json :as json]
@@ -168,14 +169,65 @@
          :output nil :session session-id :kind :facts}
    #(f session-id %)))
 
+(defn current-write-intents
+  "Current bounded transport requests for one feedback state. Retracted with the
+  feedback they describe, so nothing stale can be sent twice."
+  [session-id feedback]
+  (mapv #(select-keys % [:session :id :order :kind :payload])
+        (facts/ordered-facts (encode-feedback session-id feedback))))
+
+(def socket-write-kind
+  "Native boundary kind of this component's socket effect; effect identity is
+  [kind intent-id], the runtime's own identity scheme."
+  :harness/socket-write)
+
+(defn deliver-intent
+  "Session-owned socket delivery handler: one durable claim per write intent.
+  Declaring the effect never sends anything: without pump ownership the request
+  is deferred untouched."
+  [services state request]
+  (if-not (primitives/transport-armed?)
+    (primitives/deferred-receipt state request)
+    (let [intent (:boundary/payload request)]
+      (when-not (= [socket-write-kind (:id intent)] (:boundary/id request))
+        (throw (ex-info "Socket effect identity does not match its intent"
+                        {:effect-id (:boundary/id request)})))
+      (let [response (effects/dispatch! (:writes services) intent (:order services))]
+        {:state state
+         :receipt {:status :delivered :observations response}}))))
+
+(def socket-write-effect
+  {:effect/symbol 'socket:declare-write
+   :boundary/port :harness
+   :boundary/kind socket-write-kind
+   :effect/arities #{1}
+   :effect/handler-symbol 'examples.lain.subagents.socket-extension/deliver-intent
+   :effect/identity-parts (comp vector :id)
+   :effect/normalize (fn [_ [intents]]
+                       (cond
+                         (nil? intents) {:status :wait}
+                         (not (every? map? intents))
+                         {:status :invalid :reason :invalid-intents
+                          :message "socket:declare-write needs bounded intent maps"
+                          :data {:intents (count intents)}}
+                         :else {:status :ready :payload (vec intents)}))})
+
 (defn session-extension [session-id]
   (facts/empty-log session-id)
   (extension/extension-bundle
    {:id ::policies
-    :bindings [['socket:normalize-commands (unary-policy ::normalize session-id normalize-commands)]
-               ['user:derive-assignments (unary-policy ::assignments session-id derive-assignments)]
-               ['user:derive-controls (unary-policy ::controls session-id derive-controls)]
-               ['user:describe-commands (unary-policy ::command-feedback session-id describe-commands)]
-               ['user:describe-assignments (unary-policy ::assignment-feedback session-id describe-assignments)]
-               ['socket:encode-feedback (unary-policy ::encode session-id encode-feedback)]]
-    :effects []}))
+    :bindings (conj
+               (vec
+                [['socket:normalize-commands (unary-policy ::normalize session-id normalize-commands)]
+                 ['user:derive-assignments (unary-policy ::assignments session-id derive-assignments)]
+                 ['user:derive-controls (unary-policy ::controls session-id derive-controls)]
+                 ['user:describe-commands (unary-policy ::command-feedback session-id describe-commands)]
+                 ['user:describe-assignments (unary-policy ::assignment-feedback session-id describe-assignments)]
+                 ['socket:encode-feedback (unary-policy ::encode session-id encode-feedback)]])
+               ['socket:current-writes
+                (primitives/leaf-operator 'socket:current-writes
+                 {:arity 1 :inputs [0] :input-kinds [:facts]
+                  :output nil :session session-id :kind :value}
+                 (partial current-write-intents session-id))]
+               ['socket:emit-writes (primitives/intent-effect-operator socket-write-effect)])
+    :effects [socket-write-effect]}))

@@ -165,6 +165,40 @@
       (is (thrown? clojure.lang.ExceptionInfo
                    (harness/observe! owner :socket (facts/empty-log "failed")))))))
 
+(deftest delivery-pump-owns-all-external-transport
+  (let [{:keys [calls writes options]} (fixtures "arming" (atom false))
+        owner (harness/open! "arming" options)]
+    (try
+      (is (empty? @calls) "open! wires boundaries but performs no transport")
+      (is (empty? @writes))
+      (submit! owner "submit-a" 0 :assignment/submitted {:assignment-id "a" :task "a"})
+      (is (empty? @calls) "observation never performs transport")
+      (is (empty? @writes))
+      ;; A host-side drain seam outside pump ownership is refused and still transports
+      ;; nothing: the pump-only gate guards the native effect delivery path.
+      (is (instance? clojure.lang.ExceptionInfo
+                      (try (#'harness/dispatch-effect! owner
+                                                       {:boundary/effect true
+                                                        :boundary/id [:harness/socket-write "host-drain"]
+                                                        :boundary/port :harness
+                                                        :boundary/kind :harness/socket-write
+                                                        :boundary/payload {:id "host-drain"}
+                                                        :boundary/receipt-id "host-drain"})
+                           nil
+                           (catch clojure.lang.ExceptionInfo error error))))
+      (is (empty? @calls))
+      (is (empty? @writes))
+      ;; Only the pump arms and invokes; one round emits every eligible intent.
+      (let [result (harness/pump! owner)]
+        (is (= :quiescent (:status result)))
+        (is (pos? (:steps result)) "one pump drains the whole eligible round, not one intent"))
+      (is (seq @calls) "Pi launch and Harbor preparation went through the pump")
+      (is (some #(= :grade (:operation %)) @calls))
+      (is (seq @writes) "feedback writes went through the pump")
+      (is (= {:status :quiescent :steps 0} (harness/pump! owner))
+          "stable receipt identities suppress redispatch")
+      (finally (harness/close! owner)))))
+
 (deftest real-loopback-user-socket-feeds-the-same-network
   (let [{:keys [options]} (fixtures "wire" (atom false))
         owner (harness/open! "wire" (-> options

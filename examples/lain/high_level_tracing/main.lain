@@ -1,0 +1,14 @@
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+
+(define step
+  (network [x]
+    (+ x 1)))
+
+(define input 3)
+(def-cells output)
+(-> (step input) output)
+
+(display
+  (trace:high-level
+    (trace:semantic input)
+    "input" "output"))
