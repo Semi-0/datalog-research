@@ -10,7 +10,10 @@
             [propagators.gur :as gur]
             [propagators.propagator :as prop]
             [propagators.semantic-trace :as trace]
-            [propagators.stdlib.supported-procedure :as supported]))
+            [propagators.semantic-trace.capture :as capture]
+            [propagators.experimental.visualization.data :as data]
+            [propagators.network :as net]
+            [propagators.message :refer [message]]))
 
 (defn- call-parent [snapshot root]
   (let [candidate (snapshots/snapshot-value snapshot root)]
@@ -35,12 +38,13 @@
 
 (defn- project [mode roots snapshot root]
   (try
-    (case mode
-      :roots (snapshots/snapshot-roots snapshot roots)
-      :dataflow (snapshots/snapshot-dataflow snapshot (snapshots/snapshot-value snapshot root))
-      :semantic (apply trace/graph-union (map #(snapshots/snapshot-semantic-graph snapshot %) roots))
-      :children (snapshots/snapshot-children snapshot (call-parent snapshot root))
-      (throw (ex-info "Unknown relationship projection" {:mode mode})))
+    (let [graph (case mode
+                  :roots (snapshots/snapshot-roots snapshot roots)
+                  :dataflow (snapshots/snapshot-dataflow snapshot (snapshots/snapshot-value snapshot root))
+                  :semantic (apply trace/graph-union (map #(snapshots/snapshot-semantic-graph snapshot %) roots))
+                  :children (snapshots/snapshot-children snapshot (call-parent snapshot root))
+                  (throw (ex-info "Unknown relationship projection" {:mode mode})))]
+      (capture/capture-fragment snapshot {:graph graph :scope :root :refinement :initial}))
     (catch Exception error
       (errors/attach value/contradiction
                      #{{:operation :relationship/trace :mode mode
@@ -53,10 +57,22 @@
    {:name [::sample mode roots]
     :application-installer
     (fn [network arguments output _context]
-      (let [base (supported/from-primitive
-                  (prop/primitive-propagator ::project (partial project mode roots)))
-            [installed props selected] (supported/install base network arguments output)]
-        [(declarations/register-props installed props) props selected]))}))
+      (let [id (gur/stable-node-id [::sample mode roots arguments output])
+            activation
+            (fn [_ _ current]
+              (let [contents (mapv #(net/network-cell-content current %) arguments)
+                    values (mapv #(data/payload (net/network-cell-strongest current %)) arguments)]
+                (cond
+                  (some value/nothing? values) (data/state-messages output contents)
+                  (some value/contradiction? values)
+                  [(message output (data/supported id value/contradiction (set arguments) contents))]
+                  :else
+                  [(message output
+                            (data/supported id (apply project mode roots values)
+                                            (set arguments) contents))])))
+            [pid installed]
+            ((prop/construct-propagator id ::sample activation arguments [output]) network)]
+        [(declarations/register-props installed [pid]) [pid] output]))}))
 
 (defn- ports [name arguments fallback]
   (when (and (contains? #{'relationship:dataflow 'relationship:children} name)

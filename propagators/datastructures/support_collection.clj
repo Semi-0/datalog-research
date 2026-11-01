@@ -57,7 +57,10 @@
         :else (throw (ex-info "Unsupported TTMS layers" {:layers layers}))))
     {:support/observations #{(observation datum)}}))
 
-(defn- observations [x]
+(defn observations
+  "Read immutable retained alternative justifications, including inactive evidence.
+  Projection and revision rules remain the responsibility of strongest-value."
+  [x]
   (cond
     (value/nothing? x) #{}
     (and (content? x)

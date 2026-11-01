@@ -1,6 +1,13 @@
 ;; Public tracers for the editor gallery. Import this file once per session.
 ;; Relationship views compose explicitly; observers name their lifetime.
 (load-primitive-environment
+  "propagators/compiler_2/runtime/operators/composable_tracer.clj"
+  :propagators.compiler-2.runtime.operators.composable-tracer/bindings
+  0)
+(define modifier:high-level (modifier:declaration "high-level"))
+(define modifier:with-values (modifier:declaration "with-values"))
+(define modifier:caller (modifier:declaration "caller"))
+(load-primitive-environment
   "propagators/compiler_2/runtime/operators/network_traversal.clj"
   :propagators.compiler-2.runtime.operators.network-traversal/traversal-environment
   0)

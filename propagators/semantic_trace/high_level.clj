@@ -2,7 +2,10 @@
   "Observation-only projection between explicitly selected component boundaries."
   (:require [clojure.set :as set]
             [propagators.semantic-trace.capture :as capture]
-            [propagators.semantic-trace.directions :as directions]))
+            [propagators.semantic-trace :as trace]
+            [propagators.semantic-trace.directions :as directions]
+            [propagators.semantic-trace.graph-facts :as graph-facts]
+            [propagators.semantic-trace.tracer-modifiers :as modifiers]))
 
 (defn- resolve-boundary [nodes selector]
   (if (contains? nodes selector)
@@ -65,6 +68,34 @@
     (throw (ex-info "relationship:high-level expects a semantic graph" {})))
   (when-not (seq selectors)
     (throw (ex-info "High-level tracing requires explicit boundaries" {})))
-  (if (capture/fragment? graph)
-    (capture/update-scope graph :root #(project % selectors))
-    (project graph selectors)))
+  (modifiers/apply-modifiers graph
+                             [(modifiers/declaration :high-level)
+                              (modifiers/selection selectors)]))
+
+(defn- caller-projection [graph]
+  (when-not (seq (:dataflow/seeds graph))
+    (throw (ex-info "Caller view requires rooted graph facts" {})))
+  (let [excluded (:dataflow/observer-applications graph #{})
+        cut (update graph :edges #(filterv (fn [[a b]] (not (or (excluded a) (excluded b)))) %))
+        components (map #(trace/trace-graph cut {:node % :direction :both}) (:dataflow/seeds graph))]
+    (merge graph (apply trace/graph-union components))))
+
+(defn display-graph
+  "Interpret declarations only at the display boundary. Source facts remain intact."
+  [graph]
+  (let [graph (if (graph-facts/enabled? graph :caller) (caller-projection graph) graph)
+        selected (graph-facts/selected graph)
+        selecting? (graph-facts/enabled? graph :select)
+        projected (cond
+                    (and selecting? (empty? selected))
+                    (-> (select-node-maps graph #{}) (assoc :edges []))
+                    (and selecting? (graph-facts/enabled? graph :high-level))
+                    (project graph selected)
+                    selecting?
+                    (let [ids (set (map #(resolve-boundary (:nodes graph) %) selected))]
+                      (-> (select-node-maps graph ids)
+                          (update :edges #(filterv (fn [[a b]] (and (ids a) (ids b))) %))))
+                    :else graph)]
+    (cond-> projected
+      (graph-facts/enabled? graph :with-values)
+      (update :graph/modifiers (fnil conj #{}) :cell-values))))

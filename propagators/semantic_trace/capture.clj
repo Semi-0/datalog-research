@@ -5,7 +5,8 @@
   `SemanticCaptureSource`; joining fragments never consults a live network."
   (:require [clojure.set :as set]
             [propagators.cells.value :as value]
-            [propagators.datastructures.compound-object :as object]))
+            [propagators.datastructures.compound-object :as object]
+            [propagators.semantic-trace.graph-facts :as graph-facts]))
 
 (defprotocol SemanticCaptureSource
   (capture-fragment [source request]))
@@ -16,9 +17,19 @@
 (def ^:private support-key ::support)
 (def ^:private provenance-key ::provenance)
 
+(defn- capture-slot
+  "Retained application ports expose the immutable source map. Read both forms
+  without reconstructing their scopes or captured values."
+  [candidate slot]
+  (cond
+    (object/accessor-network? candidate) (object/accessor-source-slot-value candidate slot)
+    (map? candidate) (get candidate slot)
+    :else nil))
+
 (defn fragment? [candidate]
-  (and (object/accessor-network? candidate)
-       (= capture-tag (object/accessor-source-slot-value candidate ::type))))
+  (and (= capture-tag (capture-slot candidate ::type))
+       (some? (capture-slot candidate observation-key))
+       (map? (capture-slot candidate scopes-key))))
 
 (defn fragment
   "Construct an immutable capture using the public compound interface."
@@ -28,15 +39,17 @@
   (object/as-accessor-network
    {::type capture-tag
     observation-key observation
-    scopes-key (or scopes {})
+    scopes-key (into {} (map (fn [[id graph]]
+                              [id (graph-facts/from-graph observation id graph (or support #{}))]))
+                     (or scopes {}))
     support-key (or support #{})
     provenance-key (vec (or provenance []))}))
 
-(defn observation-id [capture] (object/accessor-source-slot-value capture observation-key))
-(defn scopes [capture] (object/accessor-source-slot-value capture scopes-key))
+(defn observation-id [capture] (capture-slot capture observation-key))
+(defn scopes [capture] (capture-slot capture scopes-key))
 (defn scope [capture scope-id] (get (scopes capture) scope-id))
-(defn support [capture] (object/accessor-source-slot-value capture support-key))
-(defn provenance [capture] (object/accessor-source-slot-value capture provenance-key))
+(defn support [capture] (capture-slot capture support-key))
+(defn provenance [capture] (capture-slot capture provenance-key))
 
 (defn equivalent?
   "Compare capture facts independently of compound accessor topology."
@@ -129,6 +142,9 @@
   (cond
     (= left right) left
     (value/nothing? left) right
+    (value/nothing? right) left
+    (= (peek path) :propagators.semantic-trace.graph-facts/assertions)
+    (graph-facts/join-assertions left right)
     (value/nothing? right) left
     (or (value/contradiction? left) (value/contradiction? right))
     (join-conflict path left right)

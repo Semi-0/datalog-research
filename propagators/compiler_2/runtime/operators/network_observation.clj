@@ -200,7 +200,8 @@
     ((requiring-resolve 'propagators.experimental.visualization.data/payload)
      (net/network-cell-strongest source-net node)))
   (snapshot-dataflow [_ graph]
-    (captured-slot-values (dataflow/dataflow-graph source-net graph) source-net))
+    (captured-slot-values
+     (dataflow/dataflow-graph source-net (capture/root-graph graph)) source-net))
   (snapshot-roots [_ roots]
     (let [output (:output observation)
           selected ((relationships/connected-root-node-keys roots #{output}) source-net)]

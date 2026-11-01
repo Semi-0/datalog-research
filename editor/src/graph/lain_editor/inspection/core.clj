@@ -29,6 +29,7 @@
             [propagators.relationship-observer :as observer]
             [propagators.semantic-trace :as trace]
             [propagators.semantic-trace.capture :as capture]
+            [propagators.semantic-trace.high-level :as high-level]
             [propagators.semantic-trace.directions :as directions]
             [propagators.semantic-trace.modifiers :as modifiers]))
 
@@ -102,7 +103,8 @@
   ([graph network] (graph-json graph network :root))
   ([semantic network scope-id]
   (let [captured? (capture/fragment? semantic)
-        graph (if captured? (or (capture/scope semantic scope-id) {}) semantic)
+        graph (high-level/display-graph
+               (if captured? (or (capture/scope semantic scope-id) {}) semantic))
         scene (semantic-scene/compile-scene semantic scope-id)
         scene-nodes (into {} (map (juxt :id identity)) (:scene/nodes scene))]
   {:nodes (mapv (fn [[id label]]
