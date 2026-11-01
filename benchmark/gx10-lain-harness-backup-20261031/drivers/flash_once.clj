@@ -23,7 +23,15 @@
 
 (def root "/home/lain/experiments/lain-harness-flash-once-20261027")
 (def container "lain-trial-1")
-(def sid "lain-trial/a1")
+(defn session-id-from-environment
+  "Choose an explicit identity for a fresh trial; keep the original default for resume."
+  [environment]
+  (let [identity (get environment "LAIN_HARNESS_SESSION_ID" "lain-trial/a1")]
+    (when-not (and (string? identity) (not (str/blank? identity)))
+      (throw (ex-info "LAIN_HARNESS_SESSION_ID must be a nonblank string" {})))
+    identity))
+
+(def sid (session-id-from-environment (System/getenv)))
 (def assignment-id "a1")
 (def started-at (System/currentTimeMillis))
 (def log-path (io/file root "logs" "flash-once.jsonl"))
@@ -355,6 +363,25 @@
       (throw (ex-info "Bridge configuration disagrees with MAIN session/profile"
                       {:mismatched-fields mismatched})))
     configuration))
+
+(defn require-fresh-bridge-root!
+  "Reject an existing receipt namespace before starting a fresh trial bridge."
+  [host-log-directory configuration]
+  (let [prefix "/logs/agent/"
+        bridge-root (:root configuration)]
+    (when-not (and (string? bridge-root)
+                   (str/starts-with? bridge-root prefix)
+                   (> (count bridge-root) (count prefix)))
+      (throw (ex-info "Fresh bridge root must be below /logs/agent" {})))
+    (let [logs (.getCanonicalFile (io/file host-log-directory))
+          target (.getCanonicalFile (io/file logs (subs bridge-root (count prefix))))]
+      (when-not (and (not= target logs)
+                     (.startsWith (.toPath target) (.toPath logs)))
+        (throw (ex-info "Fresh bridge root escapes the host log directory" {})))
+      (when (.exists target)
+        (throw (ex-info "Fresh bridge root already exists; inspect receipts instead of replaying"
+                        {:root bridge-root})))
+      configuration)))
 
 (defn check-bridge-configuration! []
   (validate-bridge-configuration

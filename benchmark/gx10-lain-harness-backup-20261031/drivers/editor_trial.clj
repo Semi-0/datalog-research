@@ -57,7 +57,9 @@
           :else (do (Thread/sleep 4000) (recur (inc round))))))))
 
 (defn -main [& _]
-  (trial/check-bridge-configuration!)
+  (trial/require-fresh-bridge-root!
+   (io/file trial/root "container-logs")
+   (trial/check-bridge-configuration!))
   (io/make-parents (io/file run-root "status.json"))
   ;; This durable create is deliberately never removed: restarting cannot replay a mutation.
   (when-not (.createNewFile (io/file run-root "OWNER-CLAIMED"))
