@@ -89,14 +89,24 @@
                  [result (pop pending)] (get outgoing node))]
             (recur next result (inc steps))))))))
 
+(defn- available-scope? [graph]
+  (if (facts/fact-graph? graph)
+    (true? (facts/base-value
+            (facts/current graph
+                           (facts/assertion-id (facts/observation graph) (facts/scope graph)
+                                               :scope/available [(facts/scope graph)]))))
+    true))
+
 (defn- derive-scope [graph budget]
-  (let [source (facts/current-graph graph)
-        members (derive-members graph source)
-        valued (derive-values members source)
-        boundaries (set (map #(resolve-boundary (:nodes source) %) (facts/selected source)))]
-    (if (facts/enabled? source :high-level)
-      (derive-paths valued source boundaries budget)
-      valued)))
+  (if (available-scope? graph)
+    (let [source (facts/current-graph graph)
+          members (derive-members graph source)
+          valued (derive-values members source)
+          boundaries (set (map #(resolve-boundary (:nodes source) %) (facts/selected source)))]
+      (if (facts/enabled? source :high-level)
+        (derive-paths valued source boundaries budget)
+        valued))
+    graph))
 
 (defn derive-view
   "Add supported relationships and captured-value facts; retain every source fact.
@@ -156,12 +166,19 @@
   "Interpret current facts and declarations at the display boundary."
   [scope]
   (let [scope (capture/root-graph scope)
+        available? (available-scope? scope)
         current (facts/current-graph scope)
-        graph (if (facts/enabled? scope :caller) (caller-projection current) current)
+        graph (if (and available? (facts/enabled? scope :caller))
+                (caller-projection current) current)
         selected (facts/selected scope)
         selecting? (facts/enabled? scope :select)
-        boundaries (when selecting? (set (map #(resolve-boundary (:nodes graph) %) selected)))
+        boundaries (when (and available? selecting?)
+                     (set (map #(resolve-boundary (:nodes graph) %) selected)))
         projected (cond
+                    (not available?)
+                    (-> (select-node-maps graph #{})
+                        (assoc :edges [])
+                        (dissoc :bidirectional-edges))
                     (and selecting? (empty? selected))
                     (-> (select-node-maps graph #{}) (assoc :edges []))
                     (and selecting? (facts/enabled? scope :high-level))

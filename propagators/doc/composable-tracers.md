@@ -44,9 +44,11 @@ original caller. The factory's implementation is excluded from its own trace.
 | `(modifier:select selectors)` | Supported boundary membership |
 
 `selectors` is the ordinary built-in Lain list. Use `(list)` for a known empty
-selection. Strings resolve labels; absent or ambiguous boundaries produce an
-explicit error. Host callers can also use an existing node identity. Repeated
-selections union membership. List order and duplicate members have no semantic
+selection. Strings resolve labels in an available scope; absent or ambiguous
+boundaries produce an explicit error. When the scope is unavailable, the tracer
+retains its facts and selection declarations, and the displayed view is empty.
+A later available observation can display those components again. Host callers
+can also use an existing node identity. Repeated selections union membership. List order and duplicate members have no semantic
 effect.
 
 ```lisp

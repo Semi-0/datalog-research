@@ -59,6 +59,7 @@
     propagators.experimental.compound-levels-demo-test
     propagators.experimental.functional-web-migration-test
     propagators.dataflow-projection-test
+    propagators.relationship-snapshot-test
     propagators.experimental.view-xr-test
     propagators.install-test
     propagators.layered-procedure-test
@@ -142,6 +143,7 @@
     propagators.compiler-2.runtime.retained-network-test
     propagators.compiler-2-call-graph-test
     propagators.dataflow-projection-test
+    propagators.relationship-snapshot-test
     propagators.compiler-2.runtime.boundary-test
     propagators.compiler-2.runtime.integration.boundary-test
     propagators.compiler-2.runtime.trace-cycle-test
@@ -164,6 +166,7 @@
     graph.lain-editor.inspection.semantic-gallery-test
     propagators.compiler-2-subagent-harness-test
     propagators.compiler-2-harness-session-test
+    propagators.compiler-2-socket-extension-test
     graph.lain-editor.inspection.harness-assignment-withdrawal-test])
 
 (def recovered-slice-test-namespaces

@@ -209,6 +209,40 @@
         (transport/close! boundary)
         (transport/close! isolated)))))
 
+(deftest idle-client-stays-connected-for-later-feedback
+  (let [observed (promise)
+        boundary (transport/start! session-id
+                                   {:mode :live :read-timeout-ms 50
+                                    :on-observation (fn [_] (deliver observed :published))})
+        client (connect boundary)]
+    (try
+      (is (= "received" (:status (exchange! client (wire-command "one" 0 "assignment/submitted"
+                                                               {:assignment-id "a" :task "x"})))))
+      (is (= :published (deref observed 1000 :timeout)))
+      (Thread/sleep 200)
+      (is (= 1 (:connections (transport/snapshot boundary))))
+      (is (empty? (:failures (transport/snapshot boundary))))
+      (let [feedback (policy/describe-commands
+                      session-id (policy/normalize-commands session-id (transport/observations boundary)))]
+        (is (= 1 (transport/send! boundary (first (events feedback)))))
+        (is (= "user/command-accepted"
+               (:kind (json/read-json (.readLine ^BufferedReader (:reader client)))))))
+      (finally (.close ^Socket (:socket client)) (transport/close! boundary)))))
+
+(deftest incomplete-frame-still-times-out-and-disconnects
+  (let [boundary (transport/start! session-id {:mode :live :read-timeout-ms 50})
+        client (connect boundary)]
+    (try
+      (is (= "received" (:status (exchange! client (wire-command "one" 0 "assignment/submitted"
+                                                               {:assignment-id "a" :task "x"})))))
+      (.write ^OutputStreamWriter (:writer client) "{")
+      (.flush ^OutputStreamWriter (:writer client))
+      (let [state (await-disconnect boundary)]
+        (is (zero? (:connections state)))
+        (is (= [:read-timeout] (:failures state)))
+        (is (= 1 (:observations state))))
+      (finally (.close ^Socket (:socket client)) (transport/close! boundary)))))
+
 (deftest framing-receipt-precedes-synchronous-domain-feedback
   (let [owner (atom nil)
         boundary (transport/start!

@@ -179,25 +179,25 @@
      bindings)))
 
 (defn- dictionary-node-label
-  [network node-id entry]
-  (let [names-by-id (lexical-binding-names network)]
-    (cond
-      (cell/cell? entry)
-      (unique-binding-name names-by-id node-id)
+  [names-by-id operators node-id entry]
+  (cond
+    (cell/cell? entry)
+    (unique-binding-name names-by-id node-id)
 
-      (prop/prop? entry)
-      (some->> (get (application-operator-ids network) node-id)
-               (unique-binding-name names-by-id))
+    (prop/prop? entry)
+    (some->> (get operators node-id)
+             (unique-binding-name names-by-id))
 
-      :else
-      nil)))
+    :else
+    nil))
 
 (defn- node-label
-  [network [path node-id :as node-key]]
+  [network [path node-id :as node-key] labels-at]
   (let [owner (network-at-path network path)
         entry (node-entry network node-key)
         dictionary-label (when owner
-                           (dictionary-node-label owner node-id entry))]
+                           (let [{:keys [names-by-id operators]} (labels-at path)]
+                             (dictionary-node-label names-by-id operators node-id entry)))]
     (cond
       (prop/prop? entry)
       (let [name (prop/prop-name entry)]
@@ -255,9 +255,16 @@
 (defn snapshot
   "Project selected path-qualified nodes from the current immutable Net."
   [network node-keys]
-  (let [selected (set (filter #(node-entry network %) node-keys))]
+  (let [selected (set (filter #(node-entry network %) node-keys))
+        ;; Metadata belongs to this immutable sample. Share its indexes across
+        ;; selected nodes without caching values or crossing source revisions.
+        labels-at (memoize
+                   (fn [path]
+                     (when-let [owner (network-at-path network path)]
+                       {:names-by-id (lexical-binding-names owner)
+                        :operators (application-operator-ids owner)})))]
     (semantic-trace/graph-union
-     {:nodes (into {} (map (fn [key] [key (node-label network key)])) selected)
+     {:nodes (into {} (map (fn [key] [key (node-label network key labels-at)])) selected)
       :node-kinds (into {} (map (fn [key]
                                  [key (if (prop/prop? (node-entry network key))
                                         :propagator :cell)])) selected)
