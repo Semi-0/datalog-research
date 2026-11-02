@@ -199,6 +199,47 @@
           "stable receipt identities suppress redispatch")
       (finally (harness/close! owner)))))
 
+(defn await-socket-publication! [^BufferedReader reader published?]
+  (let [deadline (+ (System/nanoTime) 30000000000)]
+    (loop []
+      ;; The first receipt acknowledges retention, not domain publication. A
+      ;; callback failure arrives as a separate frame before any pump feedback.
+      (when (.ready reader)
+        (let [frame (json/read-json (.readLine reader))]
+          (if-let [error (:error frame)]
+            (throw (ex-info "Socket command publication failed" {:socket/error error}))
+            (throw (ex-info "Unexpected socket frame before publication" {:frame frame})))))
+      (if (published?)
+        true
+        (do
+          (when (> (System/nanoTime) deadline)
+            (throw (ex-info "Socket publication timed out" {:timeout-ms 30000})))
+          (Thread/sleep 10)
+          (recur))))))
+
+(deftest socket-publication-wait-preserves-the-delivery-error
+  (let [identity "publication-failure"
+        boundary (socket-transport/start!
+                  identity {:mode :live
+                            :on-observation (fn [_] (throw (ex-info "controlled callback failure" {})))})]
+    (try
+      (with-open [socket (Socket. "127.0.0.1" (int (socket-transport/port boundary)))
+                  reader (BufferedReader. (InputStreamReader. (.getInputStream socket)))
+                  writer (OutputStreamWriter. (.getOutputStream socket))]
+        (.setSoTimeout socket 2000)
+        (.write writer (str (json/write-json {:session identity :id "one" :order 0
+                                             :kind "assignment/submitted" :assignment-id "a" :task "a"}) "\n"))
+        (.flush writer)
+        (is (= "received" (:status (json/read-json (.readLine reader)))))
+        (let [error (try (await-socket-publication! reader (constantly false))
+                         nil
+                         (catch clojure.lang.ExceptionInfo error error))]
+          (is (= "Socket command publication failed" (ex-message error)))
+          (is (= {:category "publication" :reason "publication-failed"}
+                 (:socket/error (ex-data error)))))
+        (is (= 1 (:observations (socket-transport/snapshot boundary)))))
+      (finally (socket-transport/close! boundary)))))
+
 (deftest real-loopback-user-socket-feeds-the-same-network
   (let [{:keys [options]} (fixtures "wire" (atom false))
         owner (harness/open! "wire" (-> options
@@ -213,12 +254,11 @@
                                              :kind "assignment/submitted" :assignment-id "a" :task "a"}) "\n"))
         (.flush writer)
         (is (= "received" (:status (json/read-json (.readLine reader)))))
-        (let [deadline (+ (System/nanoTime) 30000000000)]
-          (loop []
-            (when-not (seq (facts/ordered-facts (harness/facts-at owner :socket-in)))
-              (when (> (System/nanoTime) deadline) (throw (ex-info "Socket publication timed out" {})))
-              (Thread/sleep 10)
-              (recur))))
+        (let [received-at (System/nanoTime)]
+          (await-socket-publication!
+           reader #(seq (facts/ordered-facts (harness/facts-at owner :socket-in))))
+          (println "Socket receipt-to-publication ms:"
+                   (/ (- (System/nanoTime) received-at) 1000000.0)))
         (harness/pump! owner)
         (let [feedback (json/read-json (.readLine reader))]
           (is (= "wire" (:session feedback)))

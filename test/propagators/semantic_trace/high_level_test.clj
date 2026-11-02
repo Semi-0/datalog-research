@@ -59,6 +59,36 @@
     (is (= (:nodes (displayed before ["a" "b" "isolated"]))
            (:nodes (displayed after ["a" "b" "isolated"]))))))
 
+(deftest unavailable-scopes-retain-selection-without-a-missing-boundary-error
+  (let [root (graph {:a 'a :slot 'slot :b 'b} [[:a :slot] [:slot :b]] {:a 1 :b 2})
+        premise {:source (gur/stable-node-id [::scope]) :timestamp 1 :premises-status :active}
+        independent {:source (gur/stable-node-id [::label]) :timestamp 1 :premises-status :active}
+        source (capture/fragment {:observation ::available :scopes {:root root}
+                                  :support #{premise}})
+        configured (high-level/view source ["a" "b"])
+        withdrawn (capture/update-scope
+                   configured :root
+                   #(-> %
+                        (facts/update-premise-state #{(assoc premise :premises-status :retracted)})
+                        (facts/claim :node/label [:a 'a] true #{independent} #{})))
+        declarations (facts/declarations (capture/root-graph withdrawn))
+        derived (high-level/derive-view withdrawn)
+        shown (high-level/display-graph derived)
+        recovered (high-level/view
+                   (capture/fragment {:observation ::recovered :scopes {:root root}
+                                      :support #{(assoc premise :timestamp 2)}})
+                   ["a" "b"])]
+    (is (seq declarations))
+    (is (empty? (:nodes shown)))
+    (is (empty? (:edges shown)))
+    (is (= 'a (get-in (facts/current-graph (capture/root-graph derived)) [:nodes :a]))
+        "Independent source information remains queryable in an unavailable scope")
+    (is (= (facts/source-assertions (capture/root-graph withdrawn))
+           (facts/source-assertions (capture/root-graph derived))))
+    (is (= declarations (facts/declarations (capture/root-graph derived))))
+    (is (= #{:a :b} (set (keys (:nodes (high-level/display-graph recovered))))))
+    (is (= [[:a :b]] (:edges (high-level/display-graph recovered))))))
+
 (deftest captured-facts-and-child-scopes-survive
   (let [root (graph {:a 'a :x 'slot :b 'b} [[:a :x] [:x :b]] {:a 1 :b 2})
         child (graph {:private 'private} [] {:private 3})

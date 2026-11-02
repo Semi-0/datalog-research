@@ -20,7 +20,8 @@
             [propagators.datastructures.support-collection :as collection]
             [propagators.semantic-trace :as trace]
             [propagators.semantic-trace.capture :as capture]
-            [propagators.semantic-trace.graph-facts :as graph-facts]))
+            [propagators.semantic-trace.graph-facts :as graph-facts]
+            [propagators.semantic-trace.facts :as semantic-facts]))
 
 (defn- id-network
   []
@@ -101,6 +102,33 @@
                      {:observation identity :scopes {:root current} :support #{scope}
                       :premise-state #{(assoc scope :premises-status :retracted)}})]
       (is (empty? (:nodes (graph-facts/current-graph (capture/root-graph withdrawn))))))))
+
+(deftest captures-share-application-indexes-only-within-their-frozen-source
+  (let [{:keys [net p]} (id-network)
+        key [[:outer] p]
+        graph (trace/graph-union {:nodes {key "id"} :node-kinds {key :propagator}})
+        calls (atom [])
+        applications semantic-facts/applications]
+    (with-redefs [semantic-facts/applications
+                  (fn [owner path]
+                    (swap! calls conj path)
+                    (applications owner path))]
+      (let [source (observation/frozen-snapshot net)
+            first (capture/capture-fragment source {:graph graph})
+            second (capture/capture-fragment source {:graph graph :scope :another-view})
+            first-graph (capture/root-graph first)
+            second-graph (capture/scope second :another-view)]
+        (is (= [[:outer]] @calls)
+            "Views of one frozen observation reuse acquisition metadata")
+        (is (= (:nodes first-graph) (:nodes second-graph)))
+        (is (= (:edges first-graph) (:edges second-graph)))
+        (is (= :root (graph-facts/scope first-graph)))
+        (is (= :another-view (graph-facts/scope second-graph)))
+        (let [other (capture/capture-fragment (observation/frozen-snapshot net) {:graph graph})]
+          (is (= [[:outer] [:outer]] @calls)
+              "Another observation owns its own index")
+          (is (not= (graph-facts/observation first-graph)
+                    (graph-facts/observation (capture/root-graph other)))))))))
 
 (deftest neighbors-observes-cells-and-propagators
   (let [{:keys [net a b p]} (id-network)

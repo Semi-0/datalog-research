@@ -100,14 +100,12 @@
   "True when a semantic propagator is an application of a Lain network.
   Primitive application and compiler-wiring children remain inside their
   owning semantic plane instead of becoming stack occurrences."
-  [source-net node-key]
+  [source-net node-key applications-at]
   (let [path (if (and (vector? node-key) (vector? (first node-key)))
                (first node-key)
                [:outer])
         owner (relationships/network-at-path source-net path)
-        semantic-application (when owner
-                               (some #(when (= node-key (:id %)) %)
-                                     (facts/applications owner path)))
+        semantic-application (when owner (first (get (applications-at path) node-key)))
         operator-id (some-> semantic-application :operator second)
         callable (when (and owner operator-id
                             (contains? (net/net-env owner) operator-id))
@@ -129,7 +127,7 @@
                     (net/network-cell-strongest owner (:operator-id selected)))]
                (closure-declaration? selected-callable))))))
 
-(deftype FrozenNetworkSnapshot [source-net observation]
+(deftype FrozenNetworkSnapshot [source-net observation applications-at]
   capture/SemanticCaptureSource
   (capture-fragment [_ request]
     (let [requested-observation (:observation request)
@@ -159,7 +157,7 @@
               nested (into {}
                            (keep (fn [[node-id kind]]
                                    (when (and (= :propagator kind)
-                                              (closure-application? source-net node-id)
+                                              (closure-application? source-net node-id applications-at)
                                               (seq (relationship/children
                                                     (net/net-relationship source-net)
                                                     node-id)))
@@ -214,12 +212,18 @@
     (captured-slot-values (dataflow/child-semantic-network-graph source-net parent) source-net)))
 
 (defn frozen-snapshot
+  "Capture one immutable source. Application indexes are acquired lazily per path
+  and shared by scopes of this observation; another snapshot gets its own index."
   ([network] (frozen-snapshot network {}))
   ([network observation]
    (FrozenNetworkSnapshot.
     network
     (assoc observation :observation/id
-           (or (:observation/id observation) (random-uuid))))))
+           (or (:observation/id observation) (random-uuid)))
+    (memoize
+     (fn [path]
+       (when-let [owner (relationships/network-at-path network path)]
+         (group-by :id (facts/applications owner path))))))))
 
 (defn frozen-snapshot?
   [candidate]

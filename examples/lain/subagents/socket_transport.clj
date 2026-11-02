@@ -34,11 +34,18 @@
                 {:command-kind (:kind command)
                  :command (apply dissoc command policy/envelope-keys)})))
 
-(defn- read-frame [^InputStream input max-bytes]
+(defn- read-frame
+  "Idle connections may await feedback; an incomplete frame must not stall."
+  [^InputStream input max-bytes]
   (let [buffer (ByteArrayOutputStream.)]
     (loop []
-      (let [byte (.read input)]
+      (let [byte (try (.read input)
+                      (catch SocketTimeoutException error
+                        (if (zero? (.size buffer))
+                          ::idle
+                          (throw error))))]
         (cond
+          (= ::idle byte) (recur)
           (= -1 byte)
           (if (zero? (.size buffer)) nil (throw (wire-error :unterminated-frame)))
           (= 10 byte)
@@ -125,7 +132,9 @@
     (if accepted? (.start thread) (.close socket))))
 
 (defn start!
-  "Default observation mode performs no I/O. Live mode binds loopback only."
+  "Default observation mode performs no I/O. Live mode binds loopback only.
+  Idle connections remain open for feedback; :read-timeout-ms bounds a stalled
+  incomplete frame rather than the time between complete commands."
   ([session-id] (start! session-id {}))
   ([session-id {:keys [mode port on-observation] :or {mode :observe port 0 on-observation (fn [_])}
                 :as supplied}]
