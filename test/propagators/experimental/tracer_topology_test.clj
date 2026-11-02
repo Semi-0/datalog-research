@@ -53,8 +53,11 @@
               (map #(vector id (node-key state %)) outputs)))))
 
 (defn graph-value [state]
-  (data/payload (net/network-cell-strongest (:program/net state)
-                                          (binding-id state 'semantic))))
+  (propagators.semantic-trace.graph-facts/source-projection
+   (propagators.semantic-trace.graph-facts/current-graph
+    (propagators.semantic-trace.capture/root-graph
+     (data/payload (net/network-cell-strongest (:program/net state)
+                                             (binding-id state 'semantic)))))))
 
 (defn inject [state seeds]
   (reduce (fn [state [symbol value]]

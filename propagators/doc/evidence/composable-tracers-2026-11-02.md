@@ -24,6 +24,54 @@ existing editor frontend. Loading
 `user`, `runtime`, and `evaluation-framework`, with captured pending field
 summaries. This was a browser rendering check with no submitted harness task.
 
+## CI regressions found after the initial gate
+
+The initial focused gate was incomplete. GX10 CI for main `e8489a1` reported
+9,446 passing assertions, **217 failures and 8 errors**, and did not activate that
+revision. All seven assertion-failing namespaces pass on the exact prior main
+`f0fb42a`: 49 tests and 1,278 assertions, with zero failures or errors. These were
+migration regressions, not pre-existing failures.
+
+| Affected namespace | Assertion failures |
+| --- | ---: |
+| `propagators.experimental.ttms-view-test` | 4 |
+| `propagators.experimental.tracer-topology-test` | 122 |
+| `propagators.experimental.compound-tracer-test` | 23 |
+| `propagators.experimental.compound-levels-demo-test` | 9 |
+| `propagators.experimental.view-xr-test` | 8 |
+| `experiments.synth-test` | 3 |
+| `graph.lain-editor.inspection.semantic-gallery-test` | 48 |
+
+The declarative visualizer still passed capture wrappers to a raw graph renderer.
+Legacy test adapters also read raw graph keys on those wrappers. The repair uses
+public capture/fact accessors and preserves the existing topology/value oracles.
+Editor inspection now preserves an already acquired capture's identity.
+
+The error/recovery test exposed another production gap: relationship diagnostics
+were dropped as unusable publication bases. They now retain their input revision
+support, so a corrected graph supersedes the diagnostic. An unresolved dataflow
+input remains pending rather than producing a type error.
+
+All eight harness errors reported an absent selected `user` boundary. Capture
+creation had conjoined every field's support into scope availability. A snapshot
+containing independent fields at different revisions of one source could therefore
+hide every topology fact. Scope availability now uses its own support, while each
+value assertion retains its field support. A focused regression verifies current
+topology, field evidence, and explicit scope withdrawal. The actual harness
+assignment/withdrawal lifecycle passes all 19 assertions after this repair.
+
+The repaired seven-suite run with loopback permission passes **1,286 assertions,
+zero failures, and zero errors**. The snapshot regression namespace passes all
+35 assertions. Chrome renders the actual composition as three actors and six
+edges; a retained unary gallery example renders five nodes and four edges with
+`flag = false` and `result = true`.
+
+The expanded `tracers` gate includes these seven suites, the lower-level snapshot
+regression, and the harness replay/session/withdrawal suites. Its first 33
+namespaces pass 5,187 assertions. The final three harness namespaces are still
+running; this report does not yet claim all eight error cases or the full
+repository are green.
+
 ## Local measurements
 
 `clojure -M -m bench-tracer-facts` is an observation-only probe. Its snapshot

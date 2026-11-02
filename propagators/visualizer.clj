@@ -13,7 +13,8 @@
             [propagators.propagator :as prop]
             [propagators.relationship :as relationship]
             [propagators.relationship-observer :as relationship-observer]
-            [propagators.semantic-trace :as trace])
+            [propagators.semantic-trace :as trace]
+            [propagators.semantic-trace.high-level :as high-level])
   (:import [java.nio.charset StandardCharsets]
            [java.util UUID]))
 
@@ -250,7 +251,8 @@
           blocked? (and (ttms/supported? current) (value/unusable? current))]
       (when-not (or blocked? (trace/semantic-trace-graph? source))
         (throw (ex-info "Graph view source is not a trace graph" {:declaration declaration})))
-      (cond-> (assoc declaration :view/graph (if blocked? (trace/graph-union {}) source))
+      (cond-> (assoc declaration :view/graph
+                    (if blocked? (trace/graph-union {}) (high-level/display-graph source)))
         (ttms/supported? current)
         (assoc :view/status (ttms/status current)
                :view/reasons (value/contradiction-provenance source))))

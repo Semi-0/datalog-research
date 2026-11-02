@@ -139,8 +139,9 @@
             (xr/handle-command! session (update wire :op keyword)))))
       (is (empty? (:items (collections/result @session 'focused))))
       (is (empty? (:items (collections/result @session 'zoom)))))
-    (let [graph (data/payload (net/network-cell-strongest (:program/net @session)
-                 (fixture/binding-id @session 'composition-graph)))]
+    (let [graph (propagators.semantic-trace.capture/root-graph
+                 (data/payload (net/network-cell-strongest (:program/net @session)
+                                (fixture/binding-id @session 'composition-graph))))]
       (is (seq (:nodes graph)))
       (is (seq (:edges graph))))
     (let [network (:program/net @session)

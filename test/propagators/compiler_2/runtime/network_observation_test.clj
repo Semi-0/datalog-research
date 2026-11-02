@@ -15,7 +15,12 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.propagator :as prop]))
+            [propagators.propagator :as prop]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support-collection :as collection]
+            [propagators.semantic-trace :as trace]
+            [propagators.semantic-trace.capture :as capture]
+            [propagators.semantic-trace.graph-facts :as graph-facts]))
 
 (defn- id-network
   []
@@ -61,6 +66,41 @@
       (one-time/compound-projection)
       completed
       out-id)}))
+
+(deftest capture-topology-does-not-conjoin-independent-field-revisions
+  (let [stamp (fn [source revision]
+                {:source source :timestamp revision :premises-status :active})
+        scope (stamp (ids/new-node-id) 1)
+        field-source (ids/new-node-id)
+        old-field (stamp field-source 1)
+        new-field (stamp field-source 2)
+        identity (random-uuid)
+        source (observation/frozen-snapshot net/empty-net {:observation/id identity})
+        graph (trace/graph-union
+               {:nodes {:left "left" :right "right"}
+                :edges [[:left :right]]
+                :values {:left (propagators.experimental.visualization.ttms/projection
+                                (collection/content {:base 10 :support #{old-field}}))
+                         :right (propagators.experimental.visualization.ttms/projection
+                                 (collection/content {:base 20 :support #{new-field}}))}})
+        captured (capture/capture-fragment source {:graph graph :support #{scope}})
+        current (graph-facts/current-graph (capture/root-graph captured))
+        assertion (fn [predicate node]
+                    (graph-facts/assertion-id identity :root predicate [node]))]
+    (is (= (:nodes graph) (:nodes current)))
+    (is (= (:edges graph) (:edges current)))
+    (is (= #{scope}
+           (datum/support-of (graph-facts/current current
+                                                (graph-facts/assertion-id
+                                                 identity :root :node/label [:left "left"])))))
+    (is (= #{scope new-field}
+           (datum/support-of (graph-facts/current current (assertion :node/value :right)))))
+    (is (contains? (graph-facts/source-assertions current) (assertion :node/value :left))
+        "A superseded field assertion remains available through public fact accessors")
+    (let [withdrawn (capture/fragment
+                     {:observation identity :scopes {:root current} :support #{scope}
+                      :premise-state #{(assoc scope :premises-status :retracted)}})]
+      (is (empty? (:nodes (graph-facts/current-graph (capture/root-graph withdrawn))))))))
 
 (deftest neighbors-observes-cells-and-propagators
   (let [{:keys [net a b p]} (id-network)

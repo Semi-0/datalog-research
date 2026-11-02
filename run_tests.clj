@@ -44,6 +44,7 @@
     propagators.compiler-2-harness-session-test
     propagators.how-to-think-in-lain-examples-test
     propagators.compiler-2-network-observation-test
+    propagators.compiler-2.runtime.network-observation-test
     propagators.compiler-2.runtime.semantic-traversal-test
     propagators.compiler-2.runtime.retained-network-test
     propagators.observer-test
@@ -136,6 +137,7 @@
     propagators.support-test
     propagators.support-collection-test
     propagators.compiler-2-network-observation-test
+    propagators.compiler-2.runtime.network-observation-test
     propagators.compiler-2.runtime.semantic-traversal-test
     propagators.compiler-2.runtime.retained-network-test
     propagators.compiler-2-call-graph-test
@@ -152,7 +154,17 @@
     graph.lain-editor.inspection.recursive-semantic-test
     graph.lain-editor.inspection.network-replay-test
     graph.lain-editor.inspection.tracer-gallery-test
-    graph.lain-editor.runtime.harness-observer-test])
+    graph.lain-editor.runtime.harness-observer-test
+    propagators.experimental.ttms-view-test
+    propagators.experimental.tracer-topology-test
+    propagators.experimental.compound-tracer-test
+    propagators.experimental.compound-levels-demo-test
+    propagators.experimental.view-xr-test
+    experiments.synth-test
+    graph.lain-editor.inspection.semantic-gallery-test
+    propagators.compiler-2-subagent-harness-test
+    propagators.compiler-2-harness-session-test
+    graph.lain-editor.inspection.harness-assignment-withdrawal-test])
 
 (def recovered-slice-test-namespaces
   '[graph.xr-inspection-test

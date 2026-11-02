@@ -155,8 +155,10 @@
 (defn semantic-graph [network id]
   (let [payload (display-candidate network id)]
     (if (capture/semantic-graph? payload)
-      (cond-> payload
-        (nil? (:dataflow/scope payload)) (assoc :dataflow/scope :root))
+      (if (capture/fragment? payload)
+        payload
+        (cond-> payload
+          (nil? (:dataflow/scope payload)) (assoc :dataflow/scope :root)))
       (let [operational (assoc (observer/snapshot network ((observer/connected-root-node-keys [id]) network))
                                :dataflow/seeds #{[[:outer] id]})]
          (dataflow/dataflow-graph network operational)))))

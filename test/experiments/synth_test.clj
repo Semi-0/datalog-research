@@ -17,8 +17,9 @@
 (def source (slurp main/default-file))
 
 (defn observe [session symbol]
-  (data/payload
-   (net/network-cell-strongest (:program/net session) (synth/binding-id session symbol))))
+  (propagators.semantic-trace.capture/root-graph
+   (data/payload
+    (net/network-cell-strongest (:program/net session) (synth/binding-id session symbol)))))
 
 (defn backend []
   (let [notes (atom []) clear-count (atom 0) close-count (atom 0)]

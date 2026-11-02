@@ -59,7 +59,8 @@
 (deftest compiled-calls-come-from-retained-closure-syntax
   (let [state @(loader/load-session-from-file demo/example demo/options)
         declaration (application/callable-declaration (binding-value state 'stage))
-        graph (binding-value state 'compiled-calls)
+        graph (propagators.semantic-trace.capture/root-graph
+               (binding-value state 'compiled-calls))
         potential (filter #(= :potential (:call/status %)) (vals (:values graph)))
         realized (filter #(= :realized (:call/status %)) (vals (:values graph)))
         sites (calls/call-sites (closure/closure-body declaration))]

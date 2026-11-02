@@ -11,7 +11,10 @@
             [propagators.propagator :as prop]
             [propagators.semantic-trace :as trace]
             [propagators.semantic-trace.capture :as capture]
-            [propagators.experimental.visualization.data :as data]
+            [propagators.experimental.visualization.ttms :as ttms]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.support :as support]
+            [propagators.datastructures.support-collection :as collection]
             [propagators.network :as net]
             [propagators.message :refer [message]]))
 
@@ -40,11 +43,16 @@
   (try
     (let [graph (case mode
                   :roots (snapshots/snapshot-roots snapshot roots)
-                  :dataflow (snapshots/snapshot-dataflow snapshot (snapshots/snapshot-value snapshot root))
+                  :dataflow (let [observed (snapshots/snapshot-value snapshot root)]
+                              (if (value/unusable? observed)
+                                observed
+                                (snapshots/snapshot-dataflow snapshot observed)))
                   :semantic (apply trace/graph-union (map #(snapshots/snapshot-semantic-graph snapshot %) roots))
                   :children (snapshots/snapshot-children snapshot (call-parent snapshot root))
                   (throw (ex-info "Unknown relationship projection" {:mode mode})))]
-      (capture/capture-fragment snapshot {:graph graph :scope :root :refinement :initial}))
+      (if (value/unusable? graph)
+        graph
+        (capture/capture-fragment snapshot {:graph graph :scope :root :refinement :initial})))
     (catch Exception error
       (errors/attach value/contradiction
                      #{{:operation :relationship/trace :mode mode
@@ -67,9 +75,21 @@
                   (some value/contradiction? values)
                   [(message output (data/supported id value/contradiction (set arguments) contents))]
                   :else
-                  [(message output
-                            (data/supported id (apply project mode roots values)
-                                            (set arguments) contents))])))
+                  (let [projected (apply project mode roots values)]
+                    [(message output
+                              (if (and (value/contradiction? projected)
+                                       (seq (errors/errors-of projected))
+                                       (some ttms/supported? contents))
+                                ;; An error is a supported result, so a later input
+                                ;; revision can supersede it just like a graph.
+                                (collection/merge-content
+                                 (ttms/state-update contents)
+                                 (collection/content
+                                  {:base projected
+                                   :support (apply support/combine
+                                                   (map (comp datum/support-of ttms/projection)
+                                                        contents))}))
+                                (data/supported id projected (set arguments) contents)))]))))
             [pid installed]
             ((prop/construct-propagator id ::sample activation arguments [output]) network)]
         [(declarations/register-props installed [pid]) [pid] output]))}))

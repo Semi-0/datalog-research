@@ -148,12 +148,14 @@
               (is (identical? network (:program/net @session))))
             (let [state @(:session (get @editors (:id pane))) network (:program/net state)
                   id display/cell-id
-                  published (data/payload (net/network-cell-strongest network id))]
+                  publication (data/payload (net/network-cell-strongest network id))
+                  published (capture/root-graph publication)]
               (is (trace/semantic-trace-graph? published))
               (is (= :leapfrog (:dataflow/projection published)))
                (is (= :root (:dataflow/scope published)))
                (is (= :downstream (:traversal/direction published)))
-              (is (identical? published (inspection/semantic-graph network id)))
+              (is (capture/fragment? publication))
+              (is (identical? publication (inspection/semantic-graph network id)))
               (let [session (:session (get @editors (:id pane)))
                     observation (some #(when (= (pr-str %) (:semanticObservation graph)) %)
                                       (keys @(retained/storage session)))

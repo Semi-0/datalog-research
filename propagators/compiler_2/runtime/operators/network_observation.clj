@@ -169,9 +169,9 @@
           (capture/fragment
            {:observation observation-id
             :scopes {scope-id graph}
-            :support (apply support/combine
-                            (or (:support request) #{})
-                            (map datum/support-of (vals (:values graph))))
+            ;; Scope availability is independent of the captured fields' clocks.
+            ;; from-graph retains each value's own support on its assertion.
+            :support (or (:support request) #{})
             :provenance [{:capture/refinement (or (:refinement request) :initial)
                           :capture/scope scope-id}]})))))
   NetworkSnapshot

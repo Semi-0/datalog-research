@@ -239,5 +239,6 @@
     (is (trace/semantic-trace-graph? graph))
     (is (= (datum/support-of current) (:support stamped)))
     (is (= (net/network-cell-content n source) (net/network-cell-content rerun source)))
-    (is (seq (:nodes (data/payload (net/network-cell-strongest n
-                                  (fixture/binding-id initial 'projected))))))))
+    (is (seq (:nodes (propagators.semantic-trace.capture/root-graph
+                      (data/payload (net/network-cell-strongest n
+                                     (fixture/binding-id initial 'projected)))))))))
