@@ -3,6 +3,27 @@ A Relational and Compositional Reasoning Guide for AI Coding Agents
 
 Checked against the current Compiler-2 language on 2026-10-26. The domain illustrations in sections 1–16 are schematic where their helpers are not defined. Sections 17–24 give concrete syntax, explicit library imports, and runnable branching and recursion examples. Do not mistake an application-specific verb for a built-in operator.
 
+## Tracing composed components
+
+Import `propagators/compiler_2/runtime/lain/tracers.lain`, configure a tracer with
+immutable modifiers, and apply it to the caller's cell:
+
+```lisp
+(display
+  ((tracer:roots modifier:high-level modifier:with-values
+     (modifier:select (list "user" "runtime" "evaluation-framework")))
+   user))
+```
+
+These boundary labels belong to the harness composition. Modifiers join supported
+information; their order and duplication do not change its meaning. Selection
+changes the displayed view while source facts remain available for queries.
+An unresolved selector tail stays pending. `display` owns rendering, and history
+inspection uses the captured observation rather than current live state.
+
+See [Composable tracers and supported graph facts](composable-tracers.md) for the
+API, empty/open selections, TTMS evidence, queries, history, and migration notes.
+
 ## 1. Core Philosophy: Compose Relationships into Expressions
 Lain is a Lisp-like, propagator-based coordination language for describing high-level interactions between components.
 Its central programming abstraction is the composition of transformations and relationships. Drawing on lambda calculus and functional composition, Lain allows programmers to construct, connect, and transform propagator networks through reusable abstractions. P

@@ -8,11 +8,17 @@ The older traversal helpers are removed from `relationship_dataflow.clj`.
 
 ## Operator protocol
 
-All three observers are ordinary callable installers with declared input/output
-selectors. `relationship:roots` takes a seed cell and returns a raw graph cell;
-`relationship:roots-semantic` takes a seed cell and returns the shared projection of
-that graph. `relationship:dataflow` takes an existing raw graph cell and returns
-its projection. The historical `relationship:semantic` name aliases the unified
+The public result boundary is now an immutable observation capture with TTMS-backed
+graph-fact scopes. See [Composable tracers](composable-tracers.md) for the callable
+`tracer:*` constructors, joined modifiers, public accessors, and migration examples.
+The projection rules described here remain the acquisition implementation.
+
+The observers are ordinary callable installers with declared input/output
+selectors. `relationship:roots` takes a seed cell and publishes its root observation;
+`relationship:roots-semantic` takes a seed cell and publishes the shared projection.
+`relationship:dataflow` accepts a graph observation and publishes its projection.
+Host consumers use `capture/root-graph` or `capture/scope`, then the public graph-fact
+accessors. The historical `relationship:semantic` name aliases the unified
 root-semantic operator. They support expression, network-local, and higher-order
 calls. The gallery uses `(display (relationship:roots-semantic seed))` directly,
 without an intermediate graph binding.
