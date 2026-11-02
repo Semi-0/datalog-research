@@ -63,3 +63,22 @@ Open the HTTPS origin printed by the installer. Trust the public local CA certif
 Stop LAN ingress with `systemctl --user stop gx10-lain-gateway.service`. Removing LAN configuration requires first disabling ingress and deliberately restoring local configuration; failures never expose an unauthenticated LAN fallback.
 
 Stop automatic updates with `systemctl --user stop gx10-lain-pull.timer`. Retained releases remain available for inspection and rollback (see Release retention).
+
+
+### Experimental subagent harness tests
+
+The production release gate runs `clojure -M:test production` (also the default
+with no arguments). Subagent/Harbor/Pi harness integration namespaces are opt-in.
+Harness-only cases in the shared combinator and high-level tracer namespaces carry
+`:experimental-harness` metadata; their other compiler/tracer cases still run in
+production. `run-tests-policy-test` checks this partition and retained coverage.
+
+Run the experimental lane explicitly with `bash deploy/ci-subagent-harness.sh`.
+It runs `clojure -M:test subagent-harness` plus the Pi bridge tests, fails on test
+failures or zero assertions, and is not a production deployment prerequisite.
+`clojure -M:test all` includes both groups. Existing named/namespace selections
+remain explicit full selections. Do not combine `production` or `subagent-harness`
+with other selectors. An unrun experimental lane is not a passing test result.
+
+The immutable compiler/session API and editor integration remain in the production
+gate, along with sandbox bootstrap, network, transport and client tests.

@@ -9,3 +9,7 @@ better-layering/
 
 # Generated ClojureScript editor bundles and test output
 target/lain-editor/
+
+# Python deployment test caches
+__pycache__/
+*.pyc

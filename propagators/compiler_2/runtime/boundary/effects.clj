@@ -400,11 +400,8 @@
                {})
        vals))
 
-(defn- perform-boundary-effects*
-  [state]
-  (let [started (System/nanoTime)
-        state (drain-environment-effects state)
-        requests (->> (outbox-effects (:program/net state))
+(defn- record-boundary-effects* [state started]
+  (let [requests (->> (outbox-effects (:program/net state))
                       collapse-boundary-effects
                       (remove environment-request?))
         state' (reduce (fn [s request]
@@ -426,6 +423,15 @@
                         :effects/boundary
                         (count requests)
                         (temperature/elapsed-ms started))))
+
+(defn record-boundary-effects
+  "Record declarative display/trace/clock requests without executing environment IO."
+  [state]
+  (record-boundary-effects* state (System/nanoTime)))
+
+(defn- perform-boundary-effects* [state]
+  (let [started (System/nanoTime)]
+    (record-boundary-effects* (drain-environment-effects state) started)))
 
 (defn perform-boundary-effects
   [state]

@@ -7,13 +7,13 @@ for tool in clojure node npm cargo python3; do
     exit 1
   fi
 done
-clojure -M:test
+clojure -M:test production
 clojure -M:test graph.lain-editor.protected-server-test
 clojure -M:editor/cljs-test
 node target/lain-editor/tests.js
-node --test examples/lain/subagents/pi_bridge_test.mjs
 cargo test --locked --manifest-path leapfrog-rs/Cargo.toml
 python3 -m unittest discover -s deploy -p 'test_*.py' -v
+python3 -m unittest discover -s deploy/session_sandbox -p 'test_*.py' -v
 python3 -m unittest discover -s benchmark/harbor-assisted -p 'test_*.py'
 python3 -m unittest discover -s benchmark/harbor-pilot -p 'test_*.py'
 python3 -m unittest discover -s benchmark/harbor-tasks -p 'test_*.py'

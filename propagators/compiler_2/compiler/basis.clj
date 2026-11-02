@@ -539,6 +539,17 @@
                                        arg-values
                                        arg-contents))])))
 
+(defn primitive-input-values
+  "Read current primitive argument bases without reconstructing compound objects."
+  [network input-ids]
+  (mapv #(unwrap-compiler-value (net/network-cell-strongest network %)) input-ids))
+
+(defn primitive-reply-messages
+  "Publish an asynchronous reply through the same support/state algebra as a primitive.
+  The caller must validate invocation identity before using the current inputs."
+  [network input-ids output-id result]
+  (primitive-messages (fn [& _] result) network input-ids output-id))
+
 (defn primitive-operator
   "Compile-2-local primitive wrapper that waits for partial inputs."
   [f]

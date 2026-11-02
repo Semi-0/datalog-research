@@ -20,7 +20,7 @@
     (is (= "semantic topology · 2 nodes" (get-in result [:cell :summary])))
     (is (= "graph" (:displayMode displayed)))))
 
-(deftest harness-component-overview
+(deftest ^:experimental-harness harness-component-overview
   (let [result (inspect-source
                 (str "(load-lain \"examples/lain/subagents/composition.lain\")\n"
                      "(define result (trace:high-level (trace:semantic user) "

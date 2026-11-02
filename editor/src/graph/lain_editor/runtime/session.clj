@@ -10,6 +10,9 @@
             [graph.lain-editor.stack.primitives :as stack-primitives]
             [graph.lain-editor.runtime.slot-spawn :as slot-spawn]
             [propagators.compiler-2.runtime :as runtime]
+            [propagators.compiler-2.session :as compiler-session]
+            [propagators.compiler-2.session.host :as compiler-host]
+            [propagators.compiler-2.session.files :as compiler-files]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.compiler-2.runtime.operators.network-history :as history]
             [propagators.compiler-2.runtime.session.file-loader :as loader]
@@ -20,8 +23,11 @@
 (defn close-session! [session]
   (when-let [storage (get @session retained-inspection/storage-key)] (reset! storage {}))
   (semantic-capture/close! session)
-  (runtime/stop-clocks! session)
-  (doseq [trace (vals (:traces @session))] ((:stop trace))))
+  (if-let [boundary (compiler-host/boundary-for session)]
+    (compiler-host/close! boundary)
+    (do
+      (runtime/stop-clocks! session)
+      (doseq [trace (vals (:traces @session))] ((:stop trace))))))
 
 (defn- require-owned! [entry]
   (when (= :external (:ownership entry))
@@ -76,6 +82,53 @@
         (close-session! session)
         (throw error)))))
 
+(defn prepare-compiler
+  "Opt-in immutable compiler backend, using the existing editor capabilities."
+  [source extensions]
+  (when-not (string? source) (throw (ex-info "Source must be a string" {})))
+  (let [sources (atom {})
+        initial (compiler-session/create-session
+                 {:id (random-uuid) :run-id (random-uuid)
+                  :runtime-options {semantic-capture/storage-key sources}
+                  :native-extensions [retention/extension visualization/extension
+                                      display/extension history/extension
+                                      capture-observation/extension stack-primitives/extension]})
+        declarations (compiler-files/prepare-extension!
+                       {:id ::editor-source
+                        :files (into {"main.lain" source}
+                                     (map-indexed (fn [index text]
+                                                    [(str "editor-extension-" index ".lain") text])
+                                                  extensions))})
+        compiled (compiler-session/extend-session initial declarations)
+        boundary (compiler-host/open! compiled)
+        session (compiler-host/runtime-session boundary)]
+    (try
+      (compiler-host/step! boundary)
+      (swap! session assoc semantic-capture/storage-key sources
+             retained-inspection/storage-key (atom {}))
+      {:session session :source source :extensions extensions
+       :compilerSession true
+       :generation (str (random-uuid))
+       :sessionId (str (:id (compiler-session/session-identity compiled)))}
+      (catch Throwable error
+        (compiler-host/close! boundary)
+        (throw error)))))
+
+(defn register-compiler-session!
+  "Expose an independently owned headless boundary through the detached registry.
+  No compilation, subscription installation, or dependency launch occurs here."
+  [detached boundary source]
+  (when-not (string? source) (throw (ex-info "Source must be a string" {})))
+  (let [identity (compiler-session/session-identity (compiler-host/current-session boundary))
+        id (str (:id identity))
+        entry {:session (compiler-host/runtime-session boundary)
+               :source source :extensions [] :compilerSession true
+               :generation (str (random-uuid)) :sessionId id}]
+    (when (contains? @detached id)
+      (throw (ex-info "Compiler session is already registered" {:sessionId id})))
+    (swap! detached assoc id entry)
+    (select-keys entry [:sessionId :generation])))
+
 (defn require-pane [editors id]
   (or (get @editors id) (throw (ex-info "Run this pane first" {:pane id}))))
 
@@ -99,14 +152,24 @@
         (close-session! (:session candidate))
         (throw error)))))
 
-(defn run! [editors {:keys [pane source extensions] :or {extensions []}}]
+(defn run! [editors {:keys [pane source extensions compilerSession] :or {extensions []} :as command}]
   (when-not (string? pane) (throw (ex-info "Pane id required" {})))
   (when-not (and (vector? extensions) (every? string? extensions))
     (throw (ex-info "Extensions must be a vector of source strings" {})))
   (when-let [previous (get @editors pane)] (require-owned! previous))
-  (promote! editors pane (prepare source extensions)))
+  (let [previous (get @editors pane)
+        boundary (when-let [session (:session previous)]
+                   (compiler-host/boundary-for session))]
+    (if (and boundary (= source (:source previous)) (or (not (contains? command :extensions)) (= extensions (:extensions previous))))
+      (do
+        (compiler-host/rerun! boundary (random-uuid))
+        (let [updated (assoc previous :generation (str (random-uuid)))]
+          (swap! editors assoc pane updated)
+          (select-keys updated [:generation :sessionId])))
+      (promote! editors pane ((if (or compilerSession boundary) prepare-compiler prepare)
+                             source extensions)))))
 
-(defn extend! [editors {:keys [pane source generation]}]
+(defn- extend-legacy! [editors {:keys [pane source generation]}]
   (let [previous (require-pane editors pane)
         _ (require-generation previous generation)
         _ (require-owned! previous)
@@ -128,6 +191,20 @@
           (catch Throwable error
             (close-session! candidate)
             (throw error)))))))
+
+(defn extend! [editors {:keys [pane source generation] :as command}]
+  (let [previous (require-pane editors pane)]
+    (require-owned! previous)
+    (require-generation previous generation)
+    (if-let [boundary (compiler-host/boundary-for (:session previous))]
+      (do
+        (compiler-host/extend-source! boundary source)
+        (let [updated (-> previous
+                          (assoc :generation (str (random-uuid)))
+                          (update :extensions conj source))]
+          (swap! editors assoc pane updated)
+          (select-keys updated [:generation :sessionId])))
+      (extend-legacy! editors command))))
 
 (defn spawn-slots! [editors {:keys [pane generation] :as command}]
   (let [previous (require-pane editors pane)

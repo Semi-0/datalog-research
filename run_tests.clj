@@ -1,6 +1,6 @@
 (ns run-tests
   "Run all project test namespaces. Usage:
-  clojure -M:test                          ; default non-benchmark suites
+  clojure -M:test                          ; production suites (experimental harness opt-in)
   clojure -M:test graph                    ; graph/vijual suites
   clojure -M:test differential-dataflow    ; differential dataflow suites
   clojure -M:test leapfrog                 ; leapfrog suites
@@ -13,12 +13,15 @@
             [clojure.test :refer [run-tests]]))
 
 (def propagators-test-namespaces
-  '[propagators.bool4-test
+  '[run-tests-policy-test
+    propagators.bool4-test
     propagators.error-layer-test
     propagators.cell-protocol-test
     propagators.combinator-test
     propagators.compile-2-test
     propagators.compiler-2-application-runtime-test
+    propagators.compiler-2.immutable-session-test
+    propagators.compiler-2.async-operator-builder-test
     propagators.compiler-2-call-graph-test
     propagators.compiler-2-block-premise-test
     propagators.compiler-2-composition-test
@@ -106,6 +109,7 @@
     graph.lain-editor.runtime.extension-error-test
     graph.lain-editor.runtime.detached-session-test
     graph.lain-editor.runtime.external-session-test
+    graph.lain-editor.runtime.immutable-session-test
     graph.lain-editor.inspection.tracer-directions-test
     graph.lain-editor.inspection.semantic-scene-test
     graph.lain-editor.inspection.semantic-gallery-test
@@ -212,8 +216,45 @@
                differential-dataflow-test-namespaces
                graph-test-namespaces)))
 
+(def experimental-harness-test-namespaces
+  '[propagators.compiler-2-subagent-harness-test
+    propagators.compiler-2-harness-primitives-test
+    propagators.compiler-2-harbor-extension-test
+    propagators.compiler-2-harness-effect-boundary-test
+    propagators.compiler-2-socket-extension-test
+    propagators.compiler-2-pi-extension-test
+    propagators.compiler-2-harness-session-test
+    propagators.compiler-2-pi-transport-test
+    propagators.compiler-2-harbor-grading-contract-test
+    graph.lain-editor.runtime.harness-observer-test
+    graph.lain-editor.inspection.harness-assignment-withdrawal-test])
+
+(def mixed-harness-test-namespaces
+  '[propagators.compiler-2-combinator-test
+    graph.lain-editor.inspection.high-level-trace-test
+    graph.lain-editor.inspection.high-level-value-history-test])
+
+(def production-test-namespaces
+  (vec (remove (set experimental-harness-test-namespaces) all-test-namespaces)))
+
+(def compiler-session-test-namespaces
+  '[propagators.compiler-2.immutable-session-test
+    propagators.compiler-2.async-operator-builder-test
+    graph.lain-editor.runtime.immutable-session-test
+    propagators.compiler-2.runtime.session-extension-test
+    propagators.compiler-2-functional-network-gur-test
+    propagators.compiler-2-gur-tms-integration-test
+    propagators.compiler-2-supported-compound-if-test
+    propagators.semantic-trace.high-level-test
+    graph.lain-editor.runtime.detached-session-test
+    graph.lain-editor.inspection.high-level-trace-test])
+
 (def suite-aliases
-  {"tracers" tracer-test-namespaces
+  {"production" production-test-namespaces
+   "all" (vec (distinct (concat all-test-namespaces experimental-harness-test-namespaces)))
+   "subagent-harness" (vec (concat experimental-harness-test-namespaces mixed-harness-test-namespaces))
+   "tracers" tracer-test-namespaces
+   "compiler-session" compiler-session-test-namespaces
    "propagators" propagators-test-namespaces
    "recovered-slices" recovered-slice-test-namespaces
    "relational-experiments" relational-experiment-test-namespaces
@@ -238,9 +279,22 @@
                   (subs arg (count "propagators-"))))]
     nil))
 
-(defn- run-suite [ns-sym]
+(defn selected-test-vars [ns-sym mode]
+  (filter (fn [v]
+            (and (:test (meta v))
+                 (case mode
+                   :production (not (:experimental-harness (meta v)))
+                   :harness (or ((set experimental-harness-test-namespaces) ns-sym)
+                                (:experimental-harness (meta v)))
+                   true)))
+          (vals (ns-interns ns-sym))))
+
+(defn- run-suite [ns-sym mode]
   (require ns-sym)
-  (let [{:keys [pass fail error]} (run-tests ns-sym)]
+  (let [{:keys [pass fail error]}
+        (with-redefs [clojure.test/test-all-vars
+                      (fn [ns] (clojure.test/test-vars (selected-test-vars (ns-name ns) mode)))]
+          (run-tests ns-sym))]
     (println (str ns-sym ":") pass "pass," fail "fail," error "error")
     (when (zero? (+ (or pass 0) (or fail 0) (or error 0)))
       (throw (ex-info "Test suite ran zero assertions" {:namespace ns-sym})))
@@ -252,11 +306,16 @@
                  (legacy-propagators-suite %)
                  [(symbol %)])
             args)
-    all-test-namespaces))
+    production-test-namespaces))
 
 (defn -main [& args]
-  (let [suites (requested-suites args)
-        results (mapv run-suite suites)
+  (let [mode (cond (or (empty? args) (= ["production"] (vec args))) :production
+                   (= ["subagent-harness"] (vec args)) :harness
+                   :else :all)
+        _ (when (and (some #{"production" "subagent-harness"} args) (> (count args) 1))
+            (throw (ex-info "Run production or subagent-harness separately; use all for complete coverage" {:args args})))
+        suites (distinct (requested-suites args))
+        results (mapv #(run-suite % mode) suites)
         pass (reduce + 0 (map :pass results))
         fail (reduce + 0 (map :fail results))
         error (reduce + 0 (map :error results))]

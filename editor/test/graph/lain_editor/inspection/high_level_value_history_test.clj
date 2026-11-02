@@ -93,7 +93,7 @@
     (is (= 8 (data/payload (:value (reader alias)))))
     (is (= 3 (count (:nodes graph))))))
 
-(deftest main-composition-renders-public-field-values-through-the-unchanged-replay-consumer
+(deftest ^:experimental-harness main-composition-renders-public-field-values-through-the-unchanged-replay-consumer
   (let [editors (atom {}) pane "main-fields"]
     (try
       (editor/run! editors {:pane pane :source (slurp "examples/lain/subagents/composition.lain")})

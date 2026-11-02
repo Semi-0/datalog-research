@@ -223,7 +223,7 @@
             (value/contradiction? (binding-value loaded 'answer)))
         "Unsupported predicate values must not be silently treated as truthy or filtered out")))
 
-(deftest harbor-transformer-wrappers-return-facts-without-an-extra-list
+(deftest ^:experimental-harness harbor-transformer-wrappers-return-facts-without-an-extra-list
   (doseq [[wrapper leaf fact]
           [['harbor:derive-assessments 'harbor:observe-assessment :assessment]
            ['harbor:request-preparation 'harbor:prepare :preparation-request]
@@ -259,7 +259,7 @@
                ['evaluation:derive-assignment-updates (copy-test-port ::feedback 1 nil)]]
     :effects []}))
 
-(deftest the-evaluation-framework-has-explicit-independent-interfaces
+(deftest ^:experimental-harness the-evaluation-framework-has-explicit-independent-interfaces
   (let [loaded (session
                 "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
                  (define harbor (make-harbor))
@@ -273,7 +273,7 @@
     (is (value/nothing? (binding-value loaded 'pending)))
     (is (value/nothing? (binding-value loaded 'requests)))))
 
-(deftest framework-construction-exposes-independent-partial-interfaces
+(deftest ^:experimental-harness framework-construction-exposes-independent-partial-interfaces
   (let [loaded (session
                 "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
                  (define first-framework (make-evaluation-framework))
@@ -292,7 +292,7 @@
     (is (value/nothing? (binding-value loaded 'result))
         "Construction does not install policy or fabricate a runner result")))
 
-(deftest assignment-order-and-result-feedback-share-the-declared-ports
+(deftest ^:experimental-harness assignment-order-and-result-feedback-share-the-declared-ports
   (let [loaded (-> (loader/load-session-from-source
                    "0" {:extensions [(synthetic-policy-extension)]})
                   (checked-load! library-source)
@@ -318,7 +318,7 @@
     (is (= [:b :a] (binding-value loaded 'requested))
         "Feedback enriches results without replacing the current user order")))
 
-(deftest runner-results-reach-harbor-grading-through-the-public-port
+(deftest ^:experimental-harness runner-results-reach-harbor-grading-through-the-public-port
   (let [policies (extension/extension-bundle
                   {:id ::runner-result-policies
                    :bindings [['evaluation:incorporate-results (copy-test-port ::execution 1 2)]
@@ -338,7 +338,7 @@
     (is (= :assignment-completed (binding-value loaded 'grading-input))
         "The runner's assignment result reaches trial execution and then Harbor grading demand")))
 
-(deftest orchestrator-preserves-user-runtime-and-harbor-connections
+(deftest ^:experimental-harness orchestrator-preserves-user-runtime-and-harbor-connections
   (let [runner-policies (extension/extension-bundle
                          {:id ::orchestrator-runner-policies
                           :bindings [['evaluation:incorporate-results
