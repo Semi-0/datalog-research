@@ -48,8 +48,8 @@
         freeze observation/frozen-snapshot
         result
         (with-redefs [observation/frozen-snapshot
-                      (fn [network]
-                        (let [snapshot (freeze network)]
+                      (fn [network & [options]]
+                        (let [snapshot (freeze network (or options {}))]
                           (reify observation/NetworkSnapshot
                             (snapshot-neighbors [_ id]
                               (swap! queries conj id)

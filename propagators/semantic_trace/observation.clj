@@ -25,10 +25,7 @@
             [propagators.stdlib.premise-state :as state]))
 
 (defn same-root-evidence? [left right]
-  (and (capture/fragment? left) (capture/fragment? right)
-       (= (capture/support left) (capture/support right))
-       (= (dissoc (capture/scope left :root) :semantic-capture/nested-scopes :graph/modifiers)
-          (dissoc (capture/scope right :root) :semantic-capture/nested-scopes :graph/modifiers))))
+  (capture/same-source? left right))
 
 (defn- acquire-root [source root direction observation-id]
   (try

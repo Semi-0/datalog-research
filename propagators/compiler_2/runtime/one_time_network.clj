@@ -10,7 +10,9 @@
             [propagators.network :as net]
             [propagators.compiler-2.runtime.declaration-effects :as nb]
             [propagators.network-patch :as patch]
-            [propagators.runner :as runner]))
+            [propagators.runner :as runner]
+            [propagators.datastructures.value-projection :as value-projection]
+            [propagators.semantic-trace.capture :as capture]))
 
 (defprotocol TraceProjection
   (project-trace [projection completed-net result-id]))
@@ -89,8 +91,12 @@
     value/contradiction
 
     :else
-    (let [candidate (net/network-cell-strongest network cell-id)]
+    (let [candidate (net/network-cell-strongest network cell-id)
+          payload (value-projection/payload candidate)]
       (cond
+        (capture/fragment? payload)
+        payload
+
         (= candidate basis/list-empty-marker)
         []
 

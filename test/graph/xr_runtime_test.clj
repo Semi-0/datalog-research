@@ -1193,7 +1193,8 @@
     (runtime/refresh-trace-subscriptions! session)
     (let [g-id (cell-id session "g")
           g-value (net/network-cell-strongest (:program/net @session) g-id)
-          trace-graph (data/payload g-value)
+          trace-graph (propagators.semantic-trace.capture/root-graph
+                       (data/payload g-value))
           labels (set (vals (:nodes trace-graph)))
           requests (map :request (vals (:trace/subscriptions @session)))]
       (is (some #(= "d" (:label %)) requests))

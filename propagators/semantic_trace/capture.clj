@@ -32,18 +32,18 @@
        (map? (capture-slot candidate scopes-key))))
 
 (defn fragment
-  "Construct an immutable capture using the public compound interface."
-  [{:keys [observation scopes support provenance]}]
+  "Construct immutable observation data. Captured values remain opaque."
+  [{:keys [observation scopes support provenance premise-state]}]
   (when (nil? observation)
     (throw (ex-info "Semantic capture requires an observation identity" {})))
-  (object/as-accessor-network
-   {::type capture-tag
-    observation-key observation
-    scopes-key (into {} (map (fn [[id graph]]
-                              [id (graph-facts/from-graph observation id graph (or support #{}))]))
-                     (or scopes {}))
-    support-key (or support #{})
-    provenance-key (vec (or provenance []))}))
+  {::type capture-tag
+   observation-key observation
+   scopes-key (into {} (map (fn [[id graph]]
+                             [id (-> (graph-facts/from-graph observation id graph (or support #{}))
+                                     (graph-facts/update-premise-state (or premise-state #{})))]))
+                    (or scopes {}))
+   support-key (or support #{})
+   provenance-key (vec (or provenance []))})
 
 (defn observation-id [capture] (capture-slot capture observation-key))
 (defn scopes [capture] (capture-slot capture scopes-key))
@@ -51,12 +51,26 @@
 (defn support [capture] (capture-slot capture support-key))
 (defn provenance [capture] (capture-slot capture provenance-key))
 
+(defn same-source?
+  "Reuse a root acquisition only when its source facts, support and state agree."
+  [left right]
+  (and (fragment? left) (fragment? right)
+       (some? (scope left :root)) (some? (scope right :root))
+       (= (graph-facts/source-evidence (scope left :root))
+          (graph-facts/source-evidence (scope right :root)))))
+
 (defn equivalent?
   "Compare capture facts independently of compound accessor topology."
   [left right]
   (if (and (fragment? left) (fragment? right))
     (and (= (observation-id left) (observation-id right))
-         (= (scopes left) (scopes right))
+         (= (set (keys (scopes left))) (set (keys (scopes right))))
+         (every? (fn [scope-id]
+                   (let [a (scope left scope-id) b (scope right scope-id)]
+                     (if (and (graph-facts/fact-graph? a) (graph-facts/fact-graph? b))
+                       (graph-facts/equivalent? a b)
+                       (= a b))))
+                 (keys (scopes left)))
          (= (support left) (support right))
          (= (provenance left) (provenance right)))
     (= left right)))
@@ -69,6 +83,15 @@
 
 (defn root-graph [candidate]
   (if (fragment? candidate) (scope candidate :root) candidate))
+
+(defn freeze-result
+  "Capture graph projections from their frozen source; retain existing captures."
+  [source result]
+  (cond
+    (fragment? result) result
+    (semantic-graph? result)
+    (capture-fragment source {:graph result :scope :root :refinement :initial})
+    :else result))
 
 (defn update-scope
   "Apply a graph operation to one captured scope without losing capture facts."
@@ -143,9 +166,8 @@
     (= left right) left
     (value/nothing? left) right
     (value/nothing? right) left
-    (= (peek path) :propagators.semantic-trace.graph-facts/assertions)
-    (graph-facts/join-assertions left right)
-    (value/nothing? right) left
+    (and (graph-facts/fact-graph? left) (graph-facts/fact-graph? right))
+    (graph-facts/join left right #(join-information path %1 %2))
     (or (value/contradiction? left) (value/contradiction? right))
     (join-conflict path left right)
     (and (= :edges (peek path))

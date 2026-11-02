@@ -42,7 +42,9 @@
   (let [v (data/payload candidate)]
     (cond
       (history/replay? v) (str (count (history/field v :replay/frames)) " recorded observations")
-      (capture/semantic-graph? v) (str "semantic topology · " (count (:nodes (capture/root-graph v))) " nodes")
+      (capture/semantic-graph? v) (str "semantic topology · "
+                                       (count (:nodes (high-level/display-graph (capture/root-graph v))))
+                                       " nodes")
       (and (net/net? v) (not (compound/accessor-network? v))
            (empty? (compound/public-slot-keys v))) (str "network · " (count (net/net-env v)) " nodes")
       :else (value-labels/format-value v))))

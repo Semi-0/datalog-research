@@ -1,6 +1,7 @@
 (ns propagators.semantic-trace.graph-facts
   "Observation-qualified graph facts. Every assertion uses the existing TTMS domain.
   Graph maps are immutable acquisition projections; modifiers never remove their facts."
+  (:refer-clojure :exclude [derive])
   (:require [clojure.set :as set]
             [propagators.cells.value :as value]
             [propagators.datastructures.layered-value :as datum]
@@ -34,18 +35,28 @@
   Legacy call-graph relations are included without flattening captured values."
   [observation scope graph premises]
   (if (contains? graph ::assertions)
-    graph
+    (do
+      (when-not (= [observation scope] [(::observation graph) (::scope graph)])
+        (throw (ex-info "Graph facts belong to another observation or scope" {})))
+      graph)
     (let [entry (fn [predicate tuple base]
                   (fact observation scope predicate tuple base premises))
           claims (concat
+                  [(entry :scope/available [scope] true)]
                   (map (fn [[id label]] (entry :node/label [id label] true)) (:nodes graph))
                   (map (fn [[id kind]] (entry :node/kind [id kind] true)) (:node-kinds graph))
+                  (map (fn [[id _]] (entry :node/available [id] true)) (:values graph))
                   (map (fn [[id v]] (entry :node/value [id] v)) (:values graph))
                   (map (fn [[id v]] (entry :node/content [id] v)) (:contents graph))
                   (map #(entry :graph/edge % true) (:edges graph))
+                  (mapcat (fn [[source targets]]
+                            (map #(entry :node/alias [source %] true) targets))
+                          (:node-aliases graph))
                   (mapcat (fn [[predicate tuples]]
                             (map #(entry predicate % true) tuples)) (:graph/facts graph)))]
-      (let [table (into {} claims)]
+      (let [table (reduce (fn [table [id content]]
+                            (join-assertions table {id content}))
+                          {} claims)]
         (assoc graph ::observation observation ::scope scope
                      ::assertions table ::source-ids (set (keys table)) ::states #{})))))
 
@@ -93,6 +104,18 @@
   (into {} (map (fn [[id content]] [id (with-current-state graph content)]))
         (assertions graph)))
 
+(defn source-evidence
+  "Acquisition input evidence, without the identity assigned to the observation.
+  This is a reuse key, not cross-observation graph equivalence or an ordering."
+  [graph]
+  {:premise-state (premise-state graph)
+   :assertions (into {} (map (fn [[id content]]
+                              [(subvec id 1) (with-current-state graph content)]))
+                     (source-assertions graph))
+   :metadata (apply dissoc (source-projection graph)
+                    [:nodes :edges :node-kinds :values :contents :node-aliases :graph/facts
+                     :semantic-capture/nested-scopes :graph/modifiers])})
+
 (defn equivalent? [left right]
   (and (= [(observation left) (scope left)] [(observation right) (scope right)])
        (= (premise-state left) (premise-state right))
@@ -106,19 +129,35 @@
        (= (canonical-assertions newer)
           (join-assertions (canonical-assertions older) (canonical-assertions newer)))))
 
-(defn claim
-  "Add a qualified assertion. Independent supports remain independent TTMS observations."
-  [graph predicate tuple base premises states]
-  (let [id (assertion-id (::observation graph) (::scope graph) predicate tuple)]
-    (-> graph
-        (update ::assertions join-assertions {id (assertion base premises states)})
-        (update ::source-ids (fnil conj #{}) id)
-        (update ::states support/join states))))
+(defn update-premise-state [graph states]
+  (update graph ::states support/join states))
 
-(declare relations)
+(defn claim
+  "Add a qualified assertion. Independent supports remain independent TTMS observations.
+  Adding membership to an explicitly complete predicate requires advancing or
+  withdrawing its completeness evidence first."
+  [graph predicate tuple base premises states]
+  (let [id (assertion-id (observation graph) (scope graph) predicate tuple)
+        updated (update-premise-state graph (support/join premises states))
+        completeness (current updated (assertion-id (observation graph) (scope graph)
+                                                    :scope/complete [predicate]))
+        prior (current graph id)]
+    (when (and completeness (true? (base-value completeness))
+               (not (value/unusable? base))
+               (or (nil? prior) (value/unusable? (base-value prior))))
+      (throw (ex-info "Advance completeness before adding predicate membership"
+                      {:predicate predicate :tuple tuple})))
+    (-> updated
+        (update ::assertions join-assertions {id (assertion base premises states)})
+        (update ::source-ids (fnil conj #{}) id))))
 
 (defn declarations [graph]
-  (into #{} (map first) (get (relations graph) :view/declaration #{})))
+  (into #{}
+        (keep (fn [[[_ _ predicate tuple :as id] _]]
+                (when (and (= :view/declaration predicate)
+                           (not (value/unusable? (base-value (current graph id)))))
+                  (first tuple))))
+        (assertions graph)))
 
 (defn declare-view
   ([graph declaration] (declare-view graph declaration #{} #{}))
@@ -151,14 +190,56 @@
 (defn source-relations [graph]
   (relations (assoc graph ::assertions (source-assertions graph))))
 
+(defn current-graph
+  "Interpret current facts as graph fields while retaining the complete fact table.
+  Captured payloads are returned by reference, never recursively reconstructed."
+  [graph]
+  (if-not (fact-graph? graph)
+    graph
+    (let [edb (relations graph)
+          mapping (fn [predicate]
+                    (reduce (fn [result [id v]]
+                              (update result id (fnil merge-base value/nothing) v))
+                            {} (get edb predicate #{})))
+          payloads (fn [predicate]
+                     (reduce-kv
+                      (fn [result [_ _ p [node] :as id] content]
+                        (if (not= p predicate)
+                          result
+                          (let [v (current graph id) base (base-value v)]
+                            (if (or (not (value/unusable? base))
+                                    (value/contradiction? base)
+                                    (seq (ttms/referenced-sources content))
+                                    (contains? (get edb :node/available #{}) [node]))
+                              (assoc result node
+                                     (if (and (value/unusable? base)
+                                              (or (value/contradiction? base)
+                                                  (seq (ttms/referenced-sources content))))
+                                       v base))
+                              result))))
+                      {} (assertions graph)))]
+      (assoc graph
+             :nodes (mapping :node/label) :node-kinds (mapping :node/kind)
+             :values (payloads :node/value) :contents (payloads :node/content)
+             :edges (vec (sort-by pr-str (get edb :graph/edge #{})))
+             :node-aliases (reduce (fn [result [source target]]
+                                    (update result source (fnil conj #{}) target))
+                                  {} (get edb :node/alias #{}))
+             :graph/facts edb))))
+
 (defn- states-of [v]
   (if (datum/layer-present? v :premise-state)
     (datum/layer-value v :premise-state) #{}))
 
-(defn- justifications [graph id]
-  (when-not (and (= (observation graph) (first id)) (contains? (assertions graph) id))
+(defn- contributor [graph id]
+  (when-not (and (vector? id) (= 4 (count id))
+                 (= (observation graph) (first id)) (= (scope graph) (second id))
+                 (contains? (assertions graph) id))
     (throw (ex-info "Unknown or foreign graph-fact contributor" {:contributor id})))
-  (let [v (current graph id)]
+  (current graph id))
+
+(defn- justifications [graph id]
+  (let [v (contributor graph id)]
     (when (value/unusable? (base-value v))
       (throw (ex-info "Unavailable graph-fact contributor" {:contributor id})))
     (keep (fn [row]
@@ -169,24 +250,71 @@
               (when-not (value/unusable? (base-value candidate)) candidate)))
           (ttms/observations (get (assertions graph) id)))))
 
-(defn contributor-evidence [graph id] (get (::derivations graph {}) id #{}))
+(defn contributor-evidence [graph id]
+  (into #{} (keep (fn [[output contributors]] (when (= id output) contributors)))
+        (get (relations graph) :fact/derivation #{})))
+
+(defn- claim-derived [graph {:keys [predicate tuple base contributors]} premises states]
+  (let [id (assertion-id (observation graph) (scope graph) predicate tuple)]
+    (-> graph
+        (claim predicate tuple base premises states)
+        (claim :fact/derivation [id (set contributors)]
+               (if (value/unusable? base) base true) premises states)
+        (assoc ::source-ids (::source-ids graph)))))
 
 (defn derive
   "Require explicit contributors and retain every independent justification.
   Captured values remain opaque; the adapter does not infer evidence from shape."
-  [graph {:keys [predicate tuple base contributors]}]
+  [graph {:keys [contributors] :as receipt}]
   (when-not (seq contributors)
     (throw (ex-info "Derived graph fact requires contributor identities" {})))
   (let [choices (mapv #(justifications graph %) contributors)
         alternatives (reduce (fn [rows choices]
                                (for [row rows choice choices] (conj row choice)))
-                             [[]] choices)
-        id (assertion-id (observation graph) (scope graph) predicate tuple)
-        result (reduce (fn [g inputs]
-                         (claim g predicate tuple base
-                                (apply support/combine (map datum/support-of inputs))
-                                (apply support/join (map states-of inputs))))
-                       graph alternatives)]
-    (-> result
-        (assoc ::source-ids (::source-ids graph))
-        (update-in [::derivations id] (fnil conj #{}) (set contributors)))))
+                             [[]] choices)]
+    (reduce (fn [g inputs]
+              (claim-derived g receipt
+                             (apply support/combine (map datum/support-of inputs))
+                             (apply support/join (map states-of inputs))))
+            graph alternatives)))
+
+(defn capture-value
+  "Transport captured values, including meaningful supported bottom or conflict.
+  Logical relationship derivation remains strict about usable contributors."
+  [graph {:keys [predicate contributors] :as receipt}]
+  (when-not (and (contains? #{:view/value :view/content} predicate) (seq contributors))
+    (throw (ex-info "Captured values require a value predicate and contributors" {})))
+  (let [inputs (mapv #(contributor graph %) contributors)
+        unavailable (filter value/unusable? (map base-value inputs))]
+    (if (empty? unavailable)
+      (derive graph receipt)
+      (let [conflicts (filter value/contradiction? unavailable)
+            base (if (seq conflicts)
+                   (value/contradiction-with-provenance
+                    (into #{} (mapcat value/contradiction-provenance) conflicts))
+                   value/nothing)]
+        (claim-derived graph (assoc receipt :base base)
+                       (apply support/combine (map datum/support-of inputs))
+                       (apply support/join (map states-of inputs)))))))
+
+(defn complete
+  "Explicitly close a predicate at the supplied producer revisions."
+  [graph predicate premises states]
+  (claim graph :scope/complete [predicate] true premises states))
+
+(defn derive-absence
+  "Absence requires a current, explicitly supported completeness assertion.
+  Positive rules never infer absence from a currently observed prefix."
+  [graph {:keys [predicate tuple base absent completeness contributors] :or {base true}}]
+  (let [[absent-predicate absent-tuple] absent
+        expected (assertion-id (observation graph) (scope graph)
+                               :scope/complete [absent-predicate])
+        complete-value (when (= expected completeness) (current graph completeness))
+        positive (current graph (assertion-id (observation graph) (scope graph)
+                                              absent-predicate absent-tuple))]
+    (when-not (and complete-value (true? (base-value complete-value)))
+      (throw (ex-info "Absence requires current completeness evidence" {:absent absent})))
+    (when (and positive (not (value/nothing? (base-value positive))))
+      (throw (ex-info "Predicate membership is present or contradictory" {:absent absent})))
+    (derive graph {:predicate predicate :tuple tuple :base base
+                   :contributors (conj (set contributors) completeness)})))

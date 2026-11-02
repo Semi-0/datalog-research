@@ -13,7 +13,8 @@
             [propagators.semantic-trace :as semantic-trace]))
 
 (defn- current-source-value [network id]
-  (data/payload (net/network-cell-strongest network id)))
+  (propagators.semantic-trace.capture/root-graph
+   (data/payload (net/network-cell-strongest network id))))
 
 (deftest display-normalizes-raw-values-without-changing-semantic-values
   (let [display-id :display
@@ -26,6 +27,22 @@
     (is (= graph (data/payload (merge/strongest-value
                                (display/update-value display-id display-id 3 graph) net/empty-net))))
     (is (identical? second-update (display/update-value display-id display-id 4 second-update)))))
+
+(deftest session-trace-facts-retain-the-publication-evidence
+  (let [event (subscriptions/result-publication :subscription :target 0
+                {:semantic-trace/graph true :nodes {:a "A"} :edges []})
+        evidence (merge/strongest-value event net/empty-net)
+        captured (data/payload evidence)
+        graph (propagators.semantic-trace.capture/root-graph captured)
+        row (propagators.semantic-trace.graph-facts/current
+             graph (propagators.semantic-trace.graph-facts/assertion-id
+                     (propagators.semantic-trace.capture/observation-id captured)
+                     :root :scope/available [:root]))]
+    (is (seq (propagators.datastructures.layered-value/support-of evidence)))
+    (is (= (propagators.datastructures.layered-value/support-of evidence)
+           (propagators.datastructures.layered-value/support-of row)))
+    (is (= #{:a}
+           (set (keys (:nodes (propagators.semantic-trace.high-level/display-graph captured))))))))
 
 (deftest language-trace-publishes-reactively-without-tui
   (let [session (state/new-session)

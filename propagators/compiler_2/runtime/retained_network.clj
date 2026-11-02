@@ -13,6 +13,7 @@
             [propagators.datastructures.support-collection :as collection]
             [propagators.experimental.ttms-publication :as publication]
             [propagators.experimental.visualization.data :as data]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.graph :as graph]
             [propagators.gur :as gur]
             [propagators.message :refer [message]]
@@ -29,12 +30,14 @@
     (let [base (datum/layer-value strongest :base)]
       (if (evidence/evidence-set? base) (evidence/strongest base) base))))
 
+(defn source-datum [parent id base status]
+  (publication/next-source-datum
+   id (net/network-cell-strongest parent id) base status))
+
 (defn publish
   ([parent id base] (publish parent id base :active))
   ([parent id base status]
-   (message id (collection/content
-                 (publication/next-source-datum
-                   id (net/network-cell-strongest parent id) base status)))))
+   (message id (collection/content (source-datum parent id base status)))))
 
 (defn snapshot-view
   "Remove every retained observer's storage values before freezing or capturing."
@@ -80,13 +83,17 @@
     (advance private updates)))
 
 (defn- projected-result [private result-id]
-  ;; This is the explicit finite observation boundary, not computation dispatch.
-  (let [view (net/net-with-env private
-               (into {} (map (fn [[id entry]]
-                               [id (if (cell/cell? entry)
-                                     (assoc entry :strongest (data/payload (cell/cell-strongest entry)))
-                                     entry)])) (net/net-env private)))]
-    (once/project-trace (once/compound-projection) view result-id)))
+  (let [result (data/payload (net/network-cell-strongest private result-id))]
+    (if (capture/fragment? result)
+      ;; A capture already owns frozen values. Preserve that ownership and its
+      ;; accessors instead of recursively materializing an observation again.
+      result
+      (let [view (net/net-with-env private
+                   (into {} (map (fn [[id entry]]
+                                   [id (if (cell/cell? entry)
+                                         (assoc entry :strongest (data/payload (cell/cell-strongest entry)))
+                                         entry)])) (net/net-env private)))]
+        (once/project-trace (once/compound-projection) view result-id)))))
 
 (defn step
   "Return the next layered state and sample. Existing state is never mutated."
@@ -102,19 +109,23 @@
                    (builder/ensure-cell snapshot-id)
                    (builder/install-cell root-id root root)
                    (builder/ensure-cell result-id)))
-        frozen (observation/frozen-snapshot (snapshot-view parent) {:output owner})
+        observation-id (random-uuid)
+        frozen (observation/frozen-snapshot (snapshot-view parent)
+                 {:output owner :observation/id observation-id})
         updates [(publish base snapshot-id frozen)]
         effects (if reuse updates
                   (into [(gur/apply-closure-effect callback
                            (into [context snapshot-id root-id] arguments) result-id)] updates))
         completed (advance base effects)
+        sample (capture/freeze-result frozen (projected-result completed result-id))
         callable-captures (into #{} (filter (fn [id]
                                             (and (seq (:outputs (get (net/net-graph completed) id)))
                                                  (application/compiler-callable?
                                                    (net/network-cell-strongest parent id))))) captured)
         next-key (compilation-key parent callback
                    (obj/compound-object {:capture/ids callable-captures}))]
-    {:value (projected-result completed result-id)
+    {:value sample
+     :source (when (= observation-id (capture/observation-id sample)) frozen)
      :state (obj/compound-object
               {:base completed :compilation/hash (hash next-key) :compilation/key next-key
                :parent/ids captured :capture/ids callable-captures :observation/request request})

@@ -204,9 +204,10 @@
      (dataflow/dataflow-graph source-net (capture/root-graph graph)) source-net))
   (snapshot-roots [_ roots]
     (let [output (:output observation)
-          selected ((relationships/connected-root-node-keys roots #{output}) source-net)]
+          origins (facts/root-seeds source-net roots)
+          selected ((relationships/connected-root-node-keys origins #{output}) source-net)]
       (-> (relationships/snapshot source-net selected)
-          (assoc :dataflow/seeds (set (map #(vector [:outer] %) (facts/root-seeds source-net roots)))
+          (assoc :dataflow/seeds (set (map #(vector [:outer] %) origins))
                  :dataflow/observer-outputs #{[[:outer] output]})
           (captured-slot-values source-net))))
   (snapshot-children [_ parent]

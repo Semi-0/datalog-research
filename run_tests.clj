@@ -72,6 +72,8 @@
     propagators.observation-transport-test
     propagators.reducer-cell-test
     propagators.runner-test
+    propagators.semantic-trace.graph-facts-test
+    propagators.semantic-trace.history-facts-test
     propagators.semantic-trace.capture-test
     propagators.semantic-trace.graph-union-test
     propagators.semantic-trace.high-level-test
@@ -90,7 +92,9 @@
     propagators.tms-test])
 
 (def graph-test-namespaces
-  '[graph.lain-editor.inspection.high-level-trace-test
+  '[graph.lain-editor.inspection.composable-tracer-test
+    graph.lain-editor.runtime.harness-observer-test
+    graph.lain-editor.inspection.high-level-trace-test
     graph.lain-editor.inspection.high-level-value-history-test
     graph.lain-editor.inspection.harness-assignment-withdrawal-test
     graph.lain-editor.inspection.retained-relationship-test
@@ -122,6 +126,33 @@
     propagators.compiler-2.runtime.boundary-test
     graph.vijual.compiler-2-demo-test
     graph.vijual.render-test])
+
+(def tracer-test-namespaces
+  '[propagators.semantic-trace.graph-facts-test
+    propagators.semantic-trace.history-facts-test
+    propagators.semantic-trace.capture-test
+    propagators.semantic-trace.graph-union-test
+    propagators.semantic-trace.high-level-test
+    propagators.support-test
+    propagators.support-collection-test
+    propagators.compiler-2-network-observation-test
+    propagators.compiler-2.runtime.semantic-traversal-test
+    propagators.compiler-2.runtime.retained-network-test
+    propagators.compiler-2-call-graph-test
+    propagators.dataflow-projection-test
+    propagators.compiler-2.runtime.boundary-test
+    propagators.compiler-2.runtime.integration.boundary-test
+    propagators.compiler-2.runtime.trace-cycle-test
+    graph.lain-editor.inspection.composable-tracer-test
+    graph.lain-editor.inspection.high-level-trace-test
+    graph.lain-editor.inspection.high-level-value-history-test
+    graph.lain-editor.inspection.retained-relationship-test
+    graph.lain-editor.inspection.tracer-directions-test
+    graph.lain-editor.inspection.semantic-scene-test
+    graph.lain-editor.inspection.recursive-semantic-test
+    graph.lain-editor.inspection.network-replay-test
+    graph.lain-editor.inspection.tracer-gallery-test
+    graph.lain-editor.runtime.harness-observer-test])
 
 (def recovered-slice-test-namespaces
   '[graph.xr-inspection-test
@@ -167,7 +198,8 @@
                graph-test-namespaces)))
 
 (def suite-aliases
-  {"propagators" propagators-test-namespaces
+  {"tracers" tracer-test-namespaces
+   "propagators" propagators-test-namespaces
    "recovered-slices" recovered-slice-test-namespaces
    "relational-experiments" relational-experiment-test-namespaces
    "rule-fixedpoint" rule-fixedpoint-test-namespaces

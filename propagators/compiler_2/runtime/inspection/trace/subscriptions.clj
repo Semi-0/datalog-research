@@ -7,7 +7,11 @@
             [propagators.core :as core]
             [propagators.stdlib.source-publication :as publication]
             [propagators.message :refer [message]]
-            [propagators.semantic-trace :as semantic-trace]))
+            [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.capture :as capture]
+            [propagators.cells.value :as value]
+            [propagators.datastructures.layered-value :as datum]
+            [propagators.stdlib.premise-state :as premises]))
 
 (def mutate-session! state/mutate-session!)
 
@@ -21,7 +25,19 @@
 
 (defn result-publication
   [subscription-id target-id epoch graph]
-  (publication/active subscription-id epoch graph))
+  (let [event (publication/active subscription-id epoch graph)]
+    (if (value/unusable? graph)
+      event
+      (let [evidence (publication/datum subscription-id epoch graph :active)]
+        (publication/active
+         subscription-id epoch
+         (capture/fragment
+          {:observation [::observation subscription-id epoch]
+           :scopes {:root graph}
+           :support (datum/support-of evidence)
+           :premise-state (premises/states-of evidence)
+           :provenance [{:capture/source subscription-id :capture/revision epoch
+                         :capture/target target-id}]}))))))
 
 (defn result-epoch
   [result]

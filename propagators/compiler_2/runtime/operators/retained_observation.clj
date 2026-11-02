@@ -10,6 +10,8 @@
             [propagators.datastructures.compound-object :as obj]
             [propagators.datastructures.layered-value :as datum]
             [propagators.experimental.visualization.data :as data]
+            [propagators.semantic-trace.capture :as capture]
+            [propagators.semantic-trace.retention :as retention]
             [propagators.gur :as gur]
             [propagators.network :as net]
             [propagators.propagator :as prop]
@@ -30,10 +32,17 @@
         (throw (ex-info "observe-network-retained callback must be a network" {}))
         :else
         (let [result (retained/step parent state callback context root arguments output token)
+              previous (data/payload (net/network-cell-strongest parent output))
               messages [(retained/publish parent state-id (:state result))]]
-          (if (value/nothing? (:value result))
+          (cond
+            (capture/same-source? previous (:value result)) messages
+            (value/nothing? (:value result))
             (conj messages (retained/publish parent output value/nothing :retracted))
-            (conj messages (retained/publish parent output (:value result)))))))))
+            :else
+            (into messages
+                  (retention/publication
+                   (:source result) (:value result) output
+                   (retained/source-datum parent output (:value result) :active)))))))))
 
 (defn install
   ([parent inputs output context]

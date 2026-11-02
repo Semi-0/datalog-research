@@ -10,13 +10,16 @@
             [propagators.compiler-2.runtime.operators.relationship-observer :as original]
             [propagators.compiler-2.model.operator-value :as operators]
             [propagators.experimental.visualization.data :as data]
+            [propagators.semantic-trace.capture :as capture]
+            [propagators.semantic-trace.graph-facts :as facts]
             [propagators.network :as net]
             [propagators.network-builder :as builder]
             [propagators.ids :as ids]))
 
 (def directory "examples/lain/semantic_tracing/retained/")
 (defn- graph [pane]
-  (data/payload (net/network-cell-strongest (:program/net @(:session pane)) display/cell-id)))
+  (capture/root-graph
+   (data/payload (net/network-cell-strongest (:program/net @(:session pane)) display/cell-id))))
 
 (deftest retained-gallery-has-correct-scope-and-readable-values
   (let [document (json/read-json (slurp (str directory "workspace.json")))
@@ -31,7 +34,7 @@
               result (inspection/inspect editors {:pane id :generation (:generation pane) :display display})]
           (is (seq (:nodes g)))
           (is (= "ready" (:status result)))
-          (is (contains? (:graph/modifiers g) :cell-values))
+          (is (facts/enabled? g :with-values))
           (case id
             "09-semantic" (do (is (= :root (:dataflow/scope g)))
                                (is (labels "combine")) (is (not (labels "*"))))
@@ -60,11 +63,14 @@
           (is (= [true] @compiled))
           (is (identical? network (:program/net @session)))
           (swap! session assoc :program/net (builder/install-cell network (ids/new-node-id) 42 42))
-          (is (= first (child/child-graph session parent)))
+          (is (= (facts/source-relations (capture/root-graph first))
+                 (facts/source-relations
+                  (capture/root-graph (child/child-graph session parent))))
+              "Resampling may assign a new observation; its source relations stay unchanged")
           (is (= [true false] @compiled))
           (is (= #{"*" "+"}
                  (into #{} (comp (filter #(contains? #{"*" "+"} (str %))) (map str))
-                       (vals (:nodes first)))))))
+                       (vals (:nodes (capture/root-graph first))))))))
       (finally (editor/close-session! session)))
     (is (empty? @(get @session child/storage-key)))))
 

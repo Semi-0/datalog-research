@@ -11,6 +11,7 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.high-level :as high-level]
             [propagators.visualizer :as visualizer]))
 
 (defn- effect-slot-key [effect-id]
@@ -51,7 +52,8 @@
 
 (defn- trace-graph-value
   [v]
-  (boundary-value semantic-trace/semantic-trace-graph? v))
+  (when-let [graph (boundary-value semantic-trace/semantic-trace-graph? v)]
+    (high-level/display-graph graph)))
 
 (defn- view-declaration-value
   [v]

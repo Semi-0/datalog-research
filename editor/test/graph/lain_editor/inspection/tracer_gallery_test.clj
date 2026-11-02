@@ -179,8 +179,9 @@
             (when (= "12-call-graph" (:id pane))
               (let [network (:program/net
                              @(:session (get @editors (:id pane))))
-                    graph (display/payload
-                           (net/network-cell-strongest network display/cell-id))
+                    graph (propagators.semantic-trace.capture/root-graph
+                           (display/payload
+                            (net/network-cell-strongest network display/cell-id)))
                     statuses (set (keep :call/status (vals (:values graph))))]
                 (is (= "callgraph" (get-in result [:graph :representation])))
                 (is (= #{:potential :realized} statuses))

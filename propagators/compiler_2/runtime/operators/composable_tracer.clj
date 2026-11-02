@@ -13,19 +13,25 @@
             [propagators.network :as net]
             [propagators.network-patch :as patch]
             [propagators.propagator :as prop]
-            [propagators.semantic-trace.tracer-modifiers :as modifiers]))
+            [propagators.semantic-trace.tracer-modifiers :as modifiers]
+            [propagators.semantic-trace.facts :as facts]
+            [propagators.semantic-trace.high-level :as high-level]))
 
 (defn- tracer [mode selected]
   (operator/operator-closure
-   {:name [::tracer mode selected]
+   {:name [::tracer mode]
     :application-installer
     (fn [network roots output context]
       (when-not (= 1 (count roots))
         (throw (ex-info "A configured tracer expects one root" {})))
-      (let [captured (gur/stable-node-id [::acquisition mode roots])
-            prepared (declarations/ensure-cell network captured)
-            [installed observed _] (retained/install prepared mode roots captured context)
-            id (gur/stable-node-id [::view mode roots selected output])
+      (let [sources (vec (sort-by pr-str (facts/root-seeds network roots)))
+            captured (gur/stable-node-id [::acquisition mode sources])
+            [installed observed _]
+            (if (contains? (net/net-env network) captured)
+              [network [] captured]
+              (retained/install (declarations/ensure-cell network captured)
+                                mode sources captured context))
+            id (gur/stable-node-id [::view mode sources selected output])
             activate (fn [_ _ current]
                        (let [content (net/network-cell-content current captured)
                              graph (data/payload (net/network-cell-strongest current captured))]
@@ -33,7 +39,7 @@
                            (data/state-messages output [content])
                            [(message output
                                      (data/supported [::view output]
-                                                     (modifiers/apply-modifiers graph selected)
+                                                     (high-level/derive-view (modifiers/apply-modifiers graph selected))
                                                      #{captured} [content]))])))
             [pid result] ((prop/construct-propagator id ::view activate [captured] [output]) installed)]
         [(declarations/register-props result [pid]) (conj (vec observed) pid) output]))}))
@@ -51,7 +57,7 @@
           (some value/nothing? values) (data/state-messages output contents)
           :else [(message output
                           (data/supported [::factory output]
-                                          (tracer mode (modifiers/normalize values))
+                                          (tracer mode (modifiers/normalize-supported values contents))
                                           (set inputs) contents))])))}))
 
 (defn- scan-selection

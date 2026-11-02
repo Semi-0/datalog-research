@@ -10,6 +10,8 @@
             [propagators.network :as net]
             [propagators.network-patch :as patch]
             [propagators.semantic-trace :as trace]
+            [propagators.semantic-trace.capture :as capture]
+            [propagators.semantic-trace.graph-facts :as facts]
             [propagators.stdlib.premise-state :as state]))
 
 (defn inbox-id [output] (gur/stable-node-id [::inbox output]))
@@ -20,9 +22,12 @@
                            (state/states-of previous)))))
 
 (defn graph-of
-  "Read a composed graph's public base, leaving plain graph inputs unchanged."
+  "Read the source projection of a composed graph, leaving plain inputs unchanged."
   [input]
-  (if (datum/layer-present? input :base) (datum/layer-value input :base) input))
+  (let [base (if (datum/layer-present? input :base) (datum/layer-value input :base) input)]
+    (if (capture/fragment? base)
+      (facts/source-projection (capture/root-graph base))
+      base)))
 
 (defn- exclusive-merge [left right]
   (cond
@@ -50,7 +55,18 @@
      :support (apply support/combine (map datum/support-of current))
      :states (apply support/join (map state/states-of current))}))
 
-(defn- publish-result [network output graph dependencies states]
+(defn- captured-graph [graph output premise dependencies states]
+  (if (value/unusable? graph)
+    graph
+    (let [observation [::observation output (:timestamp premise)]
+          premises (conj dependencies premise)
+          scope (-> (facts/from-graph observation :root graph premises)
+                    (facts/update-premise-state (conj states premise)))]
+      (capture/fragment
+       {:observation observation :scopes {:root scope} :support premises
+        :provenance [{:capture/source output :capture/revision (:timestamp premise)}]}))))
+
+(defn- publish-result [network output graph dependencies states captured?]
   (let [previous (net/network-cell-strongest network output)
         without-output #(set (remove (fn [p] (= output (:source p))) %))]
     (if (and (= graph (graph-of previous))
@@ -58,9 +74,12 @@
              (= states (without-output (state/states-of previous))))
       []
       (let [premise {:source output :timestamp (revision previous output)
-                     :premises-status :active}]
+                     :premises-status :active}
+            base (if captured?
+                   (captured-graph graph output premise dependencies states)
+                   graph)]
         [(message/message output
-                          (collection/content {:base graph
+                          (collection/content {:base base
                                                :support (conj dependencies premise)
                                                :premise-state (conj states premise)}))]))))
 
@@ -71,7 +90,7 @@
                          network (:cell (object/accessor-source-slot-value slots %)))
                        (sort-by pr-str (object/accessor-slot-keys slots)))
           {:keys [graph support states]} (compose-current inputs)]
-      (publish-result network output graph support states))))
+      (publish-result network output graph support states false))))
 
 (defn publish
   "Publish a graph contribution owned by producer. Retraction uses `nothing`.
@@ -109,8 +128,8 @@
                                            :premise-state (conj states premise)}))])))
 
 (defn publish-derived
-  "Publish an already composed graph with its input support and states."
+  "Publish an immutable, observation-qualified graph with its input support and states."
   [network output graph inputs]
   (publish-result network output graph
                   (apply support/combine (map datum/support-of inputs))
-                  (apply support/join (map state/states-of inputs))))
+                  (apply support/join (map state/states-of inputs)) true))

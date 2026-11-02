@@ -8,6 +8,7 @@
             [propagators.compiler-2.runtime.operators.network-traversal :as traversal]
             [propagators.compiler-2.runtime.session.input :as input]
             [propagators.datastructures.layered-value :as datum]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.datastructures.membership-collection :as membership]
             [propagators.experimental.visualization.data :as data]
             [propagators.gur :as gur]
@@ -33,19 +34,23 @@
     (binding [runner/*advance-transform*
               (fn [advance]
                 (fn [state continuations]
-                  (when (> (swap! steps inc) 15000)
+                  ;; The conditional fixture takes 15,298 steps with the public
+                  ;; modifier bindings (unchanged baseline: 14,823).
+                  (when (> (swap! steps inc) 20000)
                     (throw (ex-info "Observation failed to reach quiescence" {})))
                   (advance state continuations)))]
       (editor/prepare (str imports source) []))))
 
 (defn- graph [pane]
-  (data/payload (net/network-cell-strongest (:program/net @(:session pane)) display/cell-id)))
+  (capture/root-graph
+   (data/payload (net/network-cell-strongest (:program/net @(:session pane)) display/cell-id))))
 
 (defn- labels [graph] (set (map str (vals (:nodes graph)))))
 
-(defn- shape [graph]
-  {:nodes (frequencies (map (fn [[id label]] [(get (:node-kinds graph) id) (str label)]) (:nodes graph)))
-   :edges (set (map (fn [[a b]] [(str (get (:nodes graph) a)) (str (get (:nodes graph) b))]) (:edges graph)))})
+(defn- shape [captured]
+  (let [graph (capture/root-graph captured)]
+    {:nodes (frequencies (map (fn [[id label]] [(get (:node-kinds graph) id) (str label)]) (:nodes graph)))
+     :edges (set (map (fn [[a b]] [(str (get (:nodes graph) a)) (str (get (:nodes graph) b))]) (:edges graph)))}))
 
 (defn- binding-id [pane name]
   (let [state @(:session pane)]

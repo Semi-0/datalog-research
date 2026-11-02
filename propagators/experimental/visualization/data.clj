@@ -1,6 +1,7 @@
 (ns propagators.experimental.visualization.data
   "Read-only source references and cell-backed collection declarations."
   (:require [clojure.set :as set]
+            [propagators.datastructures.value-projection :as projection]
             [propagators.semantic-trace.capture :as capture]
             [propagators.cells.value :as value]
             [propagators.datastructures.compound-object :as obj]
@@ -12,14 +13,9 @@
             [propagators.network :as net]
             [propagators.relationship-observer :as observer]))
 
-(defn evidence-value [v]
-  (let [v (ttms/payload (scope/unwrap v))]
-    (tms/distributed-base-value
-     (if (tms/distributed-content? v)
-       (tms/strongest-distributed-value v)
-       v))))
+(defn evidence-value [v] (projection/evidence-value v))
 
-(defn payload [v] (dependency/unwrap (evidence-value v)))
+(defn payload [v] (projection/payload v))
 
 (defn reference
   ([id] (reference [:outer] id []))

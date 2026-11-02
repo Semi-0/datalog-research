@@ -10,6 +10,7 @@
             [propagators.datastructures.membership-collection :as membership]
             [propagators.datastructures.support-collection :as collection]
             [propagators.experimental.visualization.data :as data]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.network :as net]
             [propagators.runner :as runner]
             [propagators.network-builder :as builder]
@@ -33,7 +34,8 @@
 (def imports "(load-lain \"propagators/compiler_2/runtime/lain/semantic_traversal.lain\")")
 
 (defn- result [pane]
-  (data/payload (net/network-cell-strongest (:program/net @(:session pane)) display/cell-id)))
+  (capture/root-graph
+   (data/payload (net/network-cell-strongest (:program/net @(:session pane)) display/cell-id))))
 
 (defn- change!
   ([pane symbol version base] (change! pane symbol version base :active))

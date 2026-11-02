@@ -7,11 +7,12 @@
             [propagators.compiler-2.runtime.application-ports :as ports]
             [propagators.compiler-2.runtime.topology-effects :as topology]
             [propagators.gur :as gur]
+            [propagators.datastructures.value-projection :as data]
             [propagators.network :as net]
             [propagators.propagator :as prop]
             [propagators.semantic-trace.logic :as logic]))
 
-(def instrumentation #{'xr:io 'io:xr 'display 'relationship:dataflow 'relationship:roots 'relationship:semantic 'relationship:roots-semantic 'relationship:children 'relationship:with-values 'relationship:caller-view
+(def instrumentation #{'xr:io 'io:xr 'display 'relationship:dataflow 'relationship:roots 'relationship:semantic 'relationship:roots-semantic 'relationship:children 'relationship:with-values 'relationship:caller-view 'relationship:high-level
                        'observe-network 'observe-network-retained 'observe-semantic-captured 'semantic-snapshot 'traverse
                        'history:record 'history:record-latest 'history:latest 'history:between 'history:empty 'history:append})
 
@@ -20,28 +21,42 @@
   #{'xr-io 'call-graph
     :propagators.experimental.visualization.observation/occurrence-of})
 
+(defn- callable-value [network app]
+  (data/payload (net/network-cell-strongest network (:operator-id app))))
+
 (defn routing [network app]
   (let [callable (application/callable-declaration
-                  (net/network-cell-strongest network (:operator-id app)))]
+                  (callable-value network app))]
     (case (operator/operator-name callable)
       -> :forward
       <-> :bidirectional
       :application)))
+
+(defn instrumentation? [name]
+  (or (contains? instrumentation name)
+      (contains? #{'modifier:select 'modifier:declaration
+                   :propagators.compiler-2.runtime.operators.composable-tracer/view
+                   :propagators.compiler-2.runtime.operators.composable-tracer/selection}
+                 name)
+      (and (vector? name)
+           (contains? #{:propagators.compiler-2.runtime.operators.composable-tracer/factory
+                        :propagators.compiler-2.runtime.operators.composable-tracer/tracer}
+                      (first name)))))
 
 (defn applications [network path]
   (let [topology-results (topology/topology-result-ids network)]
     (mapv (fn [app]
             (let [interface (ports/application-ports network app)
                   role (routing network app)
-                  operator-value (net/network-cell-strongest network (:operator-id app))
+                  operator-value (callable-value network app)
                   name (operator/operator-name (application/callable-declaration operator-value))
-                  observable? (not (or (instrumentation name)
+                  observable? (not (or (instrumentation? name)
                                        (and (= :forward role) (contains? topology-results (first (:argument-ids app))))))
                   qualify #(vector path %)]
               {:id (qualify (gur/stable-node-id [(:application-id app) :apply-prop]))
                :application-id (:application-id app) :routing role
                :observable? observable?
-               :observation? (boolean (or (instrumentation name) (observation-adapters name)))
+               :observation? (boolean (or (instrumentation? name) (observation-adapters name)))
                :eligible? (and observable? (not (value/unusable? operator-value)))
                :inputs (mapv qualify (:inputs interface)) :outputs (mapv qualify (:outputs interface))
                :operator (qualify (:operator-id app)) :arguments (mapv qualify (:argument-ids app))
@@ -73,9 +88,10 @@
         inbound (for [[id node] (net/net-graph network)
                       :let [entry (net/network-env-lookup network id)
                             name (when (prop/prop? entry) (prop/prop-name entry))]
-                      :when (and (vector? name) (= 4 (count name))
-                                 (= :compiler-2/application (first name))
-                                 (= :inbound (nth name 2)))
+                      :when (or (= :propagators.compiler-2.runtime.supported-application.runtime/input name)
+                                (and (vector? name) (= 4 (count name))
+                                     (= :compiler-2/application (first name))
+                                     (= :inbound (nth name 2))))
                       source (:inputs node) target (:outputs node)]
                   [target source])
         relationships (net/net-relationship network)

@@ -11,6 +11,7 @@
             [propagators.ids :as ids]
             [propagators.network :as net]
             [propagators.semantic-trace :as semantic-trace]
+            [propagators.semantic-trace.high-level :as high-level]
             [propagators.stdlib.premise-state :as state]))
 
 (defn project-value [v]
@@ -20,7 +21,7 @@
     (project-value (merge/strongest-value v net/empty-net))
     (datum/layer-present? v :support) (project-value (datum/layer-value v :base))
     (value/unusable? v) v
-    (semantic-trace/semantic-trace-graph? v) v
+    (semantic-trace/semantic-trace-graph? v) (high-level/display-graph v)
     (tms/distributed-value? v)
     (let [projected (tms/strongest-distributed-value v)]
       (if (value/unusable? projected)

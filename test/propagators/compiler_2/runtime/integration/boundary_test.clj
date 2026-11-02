@@ -13,7 +13,8 @@
             [propagators.semantic-trace :as semantic-trace]))
 
 (defn- current-source-value [network id]
-  (data/payload (net/network-cell-strongest network id)))
+  (propagators.semantic-trace.capture/root-graph
+   (data/payload (net/network-cell-strongest network id))))
 
 (deftest display-normalizes-raw-values-without-changing-semantic-values
   (let [display-id :display

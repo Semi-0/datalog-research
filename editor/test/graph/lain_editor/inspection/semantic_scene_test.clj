@@ -59,7 +59,9 @@
     (retained/retain! session :observation source)
     (let [refined (retained/refine session initial {:scope :body})]
       (is (nil? (capture/scope initial :body)))
-      (is (= graph (capture/scope refined :body))))
+      (is (= graph
+             (propagators.semantic-trace.graph-facts/source-projection
+              (capture/scope refined :body)))))
     (retained/close! session)
     (let [unavailable (retained/refine session initial {:scope :body})]
       (is (= :missing

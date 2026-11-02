@@ -4,7 +4,7 @@
             [propagators.relationship-dataflow :as dataflow]
             [propagators.relationship-observer :as observer]
             [propagators.semantic-trace.facts :as facts]
-            [propagators.semantic-trace.modifiers :as modifiers]))
+            [propagators.semantic-trace.high-level :as high-level]))
 
 (defn root-graph [network root {:keys [output]}]
   (when-not (ids/node-id? root)
@@ -18,7 +18,7 @@
                       (assoc operational :dataflow/observer-outputs #{[[:outer] output]})
                       operational)
         graph (dataflow/semantic-network-graph network operational)
-        graph (if output (modifiers/caller-view graph) graph)
+        graph (if output (high-level/caller-projection graph) graph)
         root-key [[:outer] root]
         graph (if (contains? (:nodes graph) root-key)
                 graph

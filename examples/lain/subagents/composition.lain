@@ -35,8 +35,9 @@
 ;; projected edges retain the connections through those internal nodes.
 (display
   (trace:history-latest
-    (trace:with-values
-      (trace:high-level
-        (trace:roots user)
-        "user" "evaluation-framework" "runtime"))
+    ((tracer:roots
+       modifier:high-level
+       modifier:with-values
+       (modifier:select (list "user" "runtime" "evaluation-framework")))
+     user)
     10))

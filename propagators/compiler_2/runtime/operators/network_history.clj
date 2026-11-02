@@ -53,8 +53,7 @@
      (if (prop/concrete-inputs? network [recording])
        (let [input (net/network-cell-strongest network recording)
              value (data/payload input)
-             replay (reduce history/append-frame (history/empty-replay)
-                            (history/field value :history/frames))]
+             replay (history/replay (history/field value :history/frames))]
          [(message out (membership/content
                         {:base replay :support (datum/support-of input)
                          :membership (datum/membership-of input)

@@ -135,7 +135,8 @@
         run #(settle base [(tracer-merge/submit output :first (evidence a #{}))
                            (tracer-merge/submit output :second (evidence more #{}))])
         jobs [(future (run)) (future (run))]]
-    (is (object/accessor-network? a))
+    (is (capture/fragment? a))
+    (is (= :same (capture/observation-id a)))
     (is (nil? (:semantic-trace/graph a)))
     (is (= a b))
     (doseq [job jobs]

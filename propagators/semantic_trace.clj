@@ -1,6 +1,7 @@
 (ns propagators.semantic-trace
   "Semantic graph tracing as data and as a propagator."
   (:require [clojure.set :as set]
+            [propagators.semantic-trace.capture :as capture]
             [propagators.cells.value :as value]
             [propagators.message :refer [message]]
             [propagators.network :as net]
@@ -71,8 +72,7 @@
 
 (defn semantic-trace-graph?
   [x]
-  (and (map? x)
-       (true? (:semantic-trace/graph x))))
+  (capture/semantic-graph? x))
 
 (defn- projection-context [graphs key]
   (let [contexts (set (keep key graphs))]
