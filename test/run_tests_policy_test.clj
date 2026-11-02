@@ -24,3 +24,26 @@
       (is (seq harness))
       (is (not-any? production harness))
       (is (= all (into production harness))))))
+
+
+(deftest filtered-execution-honors-selection-and-fixtures
+  (let [ns-sym 'run-tests-policy-fixture
+        ns-obj (create-ns ns-sym)
+        seen (atom [])
+        fixture (fn [f] (swap! seen conj :fixture-before) (f) (swap! seen conj :fixture-after))]
+    (try
+      (alter-meta! ns-obj assoc :clojure.test/once-fixtures [fixture]
+                   :clojure.test/each-fixtures [fixture])
+      (doseq [[name marker experimental?] [['production-case :production false]
+                                           ['harness-case :harness true]]]
+        (intern ns-obj (with-meta name {:test (fn [] (swap! seen conj marker) (is true))
+                                      :experimental-harness experimental?}) (fn [])))
+      (doseq [[mode expected] [[:production :production] [:harness :harness]]]
+        (reset! seen [])
+        (let [result (binding [clojure.test/*test-out* (java.io.StringWriter.)]
+                       (runner/run-selected-tests ns-sym mode))]
+          (is (= 1 (:test result)))
+          (is (= 1 (:pass result)))
+          (is (zero? (+ (:fail result) (:error result))))
+          (is (= [:fixture-before :fixture-before expected :fixture-after :fixture-after] @seen))))
+      (finally (remove-ns ns-sym)))))

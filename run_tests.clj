@@ -289,12 +289,25 @@
                    true)))
           (vals (ns-interns ns-sym))))
 
+(defn run-selected-tests [ns-sym mode]
+  (if (= mode :all)
+    (run-tests ns-sym)
+    (binding [clojure.test/*report-counters* (ref clojure.test/*initial-report-counters*)]
+      (let [ns-obj (the-ns ns-sym)]
+        (when (ns-resolve ns-obj 'test-ns-hook)
+          (throw (ex-info "Filtered suites cannot use test-ns-hook" {:namespace ns-sym})))
+        (clojure.test/do-report {:type :begin-test-ns :ns ns-obj})
+        ;; Call the public fixture-aware runner directly. Redefining test-all-vars
+        ;; does not intercept calls in a direct-linked clojure.test build.
+        (clojure.test/test-vars (selected-test-vars ns-sym mode))
+        (clojure.test/do-report {:type :end-test-ns :ns ns-obj})
+        (let [summary (assoc @clojure.test/*report-counters* :type :summary)]
+          (clojure.test/do-report summary)
+          summary)))))
+
 (defn- run-suite [ns-sym mode]
   (require ns-sym)
-  (let [{:keys [pass fail error]}
-        (with-redefs [clojure.test/test-all-vars
-                      (fn [ns] (clojure.test/test-vars (selected-test-vars (ns-name ns) mode)))]
-          (run-tests ns-sym))]
+  (let [{:keys [pass fail error]} (run-selected-tests ns-sym mode)]
     (println (str ns-sym ":") pass "pass," fail "fail," error "error")
     (when (zero? (+ (or pass 0) (or fail 0) (or error 0)))
       (throw (ex-info "Test suite ran zero assertions" {:namespace ns-sym})))
