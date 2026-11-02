@@ -90,7 +90,7 @@ def build(destination):
                 relative = item.relative_to(root)
                 if any(part.startswith(".") or part in {"node_modules", "__pycache__"} for part in relative.parts):
                     continue
-                asset = relative.as_posix().startswith("public/lain-editor/") and item.suffix in {".html", ".css", ".js", ".map"}
+                asset = relative.as_posix().startswith("public/lain-editor/") and item.suffix in {".html", ".css", ".js", ".mjs", ".map"}
                 runtime_config = relative.as_posix() in {"deploy/session_sandbox/hosts",
                                                          "deploy/session_sandbox/nsswitch.conf"}
                 if not asset and not runtime_config and item.suffix not in SOURCE_SUFFIXES:

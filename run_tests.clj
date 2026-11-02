@@ -97,7 +97,8 @@
     propagators.tms-test])
 
 (def graph-test-namespaces
-  '[graph.lain-editor.inspection.composable-tracer-test
+  '[graph.lain-editor.completion-test
+    graph.lain-editor.inspection.composable-tracer-test
     graph.lain-editor.runtime.harness-observer-test
     graph.lain-editor.inspection.high-level-trace-test
     graph.lain-editor.inspection.high-level-value-history-test

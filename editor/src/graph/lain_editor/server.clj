@@ -3,6 +3,7 @@
   (:require [clojure.java.io :as io]
             [graph.json :as json]
             [graph.lain-editor.inspection.core :as inspection]
+            [graph.lain-editor.completion :as completion]
             [graph.lain-editor.development.handler :as development-handler]
             [graph.lain-editor.development.protocol :as development-protocol]
             [graph.lain-editor.development.runtime :as development-runtime]
@@ -24,7 +25,8 @@
   {"/" ["index.html" "text/html"]
    "/compiled/app.js" ["compiled/app.js" "text/javascript"]
    "/compiled/app.js.map" ["compiled/app.js.map" "application/json"]
-   "/style.css" ["style.css" "text/css"]})
+   "/style.css" ["style.css" "text/css"]
+   "/editing.mjs" ["editing.mjs" "text/javascript"]})
 
 (defn command!
   ([editors command]
@@ -67,6 +69,7 @@
          "reopen-session" (editor/reopen! editors detached command)
          "stop-session" (editor/stop-detached! detached command)
          "inspect" (inspection/inspect editors command)
+         "complete" (completion/candidates editors command)
          "save-block" (source-files/save-block! (project-root) command)
          "save-workspace" (workspace-files/save-workspace! (project-root) command)
          (throw (ex-info "Unknown editor operation" {})))))))

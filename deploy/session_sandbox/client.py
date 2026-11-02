@@ -16,7 +16,8 @@ import uuid
 READ_OPS = {"sandbox-status", "list-sessions", "inspect", "sandbox-export", "sandbox-receipt"}
 MAX_BODY = 2 * 1024 * 1024
 MAX_RESPONSE = 16 * 1024 * 1024
-ASSETS = {"/": ("index.html", "text/html"), "/style.css": ("style.css", "text/css"),
+ASSETS = {"/": ("index.html", "text/html"),
+          "/editing.mjs": ("editing.mjs", "text/javascript"), "/style.css": ("style.css", "text/css"),
           "/compiled/app.js": ("compiled/app.js", "text/javascript"),
           "/compiled/app.js.map": ("compiled/app.js.map", "application/json")}
 
