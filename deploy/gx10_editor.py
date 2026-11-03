@@ -182,8 +182,21 @@ def probe(url):
 
 def run_ci(release):
     env = service_environment()
-    run(["bash", "deploy/ci.sh"], cwd=release / "backend", env=env, timeout=3600)
-    run(["bash", "scripts/ci.sh"], cwd=release / "frontend", env=env, timeout=1800)
+    current = ROOT / "current/release.json"
+    baseline = json.loads(current.read_text())["pair"] if current.exists() else {}
+
+    def quality_environment(role):
+        role_env = dict(env)
+        role_env["LAIN_CI_BASE_REQUIRED"] = "1"
+        role_env.pop("LAIN_CI_BASE_SHA", None)
+        if role in baseline:
+            role_env["LAIN_CI_BASE_SHA"] = baseline[role]["sha"]
+        return role_env
+
+    run(["bash", "deploy/ci.sh"], cwd=release / "backend",
+        env=quality_environment("backend"), timeout=3600)
+    run(["bash", "scripts/ci.sh"], cwd=release / "frontend",
+        env=quality_environment("frontend"), timeout=1800)
 
 
 def build(release):

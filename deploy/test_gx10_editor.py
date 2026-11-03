@@ -17,6 +17,32 @@ def source_pair():
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_quality_baselines_follow_the_previous_verified_pair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "current").mkdir()
+            baseline = {"backend": {"sha": "b" * 40}, "frontend": {"sha": "f" * 40}}
+            (root / "current/release.json").write_text(json.dumps({"pair": baseline}))
+            with mock.patch.object(deployment, "ROOT", root), \
+                 mock.patch.object(deployment, "service_environment", return_value={"PATH": "/bin"}), \
+                 mock.patch.object(deployment, "run") as run:
+                deployment.run_ci(root / "candidate")
+            self.assertEqual("b" * 40, run.call_args_list[0].kwargs["env"]["LAIN_CI_BASE_SHA"])
+            self.assertEqual("f" * 40, run.call_args_list[1].kwargs["env"]["LAIN_CI_BASE_SHA"])
+            self.assertEqual("/bin", run.call_args_list[0].kwargs["env"]["PATH"])
+            self.assertEqual("1", run.call_args_list[0].kwargs["env"]["LAIN_CI_BASE_REQUIRED"])
+
+    def test_missing_verified_baseline_does_not_inherit_an_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch.object(deployment, "ROOT", root), \
+                 mock.patch.object(deployment, "service_environment", return_value={"LAIN_CI_BASE_SHA": "a" * 40}), \
+                 mock.patch.object(deployment, "run") as run:
+                deployment.run_ci(root / "candidate")
+            for call in run.call_args_list:
+                self.assertEqual("1", call.kwargs["env"]["LAIN_CI_BASE_REQUIRED"])
+                self.assertNotIn("LAIN_CI_BASE_SHA", call.kwargs["env"])
+
     def test_source_heads_are_resolved_for_each_configured_repository(self):
         response = mock.Mock(stdout=json.dumps({"sha": "a" * 40}))
         with mock.patch.object(deployment, "run", return_value=response) as run:

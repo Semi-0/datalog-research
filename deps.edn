@@ -1,32 +1,56 @@
 {:paths ["." "editor/src" "target/lain-editor" "deprecated" "leapfrog" "reference" "differential_leapfrog"]
  :deps {lain-editor/contracts {:git/url "https://github.com/Semi-0/lain-editor.git"
-                              :git/sha "ce68d7709970808dc3e3770c8911f038e201e454"
-                              :deps/root "contracts"}
+                               :git/sha "3794bc92b57fa7f1869f244cf51b0009093f9369"
+                               :deps/root "contracts"}
         danlentz/clj-uuid {:mvn/version "0.2.5"}
         clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
         io.github.TimoKramer/charm.clj {:git/url "https://github.com/TimoKramer/charm.clj"
-                                         :git/sha "38e6823dc85ec932eefe2ad9c1f204307674c24f"}
+                                        :git/sha "38e6823dc85ec932eefe2ad9c1f204307674c24f"}
         meander/epsilon {:mvn/version "0.0.650"}
         org.clojure/core.match {:mvn/version "1.1.0"}
         org.clojure/core.async {:mvn/version "1.8.741"}}
- :aliases {:gx10/watch {:extra-deps {org.clojure/data.json {:mvn/version "2.5.2"}}
+ :aliases {:quality-test {:replace-paths ["dev"]
+                          :replace-deps {org.clojure/clojure {:mvn/version "1.12.0"}
+                                         clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
+                                         dev.weavejester/cljfmt {:mvn/version "0.16.6"}}
+                          :jvm-opts ["-Xmx768m"]
+                          :main-opts ["-m" "quality-test"]}
+           :lint {:replace-paths ["dev"]
+                  :replace-deps {org.clojure/clojure {:mvn/version "1.12.0"}
+                                 clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
+                                 dev.weavejester/cljfmt {:mvn/version "0.16.6"}}
+                  :jvm-opts ["-Xmx768m"]
+                  :main-opts ["-m" "quality" "lint"]}
+           :format-check {:replace-paths ["dev"]
+                          :replace-deps {org.clojure/clojure {:mvn/version "1.12.0"}
+                                         clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
+                                         dev.weavejester/cljfmt {:mvn/version "0.16.6"}}
+                          :jvm-opts ["-Xmx768m"]
+                          :main-opts ["-m" "quality" "format-check"]}
+           :format-fix {:replace-paths ["dev"]
+                        :replace-deps {org.clojure/clojure {:mvn/version "1.12.0"}
+                                       clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
+                                       dev.weavejester/cljfmt {:mvn/version "0.16.6"}}
+                        :jvm-opts ["-Xmx768m"]
+                        :main-opts ["-m" "quality" "format-fix"]}
+           :gx10/watch {:extra-deps {org.clojure/data.json {:mvn/version "2.5.2"}}
                         :main-opts ["scripts/watch_gx10_stream.clj"]}
            :editor/cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
-                                          lain-editor/build {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                :git/sha "ce68d7709970808dc3e3770c8911f038e201e454"
-                                                :deps/root "build"}}
-                           :main-opts ["-m" "graph.lain-editor.build"]}
+                                      lain-editor/build {:git/url "https://github.com/Semi-0/lain-editor.git"
+                                                         :git/sha "3794bc92b57fa7f1869f244cf51b0009093f9369"
+                                                         :deps/root "build"}}
+                         :main-opts ["-m" "graph.lain-editor.build"]}
            :editor/cljs-test {:extra-deps {lain-editor/frontend {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                                    :git/sha "ce68d7709970808dc3e3770c8911f038e201e454"}
-                                               lain-editor/tests {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                                 :git/sha "ce68d7709970808dc3e3770c8911f038e201e454"
-                                                                 :deps/root "test"}
-                                               org.clojure/clojurescript {:mvn/version "1.12.145"}
-                                               lain-editor/build {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                :git/sha "ce68d7709970808dc3e3770c8911f038e201e454"
-                                                :deps/root "build"}}
-                             :extra-paths ["test" "editor/test"]
-                             :main-opts ["-m" "graph.lain-editor.build" "test"]}
+                                                                 :git/sha "3794bc92b57fa7f1869f244cf51b0009093f9369"}
+                                           lain-editor/tests {:git/url "https://github.com/Semi-0/lain-editor.git"
+                                                              :git/sha "3794bc92b57fa7f1869f244cf51b0009093f9369"
+                                                              :deps/root "test"}
+                                           org.clojure/clojurescript {:mvn/version "1.12.145"}
+                                           lain-editor/build {:git/url "https://github.com/Semi-0/lain-editor.git"
+                                                              :git/sha "3794bc92b57fa7f1869f244cf51b0009093f9369"
+                                                              :deps/root "build"}}
+                              :extra-paths ["test" "editor/test"]
+                              :main-opts ["-m" "graph.lain-editor.build" "test"]}
            :differential-v3 {:main-opts ["-m" "deprecated.differential-v3"]}
            :example/synth {:main-opts ["-m" "examples.lain.overtone-synth.main"]}
            :example/overtone {:extra-deps {overtone/overtone {:mvn/version "0.16.3331"}}}
@@ -34,7 +58,7 @@
            :test
            {:extra-paths ["test" "editor/test"]
             :extra-deps {lain-editor/frontend {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                :git/sha "ce68d7709970808dc3e3770c8911f038e201e454"}}
+                                               :git/sha "3794bc92b57fa7f1869f244cf51b0009093f9369"}}
             :main-opts ["-m" "run-tests"]}
            :bench
            {:main-opts ["-m" "bench-compare"]}
