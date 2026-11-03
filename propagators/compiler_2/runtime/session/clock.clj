@@ -64,37 +64,44 @@
   ([session subscription-id]
    (tick-clock! session subscription-id #(System/currentTimeMillis)))
   ([session subscription-id now]
-   (state/mutate-session!
-    session
-    (fn [runtime-state]
-      (if-let [subscription
-               (get-in runtime-state [:clock/subscriptions subscription-id])]
-        (if (subscription-active? runtime-state subscription)
-          (let [epoch (inc (long (get-in runtime-state
-                                         [:clock/epochs (epoch-key subscription)]
-                                         0)))]
-            (apply-clock-update runtime-state subscription
-                                (clock-update subscription epoch (long (now)))))
-          runtime-state)
-        runtime-state)))))
+   (let [before (:clock/epochs @session)
+         result
+         (state/mutate-session!
+          session
+          (fn [runtime-state]
+            (if-let [subscription (get-in runtime-state [:clock/subscriptions subscription-id])]
+              (if (subscription-active? runtime-state subscription)
+                (let [epoch (inc (long (get-in runtime-state [:clock/epochs (epoch-key subscription)] 0)))]
+                  (apply-clock-update runtime-state subscription
+                                      (clock-update subscription epoch (long (now)))))
+                runtime-state)
+              runtime-state)))]
+     ;; The native clock commits first. A managed boundary then dispatches any
+     ;; resulting declared-dependency intents through its existing host pump.
+     (when (not= before (:clock/epochs result))
+       (when-let [committed! (:runtime/on-clock-commit (meta session))] (committed!)))
+     result)))
 
 (defn- start-runner
   [session subscription]
   (let [subscription-id (:clock/id subscription)
         interval-ms (long (:clock/interval-ms subscription))
+        active? (atom true)
         executor (state/daemon-executor
                   (str "compiler-2-clock-" (hash subscription-id)))]
     (.scheduleWithFixedDelay
      executor
-     #(try
-        (tick-clock! session subscription-id)
-        (catch Throwable t
-          (state/record-runtime-error!
-           session {:clock/id subscription-id :phase :clock/tick} t)))
+     #(locking session
+        (when @active?
+          (try
+            (tick-clock! session subscription-id)
+            (catch Throwable t
+              (state/record-runtime-error!
+               session {:clock/id subscription-id :phase :clock/tick} t)))))
      0 interval-ms TimeUnit/MILLISECONDS)
     {:clock/id subscription-id
      :clock/interval-ms interval-ms
-     :stop #(do (.shutdownNow executor) nil)}))
+     :stop #(do (reset! active? false) (.shutdownNow executor) nil)}))
 
 (defn- stop-runner! [runner]
   (when-let [stop (:stop runner)]

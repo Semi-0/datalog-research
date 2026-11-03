@@ -30,18 +30,24 @@
       compiler-session
       (session/with-compiler-state compiler-session current-state))))
 
+(defn- host-delivery-policy [state]
+  (assoc-in state [:runtime/options :boundary/defer-environment-request?]
+            operators/callback-request?))
+
 (defn- publish! [host compiler-session]
   (let [view (runtime-session host)]
-    (reset! view (merge (session/compiler-state compiler-session)
-                        (select-keys @view host-keys)
-                        {::session compiler-session}))))
+    (reset! view (host-delivery-policy
+                  (merge (session/compiler-state compiler-session)
+                         (select-keys @view host-keys)
+                         {::session compiler-session})))))
 
 (defn receipts [host] (::receipts @(runtime-session host)))
 (defn pending-count [host] (count (::pending @(runtime-session host))))
 (defn failures [host] (::failures @(runtime-session host)))
 
 (defn- require-open! [host]
-  (when (::closed? @(runtime-session host))
+  (when (or (::closed? @(runtime-session host))
+            (#{:retiring :retirement-failed} (::phase @(runtime-session host))))
     (throw (ex-info "Compiler session boundary is closed" {}))))
 
 (defn- validate-dependencies! [compiler-session]
@@ -87,6 +93,7 @@
 
 (defn- accepts-output? [host request]
   (and (not (::closed? @(runtime-session host)))
+       (not (#{:retiring :retirement-failed} (::phase @(runtime-session host))))
        (#{:starting :active} (get-in (receipts host) [(:boundary/id request) :status]))
        (live-request? host request)))
 
@@ -324,11 +331,18 @@
                      ::phase :delivering ::blocked? false)
               (:requests result))))]
     (try
+      ;; Native environment handlers (including retained tracer sources) also
+      ;; belong to post-commit delivery. Compilation only records their intents.
+      (locking (gate host)
+        (let [view (runtime-session host)]
+          (reset! view (binding [effects/*defer-environment-request?* operators/callback-request?]
+                         (effects/perform-boundary-effects @view)))))
       ((requiring-resolve 'propagators.compiler-2.runtime/schedule-clock-subscriptions!)
        (runtime-session host))
       ((requiring-resolve 'propagators.compiler-2.runtime/refresh-trace-subscriptions!)
        (runtime-session host))
-      (doseq [request requests :when (operators/callback-request? request)]
+      (doseq [request (effects/outbox-effects (:program/net @(runtime-session host)))
+              :when (operators/callback-request? request)]
         (dispatch! host request))
       (current-session host)
       (finally
@@ -363,6 +377,13 @@
                          (swap! (runtime-session host) assoc ::scheduled? false))
                        (wake! host)))))))))
 
+(defn- native-clock-committed! [host]
+  (locking (gate host)
+    (let [view (runtime-session host)]
+      (when-not (or (::closed? @view) (::blocked? @view))
+        (swap! view assoc ::delivery-ready? true))))
+  (wake! host))
+
 (defn open!
   "Attach host services without launching requests. Call step! to start the run."
   ([compiler-session] (open! compiler-session {}))
@@ -371,10 +392,10 @@
    (validate-dependencies! compiler-session)
    (when-not (and (pos-int? capacity) (pos-int? cleanup-timeout-ms) (pos-int? delivery-threads))
      (throw (ex-info "Positive boundary capacity and cleanup timeout required" {})))
-   (let [view (atom (merge (session/compiler-state compiler-session)
+   (let [view (atom (host-delivery-policy (merge (session/compiler-state compiler-session)
                            {::session compiler-session ::pending [] ::receipts {}
                             ::phase :idle ::closed? false ::scheduled? false
-                            ::blocked? false ::failures [] ::delivery-ready? false}))
+                            ::blocked? false ::failures [] ::delivery-ready? false})))
          executor (Executors/newSingleThreadExecutor
                    (reify ThreadFactory
                      (newThread [_ runnable]
@@ -387,7 +408,8 @@
                          (doto (Thread. runnable "lain-dependency-delivery") (.setDaemon true)))))
          host (SessionBoundary. (Object.) view view executor deliveries
                                 capacity auto-advance? cleanup-timeout-ms)]
-     (alter-meta! view assoc ::boundary host)
+     (alter-meta! view assoc ::boundary host
+                  :runtime/on-clock-commit #(native-clock-committed! host))
      host)))
 
 (defn extend! [host extension]
@@ -421,32 +443,88 @@
         (Thread/sleep 2)
         (recur)))))
 
+(defn lifecycle
+  "Observable host state, including failed retirement which requires explicit reconciliation."
+  [host]
+  (let [view @(runtime-session host)]
+    (cond
+      (= :retirement-failed (::phase view)) :retirement-failed
+      (::closed? view) :closed
+      (= :retiring (::phase view)) :retiring
+      (::blocked? view) :blocked
+      :else :active)))
+
+(defn- await-cleanup! [host id]
+  (let [deadline (+ (System/nanoTime) (* 1000000 (long (.-cleanupTimeout ^SessionBoundary host))))]
+    (loop []
+      (when (= :running (get-in (receipts host) [id :cleanup]))
+        (when (> (System/nanoTime) deadline)
+          (throw (ex-info "Dependency cleanup is still running" {:id id})))
+        (Thread/sleep 2)
+        (recur)))))
+
+(defn- retire-run! [host]
+  ;; Mark every callback obsolete before waiting for any individual start/cleanup.
+  (locking (gate host)
+    (swap! (runtime-session host) update ::receipts
+           (fn [receipts]
+             (into {} (map (fn [[id receipt]]
+                             [id (cond-> receipt
+                                   (#{:starting :active} (:status receipt))
+                                   (assoc :status :cancelled))])) receipts))))
+  ((requiring-resolve 'propagators.compiler-2.runtime/stop-clocks!) (runtime-session host))
+  (doseq [trace (vals (:traces @(runtime-session host)))] ((:stop trace)))
+  (let [errors (reduce (fn [errors [id _]]
+                         (try
+                           (await-start! host id)
+                           (cleanup! host id)
+                           (await-cleanup! host id)
+                           (if (#{:failed :running :pending} (get-in (receipts host) [id :cleanup]))
+                             (conj errors {:id id :cleanup (get-in (receipts host) [id :cleanup])})
+                             errors)
+                           (catch Throwable error (conj errors {:id id :error error}))))
+                       [] (receipts host))]
+    (when (seq errors)
+      (throw (ex-info "Old run cleanup was not verified" {:errors errors})))))
+
+(defn replace!
+  "Validate a compiled candidate, then retire the current run before activation.
+  Failed cleanup leaves retirement-failed and blocks automatic or explicit replay."
+  [host candidate]
+  (locking (round-gate host)
+    (locking (gate host)
+      (require-open! host)
+      (when-not (= :idle (::phase @(runtime-session host)))
+        (throw (ex-info "Cannot replace during dependency dispatch" {})))
+      (when-not (satisfies? session/SessionView candidate)
+        (throw (ex-info "Replacement requires an immutable compiler session" {})))
+      (let [before (session/session-identity (current-session host))
+            after (session/session-identity candidate)]
+        (when-not (and (= (:id before) (:id after))
+                       (:run-id after) (not= (:run-id before) (:run-id after)))
+          (throw (ex-info "Replacement requires the same session and a fresh run" {}))))
+      (validate-dependencies! candidate)
+      (swap! (runtime-session host) assoc ::phase :retiring ::blocked? true))
+    (try
+      (retire-run! host)
+      (locking (gate host)
+        (publish! host candidate)
+        (swap! (runtime-session host) assoc ::pending [] ::receipts {}
+               ::phase :idle ::blocked? false ::delivery-ready? false))
+      (catch Throwable error
+        (locking (gate host)
+          (swap! (runtime-session host)
+                 #(-> % (assoc ::phase :retirement-failed ::blocked? true)
+                      (update ::failures conj error))))
+        (throw error)))
+    (step! host)))
+
 (defn rerun!
   "Explicitly retire the old run before starting a fresh value from the same files."
   [host fresh-run-id]
   (locking (round-gate host)
-    (let [candidate (locking (gate host)
-                      (require-open! host)
-                      (when-not (= :idle (::phase @(runtime-session host)))
-                        (throw (ex-info "Cannot rerun during dependency dispatch" {})))
-                      (let [candidate (session/rerun (current-session host) fresh-run-id)]
-                        (swap! (runtime-session host) assoc ::phase :rerunning)
-                        candidate))]
-      (try
-        (doseq [[id receipt] (receipts host)]
-          (when (#{:starting :active} (:status receipt)) (cancel! host id))
-          (await-start! host id)
-          (cleanup! host id)
-          (when (#{:failed :running :pending} (get-in (receipts host) [id :cleanup]))
-            (throw (ex-info "Old run cleanup was not verified" {:id id}))))
-        ((requiring-resolve 'propagators.compiler-2.runtime/stop-clocks!) (runtime-session host))
-        (doseq [trace (vals (:traces @(runtime-session host)))] ((:stop trace)))
-        (locking (gate host)
-          (publish! host candidate)
-          (swap! (runtime-session host) assoc ::pending [] ::receipts {}))
-        (finally
-          (locking (gate host) (swap! (runtime-session host) assoc ::phase :idle))))
-      (step! host))))
+    (require-open! host)
+    (replace! host (session/rerun (current-session host) fresh-run-id))))
 
 (defn subscribe!
   "Start an external source after the current session has been published.
@@ -497,4 +575,10 @@
   "Serialize shutdown with round publication and post-commit observer installation."
   [host]
   (locking (round-gate host)
-    (close-boundary! host)))
+    (try
+      (let [result (close-boundary! host)]
+        (swap! (runtime-session host) assoc ::phase :closed)
+        result)
+      (catch Throwable error
+        (swap! (runtime-session host) assoc ::phase :retirement-failed ::blocked? true)
+        (throw error)))))

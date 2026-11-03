@@ -123,7 +123,7 @@
       (is (= :bool4/nothing (value-at (:session (get @editors "search")) 'knowledge)))
       (is (not-any? #(= "literals" (:key %))
                     (:valueGrid (inspect editors "search" "value"))))
-      (let [before (:session (get @editors "search"))
+      (let [before (atom @(:session (get @editors "search")))
             domain (env/resolve-binding-id (:program/net @before) (:program/env @before) 'domain)]
         (editor/extend! editors {:pane "search" :generation (:generation (get @editors "search"))
                                 :source "(-> (list 1 2) domain)"})

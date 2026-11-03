@@ -19,13 +19,13 @@
 
 (deftest headless-compiler-attachment-extension-detachment-and-rerun
   (let [source "(define input) (define result (+ input 1))"
-        prepared (prepare source)
-        live (:session prepared)
-        boundary (host/boundary-for live)
-        editors (atom {}) detached (atom {})]
+        editors (atom {})
+        registered (editor/open-session! editors {:source source})
+        detached (editor/owner-catalog editors)
+        live (:session (get @detached (:sessionId registered)))
+        boundary (host/boundary-for live)]
     (try
-      (let [registered (editor/register-compiler-session! detached boundary source)
-            id (:sessionId registered)
+      (let [id (:sessionId registered)
             attached (editor/reopen! editors detached {:pane "compiler" :sessionId id})]
         (is (identical? live (:session (get @editors "compiler"))))
         (is (= "waiting" (:status (fixture/inspect-pane editors "compiler" fixture/display))))
@@ -51,7 +51,7 @@
               (is (identical? live (:session (get @editors "reopened"))))))))
       (finally (editor/close! editors) (editor/close! detached) (host/close! boundary)))))
 
-(deftest immutable-editor-command-backend-preserves-legacy-default
+(deftest immutable-editor-default-with-explicit-legacy-fallback
   (let [editors (atom {})]
     (try
       (let [run (server/command! editors {:op "run" :pane "compiler"
@@ -60,7 +60,7 @@
         (is (some? (host/boundary-for (:session (get @editors "compiler")))))
         (is (= "42" (:value (fixture/inspect-pane editors "compiler" fixture/display))))
         (is (string? (:generation run))))
-      (let [run (server/command! editors {:op "run" :pane "legacy"
+      (let [run (server/command! editors {:op "run" :pane "legacy" :compilerSession false
                                          :source "(define result 7)"})]
         (is (nil? (host/boundary-for (:session (get @editors "legacy")))))
         (is (= "7" (:value (fixture/inspect-pane editors "legacy" fixture/display)))))

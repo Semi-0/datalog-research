@@ -165,6 +165,7 @@ def probe(url):
         if b'id="app"' not in response.read():
             raise RuntimeError("Editor HTML is missing its mount point")
     pane = "deployment-probe-" + uuid.uuid4().hex
+    result = None
     try:
         result = api(url, {"op": "run", "pane": pane, "generation": 0,
                            "source": "(define result (+ 2 3)) (display result)"})
@@ -173,6 +174,9 @@ def probe(url):
         if inspected.get("status") != "ready" or inspected.get("value") != "5":
             raise RuntimeError("Frontend/backend computation probe did not produce 5")
     finally:
+        if result is not None and result.get("sessionId"):
+            api(url, {"op": "stop-session", "sessionId": result["sessionId"],
+                      "generation": result["generation"]})
         api(url, {"op": "close", "pane": pane})
 
 

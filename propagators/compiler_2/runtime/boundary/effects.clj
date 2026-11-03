@@ -87,11 +87,20 @@
 
 (declare collapse-boundary-effects drain-environment-effects)
 
+(def ^:dynamic *defer-environment-request?*
+  "Host delivery policy for intents owned by a separate supported boundary.
+  Deferred intents remain in the outbox and receive no native failure receipt."
+  (constantly false))
+
 (defn undelivered-environment-effects
   [state]
   (->> (outbox-effects (:program/net state))
        collapse-boundary-effects
        (filter environment-request?)
+       (remove (fn [request]
+                 (or (*defer-environment-request?* request)
+                     (when-let [defer? (get-in state [:runtime/options :boundary/defer-environment-request?])]
+                       (defer? request)))))
        (filter (fn [request]
                  (let [delivery (get-in state
                                         [:environment/effects

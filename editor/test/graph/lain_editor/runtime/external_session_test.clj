@@ -90,13 +90,13 @@
             (is (identical? session (:session (get @editors "observer")))))
           (let [result (editor/restore! editors
                          (workspace-with (fixture/pane "other" "(display 9)")))]
-            (is (= #{"other" "spare"} (set (keys (:generations result)))))
+            (is (= #{} (set (keys (:generations result)))))
             (is (identical? session (:session (get @editors "observer")))))
           (is (not-any? #(identical? session %) @touched)
               "Restoring an editor cannot schedule or refresh the external owner")
           (is (identical? before @session)))
         (is (= "7" (:value (fixture/inspect-pane editors "observer" {:cell "@display" :mode "value"}))))
-        (is (= "9" (:value (fixture/inspect-pane editors "other" {:cell "@display" :mode "value"}))))
+        (is (nil? (get @editors "other")) "Imported programs remain drafts")
         (is (thrown-with-msg? Exception #"externally owned"
               (editor/restore! editors
                 (workspace-with (fixture/pane "observer" "(display 99)")))))

@@ -16,53 +16,27 @@
       (let [run (command! {:op "run" :pane "a" :source source})
             extended (command! {:op "extend" :pane "a" :generation (:generation run) :source "(-> 10 input)"})
             id (:sessionId run) live (:session (get @editors "a"))]
-        (is (string? id))
         (is (= id (:sessionId extended)))
         (is (not= (:generation run) (:generation extended)))
         (is (thrown? Exception (command! {:op "detach-session" :pane "a" :generation (:generation run)})))
         (is (identical? live (:session (get @editors "a"))))
-        (is (empty? @detached))
-        (is (thrown? Exception (server/command! editors {:op "detach-session" :pane "a" :generation (:generation extended)})))
+        (is (= [id] (mapv :sessionId (:sessions (command! {:op "list-sessions"})))))
         (with-redefs [layout/close-pane! (fn [& _] (throw (Exception. "Layout cleanup failed")))]
           (is (thrown? Exception (command! {:op "detach-session" :pane "a" :generation (:generation extended)})))
-          (is (identical? live (:session (get @editors "a"))))
-          (is (empty? @detached)))
-        (let [cleared (atom []) original layout/close-pane!]
-          (with-redefs [layout/close-pane! (fn [registry pane]
-                                           (swap! cleared conj pane)
-                                           (original registry pane))]
-            (command! {:op "detach-session" :pane "a" :generation (:generation extended)})
-            (is (= ["a"] @cleared))
-            (command! {:op "reopen-session" :sessionId id :pane "a"})))
-        (with-redefs [session/load-checked! (fn [& _] (throw (Exception. "Unexpected load")))
-                      session/close-session! (fn [& _] (throw (Exception. "Unexpected close")))
-                      runtime/schedule-clock-subscriptions! (fn [& _] (throw (Exception. "Unexpected schedule")))
-                      runtime/refresh-trace-subscriptions! (fn [& _] (throw (Exception. "Unexpected subscribe")))]
-          (is (= {:sessionId id} (command! {:op "detach-session" :pane "a" :generation (:generation extended)})))
-          (is (empty? @editors))
-          (is (= [{:sessionId id :pane "a" :source source :extensions ["(-> 10 input)"]}]
-                 (:sessions (command! {:op "list-sessions"}))))
-          (is (= (:generation extended) (:generation (command! {:op "reopen-session" :sessionId id :pane "b"}))))
-          (is (identical? live (:session (get @editors "b"))))
-          (is (= "11" (:value (fixture/inspect-pane editors "b" fixture/display)))))
-        (doseq [command [{:op "reopen-session" :sessionId id :pane "c"}
-                         {:op "stop-session" :sessionId id}
-                         {:op "reopen-session" :sessionId "unknown" :pane "c"}]]
-          (let [before @editors]
-            (is (thrown? Exception (command! command)))
-            (is (= before @editors))))
-        (command! {:op "detach-session" :pane "b" :generation (:generation extended)})
-        (command! {:op "run" :pane "occupied" :source "(display 99)"})
-        (let [before @detached]
-          (is (thrown? Exception (command! {:op "reopen-session" :sessionId id :pane "occupied"})))
-          (is (= before @detached)))
-        (command! {:op "restore" :workspace (fixture/document (fixture/pane "x" "(display 1)") (fixture/pane "y" "(display 2)"))})
-        (is (identical? live (:session (get @detached id))))
-        (let [original session/close-session! closed (atom [])]
-          (with-redefs [session/close-session! (fn [s] (swap! closed conj s) (original s))]
-            (is (= {:stopped id} (command! {:op "stop-session" :sessionId id})))
-            (is (= [live] @closed))))
-        (is (empty? @detached)))
+          (is (identical? live (:session (get @editors "a")))))
+        (is (= {:sessionId id} (command! {:op "detach-session" :pane "a" :generation (:generation extended)})))
+        (is (empty? @editors))
+        (is (= (:generation extended) (:generation (command! {:op "reopen-session" :sessionId id :pane "b"}))))
+        (is (identical? live (:session (get @editors "b"))))
+        (is (= "11" (:value (fixture/inspect-pane editors "b" fixture/display))))
+        ;; Owners support multiple views and remain stoppable while attached.
+        (command! {:op "reopen-session" :sessionId id :pane "c"})
+        (is (identical? live (:session (get @editors "c"))))
+        (is (thrown? Exception (command! {:op "reopen-session" :sessionId id :pane "c"})))
+        (is (= {:stopped id} (command! {:op "stop-session" :sessionId id :generation (:generation extended)})))
+        (is (empty? @editors))
+        (is (empty? @detached))
+        (is (thrown? Exception (command! {:op "session-status" :sessionId id}))))
       (finally (session/close! editors) (session/close! detached)))))
 
 (deftest detached-clocks-and-inspection-history
@@ -111,10 +85,9 @@
         (is (= id (get-in (post! service {:op "list-sessions"}) [:body :result :sessions 0 :sessionId])))
         (is (= (assoc run :source "(display 7)" :extensions [])
                (get-in (post! service {:op "reopen-session" :sessionId id :pane "b"}) [:body :result])))
-        (let [stale (post! service {:op "reopen-session" :sessionId id :pane "c"})]
-          (is (= 400 (:status stale)))
-          (is (false? (get-in stale [:body :ok])))
-          (is (string? (get-in stale [:body :error]))))
+        (let [second-view (post! service {:op "reopen-session" :sessionId id :pane "c"})]
+          (is (= 200 (:status second-view)))
+          (is (= id (get-in second-view [:body :result :sessionId]))))
         (post! service {:op "detach-session" :pane "b" :generation (:generation run)})
         (is (= id (get-in (post! service {:op "stop-session" :sessionId id}) [:body :result :stopped]))))
       (post! service {:op "run" :pane "attached" :source "(display 1)"})

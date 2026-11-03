@@ -124,6 +124,9 @@
     (is (= document (workspace/validate document)))
     (try
       (runtime/restore! editors document)
+      (is (empty? @editors) "Import restores drafts without execution")
+      (doseq [pane (:panes document)]
+        (runtime/run! editors {:pane (:id pane) :source (:executedSource pane) :extensions (:extensions pane)}))
       (doseq [pane (:panes document)]
         (testing (:id pane)
           (is (= (:source pane) (slurp (str directory (:filename pane)))))

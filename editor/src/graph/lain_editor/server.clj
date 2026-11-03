@@ -28,22 +28,38 @@
    "/style.css" ["style.css" "text/css"]
    "/editing.mjs" ["editing.mjs" "text/javascript"]})
 
+(defn- read-session! [editors command operation]
+  (if (and (:sessionId command) (nil? (:pane command)))
+    (let [entry (editor/require-owner editors command)
+          view (atom {"session-target" entry})]
+      ;; Ephemeral read projection only: lifetime and generation remain catalog-owned.
+      (operation view (assoc command :pane "session-target")))
+    (operation editors command)))
+
 (defn command!
   ([editors command]
-   (when (= "layout" (:op command)) (throw (ex-info "Layout registry required" {})))
-   (command! editors (atom {}) (atom {}) command))
+   (let [{:keys [layouts developments owners]} (editor/service-state editors)]
+     (command! editors layouts developments owners command)))
   ([editors layouts command]
-   (command! editors layouts (atom {}) command))
+   (let [{:keys [developments owners]} (editor/service-state editors)]
+     (command! editors layouts developments owners command)))
   ([editors layouts developments command]
-   (when (contains? #{"detach-session" "list-sessions" "reopen-session" "stop-session"} (:op command))
-     (throw (ex-info "Detached session registry required" {})))
-   (command! editors layouts developments (atom {}) command))
+   (command! editors layouts developments (:owners (editor/service-state editors)) command))
   ([editors layouts developments detached command]
    (locking editors
+    (let [state (editor/service-state editors)]
+      (alter-meta! editors assoc :graph.lain-editor.runtime.session/service
+                   (assoc state :owners detached :layouts layouts :developments developments))
+      (alter-meta! detached assoc :graph.lain-editor.runtime.session/service
+                   (assoc state :owners detached :layouts layouts :developments developments)))
+    (binding [editor/*owners* detached]
      (let [id (:pane command)]
        (case (:op command)
          "layout" (do (editor/require-generation (editor/require-pane editors id) (:generation command))
                       (graph-layout/compute! layouts command))
+         "open-session" (editor/open-session! editors command)
+         "session-status" (editor/session-status editors command)
+         "remove-extension" (editor/remove-extension! editors command)
          "run" (let [result (editor/run! editors command)]
                  (development-runtime/close-pane! developments id)
                  (graph-layout/close-pane! layouts id)
@@ -52,7 +68,7 @@
          "spawn-slot" (let [result (editor/spawn-slots! editors command)]
                         (graph-layout/close-pane! layouts id)
                         result)
-         "restore" (let [result (editor/restore! editors (:workspace command))]
+         "restore" (let [result (editor/restore! editors (:workspace command) (or (:reconnect command) {}))]
                      (development-runtime/close-all! developments)
                      (graph-layout/close! layouts)
                      result)
@@ -67,12 +83,18 @@
                             (editor/detach! editors detached command))
          "list-sessions" (editor/list-detached detached)
          "reopen-session" (editor/reopen! editors detached command)
-         "stop-session" (editor/stop-detached! detached command)
-         "inspect" (inspection/inspect editors command)
-         "complete" (completion/candidates editors command)
+         "stop-session" (let [views (keep (fn [[pane entry]]
+                                            (when (= (:sessionId command) (:sessionId entry)) pane)) @editors)
+                              result (editor/stop-session! editors command)]
+                          (doseq [pane views]
+                            (development-runtime/close-pane! developments pane)
+                            (graph-layout/close-pane! layouts pane))
+                          result)
+         "inspect" (read-session! editors command inspection/inspect)
+         "complete" (read-session! editors command completion/candidates)
          "save-block" (source-files/save-block! (project-root) command)
          "save-workspace" (workspace-files/save-workspace! (project-root) command)
-         (throw (ex-info "Unknown editor operation" {})))))))
+         (throw (ex-info "Unknown editor operation" {}))))))))
 
 (defn respond! [exchange status content-type body]
   (let [bytes (.getBytes ^String body java.nio.charset.StandardCharsets/UTF_8)

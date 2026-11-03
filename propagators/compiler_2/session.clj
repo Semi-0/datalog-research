@@ -6,6 +6,7 @@
             [propagators.compiler-2.model.env.binding :as binding]
             [propagators.compiler-2.runtime.boundary.effects :as effects]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
+            [propagators.compiler-2.runtime.inspection.temperature :as temperature]
             [propagators.compiler-2.runtime.session.environment-io :as environment-io]
             [propagators.compiler-2.runtime.session.extension :as native-extension]
             [propagators.compiler-2.runtime.session.input :as input]
@@ -17,7 +18,8 @@
             [propagators.message :as message]
             [propagators.network :as net]
             [propagators.network-builder :as nb]
-            [propagators.runner :as runner])
+            [propagators.runner :as runner]
+            [propagators.relationship-observer :as observer])
   (:import [java.util UUID]))
 
 (defprotocol CompilerSession
@@ -209,7 +211,7 @@
       runtime
       (let [{candidate :state error :error}
             (environment-io/compile-hidden-form runtime "compiler-session" form {:file file})]
-        (when error (throw (ex-info "Compiler extension failed" error)))
+        (when error (throw (ex-info (str "Compiler extension failed: " (:message error)) error)))
         (cond-> candidate name (assoc-in [::definitions name] form))))))
 
 (defn- compile-file-form [runtime file form]
@@ -242,6 +244,13 @@
         (update ::compiling-files disj file)
         (update ::compiled-files (fnil conj #{}) file))))
 
+(defn- refresh-observers [runtime]
+  ;; Source publication must finish observer wiring while still pure. Host
+  ;; delivery remains post-commit; do not use the IO-performing loader adapter.
+  (let [[ids prepared] (observer/refresh-roots (:program/net runtime))
+        [observed network] (temperature/run-propagators runtime :relationship/refresh prepared ids)]
+    (assoc observed :program/net network)))
+
 (defn- prepare-extension [session extension]
   (when-not (satisfies? ExtensionDeclaration extension)
     (throw (ex-info "Expected a compiler extension declaration" {})))
@@ -266,6 +275,7 @@
                                             {:run-id (:run-id identity)
                                              :dependency-ids (set (keys (:dependencies joined)))})
                           (#(reduce compile-file % (sort-by key new-files)))
+                          refresh-observers
                           effects/record-boundary-effects)]
         (ImmutableLainSession. identity declarations candidate)))))
 
@@ -275,6 +285,7 @@
         tick (inc (get before :runtime/commit-tick 0))
         prepared (-> before
                      (assoc :runtime/commit-tick tick)
+                     (input/assoc-program-commit-tick tick)
                      (input/apply-program-updates
                       (mapv #(select-keys % [:cell-id :update]) inputs))
                      effects/record-boundary-effects)

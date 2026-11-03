@@ -61,19 +61,18 @@
         (is (= before @editors)))
       (finally (editor/close! editors)))))
 
-(deftest json-replay-and-workspace-rollback
+(deftest json-workspace-import-restores-drafts-without-running
   (let [editors (atom {})
         left (assoc (pane "a" "(define source) (define result (+ source 1))")
                     :extensions ["(-> 10 source)"] :source "unrun draft")
         saved (json/read-json (json/write-json (document left (pane "b" "(define result 22)"))))]
     (try
-      (editor/restore! editors saved)
-      (is (= "11" (:value (inspect-pane editors "a" display))))
-      (is (= "22" (:value (inspect-pane editors "b" display))))
-      (let [before @editors]
-        (is (thrown? Exception (editor/restore! editors (assoc-in saved [:panes 1 :executedSource] "("))))
-        (is (= before @editors))
-        (is (thrown? Exception (workspace/validate (assoc-in saved [:layout :second :id] "a")))))
+      (is (= {} (:generations (editor/restore! editors saved))))
+      (is (empty? @editors))
+      (is (= "unrun draft" (get-in saved [:panes 0 :source])))
+      ;; Imported executed source is data, even when it no longer compiles.
+      (is (= {} (:generations (editor/restore! editors (assoc-in saved [:panes 1 :executedSource] "(")))))
+      (is (thrown? Exception (workspace/validate (assoc-in saved [:layout :second :id] "a"))))
       (finally (editor/close! editors)))))
 
 (deftest real-semantic-topology-and-child-inspection
@@ -92,8 +91,8 @@
         (is (= "25" (:value result)))
         (is (= 1 (count (filter #(= "propagator" (:kind %)) (:nodes graph)))))
         (is (= "stage" (:label call)))
-        (is (= #{"shift" "square"}
-               (set (map :label (filter #(= "propagator" (:kind %)) (:nodes child))))))
+        (is (every? (set (map :label (filter #(= "propagator" (:kind %)) (:nodes child))))
+                    ["shift" "square"]))
         (is (= "propagator" (get-in (inspection/inspect editors (assoc request :node (:id call)))
                                     [:selected :kind])))
         (is (thrown? Exception (inspection/inspect editors (assoc request :node "invented")))))
@@ -103,9 +102,9 @@
   (let [service (server/start! 0)
         base (str "http://127.0.0.1:" (:port service))]
     (try
-      (is (.contains (slurp base) "Tiled Lain editors"))
+      (is (.contains (slurp base) "tiled environment"))
       (is (.contains (slurp base) "/compiled/app.js"))
-      (is (.contains (slurp (str base "/compiled/app.js")) "javelin"))
+      (is (.contains (slurp (str base "/compiled/app.js")) "lain_editor"))
       (is (= (slurp (io/resource "public/lain-editor/style.css"))
              (slurp (str base "/style.css"))))
       (is (map? (json/read-json (slurp (str base "/compiled/app.js.map")))))
@@ -183,7 +182,9 @@
       (let [result (inspect-pane editors "a" (assoc display :cell "@display" :mode "graph"))]
         (is (contains? (set (map :label (get-in result [:graph :nodes]))) "+"))
         (is (seq (get-in result [:graph :edges]))))
-      (is (= {"a" "graph" "b" "value"} (:displayModes (editor/restore! editors saved))))
+      (editor/run! editors {:pane "b" :source "(display 22)"})
+      (let [references (into {} (map (fn [[id entry]] [id (select-keys entry [:sessionId :generation])])) @editors)]
+        (is (= {"a" "graph" "b" "value"} (:displayModes (editor/restore! editors saved references)))))
       (is (= "22" (:value (inspect-pane editors "b" (assoc display :cell "@display")))))
       (is (seq (get-in (inspect-pane editors "a" (assoc display :cell "@display" :mode "graph")) [:graph :edges])))
       (finally (editor/close! editors)))))

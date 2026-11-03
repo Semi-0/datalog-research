@@ -63,8 +63,8 @@
                                   :source "(define additional 42)"})
           (let [replacement (:session (get @editors "recursive"))
                 storage (retained/storage replacement)]
-            (is (not (identical? original-storage storage)))
-            (is (empty? @original-storage))
+            (is (identical? original-storage storage))
+            (is (every? #(contains? @original-storage %) (keys previous-sources)))
             (is (every? #(contains? @storage %) (keys previous-sources)))
             (is (seq (:nodes (:graph (inspect editors {:parent (:id node)
                                                        :recordedObservation observation}))))))))
@@ -73,7 +73,7 @@
 (deftest failed-candidate-cleans-up-retention-without-touching-the-active-session
   (let [editors (atom {}) candidate-storage (atom nil)]
     (try
-      (editor/run! editors {:pane "recursive" :source source})
+      (editor/run! editors {:pane "recursive" :source source :compilerSession false})
       (let [pane (get @editors "recursive")
             session (:session pane)
             network (:program/net @session)
