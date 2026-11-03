@@ -241,56 +241,56 @@
   ([graph]
    (graph->json graph {}))
   ([graph {:keys [changed-node-ids changed-cell-ids]}]
-  (let [graph (canonicalize-graph graph)
-        nodes (:nodes graph)
-        values (:values graph)
-        aliases (:node-aliases graph)
-        node-ui (:node-ui graph)
-        expansions (:expansions graph)]
-    (cond-> {:graph true
-             :widgets (->> node-ui
-                           (keep (fn [[_id ui]]
-                                   (when (= "widget" (:kind ui)) ui)))
-                           vec)
-             :nodes (mapv (fn [[id label]]
-                            (let [ui (get node-ui id)]
-                              (cond-> {:id (node-id-string id)
-                                       :label (str label)
-                                       :kind (if-let [kind (get (:node-kinds graph) id)]
-                                               (name kind)
-                                               (node-kind label ui))}
-                                ui
-                                (assoc :ui ui)
+   (let [graph (canonicalize-graph graph)
+         nodes (:nodes graph)
+         values (:values graph)
+         aliases (:node-aliases graph)
+         node-ui (:node-ui graph)
+         expansions (:expansions graph)]
+     (cond-> {:graph true
+              :widgets (->> node-ui
+                            (keep (fn [[_id ui]]
+                                    (when (= "widget" (:kind ui)) ui)))
+                            vec)
+              :nodes (mapv (fn [[id label]]
+                             (let [ui (get node-ui id)]
+                               (cond-> {:id (node-id-string id)
+                                        :label (str label)
+                                        :kind (if-let [kind (get (:node-kinds graph) id)]
+                                                (name kind)
+                                                (node-kind label ui))}
+                                 ui
+                                 (assoc :ui ui)
 
-                                (inspection/source-reference id)
-                                (assoc :source (inspection/source-reference id))
+                                 (inspection/source-reference id)
+                                 (assoc :source (inspection/source-reference id))
 
-                                (contains? values id)
-                                (assoc :value (value-summary (get values id)))
+                                 (contains? values id)
+                                 (assoc :value (value-summary (get values id)))
 
-                                (contains? aliases id)
-                                (assoc :aliases
-                                       (mapv node-id-string (get aliases id)))
+                                 (contains? aliases id)
+                                 (assoc :aliases
+                                        (mapv node-id-string (get aliases id)))
 
-                                (contains? expansions id)
-                                (assoc :expandable true
-                                       :expansion-id (node-id-string id)))))
-                          nodes)
-             :edges (mapv (fn [[from to]]
-                            {:from (node-id-string from)
-                             :to (node-id-string to)})
-                          (:edges graph))}
-      (seq changed-node-ids)
-      (assoc :changed-node-ids (mapv id-string changed-node-ids))
+                                 (contains? expansions id)
+                                 (assoc :expandable true
+                                        :expansion-id (node-id-string id)))))
+                           nodes)
+              :edges (mapv (fn [[from to]]
+                             {:from (node-id-string from)
+                              :to (node-id-string to)})
+                           (:edges graph))}
+       (seq changed-node-ids)
+       (assoc :changed-node-ids (mapv id-string changed-node-ids))
 
-      (seq changed-cell-ids)
-      (assoc :changed-cell-ids (mapv id-string changed-cell-ids))))))
+       (seq changed-cell-ids)
+       (assoc :changed-cell-ids (mapv id-string changed-cell-ids))))))
 
 (defn- history-sample->json
   [sample]
   (cond-> (-> sample
-      (update :sample/content value-summary)
-      (update :sample/strongest value-summary))
+              (update :sample/content value-summary)
+              (update :sample/strongest value-summary))
     (:sample/node sample) (assoc :source (inspection/source-reference (:sample/node sample))
                                  :sample/node (pr-str (:sample/node sample)))))
 
@@ -303,7 +303,7 @@
       :graph
       (cond-> (assoc base :graph (graph->json (:view/graph view)))
         (:view/status view) (assoc :status (name (:view/status view))
-                                  :reasons (mapv value-summary (:view/reasons view))))
+                                   :reasons (mapv value-summary (:view/reasons view))))
 
       :collection
       (let [collection (:view/collection view)]
@@ -350,10 +350,10 @@
                     (string? direction) (keyword direction)
                     :else :upstream)]
     (cond-> {}
-    label (assoc :label label)
-    node (assoc :node node)
-    direction (assoc :direction direction)
-    (:interval-ms command) (assoc :interval-ms (:interval-ms command)))))
+      label (assoc :label label)
+      node (assoc :node node)
+      direction (assoc :direction direction)
+      (:interval-ms command) (assoc :interval-ms (:interval-ms command)))))
 
 (defn xr-trace-install!
   [session command]
@@ -430,7 +430,7 @@
                                     :cell-id cell-id
                                     :update update
                                     :command command})
-  {:target (runtime/read-cell @session {:cell-id (pr-str cell-id)})
+    {:target (runtime/read-cell @session {:cell-id (pr-str cell-id)})
      :graph (graph->json (:graph @session)
                          (graph-projection-options @session))
      :command command}))
@@ -446,12 +446,14 @@
   {:widgets (get-in @session [:xr :widgets])
    :command command})
 
+;; Extended keyword names are constructed explicitly for reader/tool portability.
+;; Equality dispatch preserves their exact keyword wire values and default path.
 (defn handle-command!
   [session {:keys [op] :as command}]
-  (case op
-    :xr/trace/install (xr-trace-install! session command)
-    :xr/trace/read (xr-trace-read session command)
-    :xr/trace/expand (xr-trace-expand @session command)
+  (condp = op
+    (keyword "xr" "trace/install") (xr-trace-install! session command)
+    (keyword "xr" "trace/read") (xr-trace-read session command)
+    (keyword "xr" "trace/expand") (xr-trace-expand @session command)
     :xr/extend-graph (xr-extend-graph! session command)
     :xr/send-message (xr-send-message! session command)
     :xr/widget-event (xr-widget-event! session command)

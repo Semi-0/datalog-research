@@ -115,8 +115,8 @@
         updates* (vec
                   (keep (fn [{:keys [channel value update]}]
                           (when-let [event-cell (get-in channels
-                                                         [(str channel)
-                                                          :event-cell])]
+                                                        [(str channel)
+                                                         :event-cell])]
                             {:cell-id event-cell
                              :value value
                              :update update}))
@@ -170,7 +170,7 @@
                 runtime-cycle-for-input
                 (record-runtime-transaction before-net)))
 
-      :xr/widget-event
+          :xr/widget-event
           (let [before-net (:program/net state)
                 widget-id (str (:widget-id input))
                 channel (str (or (:channel input) "value"))
@@ -187,7 +187,7 @@
                                     :cell-id (:event-cell channel-info)
                                     :value (get latest-values channel-name)
                                     :update (publication/active [widget-id (:event-cell channel-info)] epoch
-                                                        (get latest-values channel-name))}))
+                                                                (get latest-values channel-name))}))
                                channels))
                 candidates (changed-candidate-cells before-net updates)
                 state* (apply-program-updates state updates)]
@@ -206,17 +206,17 @@
                 (annotate-widget-cell-values widget-id)
                 (record-runtime-transaction before-net)))
 
-    :xr/widget-retraction
+          :xr/widget-retraction
           (let [before-net (:program/net state)
                 widget-id (str (:widget-id input))
                 channel (str (or (:channel input) "value"))
                 channel-info (widget-channel state widget-id channel)
                 epoch (next-widget-epoch state widget-id)
-                update {:channel channel
-                        :cell-id (:event-cell channel-info)
-                        :update (publication/retracted [widget-id (:event-cell channel-info)] epoch)}
-                candidates (changed-candidate-cells before-net [update])
-                state* (apply-program-updates state [update])]
+                retraction-update {:channel channel
+                                   :cell-id (:event-cell channel-info)
+                                   :update (publication/retracted [widget-id (:event-cell channel-info)] epoch)}
+                candidates (changed-candidate-cells before-net [retraction-update])
+                state* (apply-program-updates state [retraction-update])]
             (-> state*
                 (assoc :runtime/changed-candidate-cells candidates)
                 (assoc-in [:xr :widget-epochs widget-id] epoch)
@@ -227,7 +227,7 @@
                                :widget-id widget-id
                                :channel channel
                                :epoch epoch
-                               :updates [update]))
+                               :updates [retraction-update]))
                 runtime-cycle-for-input
                 (annotate-widget-cell-values widget-id)
                 (record-runtime-transaction before-net)))

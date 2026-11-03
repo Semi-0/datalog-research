@@ -21,3 +21,8 @@ Use --all --report-only for a whole-repository debt report. Full reports do not 
 On the first deployment with no verified release, explicitly establish and review a baseline before enabling the changed-code CI lane. On GX10 the deployment driver supplies the existing active pair automatically.
 
 A clean lint/format result is not behavioral acceptance. Tests, session/effect cleanup, browser gates and source review remain required.
+
+
+Analyzer compatibility: `.clj-kondo/hooks/lain.clj` models simple Meander match bindings and Overtone synth parameter vectors with supported analyze-call hooks. Complex Meander operators retain ordinary analysis; undefined symbols and invalid arities in bodies remain errors. Negative-control tests exercise that policy. Three standalone script/review namespaces have only their historical namespace-layout rule disabled through `config-in-ns`; semantic rules remain enabled.
+
+Extended keyword names such as a name containing a slash are constructed explicitly with `keyword`. Their exact keyword wire values are preserved; equality dispatch accepts these computed constants without relying on parser-specific literal syntax. Do not turn protocol operations into strings to satisfy a parser.

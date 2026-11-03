@@ -265,42 +265,42 @@
 
 ;; Deferred compiler-2 behavior-history integration.
 #_(deftest be-block-target-expression-displays-latest-update
-  (let [session (assembly/new-session)]
-    (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(define events)"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(define out)"})
-    (runtime/append-tui-block!
-     session
-     {:client-id "A"
-      :text "(define retain-event (network [acc update out] (behavior-add-event acc update out) (list out)))"})
-    (runtime/append-tui-block!
-     session
-     {:client-id "A"
-      :text "(behavior events retain-event (behavior-empty-state) out)"})
-    (runtime/append-tui-block! session {:client-id "A"
-                                        :text "(-> out (be:block 5))"})
-    (let [events-id (cenv/resolve-binding-id (:program/net @session)
-                                            (:program/env @session) 'events)]
-      (runtime/commit-runtime-input! session
-                                     {:runtime/input :cell-message
-                                      :cell-id events-id
-                                      :update (obj/compound-object {1 7})})
-      (let [block (get-in (runtime/read-tui-view @session {:client-id "A"})
-                          [:blocks 5])]
-        (is (= 7 (:value block)))
-        (is (= :behavior (get-in block [:annotations 0 :kind])))
-        (is (= #{events-id}
-               (set (get-in block [:annotations 0 :identities]))))
-        (is (= 1 (get-in block [:annotations 0 :latest-time])))
-        (is (str/includes? (:annotation block) "[be:")))
-      (runtime/commit-runtime-input! session
-                                     {:runtime/input :cell-message
-                                      :cell-id events-id
-                                      :update (obj/compound-object {2 8})})
-      (let [block (get-in (runtime/read-tui-view @session {:client-id "A"})
-                          [:blocks 5])]
-        (is (= 8 (:value block)))
-        (is (= 2 (get-in block [:annotations 0 :latest-time])))))))
+    (let [session (assembly/new-session)]
+      (runtime/register-tui! session {:client-id "A"})
+      (runtime/append-tui-block! session {:client-id "A" :text "(define events)"})
+      (runtime/append-tui-block! session {:client-id "A" :text "(define out)"})
+      (runtime/append-tui-block!
+       session
+       {:client-id "A"
+        :text "(define retain-event (network [acc update out] (behavior-add-event acc update out) (list out)))"})
+      (runtime/append-tui-block!
+       session
+       {:client-id "A"
+        :text "(behavior events retain-event (behavior-empty-state) out)"})
+      (runtime/append-tui-block! session {:client-id "A"
+                                          :text "(-> out (be:block 5))"})
+      (let [events-id (cenv/resolve-binding-id (:program/net @session)
+                                               (:program/env @session) 'events)]
+        (runtime/commit-runtime-input! session
+                                       {:runtime/input :cell-message
+                                        :cell-id events-id
+                                        :update (obj/compound-object {1 7})})
+        (let [block (get-in (runtime/read-tui-view @session {:client-id "A"})
+                            [:blocks 5])]
+          (is (= 7 (:value block)))
+          (is (= :behavior (get-in block [:annotations 0 :kind])))
+          (is (= #{events-id}
+                 (set (get-in block [:annotations 0 :identities]))))
+          (is (= 1 (get-in block [:annotations 0 :latest-time])))
+          (is (str/includes? (:annotation block) "[be:")))
+        (runtime/commit-runtime-input! session
+                                       {:runtime/input :cell-message
+                                        :cell-id events-id
+                                        :update (obj/compound-object {2 8})})
+        (let [block (get-in (runtime/read-tui-view @session {:client-id "A"})
+                            [:blocks 5])]
+          (is (= 8 (:value block)))
+          (is (= 2 (get-in block [:annotations 0 :latest-time])))))))
 
 (deftest runtime-temperature-samples-widget-commit-propagation-and-effects
   (let [session (assembly/new-session)]
@@ -450,9 +450,9 @@
                                 :out "gnuplot plot\n"
                                 :err ""})]
                  (temperature-plot/gnuplot-rate-plot {:samples samples
-                                                       :window-ms 1000
-                                                       :width 60
-                                                       :height 10}))]
+                                                      :window-ms 1000
+                                                      :width 60
+                                                      :height 10}))]
     (is (str/includes? output "gnuplot: /fake/gnuplot"))
     (is (str/includes? output "gnuplot plot"))))
 
@@ -533,9 +533,9 @@
         plot (with-redefs [temperature-plot/gnuplot-command
                            (constantly nil)]
                (temperature-plot/gnuplot-rate-plot {:rows history2
-                                                     :window-ms 1000
-                                                     :width 72
-                                                     :height 10}))]
+                                                    :window-ms 1000
+                                                    :width 72
+                                                    :height 10}))]
     (is (= [0.001 0.0] (mapv :commit history2)))
     (is (str/includes? plot "commit/ms"))
     (is (str/includes? plot "latest 0.0"))
@@ -865,7 +865,7 @@
       (is (zero? (:runtime/full-rebuild-fallbacks @session)))
       (is (= value/nothing
              (net/network-cell-strongest (:program/net watch-network-state)
-                                        (runtime-binding-id watch-network-state 'x0)))))))
+                                         (runtime-binding-id watch-network-state 'x0)))))))
 
 (deftest edited-be-block-watch-uses-new-display-epoch
   (let [session (atom watch-network-state)]
@@ -884,7 +884,7 @@
       (is (zero? (:runtime/full-rebuild-fallbacks @session)))
       (is (= value/nothing
              (net/network-cell-strongest (:program/net watch-network-state)
-                                        (runtime-binding-id watch-network-state 'x0)))))))
+                                         (runtime-binding-id watch-network-state 'x0)))))))
 
 (deftest later-def-net-updates-earlier-free-cell-watch
   (let [session (assembly/new-session)]
@@ -909,38 +909,38 @@
       (is (= 2 (get-in view [:blocks 2 :value]))))))
 
 #_(deftest tui-runtime-can-build-compiler-2-behavior-cell
-  (let [session (assembly/new-session)]
-    (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block!
-     session
-     {:client-id "A"
-      :text "(define retain (network [acc next out] (behavior-add-event acc next full) (behavior-retain-last full 1 out) (list out)))"})
-    (runtime/append-tui-block! session {:client-id "A"})
-    (runtime/append-tui-block!
-     session
-     {:client-id "A"
-      :text "(let-cell [events retained]
+    (let [session (assembly/new-session)]
+      (runtime/register-tui! session {:client-id "A"})
+      (runtime/append-tui-block!
+       session
+       {:client-id "A"
+        :text "(define retain (network [acc next out] (behavior-add-event acc next full) (behavior-retain-last full 1 out) (list out)))"})
+      (runtime/append-tui-block! session {:client-id "A"})
+      (runtime/append-tui-block!
+       session
+       {:client-id "A"
+        :text "(let-cell [events retained]
                (behavior-event 6 2 events)
                (behavior-event 8 3 events)
                (behavior-cell events (behavior-empty-state) retain retained)
                (block-at % 1 retained)
                retained)"})
-    (let [displayed (get-in (runtime/read-tui-view @session {:client-id "A"})
-                            [:blocks 1 :value])]
-      (is (= 3 displayed)))))
+      (let [displayed (get-in (runtime/read-tui-view @session {:client-id "A"})
+                              [:blocks 1 :value])]
+        (is (= 3 displayed)))))
 
 #_(deftest xr-graph-hides-generic-procedure-implementation-slots
-  (let [session (assembly/new-session)]
-    (xr/xr-extend-graph!
-     session
-     {:source "(define events)\n(define retained)\n(define out)\n(define retain (network [acc update full] (behavior-add-event acc update full) (list full)))\n(behavior-event 6 2 events)\n(behavior events retain (behavior-empty-state) retained)\n(<-> (+ retained retained) out)"})
-    (let [labels (set (map :label (:nodes (xr/graph->json (:graph @session)))))]
-      (is (not-any? #(str/starts-with? % "slot generic/") labels))
-      (is (not-any? #(str/starts-with? % "slot method/") labels))
-      (is (not-any? #(str/starts-with? % "slot operator/") labels))
-      (is (contains? labels "behavior"))
-      (is (contains? labels "behavior-event"))
-      (is (contains? labels "+")))))
+    (let [session (assembly/new-session)]
+      (xr/xr-extend-graph!
+       session
+       {:source "(define events)\n(define retained)\n(define out)\n(define retain (network [acc update full] (behavior-add-event acc update full) (list full)))\n(behavior-event 6 2 events)\n(behavior events retain (behavior-empty-state) retained)\n(<-> (+ retained retained) out)"})
+      (let [labels (set (map :label (:nodes (xr/graph->json (:graph @session)))))]
+        (is (not-any? #(str/starts-with? % "slot generic/") labels))
+        (is (not-any? #(str/starts-with? % "slot method/") labels))
+        (is (not-any? #(str/starts-with? % "slot operator/") labels))
+        (is (contains? labels "behavior"))
+        (is (contains? labels "behavior-event"))
+        (is (contains? labels "+")))))
 
 (deftest tui-runtime-can-project-distributed-tms-retraction
   (let [session (assembly/new-session)]
@@ -1486,13 +1486,13 @@
                          ["call network [x same next]" "next"]))))
       (testing "installed tracer can be read by another client"
         (let [installed (server/request server/default-host port
-                                        {:op :semantic/trace/install
+                                        {:op (keyword "semantic" "trace/install")
                                          :label "next"
                                          :direction :upstream
                                          :interval-ms 5000})
               trace-id (get-in installed [:result :trace-id])
               read-back (server/request server/default-host port
-                                        {:op :semantic/trace/read
+                                        {:op (keyword "semantic" "trace/read")
                                          :trace-id trace-id})
               expansion (semantic-repl/expansion (get-in read-back [:result :graph])
                                                  {:label "call network [x same next]"})]
@@ -1501,7 +1501,7 @@
           (is (contains? (set (semantic-repl/edge-labels expansion))
                          ["+" "<->"]))
           (is (:ok (server/request server/default-host port
-                                   {:op :semantic/trace/stop
+                                   {:op (keyword "semantic" "trace/stop")
                                     :trace-id trace-id})))))
       (testing "tui blocks are exposed over the socket"
         (is (:ok (server/request server/default-host port

@@ -274,7 +274,7 @@
      executor
      (fn []
        (try
-         (let [result (xr/handle-command! session {:op :xr/trace/read
+         (let [result (xr/handle-command! session {:op (keyword "xr" "trace/read")
                                                    :trace-id trace-id})]
            (locking out
              (write-frame out (response "xr/trace/update" {:ok true
@@ -356,19 +356,19 @@
                     (:encoded-context observed)))]
     (when (or graph (seq views) context)
       (cond-> {:graph (cond-> (assoc (if graph
-                               (xr/graph->json
-                                graph
-                                {:changed-node-ids (:changed-node-ids result)
-                                 :changed-cell-ids (:changed-cells result)})
-                               {:graph true :nodes [] :edges []})
-                              :widgets widgets)
-                true
-                (graph-with-current-widgets widgets)
+                                       (xr/graph->json
+                                        graph
+                                        {:changed-node-ids (:changed-node-ids result)
+                                         :changed-cell-ids (:changed-cells result)})
+                                       {:graph true :nodes [] :edges []})
+                                     :widgets widgets)
+                        true
+                        (graph-with-current-widgets widgets)
 
-                (seq (:changed-node-ids result))
-                (assoc :change-token change-token))
-       :views views
-       :generation (:environment/generation state)}
+                        (seq (:changed-node-ids result))
+                        (assoc :change-token change-token))
+               :views views
+               :generation (:environment/generation state)}
         context (assoc :context context)))))
 
 (defn- latest-effect-payload
@@ -399,7 +399,7 @@
                                   :result payload}))))
       (catch Exception error
         (locking out (write-frame out (response "xr/effects/update"
-                                              {:ok false :error (ex-message error)})))))
+                                                {:ok false :error (ex-message error)})))))
     (.scheduleAtFixedRate
      executor
      (fn []
@@ -414,7 +414,7 @@
                                        :result payload})))))
          (catch Exception error
            (locking out (write-frame out (response "xr/effects/update"
-                                                 {:ok false :error (ex-message error)}))))))
+                                                   {:ok false :error (ex-message error)}))))))
      interval-ms
      interval-ms
      TimeUnit/MILLISECONDS)
@@ -480,16 +480,16 @@
             8 nil
             1 (let [command (json/read-json text)
                     op (:op (normalize-op command))
-                    subscribe? (= op :xr/context/subscribe)
+                    subscribe? (= op (keyword "xr" "context/subscribe"))
                     result (if subscribe?
                              {:ok true :result {:context-subscribed true}}
                              (handle-json-command session command))
                     stop (cond
                            (and subscribe? (not context-subscribed?))
                            (start-context-push! session network-inlet out)
-                           (and (:ok result) (= op :xr/trace/install))
+                           (and (:ok result) (= op (keyword "xr" "trace/install")))
                            (start-trace-push! session out
-                                             (select-keys (:result result) [:trace-id :interval-ms]))
+                                              (select-keys (:result result) [:trace-id :interval-ms]))
                            :else nil)]
                 (when stop (swap! stops conj stop))
                 (locking out (write-frame out (response "xr/response" result)))

@@ -39,13 +39,15 @@
 (def export-instance instance-replay/export-instance)
 (def import-instance! instance-replay/import-instance!)
 
+;; Extended keyword names are constructed explicitly for reader/tool portability.
+;; Equality dispatch preserves their exact keyword wire values and default path.
 (defn handle-command!
   [session {:keys [op source] :as command}]
   (try
     (let [response (locking session
                      {:ok true
                       :result
-                      (case op
+                      (condp = op
                         :tui/register (register-tui! session command)
                         :tui/append-block (append-tui-block! session command)
                         :tui/edit-block (edit-tui-block! session command)
@@ -56,7 +58,7 @@
                         :tui/unregister (unregister-tui! session command)
                         :instance/export (export-instance @session)
                         :instance/import (import-instance! session
-                                                          (:manifest command))
+                                                           (:manifest command))
                         :agent/blocks (read-agent-blocks @session command)
                         :agent/block (read-agent-block @session command)
                         :agent/send-block (send-agent-block! session command)
@@ -66,9 +68,9 @@
                         :semantic/graph (:graph (require-state @session))
                         :semantic/trace (semantic-trace @session command)
                         :semantic/expand (semantic-expansion @session command)
-                        :semantic/trace/install (install-semantic-trace! session command)
-                        :semantic/trace/read (read-installed-trace @session command)
-                        :semantic/trace/stop (stop-installed-trace! session command)
+                        (keyword "semantic" "trace/install") (install-semantic-trace! session command)
+                        (keyword "semantic" "trace/read") (read-installed-trace @session command)
+                        (keyword "semantic" "trace/stop") (stop-installed-trace! session command)
                         :xr/effects (read-xr-effects @session)
                         :runtime/temperature
                         (summarize-temperature

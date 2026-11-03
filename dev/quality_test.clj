@@ -53,6 +53,29 @@
   (is (not (quality/source-file? "node_modules/vendor.clj")))
   (is (not (quality/source-file? "examples/program.lain"))))
 
+(deftest dsl-bindings-preserve-real-error-detection
+  (doseq [[require-form body]
+          [["[meander.epsilon :as m]" "(m/match {:edge #{[:a :b]}} {:edge ?pairs} (count ?pairs) _ 0)"]
+           ["[overtone.core :as o]" "(o/synth \"example\" [frequency 440 amplitude 0.1] (* frequency amplitude))"]]]
+    (let [source (str "(ns sample (:require " require-form ")) " body)
+          findings (quality/lint-source "sample.clj" source)]
+      (is (empty? (filter #(= :error (:level %)) findings)) (pr-str findings)))
+    (doseq [bad ["missing-function" "(inc 1 2)"]]
+      (let [bad-body (if (= require-form "[meander.epsilon :as m]")
+                       (str "(m/match 1 ?x " bad ")")
+                       (str "(o/synth \"example\" [frequency 440] " bad ")"))
+            findings (quality/lint-source "sample.clj"
+                                          (str "(ns sample (:require " require-form ")) " bad-body))]
+        (is (some #(= :error (:level %)) findings) (pr-str findings))))))
+
+(deftest script-layout-exception-does-not-suppress-other-errors
+  (let [findings (quality/lint-source "system-model/check_propagator_proposal.clj"
+                                      "(ns system-model.check-propagator-proposal) (inc 1 2)")]
+    (is (not-any? #(= :namespace-name-mismatch (:type %)) findings))
+    (is (some #(= :invalid-arity (:type %)) findings)))
+  (is (some #(= :namespace-name-mismatch (:type %))
+            (quality/lint-source "wrong.clj" "(ns another-namespace)"))))
+
 (defn -main [& _]
   (let [{:keys [fail error]} (run-tests 'quality-test)]
     (shutdown-agents)
