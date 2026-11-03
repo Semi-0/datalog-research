@@ -7,6 +7,9 @@ for tool in clojure node npm cargo python3; do
     exit 1
   fi
 done
+clojure -M:format-check
+clojure -M:lint
+clojure -M:quality-test
 clojure -M:test production
 clojure -M:test graph.lain-editor.protected-server-test
 clojure -M:editor/cljs-test

@@ -127,6 +127,7 @@
     propagators.compiler-2.runtime.clock-test
     propagators.compiler-2.runtime.retraction-inspection-test
     propagators.compiler-2.runtime.session.instance-replay-test
+    propagators.compiler-2.runtime.session.widget-retraction-test
     graph.compiler-2-versioned-tui.editor-test
     graph.compiler-2-versioned-tui.layout-test
     graph.vijual.scan-test

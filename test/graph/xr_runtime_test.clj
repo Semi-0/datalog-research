@@ -56,13 +56,13 @@
 
 (defn- current-value [session label]
   (data/payload (net/network-cell-strongest (:program/net @session)
-                                          (cell-id session label))))
+                                            (cell-id session label))))
 
 (defn- projected-runtime-graph
   [session]
   {:graph (xr/graph->json (:graph @session)
-                           {:changed-node-ids (:runtime/changed-node-ids @session)
-                            :changed-cell-ids (:runtime/changed-cells @session)})})
+                          {:changed-node-ids (:runtime/changed-node-ids @session)
+                           :changed-cell-ids (:runtime/changed-cells @session)})})
 
 (defn- projected-current
   [node]
@@ -157,7 +157,7 @@
                         {:op :xr/extend-graph
                          :source "(define out)\n(-> 42 out)"})
     (let [installed (xr/handle-command! session
-                                        {:op :xr/trace/install
+                                        {:op (keyword "xr" "trace/install")
                                          :label "out"
                                          :direction :upstream})]
       (is (some? (cell-id session "out")))
@@ -543,7 +543,7 @@
                         {:op :xr/extend-graph
                          :source complex-widget-supported-source})
     (let [trace (xr/handle-command! session
-                                    {:op :xr/trace/install
+                                    {:op (keyword "xr" "trace/install")
                                      :label "out"
                                      :direction :upstream})
           nodes (get-in trace [:graph :nodes])
@@ -561,11 +561,11 @@
     (xr/handle-command! session {:op :xr/extend-graph :source "(define a)"})
     (xr/handle-command! session {:op :xr/extend-graph :source "(-> 42 a)"})
     (let [installed (xr/handle-command! session
-                                        {:op :xr/trace/install
+                                        {:op (keyword "xr" "trace/install")
                                          :label "a"
                                          :direction :upstream})
           read-back (xr/handle-command! session
-                                        {:op :xr/trace/read
+                                        {:op (keyword "xr" "trace/read")
                                          :trace-id (:trace-id installed)})]
       (is (:trace-id installed))
       (is (seq (get-in read-back [:graph :nodes])))
@@ -580,14 +580,14 @@
                         {:op :xr/extend-graph
                          :source "(let-cell [out] (inc 4 out) out)"})
     (let [installed (xr/handle-command! session
-                                        {:op :xr/trace/install
+                                        {:op (keyword "xr" "trace/install")
                                          :label "out"
                                          :direction :upstream})
           nodes (get-in installed [:graph :nodes])
           labels (set (map :label nodes))
           call-node (some #(when (= "call inc" (:label %)) %) nodes)
           expansion (xr/handle-command! session
-                                        {:op :xr/trace/expand
+                                        {:op (keyword "xr" "trace/expand")
                                          :label "call inc"})
           expansion-labels (set (map :label (get-in expansion [:graph :nodes])))]
       (is (contains? labels "call inc"))
@@ -603,7 +603,7 @@
                         {:op :xr/extend-graph
                          :source source})
     (let [trace (xr/handle-command! session
-                                    {:op :xr/trace/install
+                                    {:op (keyword "xr" "trace/install")
                                      :label "out"
                                      :direction :both})
           labels (map :label (get-in trace [:graph :nodes]))
@@ -913,7 +913,7 @@
 	                          (xr-io g receipt)
 	                          receipt)"})
           _ (is (wait-for-xr-launch session))
-	          effects (:result (runtime/handle-command! session {:op :xr/effects}))
+          effects (:result (runtime/handle-command! session {:op :xr/effects}))
           launch (first (:effects effects))
           graph (get-in launch [:boundary/payload :graph])]
       (is (seq (:blocks view)))
@@ -945,7 +945,7 @@
       (request {:op :tui/append-block :client-id "A" :text "(define receipt)"})
       (request {:op :tui/append-block
                 :client-id "A"
-	                :text "(let-cell [g]
+                :text "(let-cell [g]
 	                         (trace a g)
 	                         (xr-io g receipt)
 	                         receipt)"})
@@ -965,7 +965,7 @@
                                           (unchecked-byte
                                            (bit-xor (bit-and b 0xff)
                                                     (bit-and (aget mask-key
-                                                                  (mod i 4))
+                                                                   (mod i 4))
                                                              0xff))))
                                         payload))
         frame-bytes (byte-array (concat [0x81
@@ -988,7 +988,7 @@
     (runtime/append-tui-block!
      session
      {:client-id "A"
-	      :text "(let-cell [g]
+      :text "(let-cell [g]
 	               (trace out g)
 	               (xr-io g receipt)
 	               receipt)"})
@@ -1018,7 +1018,7 @@
                             "(let-cell [g]
 		                       (trace out g)
 		                       (io:xr g))"
-		                    "(slider-panel-io \"slider-panel-0\" \"a\" a a-events \"b\" b b-events \"c\" c c-events panel)"])]
+                            "(slider-panel-io \"slider-panel-0\" \"a\" a a-events \"b\" b b-events \"c\" c c-events panel)"])]
       (runtime/append-tui-block! session {:client-id "A" :text source}))
     (is (wait-for-xr-launch session))
     (let [payload (#'xr-server/latest-effect-payload session)
@@ -1028,10 +1028,10 @@
              (->> widgets
                   (filter #(= "slider-panel-0" (:id %)))
                   first
-	                  :channels
-	                  vals
-	                  (map :channel)
-	                  set))))))
+                  :channels
+                  vals
+                  (map :channel)
+                  set))))))
 
 (deftest io-xr-tracks-default-event-arithmetic-from-slider-panel-alias
   (let [session (assembly/new-session)]
@@ -1210,8 +1210,8 @@
                             "(let-cell [g]
                                (trace out g)
                                (io:xr g))"
-		                    "(slider-panel-io \"slider-panel-0\" \"a\" a a-events \"b\" b b-events \"c\" c c-events panel)"
-		                    "(-> out (be:block 7))"])]
+                            "(slider-panel-io \"slider-panel-0\" \"a\" a a-events \"b\" b b-events \"c\" c c-events panel)"
+                            "(-> out (be:block 7))"])]
       (runtime/append-tui-block! session {:client-id "A" :text source}))
     (is (wait-for-xr-launch session))
     (doseq [[channel value] [["a" 76] ["b" 4] ["c" 3]]]
@@ -1307,7 +1307,7 @@
     (let [view (runtime/read-tui-view @session {:client-id "A"})
           values (mapv :value (:blocks view))
           effects (:effects (:result (runtime/handle-command! session
-                                                               {:op :xr/effects})))]
+                                                              {:op :xr/effects})))]
       (is (= (str/replace "(let-cell [g r]
                (trace out g)
                (xr-io g r)
@@ -1324,15 +1324,15 @@
                     "(define a)"
                     "(-> (+ a 2) out2)"
                     "(define r)"
-	                    "(let-cell [g]
+                    "(let-cell [g]
 	                       (trace out2 g)
 	                       (xr-io g r)
 	                       r)"
-	                    "(-> (+ 1 2) a)"]]
+                    "(-> (+ 1 2) a)"]]
       (runtime/append-tui-block! session {:client-id "A" :text source}))
     (is (wait-for-xr-launch session))
     (let [effects (:effects (:result (runtime/handle-command! session
-                                                               {:op :xr/effects})))
+                                                              {:op :xr/effects})))
           labels (->> effects
                       last
                       :boundary/payload
@@ -1352,14 +1352,14 @@
     (doseq [source ["(define out)"
                     "(define a)"
                     "(-> (+ 1 a) out)"
-	                    "(let-cell [g r]
+                    "(let-cell [g r]
 	                       (trace out g)
 	                       (xr-io g r)
 	                       r)"]]
       (runtime/append-tui-block! session {:client-id "A" :text source}))
     (is (wait-for-xr-launch session))
     (let [effects (:effects (:result (runtime/handle-command! session
-                                                               {:op :xr/effects})))
+                                                              {:op :xr/effects})))
           labels (->> effects
                       last
                       :boundary/payload

@@ -13,3 +13,6 @@ target/lain-editor/
 # Python deployment test caches
 __pycache__/
 *.pyc
+
+# Code-quality reports
+/target/quality/

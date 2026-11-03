@@ -1,0 +1,11 @@
+{:hooks {:analyze-call {meander.epsilon/match hooks.lain/match
+                        overtone.core/synth hooks.lain/synth}}
+ ;; These standalone scripts/review documents are invoked by file path. Their
+ ;; historical namespace layout is intentional; all other rules remain enabled.
+ :config-in-ns
+ {validate-ollama-lain-tail-fib
+  {:linters {:namespace-name-mismatch {:level :off}}}
+  system-model.check-propagator-proposal
+  {:linters {:namespace-name-mismatch {:level :off}}}
+  system-model.propagator-infrastructure-contracts
+  {:linters {:namespace-name-mismatch {:level :off}}}}}
