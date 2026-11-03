@@ -20,7 +20,7 @@
 (defn- round-gate [host] (.-roundGate ^SessionBoundary host))
 
 (def ^:private host-keys
-  [::session ::pending ::receipts ::closed? ::phase ::scheduled? ::blocked? ::failures ::delivery-ready?])
+  [::session ::pending ::receipts ::closed? ::phase ::scheduled? ::blocked? ::failures ::delivery-ready? ::observers])
 
 (defn current-session [host]
   (let [view @(runtime-session host)
@@ -39,7 +39,8 @@
     (reset! view (host-delivery-policy
                   (merge (session/compiler-state compiler-session)
                          (select-keys @view host-keys)
-                         {::session compiler-session})))))
+                         {::session compiler-session})))
+    (doseq [[_ observe] (::observers @view)] (observe compiler-session))))
 
 (defn receipts [host] (::receipts @(runtime-session host)))
 (defn pending-count [host] (count (::pending @(runtime-session host))))
@@ -76,6 +77,49 @@
                    :backpressured))]
     (when (= :accepted result) (wake! host))
     result))
+
+(defn observe!
+  "Observe committed immutable sessions. Callback may enqueue, never advance.
+  Returns an idempotent unsubscribe function. Observer exceptions are isolated."
+  [host id observe]
+  (let [safe (fn [snapshot]
+               (try (observe snapshot)
+                    (catch Exception error
+                      (swap! (runtime-session host) update ::failures conj error))))]
+    (locking (gate host)
+      (require-open! host)
+      (when (get-in @(runtime-session host) [::observers id])
+        (throw (ex-info "Observer identity already registered" {:id id})))
+      (swap! (runtime-session host) assoc-in [::observers id] safe)
+      (safe (current-session host)))
+    #(locking (gate host) (swap! (runtime-session host) update ::observers dissoc id))))
+
+(defn submit-extension!
+  "Queue atomic source admission at an idle boundary; return a receipt promise.
+  A receipt describes admission, not completion or rollback of external effects."
+  [host extension]
+  (let [receipt (promise)]
+    (locking (gate host)
+      (require-open! host)
+      (when (>= (pending-count host) (.-capacity ^SessionBoundary host))
+        (throw (ex-info "Extension ingress is backpressured" {})))
+      (swap! (runtime-session host) update ::pending conj
+             {:extension extension :receipt receipt
+              :run-id (:run-id (session/session-identity (current-session host)))}))
+    (wake! host)
+    receipt))
+
+(defn- admit-extensions! [host queued]
+  (doseq [{:keys [extension receipt run-id]} queued :when extension]
+    (try
+      (when-not (= run-id (:run-id (session/session-identity (current-session host))))
+        (throw (ex-info "Extension belongs to a retired run" {})))
+      (let [candidate (session/extend-session (current-session host) extension)]
+        (validate-dependencies! candidate)
+        (publish! host candidate)
+        (deliver receipt {:status :admitted :extension (session/extension-id extension)}))
+      (catch Exception error
+        (deliver receipt {:status :rejected :message (ex-message error) :data (ex-data error)})))))
 
 (defn- normalized-replies [host request normalized]
   (let [output (:boundary/receipt-id request)
@@ -307,6 +351,7 @@
 
 (defn- admitted-inputs [host queued]
   (->> queued
+       (filter :input)
        (filter (fn [{:keys [request]}]
                  (or (nil? request)
                      (and (live-request? host request)
@@ -324,11 +369,18 @@
           (let [view (runtime-session host)]
             (when-not (= :idle (::phase @view))
               (throw (ex-info "Compiler session round is already active" {})))
-            (let [result (session/advance (current-session host)
-                                          (admitted-inputs host (::pending @view)))]
+            (let [queued (::pending @view)
+                  _ (swap! view assoc ::pending [])
+                  _ (doseq [batch (partition-by #(boolean (:extension %)) queued)]
+                      (if (:extension (first batch))
+                        (admit-extensions! host batch)
+                        (let [turn (session/advance (current-session host) (admitted-inputs host batch))]
+                          (publish! host (:session turn)))))
+                  result (session/advance (current-session host) [])]
               (publish! host (:session result))
-              (swap! view assoc ::pending (mapv #(hash-map :input %) (:next-inputs result))
-                     ::phase :delivering ::blocked? false)
+              (swap! view #(-> %
+                               (update ::pending into (mapv (fn [input] {:input input}) (:next-inputs result)))
+                               (assoc ::phase :delivering ::blocked? false)))
               (:requests result))))]
     (try
       ;; Native environment handlers (including retained tracer sources) also
@@ -430,6 +482,7 @@
         file (str "session-extension/" (UUID/randomUUID) ".lain")
         extension (files/prepare-extension!
                    {:id [:source-extension file]
+                    :imports (:imports (session/session-declarations current))
                     :files (assoc (session/source-files current) file text)})]
     (extend! host extension)))
 
@@ -508,6 +561,8 @@
     (try
       (retire-run! host)
       (locking (gate host)
+        (doseq [{:keys [receipt]} (::pending @(runtime-session host)) :when receipt]
+          (deliver receipt {:status :rejected :message "Session run retired before admission"}))
         (publish! host candidate)
         (swap! (runtime-session host) assoc ::pending [] ::receipts {}
                ::phase :idle ::blocked? false ::delivery-ready? false))
@@ -541,7 +596,9 @@
 
 (defn- close-boundary! [host]
   (locking (gate host)
-    (swap! (runtime-session host) assoc ::closed? true ::pending []))
+    (doseq [{:keys [receipt]} (::pending @(runtime-session host)) :when receipt]
+      (deliver receipt {:status :rejected :message "Session closed before admission"}))
+    (swap! (runtime-session host) assoc ::closed? true ::pending [] ::observers {}))
   (.shutdownNow ^ExecutorService (.-executor ^SessionBoundary host))
   (locking (gate host)
     (swap! (runtime-session host) update ::receipts

@@ -47,15 +47,17 @@
           (throw (ex-info "Source import must name a file" {:form form})))
         (snapshot-file! root prepared file))
       load-primitive-environment
-      (let [[_ file entry revision] form
-            imported (snapshot-module! root file entry revision (:factory-arguments prepared))]
+      (let [[_ file entry revision] form]
+        (if (contains? (:imports prepared) [file entry (or revision 0)])
+          prepared
+          (let [imported (snapshot-module! root file entry revision (:factory-arguments prepared))]
         (reduce (fn [result [sym binding]]
                   (when (and (contains? (:primitives result) sym)
                              (not= (get-in result [:primitives sym]) binding))
                     (throw (ex-info "Conflicting prepared primitive" {:symbol sym})))
                   (assoc-in result [:primitives sym] binding))
                 (assoc-in prepared [:imports (:id imported)] (:artifact imported))
-                (:bindings imported)))
+                (:bindings imported)))))
       prepared)
     prepared))
 
@@ -72,7 +74,7 @@
   "Prepare trusted local declarations within root. Native namespaces are required,
   never reloaded or globally rebound. Existing session bindings retain fixed values.
   Inline :files and :read-files can be combined; imports are snapshotted transitively."
-  [{:keys [root id primitives dependencies files read-files factory-arguments]
+  [{:keys [root id primitives dependencies files read-files factory-arguments target support-cell cells frames imports]
     :or {root "." files {} read-files [] factory-arguments {}}}]
   (when-not (and (map? factory-arguments)
                  (every? (fn [[entry arguments]]
@@ -81,8 +83,9 @@
   (let [root (environment-io/canonical-file root)
         prepared (reduce (partial snapshot-file! root)
                          {:files (into {} files) :primitives (into {} primitives)
-                          :imports {} :visited #{} :factory-arguments factory-arguments}
+                          :imports (into {} imports) :visited #{} :factory-arguments factory-arguments}
                          (concat (sort (keys files)) read-files))]
     (session/session-extension
-     {:id id :primitives (:primitives prepared) :dependencies dependencies
+     {:id id :target target :support-cell support-cell :cells cells :frames frames
+      :primitives (:primitives prepared) :dependencies dependencies
       :files (:files prepared) :imports (:imports prepared)})))
