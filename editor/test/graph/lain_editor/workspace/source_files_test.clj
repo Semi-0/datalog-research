@@ -54,7 +54,7 @@
         (fn [^Path outside]
           (Files/createSymbolicLink (.resolve root "linked") outside (make-array FileAttribute 0))
           (Files/createSymbolicLink (.resolve root "file.lain") (.resolve outside "file.lain")
-                                   (make-array FileAttribute 0))
+                                    (make-array FileAttribute 0))
           (doseq [path ["linked/block.lain" "file.lain"] replace [false true]]
             (is (thrown-with-msg? clojure.lang.ExceptionInfo #"symbolic links"
                                   (files/save-block! root {:path path :source "draft" :replace replace}))))
@@ -101,7 +101,7 @@
 (deftest workspace-save-command-does-not-change-runtime-sessions
   (let [editors (atom {"running" {:generation "keep"}}) layouts (atom {:keep "layout"})
         calls (atom []) command {:op "save-workspace" :path "workspace.json"
-                                :workspace (model/initial-workspace) :replace true}]
+                                 :workspace (model/initial-workspace) :replace true}]
     (with-redefs [workspace-files/save-workspace!
                   (fn [root request]
                     (swap! calls conj [root request])

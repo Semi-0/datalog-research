@@ -48,57 +48,57 @@
    (command! editors layouts developments (:owners (editor/service-state editors)) command))
   ([editors layouts developments detached command]
    (locking editors
-    (let [state (editor/service-state editors)]
-      (alter-meta! editors assoc :graph.lain-editor.runtime.session/service
-                   (assoc state :owners detached :layouts layouts :developments developments))
-      (alter-meta! detached assoc :graph.lain-editor.runtime.session/service
-                   (assoc state :owners detached :layouts layouts :developments developments)))
-    (binding [editor/*owners* detached]
-     (let [id (:pane command)]
-       (case (:op command)
-         "layout" (do (editor/require-generation (editor/require-pane editors id) (:generation command))
-                      (graph-layout/compute! layouts command))
-         "open-session" (editor/open-session! editors command)
-         "session-status" (editor/session-status editors command)
-         "remove-extension" (editor/remove-extension! editors command)
-         "run" (let [result (editor/run! editors command)]
-                 (development-runtime/close-pane! developments id)
-                 (graph-layout/close-pane! layouts id)
-                 result)
-         "extend" (let [result (editor/extend! editors command)] (graph-layout/close-pane! layouts id) result)
-         "spawn-slot" (let [result (editor/spawn-slots! editors command)]
-                        (graph-layout/close-pane! layouts id)
-                        result)
-         "restore" (let [result (editor/restore! editors (:workspace command) (or (:reconnect command) {}))]
-                     (development-runtime/close-all! developments)
-                     (graph-layout/close! layouts)
-                     result)
-         "close" (let [result (editor/remove! editors id)]
+     (let [state (editor/service-state editors)]
+       (alter-meta! editors assoc :graph.lain-editor.runtime.session/service
+                    (assoc state :owners detached :layouts layouts :developments developments))
+       (alter-meta! detached assoc :graph.lain-editor.runtime.session/service
+                    (assoc state :owners detached :layouts layouts :developments developments)))
+     (binding [editor/*owners* detached]
+       (let [id (:pane command)]
+         (case (:op command)
+           "layout" (do (editor/require-generation (editor/require-pane editors id) (:generation command))
+                        (graph-layout/compute! layouts command))
+           "open-session" (editor/open-session! editors command)
+           "session-status" (editor/session-status editors command)
+           "remove-extension" (editor/remove-extension! editors command)
+           "run" (let [result (editor/run! editors command)]
                    (development-runtime/close-pane! developments id)
                    (graph-layout/close-pane! layouts id)
                    result)
-         "detach-session" (do
-                            (editor/require-generation (editor/require-pane editors id) (:generation command))
-                            (development-runtime/close-pane! developments id)
-                            (graph-layout/close-pane! layouts id)
-                            (editor/detach! editors detached command))
-         "list-sessions" (editor/list-detached detached)
-         "reopen-session" (editor/reopen! editors detached command)
-         "stop-session" (let [views (keep (fn [[pane entry]]
-                                            (when (= (:sessionId command) (:sessionId entry)) pane)) @editors)
-                              result (editor/stop-session! editors command)]
-                          (doseq [pane views]
-                            (development-runtime/close-pane! developments pane)
-                            (graph-layout/close-pane! layouts pane))
+           "extend" (let [result (editor/extend! editors command)] (graph-layout/close-pane! layouts id) result)
+           "spawn-slot" (let [result (editor/spawn-slots! editors command)]
+                          (graph-layout/close-pane! layouts id)
                           result)
-         "inspect" (read-session! editors command inspection/inspect)
-         "complete" (read-session! editors command completion/candidates)
-         "browse-files" (project-files/browse! (project-root) command)
-         "open-file" (source-files/open-block! (project-root) command)
-         "open-workspace" (workspace-files/open-workspace! (project-root) command)
-         "save-block" (source-files/save-block! (project-root) command)
-         "save-workspace" (workspace-files/save-workspace! (project-root) command)
-         (throw (ex-info "Unknown editor operation" {}))))))))
+           "restore" (let [result (editor/restore! editors (:workspace command) (or (:reconnect command) {}))]
+                       (development-runtime/close-all! developments)
+                       (graph-layout/close! layouts)
+                       result)
+           "close" (let [result (editor/remove! editors id)]
+                     (development-runtime/close-pane! developments id)
+                     (graph-layout/close-pane! layouts id)
+                     result)
+           "detach-session" (do
+                              (editor/require-generation (editor/require-pane editors id) (:generation command))
+                              (development-runtime/close-pane! developments id)
+                              (graph-layout/close-pane! layouts id)
+                              (editor/detach! editors detached command))
+           "list-sessions" (editor/list-detached detached)
+           "reopen-session" (editor/reopen! editors detached command)
+           "stop-session" (let [views (keep (fn [[pane entry]]
+                                              (when (= (:sessionId command) (:sessionId entry)) pane)) @editors)
+                                result (editor/stop-session! editors command)]
+                            (doseq [pane views]
+                              (development-runtime/close-pane! developments pane)
+                              (graph-layout/close-pane! layouts pane))
+                            result)
+           "inspect" (read-session! editors command inspection/inspect)
+           "complete" (read-session! editors command completion/candidates)
+           "browse-files" (project-files/browse! (project-root) command)
+           "open-file" (source-files/open-block! (project-root) command)
+           "open-workspace" (workspace-files/open-workspace! (project-root) command)
+           "save-block" (source-files/save-block! (project-root) command)
+           "save-workspace" (workspace-files/save-workspace! (project-root) command)
+           (throw (ex-info "Unknown editor operation" {}))))))))
 
 (defn respond! [exchange status content-type body]
   (let [bytes (.getBytes ^String body java.nio.charset.StandardCharsets/UTF_8)
@@ -144,10 +144,10 @@
 (defn start!
   ([port] (start! port {}))
   ([port {:keys [authorize? project-root]}]
-  (let [editors (atom {}) layouts (atom {}) developments (atom {}) commands (atom {}) detached (atom {})
-        server (HttpServer/create (InetSocketAddress. "127.0.0.1" (int port)) 0)
-        executor (Executors/newCachedThreadPool)]
-    (.createContext server "/" (reify HttpHandler
+   (let [editors (atom {}) layouts (atom {}) developments (atom {}) commands (atom {}) detached (atom {})
+         server (HttpServer/create (InetSocketAddress. "127.0.0.1" (int port)) 0)
+         executor (Executors/newCachedThreadPool)]
+     (.createContext server "/" (reify HttpHandler
                                   (handle [_ exchange]
                                     (if (and authorize? (not (authorize? exchange)))
                                       (try
@@ -156,16 +156,16 @@
                                         (finally (.close exchange)))
                                       (binding [*project-root* project-root]
                                         (handle! editors layouts developments commands detached exchange))))))
-    (.setExecutor server executor)
-    (.start server)
-    {:port (.getPort (.getAddress server)) :editors editors :layouts layouts
-     :developments developments :detached detached
-     :close (fn [] (.stop server 0) (.shutdownNow executor) (reset! commands {})
-              (locking editors
-                (development-runtime/close-all! developments)
-                (graph-layout/close! layouts)
-                (editor/close! editors)
-                (editor/close! detached)))})))
+     (.setExecutor server executor)
+     (.start server)
+     {:port (.getPort (.getAddress server)) :editors editors :layouts layouts
+      :developments developments :detached detached
+      :close (fn [] (.stop server 0) (.shutdownNow executor) (reset! commands {})
+               (locking editors
+                 (development-runtime/close-all! developments)
+                 (graph-layout/close! layouts)
+                 (editor/close! editors)
+                 (editor/close! detached)))})))
 
 (defn -main [& args]
   (let [port (if (seq args) (Long/parseLong (first args)) 4780)
