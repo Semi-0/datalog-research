@@ -10,6 +10,7 @@
             [graph.lain-editor.layout.graph-layout :as graph-layout]
             [graph.lain-editor.workspace.source-files :as source-files]
             [graph.lain-editor.workspace.files :as workspace-files]
+            [graph.lain-editor.workspace.project-files :as project-files]
             [graph.lain-editor.workspace.commands :as workspace-commands]
             [graph.lain-editor.runtime.session :as editor])
   (:import [com.sun.net.httpserver HttpServer HttpHandler]
@@ -92,6 +93,9 @@
                           result)
          "inspect" (read-session! editors command inspection/inspect)
          "complete" (read-session! editors command completion/candidates)
+         "browse-files" (project-files/browse! (project-root) command)
+         "open-file" (source-files/open-block! (project-root) command)
+         "open-workspace" (workspace-files/open-workspace! (project-root) command)
          "save-block" (source-files/save-block! (project-root) command)
          "save-workspace" (workspace-files/save-workspace! (project-root) command)
          (throw (ex-info "Unknown editor operation" {}))))))))

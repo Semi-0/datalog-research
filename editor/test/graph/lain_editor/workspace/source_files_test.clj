@@ -135,3 +135,52 @@
             (is (= 400 (:status (post base "http://another-origin.test" (assoc command :path "blocked.lain")))))
             (is (not (Files/exists (.resolve root "blocked.lain") (make-array java.nio.file.LinkOption 0)))))
           (finally ((:close service))))))))
+
+(deftest server-file-browser-is-rooted-and-never-executes-opened-code
+  (with-directory
+    (fn [^Path root]
+      (Files/createDirectories (.resolve root "nested") (make-array FileAttribute 0))
+      (Files/writeString (.resolve root "draft.lain") "uncompiled (draft" (make-array java.nio.file.OpenOption 0))
+      (Files/writeString (.resolve root "notes.txt") "plain text" (make-array java.nio.file.OpenOption 0))
+      (Files/writeString (.resolve root ".hidden.lain") "private" (make-array java.nio.file.OpenOption 0))
+      (let [document (model/initial-workspace)
+            _ (workspace-files/save-workspace! root {:path "nested/layout.json" :workspace document})
+            editors (atom {})
+            command! (fn [command] (binding [server/*project-root* (str root)] (server/command! editors command)))
+            listed (command! {:op "browse-files" :path "" :kind "source"})]
+        (is (= ["nested" "draft.lain" "notes.txt"] (mapv :name (:entries listed))))
+        (is (= "" (:path listed)))
+        (is (nil? (:parent listed)))
+        (is (= "uncompiled (draft" (:source (command! {:op "open-file" :path "draft.lain"}))))
+        (is (= "plain text" (:source (command! {:op "open-file" :path "notes.txt"}))))
+        (is (= ["layout.json"] (mapv :name (:entries (command! {:op "browse-files" :path "nested" :kind "workspace"})))))
+        (is (= "" (:parent (command! {:op "browse-files" :path "nested" :kind "source"}))))
+        (is (= document (:workspace (command! {:op "open-workspace" :path "nested/layout.json"}))))
+        (is (empty? @editors))
+        (is (empty? @(graph.lain-editor.runtime.session/owner-catalog editors)))
+        (doseq [command [{:op "browse-files" :path ".."}
+                         {:op "browse-files" :path (str root)}
+                         {:op "open-file" :path "../draft.lain"}
+                         {:op "open-file" :path "nested/layout.json"}
+                         {:op "open-workspace" :path "draft.lain"}
+                         {:op "open-workspace" :path "missing.json"}]]
+          (is (thrown? Exception (command! command))))))))
+
+(deftest server-browse-and-open-reject-symlink-escapes-and-invalid-workspaces
+  (with-directory
+    (fn [^Path root]
+      (with-directory
+        (fn [^Path outside]
+          (Files/writeString (.resolve outside "outside.lain") "secret" (make-array java.nio.file.OpenOption 0))
+          (Files/createSymbolicLink (.resolve root "link") outside (make-array FileAttribute 0))
+          (Files/createSymbolicLink (.resolve root "linked.lain") (.resolve outside "outside.lain") (make-array FileAttribute 0))
+          (Files/writeString (.resolve root "invalid.json") "{\"not\":\"a workspace\"}" (make-array java.nio.file.OpenOption 0))
+          (binding [server/*project-root* (str root)]
+            (let [editors (atom {}) command! #(server/command! editors %)]
+              (is (empty? (:entries (command! {:op "browse-files" :kind "source"}))))
+              (doseq [command [{:op "browse-files" :path "link"}
+                               {:op "open-file" :path "linked.lain"}
+                               {:op "open-file" :path "link/outside.lain"}
+                               {:op "open-workspace" :path "invalid.json"}]]
+                (is (thrown? Exception (command! command))))
+              (is (= "secret" (Files/readString (.resolve outside "outside.lain")))))))))))
