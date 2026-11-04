@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.session
   "Immutable Lain compiler sessions. No host callback or file IO runs here."
-  (:require [propagators.cells.value :as value]
+  (:require [propagators.cell-evaluator :as cell-evaluator]
+            [propagators.cells.value :as value]
             [propagators.compiler-2.cps-core :as compiler]
             [propagators.compiler-2.session.supported :as supported]
             [propagators.compiler-2.session.connected :as connected]
@@ -70,7 +71,13 @@
   (let [{:keys [max-steps timeout-ms]} (:limits (session-declarations session))
         steps (volatile! 0)
         deadline (+ (System/nanoTime) (* 1000000 (long timeout-ms)))]
-    (binding [runner/*advance-transform*
+    (binding [cell-evaluator/*evaluate-cell*
+              (get-in (session-declarations session) [:options :evaluation :cell-evaluator]
+                      cell-evaluator/*evaluate-cell*)
+              runner/*iterator-factory*
+              (get-in (session-declarations session) [:options :evaluation :iterator-factory]
+                      runner/*iterator-factory*)
+              runner/*advance-transform*
               (runner/compose-advance-transforms
                runner/*advance-transform*
                (fn [advance]

@@ -37,6 +37,13 @@
 (defn strongest-net [x] (:reducer/strongest-net x))
 (defn reducer-slots [x] (:reducer/slots x))
 
+(defn raw-update?
+  "A reducer may explicitly admit ordinary evidence into one declared slot."
+  [content update]
+  (and (reducer-cell? content)
+       (not (reducer-cell? update))
+       (some? (net/network-dict-entry (merge-net content) :reducer/raw-slot))))
+
 (defn reducer-slot-update
   [id merge-net strongest-net slot-key value]
   (reducer-cell id merge-net strongest-net {slot-key value}))
@@ -137,6 +144,14 @@
     (value/nothing? update) content
     (= content update) content
 
+    (raw-update? content update)
+    (merge-reducer-cells
+     content
+     (reducer-slot-update (reducer-id content) (merge-net content)
+                          (strongest-net content)
+                          (net/network-dict-entry (merge-net content) :reducer/raw-slot)
+                          update))
+
     (and (value/nothing? content)
          (reducer-cell? update))
     (merge-reducer-cells (reducer-cell (reducer-id update)
@@ -213,27 +228,34 @@
                 #(strongest* reducer-value)))
 
 (defn p:reducer-slot
-  [reducer-id merge-net strongest-net slot-key value-id reducer-cell-id]
-  (prop/construct-propagator
-   [:reducer-cell/slot slot-key]
-   (fn [_inputs _outputs network]
-     (let [v (net/network-cell-strongest network value-id)]
-       (cond
-         (value/contradiction? v)
-         [(message reducer-cell-id value/contradiction)]
+  "Transport a slot. The optional reader admits retained evidence and state-only
+  changes without forcing a strongest projection at the transport boundary."
+  ([reducer-id merge-net strongest-net slot-key value-id reducer-cell-id]
+   (p:reducer-slot reducer-id merge-net strongest-net slot-key value-id
+                   reducer-cell-id net/network-cell-strongest))
+  ([reducer-id merge-net strongest-net slot-key value-id reducer-cell-id read-value]
+   (prop/construct-propagator
+    [:reducer-cell/slot slot-key]
+    (with-meta
+      (fn [_inputs _outputs network]
+        (let [v (read-value network value-id)]
+          (cond
+            (value/contradiction? v)
+            [(message reducer-cell-id value/contradiction)]
 
-         (value/nothing? v)
-         []
+            (value/nothing? v)
+            []
 
-         :else
-         [(message reducer-cell-id
-                   (reducer-slot-update reducer-id
-                                        merge-net
-                                        strongest-net
-                                        slot-key
-                                        v))])))
-   [value-id]
-   [reducer-cell-id]))
+            :else
+            [(message reducer-cell-id
+                      (reducer-slot-update reducer-id
+                                           merge-net
+                                           strongest-net
+                                           slot-key
+                                           v))])))
+      {:propagators.propagator/retained-inputs? (not= read-value net/network-cell-strongest)})
+    [value-id]
+    [reducer-cell-id])))
 
 (defn p:reduced-result
   [reduced-id out-id]

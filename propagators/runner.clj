@@ -95,11 +95,15 @@
    evaluate-propagator
    evaluate-patches))
 
+(def ^:dynamic *iterator-factory*
+  "Optional iterator constructor for a locally selected evaluation policy."
+  network-iterator)
+
 (defn run-network
   "Run ordinary FIFO propagation until quiescence."
   [tasks network]
   (let [last-network (atom network)
-        advance (*advance-transform* (network-iterator))]
+        advance (*advance-transform* (*iterator-factory*))]
     (letfn [(bounce [{:keys [network] :as state}]
               (reset! last-network network)
               (fn []
