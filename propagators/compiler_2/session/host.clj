@@ -4,6 +4,8 @@
   (:require [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.runtime.boundary.effects :as effects]
             [propagators.compiler-2.session :as session]
+            [propagators.compiler-2.session.connected :as connected]
+            [propagators.network :as net]
             [propagators.compiler-2.session.dependencies :as dependency]
             [propagators.compiler-2.session.files :as files]
             [propagators.compiler-2.session.operators :as operators]
@@ -393,6 +395,11 @@
          (runtime-session host))
         ((requiring-resolve 'propagators.compiler-2.runtime/refresh-trace-subscriptions!)
          (runtime-session host))
+        ;; Native boundary receipts can activate connected declarations. Collect
+        ;; their immutable next-round inputs after those receipts have settled.
+        (locking (gate host)
+          (swap! (runtime-session host) update ::pending into
+                 (mapv #(hash-map :input %) (session/connected-inputs (current-session host)))))
         (doseq [request (effects/outbox-effects (:program/net @(runtime-session host)))
                 :when (operators/callback-request? request)]
           (dispatch! host request))
@@ -655,3 +662,53 @@
                             (session/network candidate) [receipt-id]))]
         (publish! host candidate)
         receipt))))
+
+(defn publish-input!
+  "Serialize trusted external publication with immutable session advancement.
+  transform receives the current immutable session and returns explicit inputs."
+  [host transform]
+  (locking (round-gate host)
+    (locking (gate host)
+      (require-open! host)
+      (let [result (session/advance (current-session host) (transform (current-session host)))]
+        (publish! host (:session result))
+        (swap! (runtime-session host) update ::pending into
+               (mapv #(hash-map :input %) (:next-inputs result)))
+        (wake! host)
+        :accepted))))
+
+(defn interface-values
+  "Read explicitly exported cells. This does not start or attach resources."
+  [host]
+  (let [s (current-session host)]
+    (into {} (map (fn [[id {:keys [cell kind]}]]
+                    [id {:kind kind :value (connected/freeze (session/network s)
+                                                             (net/network-cell-strongest (session/network s) cell))}]))
+          (:interfaces (session/session-declarations s)))))
+
+(defn publish-user-message!
+  "The sole public conversational ingress: exported user cells, stable identity,
+  and a current run token. No arbitrary cell or source mutation is accepted."
+  [host {:keys [interface run-id id text]}]
+  (when-not (and (some? id) (string? text))
+    (throw (ex-info "Message identity and text required" {})))
+  (publish-input! host
+                  (fn [s]
+                    (when-not (= (str run-id) (str (:run-id (session/session-identity s))))
+                      (throw (ex-info "Stale session run" {:stale true})))
+                    (let [{:keys [kind cell]} (get-in (session/session-declarations s) [:interfaces interface])]
+                      (when-not (= :user-message kind)
+                        (throw (ex-info "Session does not expose this user ingress" {:interface interface})))
+                      (let [current (connected/freeze (session/network s) (net/network-cell-strongest (session/network s) cell))
+                            events (loop [xs current result []]
+                                     (if (= xs basis/list-empty-marker) result
+                                         (recur (:cdr xs) (conj result (:car xs)))))
+                            event {:id id :kind :user :payload text}
+                            prior (first (filter #(= id (:id %)) events))]
+                        (cond
+                          (= prior event) []
+                          prior (throw (ex-info "Conflicting message identity" {:id id}))
+                          :else [(session/publication-input cell
+                                                            (connected/frozen
+                                                             (reduce (fn [tail event] {:car event :cdr tail})
+                                                                     basis/list-empty-marker (reverse (conj events event)))))]))))))

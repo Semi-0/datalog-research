@@ -3,6 +3,7 @@
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.cps-core :as compiler]
             [propagators.compiler-2.session.supported :as supported]
+            [propagators.compiler-2.session.connected :as connected]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.model.env.binding :as binding]
@@ -98,7 +99,7 @@
 
 (defn session-extension
   "Snapshot declared values. Files are supplied contents, never paths to load."
-  [{:keys [id primitives dependencies files imports target support-cell cells frames targets supports derivations scoped-primitives]}]
+  [{:keys [id primitives dependencies files imports target support-cell cells frames targets supports derivations scoped-primitives interfaces]}]
   (when (and support-cell (nil? target))
     (throw (ex-info "Definition support requires a lexical target" {})))
   (when (nil? id)
@@ -124,7 +125,7 @@
                                                                                    [[target sym] implementation])) primitives)))
                             :dependencies (into {} dependencies)
                             :files files :imports (into {} imports)
-                            :cells (into {} cells) :frames (into {} frames) :derivations (into {} derivations)
+                            :cells (into {} cells) :frames (into {} frames) :derivations (into {} derivations) :interfaces (into {} interfaces)
                             :targets (merge targets (when target (zipmap (keys files) (repeat target))))
                             :supports (merge supports (when support-cell (zipmap (keys files) (repeat support-cell))))})))
 
@@ -142,7 +143,7 @@
   (reduce (fn [result kind]
             (assoc result kind (join-additions (get base kind {})
                                                (get additions kind {}) kind)))
-          base [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives]))
+          base [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces]))
 
 (defn cell-input
   "An ordinary domain update; its support and payload are not coerced."
@@ -158,6 +159,8 @@
     (and (map? input) (= :cell-message (:runtime/input input))
          (contains? input :update))
     (cell-input (:cell-id input) (:update input))
+
+    (and (map? input) (#{:connected :admission} (:runtime/input input))) input
 
     (message/message? input)
     (cell-input (message/message-id input) (message/message-value input))
@@ -385,7 +388,8 @@
 (defn- refresh-observers [runtime]
   ;; Source publication must finish observer wiring while still pure. Host
   ;; delivery remains post-commit; do not use the IO-performing loader adapter.
-  (let [[ids prepared] (observer/refresh-roots (:program/net runtime))
+  (let [[root-ids prepared] (observer/refresh-roots (:program/net runtime))
+        ids (into (vec root-ids) (vals (get (net/network-dict-entry prepared [:network :name-bindings]) [:session :samples])))
         [observed network] (temperature/run-propagators runtime :relationship/refresh prepared ids)]
     (assoc observed :program/net network)))
 
@@ -400,8 +404,8 @@
         declarations (assoc-in joined [:extensions (extension-id extension)] parts)]
     (when (and prior (not= prior parts))
       (throw (ex-info "Extension identity already declared" {:id (extension-id extension)})))
-    (if (= (select-keys before [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives])
-           (select-keys joined [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives]))
+    (if (= (select-keys before [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces])
+           (select-keys joined [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces]))
       (if prior
         session
         (ImmutableLainSession. identity declarations (compiler-state session)))
@@ -455,7 +459,7 @@
   {:runtime/input :admission :declaration declaration
    :receipt-id receipt-id :response-id response-id})
 
-(defn- advance-admission [session {:keys [declaration receipt-id response-id]}]
+(defn- advance-admission [session {:keys [declaration receipt-id response-id freeze-receipt?]}]
   (let [id (:id declaration)
         prior (get-in (compiler-state session) [::admissions id])
         stopped? (contains? (::stopped-responses (compiler-state session)) response-id)
@@ -493,25 +497,76 @@
                                          (collection/content
                                           (publication/next-source-datum receipt-id
                                                                          (net/network-cell-strongest (network candidate) receipt-id)
-                                                                         receipt :active)))]))))
+                                                                         (if freeze-receipt? (connected/frozen receipt) receipt) :active)))]))))
+
+(defn publication-input [cell-id base]
+  {:runtime/input :publication :cell-id cell-id :base base})
+
+(defn- publish-value [session cell-id base]
+  (advance-cell-session session
+                        [(cell-input cell-id (collection/content
+                                              (publication/next-source-datum cell-id
+                                                                             (net/network-cell-strongest (network session) cell-id)
+                                                                             base :active)))]))
+
+(defn- advance-connected [session {:keys [kind values receipt token]}]
+  (if (contains? (::connected (compiler-state session)) token)
+    (turn session [] [])
+    (let [result
+          (case kind
+            :initialize
+            (let [[target initial] values
+                  current (connected/freeze (network session) (net/network-cell-strongest (network session) target))
+                  status (cond (= current connected/pending) :accepted (= current initial) :replayed :else :already-initialized)
+                  candidate (if (= status :accepted) (:session (publish-value session target (connected/frozen initial))) session)]
+              (publish-value candidate receipt (connected/frozen {:status status})))
+            :admission
+            (if (= :idle (first values))
+              (publish-value session receipt (connected/frozen {:id :idle :status :idle}))
+              (advance-admission session {:declaration (first values)
+                                          :response-id (second values) :receipt-id receipt :freeze-receipt? true}))
+            :feedback
+            (let [[target expected next-state] values
+                  current (connected/freeze (network session)
+                                            (net/network-cell-strongest (network session) target))
+                  status (cond
+                           (not (and (nat-int? expected) (nat-int? (:version next-state)))) :invalid-version
+                           (and (= current next-state) (= expected (:version current))) :unchanged
+                           (and (= current next-state) (= (inc expected) (:version next-state))) :replayed
+                           (not= expected (:version current)) :stale-version
+                           (not= (inc expected) (:version next-state)) :invalid-version
+                           :else :accepted)
+                  candidate (if (= status :accepted)
+                              (:session (publish-value session target (connected/frozen next-state))) session)]
+              (publish-value candidate receipt (connected/frozen {:status status :version (:version next-state)}))))
+          candidate (:session result)]
+      (turn (ImmutableLainSession. (session-identity candidate)
+                                   (session-declarations candidate)
+                                   (update (compiler-state candidate) ::connected (fnil conj #{}) token)) [] []))))
+
+(defn connected-inputs
+  "Collect declarations made available by a settled immutable network."
+  [current]
+  (keep (fn [{:keys [receipt values] :as declaration}]
+          (let [token [receipt values]]
+            (when-not (contains? (::connected (compiler-state current)) token)
+              (assoc declaration :runtime/input :connected :token token))))
+        (connected/declarations (network current))))
 
 (defn- advance-session [session inputs]
-  ;; Admission is a compiler transaction between propagation rounds. No host,
-  ;; worker, promise, resource callback, or mutable service registry participates.
-  (reduce (fn [result batch]
-            (let [current (:session result)
-                  next-turn
-                  (if (= :admission (:runtime/input (first batch)))
-                    (reduce (fn [turn input]
-                              (admission-input (:declaration input) (:receipt-id input) (:response-id input))
-                              (advance-admission (:session turn) input))
-                            result batch)
-                    (advance-cell-session current batch))]
-              (turn (:session next-turn)
-                    (into (:next-inputs result) (:next-inputs next-turn))
-                    (:requests next-turn))))
-          (advance-cell-session session [])
-          (partition-by #(= :admission (:runtime/input %)) inputs)))
+  (let [result
+        (reduce (fn [result batch]
+                  (let [current (:session result)]
+                    (case (:runtime/input (first batch))
+                      :connected (reduce (fn [turn input] (advance-connected (:session turn) input)) result batch)
+                      :publication (reduce (fn [turn input] (publish-value (:session turn) (:cell-id input) (:base input))) result batch)
+                      :admission (reduce (fn [turn input] (advance-admission (:session turn) input)) result batch)
+                      (advance-cell-session current batch))))
+                (advance-cell-session session [])
+                (partition-by :runtime/input inputs))
+        current (:session result)
+        pending (connected-inputs current)]
+    (turn current pending (effects/outbox-effects (network current)))))
 
 (declare create-session)
 
@@ -539,7 +594,7 @@
                         :native-extensions (:bootstrap (session-declarations session))
                         :runtime-options (:options (session-declarations session))
                         :propagation-options (:limits (session-declarations session))))
-          parts (select-keys (session-declarations session) [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives])]
+          parts (select-keys (session-declarations session) [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces])]
       (extend-session fresh (session-extension (assoc parts :id ::rerun))))))
 
 (defn create-session
