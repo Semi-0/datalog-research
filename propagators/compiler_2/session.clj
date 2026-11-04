@@ -460,6 +460,9 @@
    :receipt-id receipt-id :response-id response-id})
 
 (defn- advance-admission [session {:keys [declaration receipt-id response-id]}]
+  (when-not (contains? (net/net-env (network session)) receipt-id)
+    (throw (ex-info "Admission receipt must be declared and wired before submission"
+                    {:receipt-id receipt-id})))
   (let [id (:id declaration)
         prior (get-in (compiler-state session) [::admissions id])
         stopped? (contains? (::stopped-responses (compiler-state session)) response-id)
@@ -487,17 +490,12 @@
                   (update ::stopped-responses (fnil conj #{}) response-id))
         candidate (ImmutableLainSession. (session-identity candidate)
                                          (session-declarations candidate) runtime)]
-    (let [candidate (if (contains? (net/net-env (network candidate)) receipt-id)
-                      candidate
-                      (prepare-extension candidate
-                                         (session-extension {:id [::receipt receipt-id]
-                                                             :cells {receipt-id value/nothing}})))]
-      (advance-cell-session candidate
-                            [(cell-input receipt-id
-                                         (collection/content
-                                          (publication/next-source-datum receipt-id
-                                                                         (net/network-cell-strongest (network candidate) receipt-id)
-                                                                         receipt :active)))]))))
+    (advance-cell-session candidate
+                          [(cell-input receipt-id
+                                       (collection/content
+                                        (publication/next-source-datum receipt-id
+                                                                       (net/network-cell-strongest (network candidate) receipt-id)
+                                                                       receipt :active)))])))
 
 (defn publication-input [cell-id base]
   {:runtime/input :publication :cell-id cell-id :base base})
@@ -524,12 +522,6 @@
     (turn session [] [])
     (let [result
           (case kind
-            :initialize
-            (let [[target initial] values
-                  current (connected/freeze (network session) (net/network-cell-strongest (network session) target))
-                  status (cond (= current connected/pending) :accepted (= current initial) :replayed :else :already-initialized)
-                  candidate (if (= status :accepted) (:session (publish-value session target initial)) session)]
-              (publish-value candidate receipt {:status status}))
             :admission
             (if (= :idle (first values))
               (publish-value session receipt {:id :idle :status :idle})

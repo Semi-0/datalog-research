@@ -647,22 +647,6 @@
         (swap! (runtime-session host) assoc ::phase :retirement-failed ::blocked? true)
         (throw error)))))
 
-(defn admit-source!
-  "Publish one immutable admission transaction at the authoritative boundary.
-  External transports may call this; compilation never waits on a host worker."
-  [host declaration response-id]
-  (locking (round-gate host)
-    (locking (gate host)
-      (require-open! host)
-      (let [receipt-id (basis/stable-node-id :admission-receipt (:id declaration))
-            result (session/advance (current-session host)
-                                    [(session/admission-input declaration receipt-id response-id)])
-            candidate (:session result)
-            receipt (first (basis/primitive-input-values
-                            (session/network candidate) [receipt-id]))]
-        (publish! host candidate)
-        receipt))))
-
 (defn publish-input!
   "Serialize trusted external publication with immutable session advancement.
   transform receives the current immutable session and returns explicit inputs."
