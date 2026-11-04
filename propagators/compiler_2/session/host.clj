@@ -681,9 +681,9 @@
   "Read explicitly exported cells. This does not start or attach resources."
   [host]
   (let [s (current-session host)]
-    (into {} (map (fn [[id {:keys [cell kind]}]]
+    (into {} (map (fn [[id {:keys [kind]}]]
                     [id {:kind kind :value (connected/freeze (session/network s)
-                                                             (net/network-cell-strongest (session/network s) cell))}]))
+                                                             (net/network-cell-strongest (session/network s) (session/interface-cell s id)))}]))
           (:interfaces (session/session-declarations s)))))
 
 (defn publish-user-message!
@@ -696,19 +696,22 @@
                   (fn [s]
                     (when-not (= (str run-id) (str (:run-id (session/session-identity s))))
                       (throw (ex-info "Stale session run" {:stale true})))
-                    (let [{:keys [kind cell]} (get-in (session/session-declarations s) [:interfaces interface])]
+                    (let [{:keys [kind]} (get-in (session/session-declarations s) [:interfaces interface])
+                          cell (session/interface-cell s interface)]
                       (when-not (= :user-message kind)
                         (throw (ex-info "Session does not expose this user ingress" {:interface interface})))
                       (let [current (connected/freeze (session/network s) (net/network-cell-strongest (session/network s) cell))
                             events (loop [xs current result []]
-                                     (if (= xs basis/list-empty-marker) result
-                                         (recur (:cdr xs) (conj result (:car xs)))))
+                                     (cond
+                                       (= xs connected/empty-list) result
+                                       (and (map? xs) (contains? xs :car) (contains? xs :cdr))
+                                       (recur (:cdr xs) (conj result (:car xs)))
+                                       :else (throw (ex-info "User ingress is not initialized" {:interface interface}))))
                             event {:id id :kind :user :payload text}
                             prior (first (filter #(= id (:id %)) events))]
                         (cond
                           (= prior event) []
                           prior (throw (ex-info "Conflicting message identity" {:id id}))
                           :else [(session/publication-input cell
-                                                            (connected/frozen
-                                                             (reduce (fn [tail event] {:car event :cdr tail})
-                                                                     basis/list-empty-marker (reverse (conj events event)))))]))))))
+                                                            (reduce (fn [tail event] {:car event :cdr tail})
+                                                                    connected/empty-list (reverse (conj events event))))]))))))

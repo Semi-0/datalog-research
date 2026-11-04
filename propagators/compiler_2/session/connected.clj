@@ -1,19 +1,48 @@
 (ns propagators.compiler-2.session.connected
   "Connected immutable declarations. No resource, worker, or host dependency."
   (:require [propagators.cells.value :as value]
+            [propagators.compiler-2.compiler.basis :as basis]
+            [propagators.datastructures.support-collection :as collection]
+            [propagators.datastructures.membership-collection :as membership]
             [propagators.compiler-2.model.operator-value :as operator]
             [propagators.datastructures.compound-object :as object]
             [propagators.experimental.visualization.data :as data]
             [propagators.gur :as gur]
             [propagators.network :as net]))
 
-(deftype Frozen [content]
-  Object
-  (equals [_ other] (and (instance? Frozen other) (= content (.-content ^Frozen other))))
-  (hashCode [_] (hash content))
-  (toString [_] (pr-str content)))
-(defn frozen [v] (if (instance? Frozen v) v (Frozen. v)))
-(defn payload [v] (if (instance? Frozen v) (.-content ^Frozen v) v))
+(def payload data/payload)
+
+;; Immutable data lists are TTMS bases, not compiler-owned open list topology.
+;; Keep their empty scalar distinct from the compiler's list interface marker.
+(def empty-list :lain.data/empty)
+
+(defn- primitive-content [content]
+  (let [observations (or (:support/observations content) (:membership/observations content))
+        observation (when (= 1 (count observations)) (first observations))
+        base (:base observation)
+        constant? (and observation (empty? (:support observation))
+                       (empty? (:membership observation))
+                       (empty? (:support/states content))
+                       (empty? (:membership/states content)))]
+    (cond
+      ;; Plain scalar constants need no evidence container. Custom structures
+      ;; always stay in TTMS, even when they have no premises.
+      (and constant? (not (coll? base))) base
+      (or (collection/content? content) (membership/content? content)) content
+      (coll? content) (collection/content {:base content :support #{}})
+      :else content)))
+
+(defn primitive
+  "One pure primitive propagator. Custom results occupy the TTMS base layer;
+  scalar constants remain primitive values. Use the standard support algebra."
+  [name f]
+  (let [activate (operator/operator-activate (basis/primitive-operator f))]
+    (operator/propagator-operator
+     {:name name
+      :activate
+      (fn [network inputs [output] context]
+        (mapv #(update % :value primitive-content)
+              (activate network context inputs output)))})))
 
 (def declarations-key ::declarations)
 (def pending ::pending)
@@ -38,10 +67,10 @@
     (object/as-accessor-network (update-vals v thaw)) v))
 
 (defn connector [kind]
-  (operator/operator-closure
+  (operator/propagator-operator
    {:name kind
-    :compiler-activate
-    (fn [_ _ _ arguments output]
+    :activate
+    (fn [_ arguments [output] _context]
       {:effects [(gur/bind-name [declarations-key] output
                                 {:kind kind :arguments arguments :receipt output})]})}))
 

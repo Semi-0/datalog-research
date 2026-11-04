@@ -459,7 +459,7 @@
   {:runtime/input :admission :declaration declaration
    :receipt-id receipt-id :response-id response-id})
 
-(defn- advance-admission [session {:keys [declaration receipt-id response-id freeze-receipt?]}]
+(defn- advance-admission [session {:keys [declaration receipt-id response-id]}]
   (let [id (:id declaration)
         prior (get-in (compiler-state session) [::admissions id])
         stopped? (contains? (::stopped-responses (compiler-state session)) response-id)
@@ -497,10 +497,20 @@
                                          (collection/content
                                           (publication/next-source-datum receipt-id
                                                                          (net/network-cell-strongest (network candidate) receipt-id)
-                                                                         (if freeze-receipt? (connected/frozen receipt) receipt) :active)))]))))
+                                                                         receipt :active)))]))))
 
 (defn publication-input [cell-id base]
   {:runtime/input :publication :cell-id cell-id :base base})
+
+(defn interface-cell
+  "Resolve a declared interface against compiled Lain topology. No cells are created."
+  [session interface]
+  (let [{:keys [cell binding field reference?]} (get-in (session-declarations session) [:interfaces interface])
+        v (when binding (connected/freeze (network session) (binding-value session binding)))
+        resolved (cond cell cell field (get v field) reference? v binding (binding-cell session binding))]
+    (when-not (and (ids/node-id? resolved) (contains? (net/net-env (network session)) resolved))
+      (throw (ex-info "Session interface is unresolved" {:interface interface})))
+    resolved))
 
 (defn- publish-value [session cell-id base]
   (advance-cell-session session
@@ -518,13 +528,13 @@
             (let [[target initial] values
                   current (connected/freeze (network session) (net/network-cell-strongest (network session) target))
                   status (cond (= current connected/pending) :accepted (= current initial) :replayed :else :already-initialized)
-                  candidate (if (= status :accepted) (:session (publish-value session target (connected/frozen initial))) session)]
-              (publish-value candidate receipt (connected/frozen {:status status})))
+                  candidate (if (= status :accepted) (:session (publish-value session target initial)) session)]
+              (publish-value candidate receipt {:status status}))
             :admission
             (if (= :idle (first values))
-              (publish-value session receipt (connected/frozen {:id :idle :status :idle}))
+              (publish-value session receipt {:id :idle :status :idle})
               (advance-admission session {:declaration (first values)
-                                          :response-id (second values) :receipt-id receipt :freeze-receipt? true}))
+                                          :response-id (second values) :receipt-id receipt}))
             :feedback
             (let [[target expected next-state] values
                   current (connected/freeze (network session)
@@ -537,8 +547,8 @@
                            (not= (inc expected) (:version next-state)) :invalid-version
                            :else :accepted)
                   candidate (if (= status :accepted)
-                              (:session (publish-value session target (connected/frozen next-state))) session)]
-              (publish-value candidate receipt (connected/frozen {:status status :version (:version next-state)}))))
+                              (:session (publish-value session target next-state)) session)]
+              (publish-value candidate receipt {:status status :version (:version next-state)})))
           candidate (:session result)]
       (turn (ImmutableLainSession. (session-identity candidate)
                                    (session-declarations candidate)
