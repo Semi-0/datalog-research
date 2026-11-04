@@ -120,8 +120,8 @@
       (source/read-source-forms text))
     (CompilerExtension. id {:primitives (if target {} primitives)
                             :scoped-primitives (merge scoped-primitives
-                                                 (when target (into {} (map (fn [[sym implementation]]
-                                                                           [[target sym] implementation])) primitives)))
+                                                      (when target (into {} (map (fn [[sym implementation]]
+                                                                                   [[target sym] implementation])) primitives)))
                             :dependencies (into {} dependencies)
                             :files files :imports (into {} imports)
                             :cells (into {} cells) :frames (into {} frames) :derivations (into {} derivations)
@@ -224,9 +224,9 @@
           connected (reduce (fn [{:keys [net props]} [_ {:keys [cell-id alias-id]}]]
                               (if alias-id
                                 (let [[p n] ((prop/construct-propagator
-                                               [:session-alias alias-id cell-id]
-                                               (fn [_ _ network] (basis/mono-sync-messages network alias-id cell-id))
-                                               [alias-id] [cell-id]) net)]
+                                              [:session-alias alias-id cell-id]
+                                              (fn [_ _ network] (basis/mono-sync-messages network alias-id cell-id))
+                                              [alias-id] [cell-id]) net)]
                                   {:net n :props (conj (vec props) p)})
                                 {:net net :props props})) declared pending)
           settled (runner/completed-network
@@ -276,13 +276,13 @@
                 (let [network (:program/net runtime)
                       declared (if (and name (not (env/local-binding-id network target name)))
                                  (env/declare-bindings network target [[name (env/cell-binding
-                                   (basis/stable-node-id :session-local target name))]])
+                                                                              (basis/stable-node-id :session-local target name))]])
                                  {:net network :props []})
                       compiled (compiler/compile-form form target
-                                 {:net (:net declared) :environment-props (:props declared)
-                                  :seed [:session-source target file form]
-                                  :reuse-existing-bindings? true
-                                  :compiler (when support-cell (supported/compiler support-cell))})
+                                                      {:net (:net declared) :environment-props (:props declared)
+                                                       :seed [:session-source target file form]
+                                                       :reuse-existing-bindings? true
+                                                       :compiler (when support-cell (supported/compiler support-cell))})
                       network (runner/completed-network (runner/run-network (:props compiled) (:net compiled)))]
                   (-> runtime
                       (assoc :program/net network :compiled compiled)
@@ -297,60 +297,60 @@
 
 (defn- install-cells-and-frames [runtime parts]
   (let [network (reduce-kv (fn [network id content]
-                            (when-not (ids/node-id? id) (throw (ex-info "Invalid cell id" {:id id})))
-                            (when (contains? (net/net-env network) id)
-                              (throw (ex-info "Cell already exists" {:id id})))
-                            (nb/ensure-cell network id))
-                          (:program/net runtime) (:cells parts))
+                             (when-not (ids/node-id? id) (throw (ex-info "Invalid cell id" {:id id})))
+                             (when (contains? (net/net-env network) id)
+                               (throw (ex-info "Cell already exists" {:id id})))
+                             (nb/ensure-cell network id))
+                           (:program/net runtime) (:cells parts))
         network (:program/net (input/apply-program-updates
                                (assoc runtime :program/net network)
                                (mapv (fn [[id content]] {:cell-id id :update content}) (:cells parts))))]
     (loop [network network pending (:frames parts)]
       (if (empty? pending)
         (assoc runtime :program/net
-          (reduce-kv
-            (fn [network id {:keys [base sources expected]}]
-              (when (contains? (net/net-env network) id) (throw (ex-info "Derived cell already exists" {:id id})))
-              (doseq [source sources]
-                (when-not (contains? (net/net-env network) source)
-                  (throw (ex-info "Unknown support source" {:source source}))))
-              (let [guard (basis/stable-node-id :context-validity id)
-                    [network sources]
-                    (if (seq expected)
-                      (let [installer (prop/construct-propagator
-                                        [:context-validity id]
-                                        (fn [_ _ current]
-                                          (let [valid? (every? (fn [[source expected-base]]
-                                                                (let [v (net/network-cell-strongest current source)
-                                                                      base (if (datum/layer-present? v :base)
-                                                                             (datum/layer-value v :base) v)]
-                                                                  (and (not (value/unusable? v)) (= expected-base base)))) expected)
-                                                update (publication/next-source-datum guard
-                                                         (net/network-cell-strongest current guard)
-                                                         :context-valid (if valid? :active :retracted))]
-                                            [(message/message guard (collection/content update))]))
-                                        (vec (keys expected)) [guard])
-                            [p network] (installer (nb/ensure-cell network guard))]
-                        [(runner/completed-network (runner/run-network [p] network)) (conj (vec sources) guard)])
-                      [network sources])
-                    make (requiring-resolve 'propagators.experimental.ttms-primitives/scalar-operator)
-                    install (requiring-resolve 'propagators.compiler-2.model.operator-value/operator-install)
-                    op (make [:extension-support id]
-                             (prop/primitive-propagator [:extension-support id] (fn [& _] base)))
-                    [network props _] ((install op) network (vec sources) id)]
-                (runner/completed-network (runner/run-network props network))))
-            network (:derivations parts)))
+               (reduce-kv
+                (fn [network id {:keys [base sources expected]}]
+                  (when (contains? (net/net-env network) id) (throw (ex-info "Derived cell already exists" {:id id})))
+                  (doseq [source sources]
+                    (when-not (contains? (net/net-env network) source)
+                      (throw (ex-info "Unknown support source" {:source source}))))
+                  (let [guard (basis/stable-node-id :context-validity id)
+                        [network sources]
+                        (if (seq expected)
+                          (let [installer (prop/construct-propagator
+                                           [:context-validity id]
+                                           (fn [_ _ current]
+                                             (let [valid? (every? (fn [[source expected-base]]
+                                                                    (let [v (net/network-cell-strongest current source)
+                                                                          base (if (datum/layer-present? v :base)
+                                                                                 (datum/layer-value v :base) v)]
+                                                                      (and (not (value/unusable? v)) (= expected-base base)))) expected)
+                                                   update (publication/next-source-datum guard
+                                                                                         (net/network-cell-strongest current guard)
+                                                                                         :context-valid (if valid? :active :retracted))]
+                                               [(message/message guard (collection/content update))]))
+                                           (vec (keys expected)) [guard])
+                                [p network] (installer (nb/ensure-cell network guard))]
+                            [(runner/completed-network (runner/run-network [p] network)) (conj (vec sources) guard)])
+                          [network sources])
+                        make (requiring-resolve 'propagators.experimental.ttms-primitives/scalar-operator)
+                        install (requiring-resolve 'propagators.compiler-2.model.operator-value/operator-install)
+                        op (make [:extension-support id]
+                                 (prop/primitive-propagator [:extension-support id] (fn [& _] base)))
+                        [network props _] ((install op) network (vec sources) id)]
+                    (runner/completed-network (runner/run-network props network))))
+                network (:derivations parts)))
         (let [ready (filter (fn [[_ frame]]
                               (and (contains? (net/net-env network) (:parent frame))
                                    (not= :unknown (:status (env/lexical-binding-status network '__scope_probe (:parent frame)))))) pending)]
           (when (empty? ready) (throw (ex-info "Unknown or cyclic frame parents" {:frames (keys pending)})))
           (recur
-            (reduce (fn [network [id {:keys [parent bindings]}]]
-                      (when (contains? (net/net-env network) id) (throw (ex-info "Frame already exists" {:id id})))
-                      (let [declared (env/declare-child network parent id bindings)]
-                        (runner/completed-network (runner/run-network (:props declared) (:net declared)))))
-                    network ready)
-            (apply dissoc pending (map first ready))))))))
+           (reduce (fn [network [id {:keys [parent bindings]}]]
+                     (when (contains? (net/net-env network) id) (throw (ex-info "Frame already exists" {:id id})))
+                     (let [declared (env/declare-child network parent id bindings)]
+                       (runner/completed-network (runner/run-network (:props declared) (:net declared)))))
+                   network ready)
+           (apply dissoc pending (map first ready))))))))
 
 (defn- compile-file-form [runtime file form]
   (let [head (when (seq? form) (first form))]
@@ -410,21 +410,21 @@
             candidate (-> (compiler-state session)
                           (assoc ::catalog joined)
                           (install-cells-and-frames {:cells (apply dissoc (:cells parts) (keys (:cells before)))
-                                                    :frames (apply dissoc (:frames parts) (keys (:frames before)))
-                                                    :derivations (apply dissoc (:derivations parts) (keys (:derivations before)))})
+                                                     :frames (apply dissoc (:frames parts) (keys (:frames before)))
+                                                     :derivations (apply dissoc (:derivations parts) (keys (:derivations before)))})
                           (install-bindings new-bindings
                                             {:run-id (:run-id identity)
                                              :dependency-ids (set (keys (:dependencies joined)))})
                           (install-scoped-bindings
-                            (apply dissoc (:scoped-primitives parts) (keys (:scoped-primitives before)))
-                            {:run-id (:run-id identity)
-                             :dependency-ids (set (keys (:dependencies joined)))})
+                           (apply dissoc (:scoped-primitives parts) (keys (:scoped-primitives before)))
+                           {:run-id (:run-id identity)
+                            :dependency-ids (set (keys (:dependencies joined)))})
                           (#(reduce compile-file % (sort-by key new-files)))
                           refresh-observers
                           effects/record-boundary-effects)]
         (ImmutableLainSession. identity declarations candidate)))))
 
-(defn- advance-session [session inputs]
+(defn- advance-cell-session [session inputs]
   (let [inputs (mapv normalize-input inputs)
         before (compiler-state session)
         tick (inc (get before :runtime/commit-tick 0))
@@ -433,6 +433,7 @@
                      (input/assoc-program-commit-tick tick)
                      (input/apply-program-updates
                       (mapv #(select-keys % [:cell-id :update]) inputs))
+                     refresh-observers
                      effects/record-boundary-effects)
         current (cond-> prepared
                   (get-in (session-declarations session) [:options :record-inputs?])
@@ -443,6 +444,74 @@
     (turn (ImmutableLainSession. (session-identity session)
                                  (session-declarations session) current)
           [] (effects/outbox-effects (:program/net current)))))
+
+(defn admission-input
+  "An immutable source admission declaration, produced by a Lain network.
+  A response identity groups a FIFO stream; rejection stops its remaining forms."
+  [declaration receipt-id response-id]
+  (when-not (and (map? declaration) (:id declaration) (ids/node-id? receipt-id)
+                 (some? response-id))
+    (throw (ex-info "Invalid admission input" {})))
+  {:runtime/input :admission :declaration declaration
+   :receipt-id receipt-id :response-id response-id})
+
+(defn- advance-admission [session {:keys [declaration receipt-id response-id]}]
+  (let [id (:id declaration)
+        prior (get-in (compiler-state session) [::admissions id])
+        stopped? (contains? (::stopped-responses (compiler-state session)) response-id)
+        [candidate receipt]
+        (cond
+          prior
+          (if (= declaration (:declaration prior))
+            [session (:receipt prior)]
+            [session {:id id :status :rejected :message "Conflicting admission identity"}])
+          stopped? [session {:id id :status :skipped :message "Response stopped after failed form"}]
+          :else
+          (try
+            (when-not (= 1 (count (:files declaration)))
+              (throw (ex-info "Admission requires one source file" {})))
+            (when-not (= 1 (count (source/read-source-forms (first (vals (:files declaration))))))
+              (throw (ex-info "Admission requires one complete form" {})))
+            [(prepare-extension session (session-extension declaration))
+             {:id id :status :admitted}]
+            (catch Exception error
+              [session {:id id :status :rejected :message (ex-message error)}])))
+        runtime (cond-> (compiler-state candidate)
+                  (nil? prior) (assoc-in [::admissions id]
+                                         {:declaration declaration :receipt receipt})
+                  (= :rejected (:status receipt))
+                  (update ::stopped-responses (fnil conj #{}) response-id))
+        candidate (ImmutableLainSession. (session-identity candidate)
+                                         (session-declarations candidate) runtime)]
+    (let [candidate (if (contains? (net/net-env (network candidate)) receipt-id)
+                      candidate
+                      (prepare-extension candidate
+                                         (session-extension {:id [::receipt receipt-id]
+                                                             :cells {receipt-id value/nothing}})))]
+      (advance-cell-session candidate
+                            [(cell-input receipt-id
+                                         (collection/content
+                                          (publication/next-source-datum receipt-id
+                                                                         (net/network-cell-strongest (network candidate) receipt-id)
+                                                                         receipt :active)))]))))
+
+(defn- advance-session [session inputs]
+  ;; Admission is a compiler transaction between propagation rounds. No host,
+  ;; worker, promise, resource callback, or mutable service registry participates.
+  (reduce (fn [result batch]
+            (let [current (:session result)
+                  next-turn
+                  (if (= :admission (:runtime/input (first batch)))
+                    (reduce (fn [turn input]
+                              (admission-input (:declaration input) (:receipt-id input) (:response-id input))
+                              (advance-admission (:session turn) input))
+                            result batch)
+                    (advance-cell-session current batch))]
+              (turn (:session next-turn)
+                    (into (:next-inputs result) (:next-inputs next-turn))
+                    (:requests next-turn))))
+          (advance-cell-session session [])
+          (partition-by #(= :admission (:runtime/input %)) inputs)))
 
 (declare create-session)
 
@@ -466,10 +535,10 @@
       (throw (ex-info "Rerun requires a fresh run identity" {})))
     (let [identity (assoc (session-identity session) :run-id fresh-run-id)
           fresh (create-session
-                  (assoc identity
-                         :native-extensions (:bootstrap (session-declarations session))
-                         :runtime-options (:options (session-declarations session))
-                         :propagation-options (:limits (session-declarations session))))
+                 (assoc identity
+                        :native-extensions (:bootstrap (session-declarations session))
+                        :runtime-options (:options (session-declarations session))
+                        :propagation-options (:limits (session-declarations session))))
           parts (select-keys (session-declarations session) [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives])]
       (extend-session fresh (session-extension (assoc parts :id ::rerun))))))
 
@@ -492,9 +561,9 @@
                              current extension {:outbox-id (runtime-ids/boundary-outbox-id)}))
                           initial bootstrap)]
      (ImmutableLainSession. (select-keys options [:id :run-id])
-                           {:primitives {} :dependencies {} :files {} :imports {} :extensions {}
-                            :bootstrap bootstrap :options (or runtime-options {}) :limits limits}
-                           prepared))))
+                            {:primitives {} :dependencies {} :files {} :imports {} :extensions {}
+                             :bootstrap bootstrap :options (or runtime-options {}) :limits limits}
+                            prepared))))
 
 (defn with-compiler-state
   "Host inspection/boundary adapter. Domain state remains an immutable value."

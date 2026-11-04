@@ -10,7 +10,7 @@
             [propagators.message :as message])
   (:import [java.util UUID]
            [java.util.concurrent Executors ExecutorService ThreadFactory TimeUnit FutureTask Callable TimeoutException
-                                  ThreadPoolExecutor ArrayBlockingQueue RejectedExecutionException]))
+            ThreadPoolExecutor ArrayBlockingQueue RejectedExecutionException]))
 
 (deftype SessionBoundary [roundGate gate view executor deliveries capacity automatic cleanupTimeout])
 
@@ -259,7 +259,7 @@
                   (swap! (runtime-session host) update-in [::receipts id]
                          (fn [receipt]
                            (cond-> (assoc receipt :start-finished? true :stop stop
-                                                  :cleanup (if stop :pending :not-required))
+                                          :cleanup (if stop :pending :not-required))
                              (= :starting (:status receipt)) (assoc :status :active))))
                   (not= :active (get-in (receipts host) [id :status])))]
             (when terminal? (cleanup! host id))))
@@ -363,44 +363,44 @@
   "Commit one admitted batch, then deliver current intents. Replies stay queued."
   [host]
   (locking (round-gate host)
-   (let [requests
-        (locking (gate host)
-          (require-open! host)
-          (let [view (runtime-session host)]
-            (when-not (= :idle (::phase @view))
-              (throw (ex-info "Compiler session round is already active" {})))
-            (let [queued (::pending @view)
-                  _ (swap! view assoc ::pending [])
-                  _ (doseq [batch (partition-by #(boolean (:extension %)) queued)]
-                      (if (:extension (first batch))
-                        (admit-extensions! host batch)
-                        (let [turn (session/advance (current-session host) (admitted-inputs host batch))]
-                          (publish! host (:session turn)))))
-                  result (session/advance (current-session host) [])]
-              (publish! host (:session result))
-              (swap! view #(-> %
-                               (update ::pending into (mapv (fn [input] {:input input}) (:next-inputs result)))
-                               (assoc ::phase :delivering ::blocked? false)))
-              (:requests result))))]
-    (try
+    (let [requests
+          (locking (gate host)
+            (require-open! host)
+            (let [view (runtime-session host)]
+              (when-not (= :idle (::phase @view))
+                (throw (ex-info "Compiler session round is already active" {})))
+              (let [queued (::pending @view)
+                    _ (swap! view assoc ::pending [])
+                    _ (doseq [batch (partition-by #(boolean (:extension %)) queued)]
+                        (if (:extension (first batch))
+                          (admit-extensions! host batch)
+                          (let [turn (session/advance (current-session host) (admitted-inputs host batch))]
+                            (publish! host (:session turn)))))
+                    result (session/advance (current-session host) [])]
+                (publish! host (:session result))
+                (swap! view #(-> %
+                                 (update ::pending into (mapv (fn [input] {:input input}) (:next-inputs result)))
+                                 (assoc ::phase :delivering ::blocked? false)))
+                (:requests result))))]
+      (try
       ;; Native environment handlers (including retained tracer sources) also
       ;; belong to post-commit delivery. Compilation only records their intents.
-      (locking (gate host)
-        (let [view (runtime-session host)]
-          (reset! view (binding [effects/*defer-environment-request?* operators/callback-request?]
-                         (effects/perform-boundary-effects @view)))))
-      ((requiring-resolve 'propagators.compiler-2.runtime/schedule-clock-subscriptions!)
-       (runtime-session host))
-      ((requiring-resolve 'propagators.compiler-2.runtime/refresh-trace-subscriptions!)
-       (runtime-session host))
-      (doseq [request (effects/outbox-effects (:program/net @(runtime-session host)))
-              :when (operators/callback-request? request)]
-        (dispatch! host request))
-      (current-session host)
-      (finally
         (locking (gate host)
-          (swap! (runtime-session host) assoc ::phase :idle))
-        (wake! host))))))
+          (let [view (runtime-session host)]
+            (reset! view (binding [effects/*defer-environment-request?* operators/callback-request?]
+                           (effects/perform-boundary-effects @view)))))
+        ((requiring-resolve 'propagators.compiler-2.runtime/schedule-clock-subscriptions!)
+         (runtime-session host))
+        ((requiring-resolve 'propagators.compiler-2.runtime/refresh-trace-subscriptions!)
+         (runtime-session host))
+        (doseq [request (effects/outbox-effects (:program/net @(runtime-session host)))
+                :when (operators/callback-request? request)]
+          (dispatch! host request))
+        (current-session host)
+        (finally
+          (locking (gate host)
+            (swap! (runtime-session host) assoc ::phase :idle))
+          (wake! host))))))
 
 (defn wake! [host]
   (when (.-automatic ^SessionBoundary host)
@@ -445,9 +445,9 @@
    (when-not (and (pos-int? capacity) (pos-int? cleanup-timeout-ms) (pos-int? delivery-threads))
      (throw (ex-info "Positive boundary capacity and cleanup timeout required" {})))
    (let [view (atom (host-delivery-policy (merge (session/compiler-state compiler-session)
-                           {::session compiler-session ::pending [] ::receipts {}
-                            ::phase :idle ::closed? false ::scheduled? false
-                            ::blocked? false ::failures [] ::delivery-ready? false})))
+                                                 {::session compiler-session ::pending [] ::receipts {}
+                                                  ::phase :idle ::closed? false ::scheduled? false
+                                                  ::blocked? false ::failures [] ::delivery-ready? false})))
          executor (Executors/newSingleThreadExecutor
                    (reify ThreadFactory
                      (newThread [_ runnable]
@@ -587,11 +587,11 @@
   ([host id dependency-id] (subscribe! host id dependency-id nil))
   ([host id dependency-id output-cell]
    (dispatch! host {:boundary/id [:subscription (:run-id (session/session-identity
-                                                        (current-session host))) id]
+                                                          (current-session host))) id]
                     :boundary/receipt-id output-cell
                     :boundary/payload {:dependency dependency-id :subscription id
                                        :run-id (:run-id (session/session-identity
-                                                        (current-session host)))
+                                                         (current-session host)))
                                        :input-ids [] :input-contents [] :arguments []}})))
 
 (defn- close-boundary! [host]
@@ -608,8 +608,8 @@
                                    (assoc receipt :status :cancelled) receipt)])) receipts))))
   (.shutdown ^ExecutorService (.-deliveries ^SessionBoundary host))
   (when-not (.awaitTermination ^ExecutorService (.-deliveries ^SessionBoundary host)
-                              (long (.-cleanupTimeout ^SessionBoundary host))
-                              TimeUnit/MILLISECONDS)
+                               (long (.-cleanupTimeout ^SessionBoundary host))
+                               TimeUnit/MILLISECONDS)
     (.shutdownNow ^ExecutorService (.-deliveries ^SessionBoundary host)))
   ((requiring-resolve 'propagators.compiler-2.runtime/stop-clocks!) (runtime-session host))
   (doseq [trace (vals (:traces @(runtime-session host)))] ((:stop trace)))
@@ -639,3 +639,19 @@
       (catch Throwable error
         (swap! (runtime-session host) assoc ::phase :retirement-failed ::blocked? true)
         (throw error)))))
+
+(defn admit-source!
+  "Publish one immutable admission transaction at the authoritative boundary.
+  External transports may call this; compilation never waits on a host worker."
+  [host declaration response-id]
+  (locking (round-gate host)
+    (locking (gate host)
+      (require-open! host)
+      (let [receipt-id (basis/stable-node-id :admission-receipt (:id declaration))
+            result (session/advance (current-session host)
+                                    [(session/admission-input declaration receipt-id response-id)])
+            candidate (:session result)
+            receipt (first (basis/primitive-input-values
+                            (session/network candidate) [receipt-id]))]
+        (publish! host candidate)
+        receipt))))
