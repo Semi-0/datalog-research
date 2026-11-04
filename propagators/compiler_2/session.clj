@@ -500,10 +500,19 @@
 (defn publication-input [cell-id base]
   {:runtime/input :publication :cell-id cell-id :base base})
 
+(defn interfaces
+  "Read static and Lain-connected interface declarations without advancing a session."
+  [session]
+  (merge-with (fn [a b]
+                (when-not (= a b) (throw (ex-info "Conflicting session interface declarations" {})))
+                a)
+              (:interfaces (session-declarations session))
+              (connected/interfaces (network session))))
+
 (defn interface-cell
   "Resolve a declared interface against compiled Lain topology. No cells are created."
   [session interface]
-  (let [{:keys [cell binding field reference?]} (get-in (session-declarations session) [:interfaces interface])
+  (let [{:keys [cell binding field reference?]} (get (interfaces session) interface)
         v (when binding (connected/freeze (network session) (binding-value session binding)))
         resolved (cond cell cell field (get v field) reference? v binding (binding-cell session binding))]
     (when-not (and (ids/node-id? resolved) (contains? (net/net-env (network session)) resolved))

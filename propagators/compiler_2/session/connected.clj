@@ -45,6 +45,7 @@
               (activate network context inputs output)))})))
 
 (def declarations-key ::declarations)
+(def interfaces-key ::interfaces)
 (def pending ::pending)
 
 (defn freeze
@@ -73,6 +74,30 @@
     (fn [_ arguments [output] _context]
       {:effects [(gur/bind-name [declarations-key] output
                                 {:kind kind :arguments arguments :receipt output})]})}))
+
+(defn export-operator
+  "Declare a named external interface to a cell reference supplied by Lain.
+  Registration retains argument identities; unresolved exports remain pending."
+  []
+  (operator/propagator-operator
+   {:name 'session:export
+    :activate
+    (fn [_ arguments [output] _context]
+      (when-not (= 4 (count arguments))
+        (throw (ex-info "session:export expects family, identity, kind and cell reference" {})))
+      {:effects [(gur/bind-name [interfaces-key] output arguments)]})}))
+
+(defn interfaces [network]
+  (reduce
+   (fn [exports arguments]
+     (let [[family identity kind cell :as values]
+           (mapv #(freeze network (net/network-cell-strongest network %)) arguments)]
+       (if (some #{pending} values) exports
+           (let [key [family identity] descriptor {:kind kind :cell cell}]
+             (when (and (contains? exports key) (not= descriptor (get exports key)))
+               (throw (ex-info "Conflicting connected session interface" {:interface key})))
+             (assoc exports key descriptor)))))
+   {} (vals (get (net/network-dict-entry network [:network :name-bindings]) [interfaces-key]))))
 
 (defn declarations [network]
   (->> (get (net/network-dict-entry network [:network :name-bindings]) [declarations-key])

@@ -668,7 +668,7 @@
     (into {} (map (fn [[id {:keys [kind]}]]
                     [id {:kind kind :value (connected/freeze (session/network s)
                                                              (net/network-cell-strongest (session/network s) (session/interface-cell s id)))}]))
-          (:interfaces (session/session-declarations s)))))
+          (session/interfaces s))))
 
 (defn publish-user-message!
   "The sole public conversational ingress: exported user cells, stable identity,
@@ -680,7 +680,7 @@
                   (fn [s]
                     (when-not (= (str run-id) (str (:run-id (session/session-identity s))))
                       (throw (ex-info "Stale session run" {:stale true})))
-                    (let [{:keys [kind]} (get-in (session/session-declarations s) [:interfaces interface])
+                    (let [{:keys [kind]} (get (session/interfaces s) interface)
                           cell (session/interface-cell s interface)]
                       (when-not (= :user-message kind)
                         (throw (ex-info "Session does not expose this user ingress" {:interface interface})))
