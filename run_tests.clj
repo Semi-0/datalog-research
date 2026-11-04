@@ -105,6 +105,8 @@
     graph.lain-editor.inspection.harness-assignment-withdrawal-test
     graph.lain-editor.inspection.retained-relationship-test
     graph.lain-editor.workspace.source-files-test
+    graph.lain-editor.workspace.file-service-test
+    graph.lain-editor.workspace.file-bridge-test
     graph.lain-editor.workspace.commands-test
     graph.lain-editor.runtime.slot-spawn-test
     graph.lain-editor.runtime.extension-error-test

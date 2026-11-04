@@ -9,6 +9,9 @@
             [graph.lain-editor.development.runtime :as development-runtime]
             [graph.lain-editor.layout.graph-layout :as graph-layout]
             [graph.lain-editor.workspace.source-files :as source-files]
+            [graph.lain-editor.workspace.file-service :as file-service]
+            [graph.lain-editor.workspace.file-socket :as file-socket]
+            [graph.lain-editor.workspace.file-bridge :as file-bridge]
             [graph.lain-editor.workspace.files :as workspace-files]
             [graph.lain-editor.workspace.project-files :as project-files]
             [graph.lain-editor.workspace.commands :as workspace-commands]
@@ -18,6 +21,7 @@
            [java.util.concurrent Executors]))
 
 (def ^:dynamic *project-root* nil)
+(def ^:dynamic *files* nil)
 
 (defn project-root []
   (or *project-root* (System/getProperty "user.dir")))
@@ -61,10 +65,18 @@
            "open-session" (editor/open-session! editors command)
            "session-status" (editor/session-status editors command)
            "remove-extension" (editor/remove-extension! editors command)
-           "run" (let [result (editor/run! editors command)]
+           "run" (let [_ (when-let [saved (:savedFile command)]
+                           (let [snapshot (file-service/read-file *files* (:path saved))]
+                             (when-not (and (string? (:version saved))
+                                            (= (:version saved) (:version snapshot))
+                                            (= (:source command) (:source snapshot)))
+                               (throw (ex-info "File changed after save; resolve it before Run" {:conflict true})))))
+                       result (editor/run! editors command)]
                    (development-runtime/close-pane! developments id)
                    (graph-layout/close-pane! layouts id)
                    result)
+           "extend-from-file" (let [result (file-bridge/extend-file! editors *files* command)]
+                                (graph-layout/close-pane! layouts id) result)
            "extend" (let [result (editor/extend! editors command)] (graph-layout/close-pane! layouts id) result)
            "spawn-slot" (let [result (editor/spawn-slots! editors command)]
                           (graph-layout/close-pane! layouts id)
@@ -120,6 +132,10 @@
   (let [body (slurp (.getRequestBody exchange))
         command (json/read-json body)
         result (cond
+                 (and (string? (:op command)) (.startsWith ^String (:op command) "editor/"))
+                 (file-bridge/editor-command! commands *files* command)
+                 (and (string? (:op command)) (.startsWith ^String (:op command) "files/"))
+                 (file-service/command! *files* command)
                  (development-protocol/operations (:op command))
                  (development-handler/command! developments command)
                  (workspace-commands/operations (:op command))
@@ -143,10 +159,21 @@
 
 (defn start!
   ([port] (start! port {}))
-  ([port {:keys [authorize? project-root]}]
+  ([port {:keys [authorize? project-root socket-path]}]
    (let [editors (atom {}) layouts (atom {}) developments (atom {}) commands (atom {}) detached (atom {})
          server (HttpServer/create (InetSocketAddress. "127.0.0.1" (int port)) 0)
-         executor (Executors/newCachedThreadPool)]
+         executor (Executors/newCachedThreadPool)
+         files (file-service/start! (or project-root (System/getProperty "user.dir")))
+         socket-path (or socket-path (System/getenv "LAIN_EDITOR_FILE_SOCKET"))
+         socket (try
+                  (when socket-path
+                    (file-socket/start! {:path socket-path :service files
+                                         :bridge #(file-bridge/editor-command! commands files %)}))
+                  (catch Exception error
+                    ((:close files))
+                    (.shutdownNow executor)
+                    (.stop server 0)
+                    (throw error)))]
      (.createContext server "/" (reify HttpHandler
                                   (handle [_ exchange]
                                     (if (and authorize? (not (authorize? exchange)))
@@ -154,13 +181,13 @@
                                         (respond! exchange 401 "application/json"
                                                   (json/write-json {:ok false :error "Unauthorized"}))
                                         (finally (.close exchange)))
-                                      (binding [*project-root* project-root]
+                                      (binding [*project-root* project-root *files* files]
                                         (handle! editors layouts developments commands detached exchange))))))
      (.setExecutor server executor)
      (.start server)
      {:port (.getPort (.getAddress server)) :editors editors :layouts layouts
-      :developments developments :detached detached
-      :close (fn [] (.stop server 0) (.shutdownNow executor) (reset! commands {})
+      :developments developments :detached detached :files files :file-socket socket
+      :close (fn [] (when socket ((:close socket))) ((:close files)) (.stop server 0) (.shutdownNow executor) (reset! commands {})
                (locking editors
                  (development-runtime/close-all! developments)
                  (graph-layout/close! layouts)

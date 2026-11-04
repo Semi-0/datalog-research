@@ -23,6 +23,9 @@ Runtime depends only on the frontend repository's `contracts` subproject: worksp
 
 The frontend sends the existing run/extend/inspect/layout/restore/close/save commands. JVM execution networks and history are authoritative here; frontend observations cannot mutate them during rendering. No new accumulator, solver, compiler or global merge policy was introduced.
 
+File-backed views, conditional saves, and the independent local socket are
+documented in [Files and editor bridges](docs/file-editor-api.md).
+
 ## Verify
 
 ```sh

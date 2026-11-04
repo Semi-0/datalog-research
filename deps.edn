@@ -1,6 +1,6 @@
 {:paths ["." "editor/src" "target/lain-editor" "deprecated" "leapfrog" "reference" "differential_leapfrog"]
  :deps {lain-editor/contracts {:git/url "https://github.com/Semi-0/lain-editor.git"
-                               :git/sha "24324abf399662369ba98ed3d9d94b900ff41997"
+                               :git/sha "602eb67f70020982ae56a6e1522fa4d119889c64"
                                :deps/root "contracts"}
         danlentz/clj-uuid {:mvn/version "0.2.5"}
         clj-kondo/clj-kondo {:mvn/version "2026.08.04"}
@@ -37,17 +37,17 @@
                         :main-opts ["scripts/watch_gx10_stream.clj"]}
            :editor/cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
                                       lain-editor/build {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                         :git/sha "24324abf399662369ba98ed3d9d94b900ff41997"
+                                                         :git/sha "602eb67f70020982ae56a6e1522fa4d119889c64"
                                                          :deps/root "build"}}
                          :main-opts ["-m" "graph.lain-editor.build"]}
            :editor/cljs-test {:extra-deps {lain-editor/frontend {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                                 :git/sha "24324abf399662369ba98ed3d9d94b900ff41997"}
+                                                                 :git/sha "602eb67f70020982ae56a6e1522fa4d119889c64"}
                                            lain-editor/tests {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                              :git/sha "24324abf399662369ba98ed3d9d94b900ff41997"
+                                                              :git/sha "602eb67f70020982ae56a6e1522fa4d119889c64"
                                                               :deps/root "test"}
                                            org.clojure/clojurescript {:mvn/version "1.12.145"}
                                            lain-editor/build {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                                              :git/sha "24324abf399662369ba98ed3d9d94b900ff41997"
+                                                              :git/sha "602eb67f70020982ae56a6e1522fa4d119889c64"
                                                               :deps/root "build"}}
                               :extra-paths ["test" "editor/test"]
                               :main-opts ["-m" "graph.lain-editor.build" "test"]}
@@ -58,7 +58,7 @@
            :test
            {:extra-paths ["test" "editor/test"]
             :extra-deps {lain-editor/frontend {:git/url "https://github.com/Semi-0/lain-editor.git"
-                                               :git/sha "24324abf399662369ba98ed3d9d94b900ff41997"}}
+                                               :git/sha "602eb67f70020982ae56a6e1522fa4d119889c64"}}
             :main-opts ["-m" "run-tests"]}
            :bench
            {:main-opts ["-m" "bench-compare"]}

@@ -82,6 +82,9 @@
         (close-session! session)
         (throw error)))))
 
+(def ^:dynamic *source-root* nil)
+(def ^:dynamic *source-check* nil)
+
 (def ^:dynamic *owners* nil)
 
 (defn service-state
@@ -119,7 +122,7 @@
         identity (when boundary (compiler-session/session-identity (compiler-host/current-session boundary)))
         mode (display/mode (:program/net @(:session entry)))]
     (cond-> (assoc (select-keys entry [:sessionId :generation :source :extensions
-                                     :appliedExtensions :compilerSession :ownership])
+                                       :appliedExtensions :compilerSession :ownership])
                    :runtime (if boundary "session" "legacy")
                    :runId (when identity (str (:run-id identity)))
                    :lifecycle (if boundary (name (compiler-host/lifecycle boundary)) "active"))
@@ -138,8 +141,10 @@
   ;; Snapshot only this extension and its explicit imports. Keep duplicate
   ;; explicit imports in its own declaration so removing another extension
   ;; cannot remove capabilities this extension independently committed.
-  (compiler-files/prepare-extension!
-   {:id id :files {(str "editor/" id ".lain") text}}))
+  (let [prepared (compiler-files/prepare-extension!
+                  {:root (or *source-root* ".") :id id :files {(str "editor/" id ".lain") text}})]
+    (when *source-check* (*source-check*))
+    prepared))
 
 (defn- compile-owner [source applied identity & [committed]]
   (when-not (string? source) (throw (ex-info "Source must be a string" {})))
@@ -154,14 +159,14 @@
                                              display/extension history/extension
                                              capture-observation/extension stack-primitives/extension]}))
         base (compiler-session/extend-session initial
-                                             (or (get committed "base") (source-extension initial "base" source)))
+                                              (or (get committed "base") (source-extension initial "base" source)))
         compiled (reduce (fn [current {:keys [id source]}]
                            (compiler-session/extend-session current
-                                                             (or (get committed id) (source-extension current id source))))
+                                                            (or (get committed id) (source-extension current id source))))
                          base applied)]
     (compiler-session/with-compiler-state
-     compiled (assoc (compiler-session/compiler-state compiled)
-                     semantic-capture/storage-key sources retained-inspection/storage-key (atom {})))))
+      compiled (assoc (compiler-session/compiler-state compiled)
+                      semantic-capture/storage-key sources retained-inspection/storage-key (atom {})))))
 
 (defn- committed-declarations [compiled]
   (into {} (map (fn [[id parts]] [id (compiler-session/session-extension (assoc parts :id id))]))
@@ -237,8 +242,8 @@
               candidate (compile-owner source applied (assoc identity :run-id (random-uuid)))]
           (compiler-host/replace! boundary candidate)
           (publish-owner! editors (assoc previous :source source :extensions extensions
-                                        :appliedExtensions applied :committedDeclarations (committed-declarations candidate)
-                                        :generation (str (random-uuid)))))
+                                         :appliedExtensions applied :committedDeclarations (committed-declarations candidate)
+                                         :generation (str (random-uuid)))))
         (let [entry (prepare-compiler source extensions)]
           (when previous (close-entry! previous))
           (publish-owner! editors entry)
@@ -260,7 +265,7 @@
           (load-checked! candidate source)
           (swap! candidate assoc semantic-capture/storage-key sources)
           (promote! editors pane (assoc previous :session candidate :generation (str (random-uuid))
-                                       :extensions (conj (:extensions previous) source)))
+                                        :extensions (conj (:extensions previous) source)))
           (catch Throwable error (close-session! candidate) (throw error)))))))
 
 (defn extend! [editors {:keys [source generation] :as command}]
@@ -273,10 +278,10 @@
             extension (source-extension (compiler-host/current-session boundary) (:id applied) source)]
         (compiler-host/extend! boundary extension)
         (publish-owner! editors (-> previous
-                                   (assoc :generation (str (random-uuid)))
-                                   (update :extensions conj source)
-                                   (update :appliedExtensions conj applied)
-                                   (update :committedDeclarations assoc (:id applied) extension))))
+                                    (assoc :generation (str (random-uuid)))
+                                    (update :extensions conj source)
+                                    (update :appliedExtensions conj applied)
+                                    (update :committedDeclarations assoc (:id applied) extension))))
       (extend-legacy! editors command))))
 
 (defn remove-extension! [editors {:keys [generation extensionId] :as command}]
@@ -293,8 +298,8 @@
                                    (:committedDeclarations previous))]
       (compiler-host/replace! boundary candidate)
       (publish-owner! editors (assoc previous :appliedExtensions applied
-                                    :extensions (mapv :source applied) :committedDeclarations (committed-declarations candidate)
-                                    :generation (str (random-uuid)))))))
+                                     :extensions (mapv :source applied) :committedDeclarations (committed-declarations candidate)
+                                     :generation (str (random-uuid)))))))
 
 (defn spawn-slots! [editors {:keys [generation] :as command}]
   (let [previous (require-owner editors command)
@@ -336,7 +341,7 @@
       :runIds (into {} (map (fn [[id entry]] [id (:runId (public-entry entry))])) restored)
       :sessions (into {} (map (fn [[id entry]] [id (public-entry entry)])) restored)
       :displayModes (into {} (keep (fn [[id entry]]
-                                    (when-let [mode (:displayMode (public-entry entry))] [id mode]))) restored)})))
+                                     (when-let [mode (:displayMode (public-entry entry))] [id mode]))) restored)})))
 
 (defn detached-entry [owners session-id]
   (or (get @owners session-id) (throw (ex-info "Session not found; Run explicitly" {:sessionId session-id}))))

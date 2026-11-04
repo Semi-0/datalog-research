@@ -98,7 +98,7 @@ def backend_command(port):
 def processes(release, backend_port, frontend_port):
     """Reap only candidate process groups, including their descendants."""
     owned = []
-    env = service_environment()
+    env = dict(service_environment(), LAIN_EDITOR_FILE_SOCKET=str(release / "editor-files.sock"))
     try:
         owned.append(subprocess.Popen(backend_command(backend_port), cwd=release / "backend",
                                       env=env, start_new_session=True))
@@ -213,7 +213,7 @@ def build(release):
         url = f"http://127.0.0.1:{frontend_port}"
         probe(url)
         run(["npm", "run", "test:browser"], cwd=frontend,
-            env=dict(env, LAIN_EDITOR_URL=url), timeout=1800)
+            env=dict(env, LAIN_EDITOR_URL=url, LAIN_EDITOR_SOCKET=str(release / "editor-files.sock")), timeout=1800)
 
 
 def restart():
@@ -358,6 +358,7 @@ def serve(role):
         if configuration is not None:
             env.update(LAIN_RUNTIME_HOST="127.0.0.1", LAIN_RUNTIME_PORT=str(BACKEND_PORT),
                        LAIN_RUNTIME_PROJECT_ROOT=configuration["project_root"],
+                       LAIN_EDITOR_FILE_SOCKET=str(ROOT / "editor-files.sock"),
                        LAIN_RUNTIME_BEARER_CREDENTIAL_FILE=configuration["backend_credential_file"])
             args = ["clojure", "-Sdeps", DEPS, "-M", "-m", "graph.lain-editor.protected-server"]
     else:

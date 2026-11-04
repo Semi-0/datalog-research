@@ -1,21 +1,17 @@
 (ns graph.lain-editor.workspace.commands
   "Tab-scoped, acknowledged file-open requests. No runtime evaluation."
   (:require [clojure.string :as str]
-            [graph.lain-editor.workspace.project-files :as files])
-  (:import [java.nio.file Files Path]))
+            [graph.lain-editor.workspace.source-files :as source-files]))
 
 (def operations #{"workspace-poll" "workspaces" "load-file" "load-status"
-                  "closed-blocks" "reopen-closed" "reopen-status"})
+                  "closed-blocks" "reopen-closed" "reopen-status" "editor-command" "editor-status"})
 (def lease-ms 60000)
 
 (defn- require-client [state id]
   (or (get state id) (throw (ex-info "Workspace is not connected; list workspaces first" {}))))
 
 (defn- read-source [root path]
-  (let [^Path target (files/project-path root path ".lain")]
-    (when (> (Files/size target) (* 1024 1024))
-      (throw (ex-info "Lain source exceeds the 1 MiB load limit" {})))
-    {:source (Files/readString target) :filename (str (.getFileName target)) :path path}))
+  (assoc (source-files/open-block! root {:path path}) :filename (last (str/split path #"/"))))
 
 (defn- pending-requests [client]
   (filterv #(contains? #{"queued" "delivered"} (:status %)) (:requests client)))
@@ -33,7 +29,7 @@
         item (some #(when (= request (:request %)) %) (:requests client))]
     (when-not (and item (= kind (:kind item)))
       (throw (ex-info "Unknown or expired workspace request" {})))
-    (select-keys item [:request :pane :path :archive :status :error])))
+    (select-keys item [:request :pane :path :archive :status :error :result])))
 
 (defn- acknowledge [client ack]
   (if (nil? ack)
@@ -44,7 +40,7 @@
                      (contains? #{"applied" "failed"} (:status ack)))
         (throw (ex-info "Invalid workspace acknowledgement" {})))
       (assoc-in client [:requests index]
-                (merge request (select-keys ack [:status :error]))))))
+                (merge request (select-keys ack [:status :error :result]))))))
 
 (defn command! [registry root {:keys [op workspace snapshot ack request path] :as command}]
   (locking registry
@@ -76,6 +72,23 @@
                                   :desktop (get-in client [:snapshot :desktop])})]
           (select-keys (enqueue! registry workspace client item)
                        [:request :pane :status :path]))
+
+        "editor-command"
+        (let [client (require-client @registry workspace)
+              pane (:pane command)
+              kind (:action command)]
+          (when-not (some #(= pane (:id %)) (get-in client [:snapshot :panes]))
+            (throw (ex-info "Target editor pane is not connected" {})))
+          (when-not (contains? #{"extend-code" "extend-file" "extend-primitives"} kind)
+            (throw (ex-info "Unsupported editor file command" {})))
+          (when-not (and (string? (:generation command)) (not (str/blank? (:generation command))))
+            (throw (ex-info "Inspect the running pane and supply its generation" {})))
+          (let [item (assoc (select-keys command [:pane :source :path :version :entry :revision :generation])
+                            :request (str (random-uuid)) :kind "editor-command" :action kind :status "queued")]
+            (select-keys (enqueue! registry workspace client item) [:request :pane :status])))
+
+        "editor-status"
+        (request-status registry workspace request "editor-command")
 
         "closed-blocks"
         (let [client (require-client @registry workspace)]

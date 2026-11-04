@@ -31,7 +31,8 @@
 
 (defn start! [{:keys [port project-root credential]}]
   (server/start! port {:project-root project-root
-                      :authorize? (partial authorized? credential)}))
+                       :socket-path (System/getenv "LAIN_EDITOR_FILE_SOCKET")
+                       :authorize? (partial authorized? credential)}))
 
 (defn -main [& _]
   (let [runtime (start! (configuration (System/getenv)))]
