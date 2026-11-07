@@ -1,7 +1,7 @@
 # How to Think in Lain
 A Relational and Compositional Reasoning Guide for AI Coding Agents
 
-Checked against the current Compiler-2 language on 2026-10-26. The domain illustrations in sections 1–16 are schematic where their helpers are not defined. Sections 17–24 give concrete syntax, explicit library imports, and runnable branching and recursion examples. Do not mistake an application-specific verb for a built-in operator.
+Checked against the current Compiler-2 language on 2026-10-26. The domain illustrations in sections 1–16 are schematic where their helpers are not defined. Sections 17–23 give concrete syntax, explicit library imports, and runnable branching and recursion examples. Section 24 describes the current immutable session and live-host extension APIs. Do not mistake an application-specific verb for a built-in operator.
 
 ## Tracing composed components
 
@@ -1278,7 +1278,132 @@ The setup above verifies loading and pending-input behavior, not a completed tra
 
 See the [semantic tracing gallery](../../examples/lain/semantic_tracing/README.md) for semantic observation examples. Attach observation through its declared boundaries rather than changing the propagation scheduler or reconstructing domain objects in a debugger.
 
-## 24. Verification and Source References
+## 24. Extend a Session by Declaring More Relationships
+
+A session retains the compiler environment, network, source declarations, and capability catalog. Extend that value when new relationships or capabilities should join the existing program. Advance it when new information should reach relationships already declared. Both operations preserve the earlier immutable snapshot; keep their returned session.
+
+The current entry point is `propagators.compiler-2.session`. Use its named constructors and accessors rather than rebuilding environments from host maps or resetting a runtime adapter atom.
+
+### Start with a pure session and extend its source
+
+Run the following Clojure examples in order from the `datalog-research` repository root (`clojure -M`). The strings inside `:files` are ordinary Lain source. The surrounding code is the host API, not additional Lain syntax.
+
+```clojure
+(require '[propagators.compiler-2.session :as s]
+         '[propagators.compiler-2.session.operators :as op]
+         '[propagators.compiler-2.session.files :as files]
+         '[propagators.compiler-2.session.host :as host]
+         '[propagators.cells.value :as value]
+         '[propagators.experimental.visualization.data :as data])
+
+(def s0 (s/create-session))
+(def program
+  (s/session-extension
+    {:id :guide/program
+     :files {"guide-main.lain"
+             "(define input) (define result (+ input 1))"}}))
+(def s1 (s/extend-session s0 program))
+(assert (value/nothing? (data/payload (s/binding-value s1 'result))))
+
+(def turn
+  (s/advance s1 [(s/cell-input (s/binding-cell s1 'input) 10)]))
+(def s2 (:session turn))
+(assert (= 11 (data/payload (s/binding-value s2 'result))))
+(assert (value/nothing? (data/payload (s/binding-value s1 'result))))
+
+(def derived
+  (s/session-extension
+    {:id :guide/derived
+     :files {"guide-derived.lain" "(define doubled (* result 2))"}}))
+(def s3 (s/extend-session s2 derived))
+(assert (= 22 (data/payload (s/binding-value s3 'doubled))))
+(assert (= (s/binding-cell s2 'result) (s/binding-cell s3 'result)))
+(assert (identical? s3 (s/extend-session s3 derived)))
+```
+
+`guide-derived.lain` connects to the existing `result` cell. It does not copy the current answer into a replacement program. `data/payload` is used only to inspect values in these assertions; preserve support, availability, and contradiction information when publishing updates.
+
+`advance` returns a `Turn` with `:session`, `:next-inputs`, and `:requests`. A pure driver must handle deferred inputs and effect requests explicitly; they are not proof that external work has run. Connected admission/feedback can populate `:next-inputs`. Use the live host below when it should own admission and effect delivery.
+
+### Add a host primitive without changing the compiler
+
+Use `op/prim-op` for a terminating, pure host calculation. Its constructor receives `make`, supplies the implementation, and returns the resulting cell function. Compose multiple calls through ordinary Lain networks.
+
+```clojure
+(def square-op
+  (op/prim-op (fn [make] (make (fn [x] (* x x))))))
+(def s4
+  (s/extend-session s3
+    (s/session-extension
+      {:id :guide/square
+       :primitives {'guide-square square-op}
+       :files {"guide-square.lain"
+               "(define squared (guide-square result))"}})))
+(assert (= 121 (data/payload (s/binding-value s4 'squared))))
+```
+
+The primitive is installed through canonical GUR and uses the caller's output cell. Do not perform IO in its constructor or activation. External work belongs to an async operator and an explicitly declared dependency/interpreter, with delivery after commit.
+
+### Prepare imports before extending
+
+`:files` maps source identities to source text; it does not ask the compiler to read those paths. For filesystem source or source containing `load-lain` / `load-primitive-environment`, prepare a frozen declaration first:
+
+```clojure
+(def prepared
+  (files/prepare-extension!
+    {:root "."
+     :id :guide/composition
+     :files {"guide-composition.lain"
+             "(load-lain \"propagators/compiler_2/runtime/lain/combinator.lain\")
+              (define composed (|> result guide-square))"}}))
+(def s5 (s/extend-session s4 prepared))
+(assert (= 121 (data/payload (s/binding-value s5 'composed))))
+```
+
+Use `:read-files ["path/to/program.lain"]` to read files under `:root` instead of supplying their text inline. Preparation snapshots transitive imports and resolves trusted native factories before the immutable compiler transaction. Native factories can execute host code; preparation is an explicit host effect. Supply a factory's required arguments through `:factory-arguments {qualified-entry [argument ...]}` rather than an ambient registry. Pass the prepared declaration to `extend-session`; do not fabricate its import manifest.
+
+### Extend an existing live owner
+
+A live application uses one `host/open!` boundary to own publication, input admission, callbacks, and cleanup. Views attach to that owner. When one already exists, use it rather than opening another owner for an editor or observer.
+
+This self-contained host example starts a fresh program:
+
+```clojure
+(def owner (host/open! (s/create-session) {:auto-advance? false}))
+(try
+  (host/extend! owner program)
+  (assert (= :accepted
+             (host/submit! owner
+               (s/cell-input
+                 (s/binding-cell (host/current-session owner) 'input) 20))))
+  (host/step! owner)
+  (host/extend-source! owner "(define tripled (* result 3))")
+  (assert (= 63 (data/payload
+                 (s/binding-value (host/current-session owner) 'tripled))))
+  (assert (empty? (host/failures owner)))
+  (finally (host/close! owner)))
+```
+
+`host/extend!` publishes a declared extension and steps the owner. `host/extend-source!` prepares supplied source with fresh file/extension identities. `host/step!` returns the current session directly, whereas pure `s/advance` returns a `Turn`. With automatic advance disabled, admitted inputs need an explicit step. Callback delivery remains asynchronous.
+
+For source arriving while the owner is running, `host/submit-extension!` queues a declaration for admission at an idle boundary and returns a receipt promise. With manual stepping, step before waiting; use a bounded dereference and inspect `:admitted` / `:rejected`. Admission is distinct from completion of external work. Inside observers or callbacks, enqueue work rather than recursively stepping the owner.
+
+For async capabilities, declare `:dependencies` using `session.dependencies/callback-dependency`, and a matching `op/async-op`. The explicit-interpreter form uses `(host/effect-interpreter owner route)` and behavior returning `op/cell-output` or `op/effect-output`; the single-argument adapter uses `(op/async-op (fn [make] (make :dependency-id)))`. Callbacks emit normalized inputs for later rounds. Check backpressure, receipts, and cleanup through the host API. The [session API reference](session-api.md) includes a complete async example.
+
+### Extension is additive; revision needs an explicit policy
+
+- A non-nil extension `:id` identifies its declaration. Retrying the same recorded declaration is a no-op; reusing the ID with different parts fails. Retain primitive/dependency declaration values for equal retries rather than constructing new function identities.
+- Primitive names, dependency IDs, file identities, and prepared imports are conflict-checked. A new extension ID does not authorize replacing an existing source file's text or a value-bearing binding. Compile/propagation failure leaves the original immutable session intact.
+- A bare `(define name)` can receive information later. Ordinary `define` adds information; it does not overwrite an earlier incompatible value. Use source-publication revisions for changing external values, and opt-in support/premise policies for retractable definitions.
+- `s/rerun` rebuilds the current declaration catalog with a fresh run ID; it does not edit that catalog. A live owner uses `host/rerun!` so old callbacks and resources are retired. For a changed catalog, construct a candidate with the same session ID and a fresh run ID, then use `host/replace!`; replacement validates the candidate and retires the old run before activation.
+- Advanced scoped extensions use `:target` for a live lexical frame and optionally `:support-cell` for definition support. `:cells` and `:frames` declare required structure. These identities must belong to canonical topology; resolve scoped bindings with `s/scoped-binding-cell`, not a materialized environment map.
+- Named application interfaces are available through `s/interfaces` and `s/interface-cell`. Use these declared connections when composing with an application boundary rather than inventing node IDs. `s/source-result-cell` exposes the retained result cell for a source identity.
+
+The design question is: **which new relationship should join this live network, and which existing endpoints should it retain?** Extend declarations for new topology, advance inputs for new information, and use the host for committed external effects.
+
+Source authority: [session implementation](../compiler_2/session.clj), [operator builders](../compiler_2/session/operators.clj), [file preparation](../compiler_2/session/files.clj), [live host](../compiler_2/session/host.clj), and [immutable session contracts](immutable-compiler-sessions.md). On 2026-11-07, all four Clojure blocks in this section were executed in order against the production implementation and their assertions passed. This verification is separate from the historical counts in the next section. The existing `clojure -M:test compiler-session` contract suite also passed: 92 tests, 935 assertions, zero failures/errors.
+
+## 25. Verification and Source References
 
 The runnable examples and explicit follow-up extensions were checked through the production source/session loader without behavior-changing overrides. Verification on 2026-10-26 covers 25 program cases and 46 expected outputs, including pending results, late fields, live list growth, branches, recursion, and one-time list projection. The pending tracer setup only establishes that its environment loads and its unresolved input remains pending.
 
