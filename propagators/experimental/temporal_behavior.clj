@@ -171,7 +171,8 @@
 
 (defn- join-input [a b]
   (cond
-    (nil? a) b
+    (or (nil? a) (value/nothing? a)) b
+    (value/nothing? b) a
     (= a b) a
     (and (reducer/reducer-cell? a) (reducer/reducer-cell? b))
     (reducer/merge-content a b nil nil)
@@ -193,19 +194,26 @@
   {:observations (apply set/union #{} (map :observations (keep identity selections)))
    :states (apply support/join (map :states (keep identity selections)))})
 
-(defn- apply-candidates [invoke argument-candidates]
+(defn- apply-candidates-cached [invoke argument-candidates prior]
   (let [tuples (reduce (fn [tuples candidates]
                          (for [tuple tuples c candidates] (conj tuple c))) [[]] argument-candidates)]
-    (into #{}
-          (keep (fn [tuple]
-                  (let [premises (apply support/combine (map :support tuple))
-                        bases (mapv :base tuple)]
-                    {:base (cond
+    (reduce (fn [{:keys [candidates applications]} tuple]
+              (let [premises (apply support/combine (map :support tuple))
+                    bases (mapv :base tuple)
+                    usable? (and (support/compatible? premises)
+                                 (not-any? value/unusable? bases))
+                    result (cond
                              (not (support/compatible? premises)) value/contradiction
                              (some value/contradiction? bases) value/contradiction
                              (some value/nothing? bases) value/nothing
-                             :else (do (measured! :reducer-invocations) (apply invoke bases)))
-                     :support premises}))) tuples)))
+                             (and *reuse* (contains? prior bases)) (get prior bases)
+                             :else (do (measured! :reducer-invocations) (apply invoke bases)))]
+                {:candidates (conj candidates {:base result :support premises})
+                 :applications (cond-> applications usable? (assoc bases result))}))
+            {:candidates #{} :applications {}} tuples)))
+
+(defn- apply-candidates [invoke argument-candidates]
+  (:candidates (apply-candidates-cached invoke argument-candidates {})))
 
 (defn- scan-records [records invoke config old-cache input]
   (let [initial (when (contains? config :initial) #{{:base (:initial config) :support #{}}})
@@ -222,12 +230,19 @@
                                         {:observations (set prefix)
                                          :states (set (filter #(sources (:source %)) (:support/states all-evidence)))})
               key [record accumulator selection]
-              next-record (if (and *reuse* (= key (:key prior))) (:record prior)
+              reused? (and *reuse* (= key (:key prior)))
+              ;; Reuse pure values when only justification changed. Candidate
+              ;; support and temporal-selection evidence are always rebuilt.
+              application (when (and (not reused?) accumulator)
+                            (apply-candidates-cached invoke [accumulator (:candidates record)]
+                                                     (:applications prior)))
+              next-record (if reused? (:record prior)
                               (assoc record :selection selection :candidates
                                      (if (nil? accumulator) (:candidates record)
-                                         (apply-candidates invoke [accumulator (:candidates record)]))))]
+                                         (:candidates application))))]
           (recur (next remaining) (:candidates next-record)
-                 (conj cache {:key key :record next-record}) (conj output next-record)))
+                 (conj cache {:key key :record next-record
+                              :applications (if reused? (:applications prior) (:applications application))}) (conj output next-record)))
         {:records output :cache cache}))))
 
 (defn- mapped-records [records invoke filter? old-cache]
@@ -304,7 +319,10 @@
                                  (merge region {:id [(:id a) (:id b)] :revision 0
                                                 :selection (selection-join (:selection a) (:selection b))
                                                 :candidates (apply-candidates invoke [(:candidates a) (:candidates b)])})))})]
-    (merge {:unavailable-before (last (sort (keep :unavailable-before domains)))
+    (merge {:domain-ready? (every? :domain-ready? domains)
+            :domain-support (apply support/combine (keep :domain-support domains))
+            :domain-states (apply support/join (keep :domain-states domains))
+            :unavailable-before (last (sort (keep :unavailable-before domains)))
             :unavailable-ids (into #{} (mapcat :unavailable-ids) domains)}
            (update computed :records #(vec (sort-by order-key %))))))
 

@@ -72,11 +72,13 @@
         steps (volatile! 0)
         deadline (+ (System/nanoTime) (* 1000000 (long timeout-ms)))]
     (binding [cell-evaluator/*evaluate-cell*
-              (get-in (session-declarations session) [:options :evaluation :cell-evaluator]
-                      cell-evaluator/*evaluate-cell*)
+              (get (merge (get-in (session-declarations session) [:options :evaluation])
+                          (:evaluation (session-declarations session)))
+                   :cell-evaluator cell-evaluator/*evaluate-cell*)
               runner/*iterator-factory*
-              (get-in (session-declarations session) [:options :evaluation :iterator-factory]
-                      runner/*iterator-factory*)
+              (get (merge (get-in (session-declarations session) [:options :evaluation])
+                          (:evaluation (session-declarations session)))
+                   :iterator-factory runner/*iterator-factory*)
               runner/*advance-transform*
               (runner/compose-advance-transforms
                runner/*advance-transform*
@@ -106,7 +108,7 @@
 
 (defn session-extension
   "Snapshot declared values. Files are supplied contents, never paths to load."
-  [{:keys [id primitives dependencies files imports target support-cell cells frames targets supports derivations scoped-primitives interfaces]}]
+  [{:keys [id primitives dependencies files imports target support-cell cells frames targets supports derivations scoped-primitives interfaces evaluation]}]
   (when (and support-cell (nil? target))
     (throw (ex-info "Definition support requires a lexical target" {})))
   (when (nil? id)
@@ -130,6 +132,7 @@
                             :scoped-primitives (merge scoped-primitives
                                                       (when target (into {} (map (fn [[sym implementation]]
                                                                                    [[target sym] implementation])) primitives)))
+                            :evaluation (into {} evaluation)
                             :dependencies (into {} dependencies)
                             :files files :imports (into {} imports)
                             :cells (into {} cells) :frames (into {} frames) :derivations (into {} derivations) :interfaces (into {} interfaces)
@@ -150,7 +153,7 @@
   (reduce (fn [result kind]
             (assoc result kind (join-additions (get base kind {})
                                                (get additions kind {}) kind)))
-          base [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces]))
+          base [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces :evaluation]))
 
 (defn cell-input
   "An ordinary domain update; its support and payload are not coerced."
@@ -411,8 +414,8 @@
         declarations (assoc-in joined [:extensions (extension-id extension)] parts)]
     (when (and prior (not= prior parts))
       (throw (ex-info "Extension identity already declared" {:id (extension-id extension)})))
-    (if (= (select-keys before [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces])
-           (select-keys joined [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces]))
+    (if (= (select-keys before [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces :evaluation])
+           (select-keys joined [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces :evaluation]))
       (if prior
         session
         (ImmutableLainSession. identity declarations (compiler-state session)))
@@ -598,7 +601,15 @@
   (compiler-state [session] (.-state ^ImmutableLainSession session))
   (session-declarations [session] (.-declarations ^ImmutableLainSession session))
   SessionExtension
-  (extend-session [session extension] (bounded session #(prepare-extension session extension)))
+  (extend-session [session extension]
+    ;; Imported evaluation declarations apply while the importing file compiles,
+    ;; as well as to later publications. Conflicts fail before any evaluation.
+    (let [configured (ImmutableLainSession.
+                      (session-identity session)
+                      (join-parts (session-declarations session)
+                                  {:evaluation (:evaluation (extension-parts extension))})
+                      (compiler-state session))]
+      (bounded configured #(prepare-extension session extension))))
   SessionDependencies
   (dependency-declarations [session] (:dependencies (session-declarations session)))
   OpenSession
@@ -612,7 +623,7 @@
                         :native-extensions (:bootstrap (session-declarations session))
                         :runtime-options (:options (session-declarations session))
                         :propagation-options (:limits (session-declarations session))))
-          parts (select-keys (session-declarations session) [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces])]
+          parts (select-keys (session-declarations session) [:primitives :dependencies :files :imports :cells :frames :targets :supports :derivations :scoped-primitives :interfaces :evaluation])]
       (extend-session fresh (session-extension (assoc parts :id ::rerun))))))
 
 (defn create-session

@@ -9,7 +9,7 @@
 
 (defn- within-root [root file]
   (let [candidate (environment-io/canonical-file
-                    (if (.isAbsolute (io/file file)) (io/file file) (io/file root file)))]
+                   (if (.isAbsolute (io/file file)) (io/file file) (io/file root file)))]
     (when-not (.startsWith (.toPath candidate) (.toPath root))
       (throw (ex-info "Source import escapes its allowed root" {:file file})))
     candidate))
@@ -24,17 +24,26 @@
         artifact (cond-> [(.getPath canonical) entry digest]
                    (seq arguments) (conj arguments))
         factory (requiring-resolve entry-symbol)
-        bindings (apply (var-get factory) arguments)]
+        declaration (apply (var-get factory) arguments)
+        bindings (if (map? declaration) (:bindings declaration) declaration)
+        evaluation (when (map? declaration) (:evaluation declaration))]
     (when-not (sequential? bindings)
       (throw (ex-info "Primitive factory must return ordered bindings" {:entry entry})))
     {:id [file entry (or revision 0)]
      :artifact artifact
+     :evaluation evaluation
      :bindings (mapv (fn [[sym implementation :as binding]]
                        (when-not (and (= 2 (count binding)) (symbol? sym))
                          (throw (ex-info "Invalid primitive binding" {:entry entry})))
                        [sym (operators/frozen-primitive
-                              (conj artifact sym) implementation)])
+                             (conj artifact sym) implementation)])
                      bindings)}))
+
+(defn- join-evaluation [existing additions]
+  (reduce-kv (fn [result k v]
+               (when (and (contains? result k) (not= (get result k) v))
+                 (throw (ex-info "Conflicting imported evaluator" {:key k})))
+               (assoc result k v)) (or existing {}) (or additions {})))
 
 (declare snapshot-file!)
 
@@ -51,13 +60,15 @@
         (if (contains? (:imports prepared) [file entry (or revision 0)])
           prepared
           (let [imported (snapshot-module! root file entry revision (:factory-arguments prepared))]
-        (reduce (fn [result [sym binding]]
-                  (when (and (contains? (:primitives result) sym)
-                             (not= (get-in result [:primitives sym]) binding))
-                    (throw (ex-info "Conflicting prepared primitive" {:symbol sym})))
-                  (assoc-in result [:primitives sym] binding))
-                (assoc-in prepared [:imports (:id imported)] (:artifact imported))
-                (:bindings imported)))))
+            (reduce (fn [result [sym binding]]
+                      (when (and (contains? (:primitives result) sym)
+                                 (not= (get-in result [:primitives sym]) binding))
+                        (throw (ex-info "Conflicting prepared primitive" {:symbol sym})))
+                      (assoc-in result [:primitives sym] binding))
+                    (-> prepared
+                        (assoc-in [:imports (:id imported)] (:artifact imported))
+                        (update :evaluation join-evaluation (:evaluation imported)))
+                    (:bindings imported)))))
       prepared)
     prepared))
 
@@ -73,7 +84,9 @@
 (defn prepare-extension!
   "Prepare trusted local declarations within root. Native namespaces are required,
   never reloaded or globally rebound. Existing session bindings retain fixed values.
-  Inline :files and :read-files can be combined; imports are snapshotted transitively."
+  Inline :files and :read-files can be combined; imports are snapshotted transitively.
+  A native factory returns ordered bindings, or {:bindings pairs :evaluation policy}.
+  Evaluation declarations are session-local and conflict-checked."
   [{:keys [root id primitives dependencies files read-files factory-arguments target support-cell cells frames imports]
     :or {root "." files {} read-files [] factory-arguments {}}}]
   (when-not (and (map? factory-arguments)
@@ -88,4 +101,4 @@
     (session/session-extension
      {:id id :target target :support-cell support-cell :cells cells :frames frames
       :primitives (:primitives prepared) :dependencies dependencies
-      :files (:files prepared) :imports (:imports prepared)})))
+      :files (:files prepared) :imports (:imports prepared) :evaluation (:evaluation prepared)})))
