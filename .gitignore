@@ -16,3 +16,6 @@ __pycache__/
 
 # Code-quality reports
 /target/quality/
+
+# Local JavaScript dependency installation
+/benchmark/gx10-langgraph/node_modules
