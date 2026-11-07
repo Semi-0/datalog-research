@@ -64,6 +64,8 @@
                         (graph-layout/compute! layouts command))
            "open-session" (editor/open-session! editors command)
            "session-status" (editor/session-status editors command)
+           "conversation-status" (editor/conversation-status editors command)
+           "user-message" (editor/publish-user-message! editors command)
            "remove-extension" (editor/remove-extension! editors command)
            "run" (let [_ (when-let [saved (:savedFile command)]
                            (let [snapshot (file-service/read-file *files* (:path saved))]

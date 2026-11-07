@@ -3,6 +3,7 @@
   (:refer-clojure :exclude [identity])
   (:require [propagators.cells.value :as value]
             [propagators.datastructures.layered-value :as datum]
+            [propagators.datastructures.reducer-cell :as reducer]
             [propagators.datastructures.support-collection :as collection]
             [propagators.datastructures.membership-collection :as membership]
             [propagators.datastructures.tms.distributed :as tms]
@@ -21,7 +22,7 @@
                    (let [candidate (collection/content
                                     (assoc observation :premise-state states))
                          projected (collection/strongest-value candidate
-                                     (fn [_base update] update))]
+                                                               (fn [_base update] update))]
                      (= (:support observation) (datum/support-of projected))))]
     {:support/observations (set (filter current? (:support/observations content)))
      :support/states states}))
@@ -31,7 +32,7 @@
     (membership/content? content) (membership/current-content content)
     (datum/layer-present? strongest :membership) (membership/content strongest)
     (or (collection/content? content)
-          (datum/layer-present? strongest :support))
+        (datum/layer-present? strongest :support))
     (cond
       (value/nothing? strongest) (collection/content {:premise-state #{}})
       (value/contradiction? (datum/layer-value strongest :base))
@@ -50,6 +51,9 @@
         strongest (net/network-cell-strongest network id)
         supported (supported-update content strongest)]
     (cond
+      ;; A reducer is a merge domain, not an ordinary TTMS observation. Preserve
+      ;; its retained slots across Lain aliases and argument connections.
+      (reducer/reducer-cell? content) content
       (some? supported) supported
       (tms/distributed-value? content) (tms/distributed-forward-update content)
       (not (value/nothing? strongest)) strongest

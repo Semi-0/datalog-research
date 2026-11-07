@@ -103,8 +103,10 @@
                   (wire-propagator-edges id ins outs))
            n (-> net
                  (net-with-graph g')
-                 (assoc-net-prop id (prop name (fn [_inputs _outputs network]
-                                                 (activate inputs outputs network)))))]
+                 (assoc-net-prop id (prop name (with-meta
+                                                 (fn [_inputs _outputs network]
+                                                   (activate inputs outputs network))
+                                                 (meta activate)))))]
        [id n]))))
 
 (defn primitive-propagator

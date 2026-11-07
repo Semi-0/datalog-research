@@ -395,3 +395,20 @@
     (reset! editors {})
     (when (and owners (not (identical? owners editors)))
       (swap! owners (fn [entries] (into {} (filter #(= :external (:ownership (val %)))) entries))))))
+
+(defn conversation-status [editors {:keys [generation] :as command}]
+  (let [entry (require-owner editors command)
+        _ (require-generation entry generation)
+        boundary (compiler-host/boundary-for (:session entry))]
+    (when-not boundary (throw (ex-info "An open compiler session is required" {})))
+    (assoc (public-entry entry) :interfaces (compiler-host/interface-values boundary))))
+
+(defn publish-user-message! [editors {:keys [generation inputId messageId text runId] :as command}]
+  (let [entry (require-owner editors command)
+        _ (require-generation entry generation)
+        boundary (compiler-host/boundary-for (:session entry))]
+    (when-not boundary (throw (ex-info "An open compiler session is required" {})))
+    ;; External owners opt in by exporting this narrow interface. Their source,
+    ;; dependencies, and all other cells retain the existing mutation protection.
+    (compiler-host/publish-user-message! boundary
+                                         {:interface [:user inputId] :run-id runId :id messageId :text text})))

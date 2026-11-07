@@ -4,13 +4,15 @@
   (:require [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.runtime.boundary.effects :as effects]
             [propagators.compiler-2.session :as session]
+            [propagators.compiler-2.session.connected :as connected]
+            [propagators.network :as net]
             [propagators.compiler-2.session.dependencies :as dependency]
             [propagators.compiler-2.session.files :as files]
             [propagators.compiler-2.session.operators :as operators]
             [propagators.message :as message])
   (:import [java.util UUID]
            [java.util.concurrent Executors ExecutorService ThreadFactory TimeUnit FutureTask Callable TimeoutException
-                                  ThreadPoolExecutor ArrayBlockingQueue RejectedExecutionException]))
+            ThreadPoolExecutor ArrayBlockingQueue RejectedExecutionException]))
 
 (deftype SessionBoundary [roundGate gate view executor deliveries capacity automatic cleanupTimeout])
 
@@ -20,7 +22,7 @@
 (defn- round-gate [host] (.-roundGate ^SessionBoundary host))
 
 (def ^:private host-keys
-  [::session ::pending ::receipts ::closed? ::phase ::scheduled? ::blocked? ::failures ::delivery-ready?])
+  [::session ::pending ::receipts ::closed? ::phase ::scheduled? ::blocked? ::failures ::delivery-ready? ::observers])
 
 (defn current-session [host]
   (let [view @(runtime-session host)
@@ -39,7 +41,8 @@
     (reset! view (host-delivery-policy
                   (merge (session/compiler-state compiler-session)
                          (select-keys @view host-keys)
-                         {::session compiler-session})))))
+                         {::session compiler-session})))
+    (doseq [[_ observe] (::observers @view)] (observe compiler-session))))
 
 (defn receipts [host] (::receipts @(runtime-session host)))
 (defn pending-count [host] (count (::pending @(runtime-session host))))
@@ -76,6 +79,49 @@
                    :backpressured))]
     (when (= :accepted result) (wake! host))
     result))
+
+(defn observe!
+  "Observe committed immutable sessions. Callback may enqueue, never advance.
+  Returns an idempotent unsubscribe function. Observer exceptions are isolated."
+  [host id observe]
+  (let [safe (fn [snapshot]
+               (try (observe snapshot)
+                    (catch Exception error
+                      (swap! (runtime-session host) update ::failures conj error))))]
+    (locking (gate host)
+      (require-open! host)
+      (when (get-in @(runtime-session host) [::observers id])
+        (throw (ex-info "Observer identity already registered" {:id id})))
+      (swap! (runtime-session host) assoc-in [::observers id] safe)
+      (safe (current-session host)))
+    #(locking (gate host) (swap! (runtime-session host) update ::observers dissoc id))))
+
+(defn submit-extension!
+  "Queue atomic source admission at an idle boundary; return a receipt promise.
+  A receipt describes admission, not completion or rollback of external effects."
+  [host extension]
+  (let [receipt (promise)]
+    (locking (gate host)
+      (require-open! host)
+      (when (>= (pending-count host) (.-capacity ^SessionBoundary host))
+        (throw (ex-info "Extension ingress is backpressured" {})))
+      (swap! (runtime-session host) update ::pending conj
+             {:extension extension :receipt receipt
+              :run-id (:run-id (session/session-identity (current-session host)))}))
+    (wake! host)
+    receipt))
+
+(defn- admit-extensions! [host queued]
+  (doseq [{:keys [extension receipt run-id]} queued :when extension]
+    (try
+      (when-not (= run-id (:run-id (session/session-identity (current-session host))))
+        (throw (ex-info "Extension belongs to a retired run" {})))
+      (let [candidate (session/extend-session (current-session host) extension)]
+        (validate-dependencies! candidate)
+        (publish! host candidate)
+        (deliver receipt {:status :admitted :extension (session/extension-id extension)}))
+      (catch Exception error
+        (deliver receipt {:status :rejected :message (ex-message error) :data (ex-data error)})))))
 
 (defn- normalized-replies [host request normalized]
   (let [output (:boundary/receipt-id request)
@@ -215,7 +261,7 @@
                   (swap! (runtime-session host) update-in [::receipts id]
                          (fn [receipt]
                            (cond-> (assoc receipt :start-finished? true :stop stop
-                                                  :cleanup (if stop :pending :not-required))
+                                          :cleanup (if stop :pending :not-required))
                              (= :starting (:status receipt)) (assoc :status :active))))
                   (not= :active (get-in (receipts host) [id :status])))]
             (when terminal? (cleanup! host id))))
@@ -307,6 +353,7 @@
 
 (defn- admitted-inputs [host queued]
   (->> queued
+       (filter :input)
        (filter (fn [{:keys [request]}]
                  (or (nil? request)
                      (and (live-request? host request)
@@ -318,37 +365,49 @@
   "Commit one admitted batch, then deliver current intents. Replies stay queued."
   [host]
   (locking (round-gate host)
-   (let [requests
-        (locking (gate host)
-          (require-open! host)
-          (let [view (runtime-session host)]
-            (when-not (= :idle (::phase @view))
-              (throw (ex-info "Compiler session round is already active" {})))
-            (let [result (session/advance (current-session host)
-                                          (admitted-inputs host (::pending @view)))]
-              (publish! host (:session result))
-              (swap! view assoc ::pending (mapv #(hash-map :input %) (:next-inputs result))
-                     ::phase :delivering ::blocked? false)
-              (:requests result))))]
-    (try
+    (let [requests
+          (locking (gate host)
+            (require-open! host)
+            (let [view (runtime-session host)]
+              (when-not (= :idle (::phase @view))
+                (throw (ex-info "Compiler session round is already active" {})))
+              (let [queued (::pending @view)
+                    _ (swap! view assoc ::pending [])
+                    _ (doseq [batch (partition-by #(boolean (:extension %)) queued)]
+                        (if (:extension (first batch))
+                          (admit-extensions! host batch)
+                          (let [turn (session/advance (current-session host) (admitted-inputs host batch))]
+                            (publish! host (:session turn)))))
+                    result (session/advance (current-session host) [])]
+                (publish! host (:session result))
+                (swap! view #(-> %
+                                 (update ::pending into (mapv (fn [input] {:input input}) (:next-inputs result)))
+                                 (assoc ::phase :delivering ::blocked? false)))
+                (:requests result))))]
+      (try
       ;; Native environment handlers (including retained tracer sources) also
       ;; belong to post-commit delivery. Compilation only records their intents.
-      (locking (gate host)
-        (let [view (runtime-session host)]
-          (reset! view (binding [effects/*defer-environment-request?* operators/callback-request?]
-                         (effects/perform-boundary-effects @view)))))
-      ((requiring-resolve 'propagators.compiler-2.runtime/schedule-clock-subscriptions!)
-       (runtime-session host))
-      ((requiring-resolve 'propagators.compiler-2.runtime/refresh-trace-subscriptions!)
-       (runtime-session host))
-      (doseq [request (effects/outbox-effects (:program/net @(runtime-session host)))
-              :when (operators/callback-request? request)]
-        (dispatch! host request))
-      (current-session host)
-      (finally
         (locking (gate host)
-          (swap! (runtime-session host) assoc ::phase :idle))
-        (wake! host))))))
+          (let [view (runtime-session host)]
+            (reset! view (binding [effects/*defer-environment-request?* operators/callback-request?]
+                           (effects/perform-boundary-effects @view)))))
+        ((requiring-resolve 'propagators.compiler-2.runtime/schedule-clock-subscriptions!)
+         (runtime-session host))
+        ((requiring-resolve 'propagators.compiler-2.runtime/refresh-trace-subscriptions!)
+         (runtime-session host))
+        ;; Native boundary receipts can activate connected declarations. Collect
+        ;; their immutable next-round inputs after those receipts have settled.
+        (locking (gate host)
+          (swap! (runtime-session host) update ::pending into
+                 (mapv #(hash-map :input %) (session/connected-inputs (current-session host)))))
+        (doseq [request (effects/outbox-effects (:program/net @(runtime-session host)))
+                :when (operators/callback-request? request)]
+          (dispatch! host request))
+        (current-session host)
+        (finally
+          (locking (gate host)
+            (swap! (runtime-session host) assoc ::phase :idle))
+          (wake! host))))))
 
 (defn wake! [host]
   (when (.-automatic ^SessionBoundary host)
@@ -393,9 +452,9 @@
    (when-not (and (pos-int? capacity) (pos-int? cleanup-timeout-ms) (pos-int? delivery-threads))
      (throw (ex-info "Positive boundary capacity and cleanup timeout required" {})))
    (let [view (atom (host-delivery-policy (merge (session/compiler-state compiler-session)
-                           {::session compiler-session ::pending [] ::receipts {}
-                            ::phase :idle ::closed? false ::scheduled? false
-                            ::blocked? false ::failures [] ::delivery-ready? false})))
+                                                 {::session compiler-session ::pending [] ::receipts {}
+                                                  ::phase :idle ::closed? false ::scheduled? false
+                                                  ::blocked? false ::failures [] ::delivery-ready? false})))
          executor (Executors/newSingleThreadExecutor
                    (reify ThreadFactory
                      (newThread [_ runnable]
@@ -430,6 +489,7 @@
         file (str "session-extension/" (UUID/randomUUID) ".lain")
         extension (files/prepare-extension!
                    {:id [:source-extension file]
+                    :imports (:imports (session/session-declarations current))
                     :files (assoc (session/source-files current) file text)})]
     (extend! host extension)))
 
@@ -508,6 +568,8 @@
     (try
       (retire-run! host)
       (locking (gate host)
+        (doseq [{:keys [receipt]} (::pending @(runtime-session host)) :when receipt]
+          (deliver receipt {:status :rejected :message "Session run retired before admission"}))
         (publish! host candidate)
         (swap! (runtime-session host) assoc ::pending [] ::receipts {}
                ::phase :idle ::blocked? false ::delivery-ready? false))
@@ -532,16 +594,18 @@
   ([host id dependency-id] (subscribe! host id dependency-id nil))
   ([host id dependency-id output-cell]
    (dispatch! host {:boundary/id [:subscription (:run-id (session/session-identity
-                                                        (current-session host))) id]
+                                                          (current-session host))) id]
                     :boundary/receipt-id output-cell
                     :boundary/payload {:dependency dependency-id :subscription id
                                        :run-id (:run-id (session/session-identity
-                                                        (current-session host)))
+                                                         (current-session host)))
                                        :input-ids [] :input-contents [] :arguments []}})))
 
 (defn- close-boundary! [host]
   (locking (gate host)
-    (swap! (runtime-session host) assoc ::closed? true ::pending []))
+    (doseq [{:keys [receipt]} (::pending @(runtime-session host)) :when receipt]
+      (deliver receipt {:status :rejected :message "Session closed before admission"}))
+    (swap! (runtime-session host) assoc ::closed? true ::pending [] ::observers {}))
   (.shutdownNow ^ExecutorService (.-executor ^SessionBoundary host))
   (locking (gate host)
     (swap! (runtime-session host) update ::receipts
@@ -551,8 +615,8 @@
                                    (assoc receipt :status :cancelled) receipt)])) receipts))))
   (.shutdown ^ExecutorService (.-deliveries ^SessionBoundary host))
   (when-not (.awaitTermination ^ExecutorService (.-deliveries ^SessionBoundary host)
-                              (long (.-cleanupTimeout ^SessionBoundary host))
-                              TimeUnit/MILLISECONDS)
+                               (long (.-cleanupTimeout ^SessionBoundary host))
+                               TimeUnit/MILLISECONDS)
     (.shutdownNow ^ExecutorService (.-deliveries ^SessionBoundary host)))
   ((requiring-resolve 'propagators.compiler-2.runtime/stop-clocks!) (runtime-session host))
   (doseq [trace (vals (:traces @(runtime-session host)))] ((:stop trace)))
@@ -582,3 +646,56 @@
       (catch Throwable error
         (swap! (runtime-session host) assoc ::phase :retirement-failed ::blocked? true)
         (throw error)))))
+
+(defn publish-input!
+  "Serialize trusted external publication with immutable session advancement.
+  transform receives the current immutable session and returns explicit inputs."
+  [host transform]
+  (locking (round-gate host)
+    (locking (gate host)
+      (require-open! host)
+      (let [result (session/advance (current-session host) (transform (current-session host)))]
+        (publish! host (:session result))
+        (swap! (runtime-session host) update ::pending into
+               (mapv #(hash-map :input %) (:next-inputs result)))
+        (wake! host)
+        :accepted))))
+
+(defn interface-values
+  "Read explicitly exported cells. This does not start or attach resources."
+  [host]
+  (let [s (current-session host)]
+    (into {} (map (fn [[id {:keys [kind]}]]
+                    [id {:kind kind :value (connected/freeze (session/network s)
+                                                             (net/network-cell-strongest (session/network s) (session/interface-cell s id)))}]))
+          (session/interfaces s))))
+
+(defn publish-user-message!
+  "The sole public conversational ingress: exported user cells, stable identity,
+  and a current run token. No arbitrary cell or source mutation is accepted."
+  [host {:keys [interface run-id id text]}]
+  (when-not (and (some? id) (string? text))
+    (throw (ex-info "Message identity and text required" {})))
+  (publish-input! host
+                  (fn [s]
+                    (when-not (= (str run-id) (str (:run-id (session/session-identity s))))
+                      (throw (ex-info "Stale session run" {:stale true})))
+                    (let [{:keys [kind]} (get (session/interfaces s) interface)
+                          cell (session/interface-cell s interface)]
+                      (when-not (= :user-message kind)
+                        (throw (ex-info "Session does not expose this user ingress" {:interface interface})))
+                      (let [current (connected/freeze (session/network s) (net/network-cell-strongest (session/network s) cell))
+                            events (loop [xs current result []]
+                                     (cond
+                                       (= xs connected/empty-list) result
+                                       (and (map? xs) (contains? xs :car) (contains? xs :cdr))
+                                       (recur (:cdr xs) (conj result (:car xs)))
+                                       :else (throw (ex-info "User ingress is not initialized" {:interface interface}))))
+                            event {:id id :kind :user :payload text}
+                            prior (first (filter #(= id (:id %)) events))]
+                        (cond
+                          (= prior event) []
+                          prior (throw (ex-info "Conflicting message identity" {:id id}))
+                          :else [(session/publication-input cell
+                                                            (reduce (fn [tail event] {:car event :cdr tail})
+                                                                    connected/empty-list (reverse (conj events event))))]))))))
