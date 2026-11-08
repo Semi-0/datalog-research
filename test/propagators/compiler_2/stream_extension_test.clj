@@ -30,11 +30,11 @@
   (let [base (s/create-session) child (b/stable-node-id :support :child)
         model (b/stable-node-id :model) round (b/stable-node-id :round) emission (b/stable-node-id :emission)
         first (s/extend-session base
-                (s/session-extension {:id :supported :target child :support-cell emission
-                  :cells {model (stamp model 1 :active) round (stamp round 1 :active)}
-                  :derivations {emission {:base :source :sources [model round]}}
-                  :frames {child {:parent (s/environment base) :bindings []}}
-                  :files {"a" "(define x 10) (define f (network [y] (+ x y))) (define answer (f 2))"}}))
+                                (s/session-extension {:id :supported :target child :support-cell emission
+                                                      :cells {model (stamp model 1 :active) round (stamp round 1 :active)}
+                                                      :derivations {emission {:base :source :sources [model round]}}
+                                                      :frames {child {:parent (s/environment base) :bindings []}}
+                                                      :files {"a" "(define x 10) (define f (network [y] (+ x y))) (define answer (f 2))"}}))
         second (:session (s/advance first [(s/cell-input round (stamp round 2 :retracted))]))
         stale (:session (s/advance second [(s/cell-input round (stamp round 1 :active))]))
         third (:session (s/advance stale [(s/cell-input round (stamp round 3 :active))]))]
@@ -60,9 +60,9 @@
   (let [base (s/create-session) target (b/stable-node-id :compound :target)
         premise (b/stable-node-id :compound :premise)
         ext (s/session-extension {:id :compound :target target :support-cell premise
-              :cells {premise (stamp premise 1 :active)}
-              :frames {target {:parent (s/environment base) :bindings []}}
-              :files {"compound" "(define direct-out) (-> 40 direct-out) (define out) (define write-port (network [port] (define port 41) port)) (write-port out)
+                                  :cells {premise (stamp premise 1 :active)}
+                                  :frames {target {:parent (s/environment base) :bindings []}}
+                                  :files {"compound" "(define direct-out) (-> 40 direct-out) (define out) (define write-port (network [port] (define port 41) port)) (write-port out)
                                    (define pair-for (network [x] (list x (+ x 1))))
                                    (define pair (pair-for 2)) (define left (car pair)) (define right (car (cdr pair)))"}})
         before (s/extend-session base ext)
@@ -77,11 +77,11 @@
         source (b/stable-node-id :pinned :source) derived (b/stable-node-id :pinned :derived)
         stamp-value (fn [v epoch] (sc/content {:base v :support #{{:source source :timestamp epoch :premises-status :active}}}))
         before (s/extend-session base
-                 (s/session-extension {:id :pinned :target target :support-cell derived
-                   :cells {source (stamp-value 1 1)}
-                   :derivations {derived {:base :generated :sources [source] :expected {source 1}}}
-                   :frames {target {:parent (s/environment base) :bindings []}}
-                   :files {"pinned" "(define answer 42)"}}))
+                                 (s/session-extension {:id :pinned :target target :support-cell derived
+                                                       :cells {source (stamp-value 1 1)}
+                                                       :derivations {derived {:base :generated :sources [source] :expected {source 1}}}
+                                                       :frames {target {:parent (s/environment base) :bindings []}}
+                                                       :files {"pinned" "(define answer 42)"}}))
         after (:session (s/advance before [(s/cell-input source (stamp-value 2 2))]))]
     (is (= 42 (data/payload (scoped before target 'answer))))
     (is (value/unusable? (scoped after target 'answer)))))
@@ -89,13 +89,13 @@
   (let [base (s/create-session) target (b/stable-node-id :alternatives :target)
         a (b/stable-node-id :alternative :a) b (b/stable-node-id :alternative :b)
         first (s/extend-session base (s/session-extension
-                {:id :alternative-a :target target :support-cell a
-                 :cells {a (stamp a 1 :active) b (stamp b 1 :active)}
-                 :frames {target {:parent (s/environment base) :bindings []}}
-                 :files {"alternative-a" "(define shared 42)"}}))
+                                      {:id :alternative-a :target target :support-cell a
+                                       :cells {a (stamp a 1 :active) b (stamp b 1 :active)}
+                                       :frames {target {:parent (s/environment base) :bindings []}}
+                                       :files {"alternative-a" "(define shared 42)"}}))
         second (s/extend-session first (s/session-extension
-                 {:id :alternative-b :target target :support-cell b
-                  :files {"alternative-b" "(define shared 42)"}}))
+                                        {:id :alternative-b :target target :support-cell b
+                                         :files {"alternative-b" "(define shared 42)"}}))
         withdrawn (:session (s/advance second [(s/cell-input a (stamp a 2 :retracted))]))
         both (:session (s/advance withdrawn [(s/cell-input b (stamp b 2 :retracted))]))]
     (is (= 42 (data/payload (scoped withdrawn target 'shared))))
@@ -104,14 +104,14 @@
   (let [premise (b/stable-node-id :queued :premise) target (b/stable-node-id :queued :target)
         base (s/create-session)
         ready (s/extend-session base (s/session-extension {:id :ready
-                 :cells {premise (stamp premise 1 :active)}
-                 :frames {target {:parent (s/environment base) :bindings []}}}))
+                                                           :cells {premise (stamp premise 1 :active)}
+                                                           :frames {target {:parent (s/environment base) :bindings []}}}))
         owner (host/open! ready {:auto-advance? false})]
     (try
       (host/submit! owner (s/cell-input premise (stamp premise 2 :retracted)))
       (let [receipt (host/submit-extension! owner (s/session-extension
-                      {:id :too-late :target target :support-cell premise
-                       :files {"too-late" "(define late 99)"}}))]
+                                                   {:id :too-late :target target :support-cell premise
+                                                    :files {"too-late" "(define late 99)"}}))]
         (host/step! owner)
         (is (= :rejected (:status @receipt)))
         (is (thrown? Exception (s/scoped-binding-cell (host/current-session owner) target 'late))))
@@ -120,11 +120,11 @@
   (let [base (s/extend-session (s/create-session) (s/session-extension {:id :native-parent :files {"native-parent" "(define x 1)"}}))
         target (b/stable-node-id :late-primitive)
         child (s/extend-session base (s/session-extension {:id :child-frame
-                  :frames {target {:parent (s/environment base) :bindings []}}}))
+                                                           :frames {target {:parent (s/environment base) :bindings []}}}))
         extended (s/extend-session child (s/session-extension {:id :late-native :target target
-                     :primitives {'late-add (b/primitive-operator inc) 'x 10}}))
+                                                               :primitives {'late-add (b/primitive-operator inc) 'x 10}}))
         result (s/extend-session extended (s/session-extension {:id :use-late :target target
-                   :files {"use-late" "(define answer (late-add 9))"}}))]
+                                                                :files {"use-late" "(define answer (late-add 9))"}}))]
     (is (= 10 (data/payload (scoped result target 'answer))))
     (is (thrown? Exception (s/binding-cell result 'late-add)))
     (is (= 10 (data/payload (scoped result target 'x))))
