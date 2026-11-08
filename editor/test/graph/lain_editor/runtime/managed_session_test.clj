@@ -37,7 +37,7 @@
         (host/submit! owner (compiler/cell-input (compiler/binding-cell (host/current-session owner) 'input) 10))
         (await! #(= 11 (compiler/binding-value (host/current-session owner) 'result)))
         (is (= "11" (:value (cmd {:op "inspect" :sessionId id :generation (:generation opened)
-                                   :display fixture/display}))))
+                                  :display fixture/display}))))
         (is (some #(= "result" (:label %)) (:candidates (cmd {:op "complete" :sessionId id :generation (:generation opened)}))))
         (let [extended (cmd {:op "extend" :sessionId id :generation (:generation opened) :source "(define later (+ result 1))"})
               before (host/current-session owner)]
@@ -54,7 +54,7 @@
           (is (= (compiler/network before) (compiler/network (host/current-session owner))))
           (is (= [id] (mapv :sessionId (:sessions (cmd {:op "list-sessions"})))))
           (let [document (fixture/document (assoc (fixture/pane "a" "unrun draft") :executedSource "old")
-                                          (fixture/pane "b" "unrun second"))
+                                           (fixture/pane "b" "unrun second"))
                 restored (cmd {:op "restore" :workspace document
                                :reconnect {"a" (select-keys opened [:sessionId :runId :generation])}})]
             (is (= (:generation extended) (get-in restored [:generations "a"])))
@@ -73,7 +73,7 @@
   (let [views (atom {}) cmd #(server/command! views %)]
     (try
       (let [opened (cmd {:op "run" :pane "a" :source "(define base 1)"
-                        :extensions ["(define capability 10)" "(define later (+ capability 2))" "(define independent 30)"]})
+                         :extensions ["(define capability 10)" "(define later (+ capability 2))" "(define independent 30)"]})
             id (:sessionId opened) owner (boundary views id)
             [first-id second-id third-id] (mapv :id (:appliedExtensions opened))
             before (host/current-session owner)]
@@ -197,14 +197,14 @@
             owner (boundary views (:sessionId opened))]
         (cmd {:op "reopen-session" :sessionId (:sessionId opened) :pane "second-view"})
         (let [legacy (cmd {:op "run" :pane "a" :compilerSession false
-                          :generation (:generation opened) :source "(define result 7)"})]
+                           :generation (:generation opened) :source "(define result 7)"})]
           (is (= :closed (host/lifecycle owner)))
           (is (false? (:compilerSession legacy)))
           (is (= "legacy" (:runtime legacy)))
           (is (nil? (get @views "second-view")))
           (is (empty? (:sessions (cmd {:op "list-sessions"}))))
           (is (= "7" (:value (cmd {:op "inspect" :sessionId (:sessionId legacy)
-                                    :generation (:generation legacy) :display fixture/display}))))
+                                   :generation (:generation legacy) :display fixture/display}))))
           (let [extended (cmd {:op "extend" :pane "a" :generation (:generation legacy) :source "(define extra 8)"})]
             (is (= (:generation extended) (:generation (cmd {:op "session-status" :sessionId (:sessionId legacy)})))))
           (is (thrown? Exception (cmd {:op "session-status" :sessionId (:sessionId opened)})))))
@@ -223,7 +223,10 @@
       (is (= 1 @starts))
       (is (value/nothing? (data/payload (compiler/binding-value (host/current-session owner) 'result))))
       (is (= :accepted (@emit 42)))
-      (await! #(zero? (host/pending-count owner)))
+      ;; An admitted callback can leave the queue before its result is committed.
+      ;; Wait for the observable result rather than treating queue emptiness as
+      ;; a completion barrier while the native clock also advances the owner.
+      (await! #(= 42 (data/payload (compiler/binding-value (host/current-session owner) 'result))))
       (is (= 42 (data/payload (compiler/binding-value (host/current-session owner) 'result))))
       (finally (editor/close! views)))
     (is (= 1 @stops))
@@ -236,8 +239,8 @@
         imports "(load-primitive-environment \"extensions/runtime_clock.clj\" :extensions.runtime-clock/primitive-bindings) "]
     (try
       (let [opened (cmd {:op "open-session" :source "(define base 1)"
-                        :extensions [(str imports "(define first-capability 10)")
-                                     (str imports "(define retained-capability 20)")]})
+                         :extensions [(str imports "(define first-capability 10)")
+                                      (str imports "(define retained-capability 20)")]})
             [first-id retained-id] (mapv :id (:appliedExtensions opened))
             removed (cmd {:op "remove-extension" :sessionId (:sessionId opened)
                           :generation (:generation opened) :extensionId first-id})

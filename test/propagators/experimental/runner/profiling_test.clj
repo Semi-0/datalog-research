@@ -29,7 +29,7 @@
         [id installed] (((prop/concrete-primitive-propagator :profile/identity identity) a b) network)
         expected (runner/run-network [id] installed)
         profile (profiling/profiler)
-        actual (with-redefs [runner/network-iterator #(profiling/network-iterator profile)]
+        actual (binding [runner/*iterator-factory* #(profiling/network-iterator profile)]
                  (runner/run-network [id] installed))]
     (is (= :completed (:status actual)))
     (is (= (:network expected) (:network actual)))

@@ -573,7 +573,45 @@ dataflow answer is available immediately and the report is not.
 ;; => completed :unresolved
 ```
 
-## 24. Keep the public interface relational
+## 24. Extend a Session by Declaring More Relationships
+
+Declare an unfinished relationship, then extend the same compiler session with
+new source. The first block is pending; the following blocks retain its endpoints
+and add a producer and a consumer. The guide's public session API examples show
+the equivalent host-side extension declarations.
+
+```lain
+(define input)
+(define result (+ input 1))
+;; => result :unresolved
+```
+
+```lain+
+(-> 10 input)
+;; => result 11
+```
+
+```lain+
+(define doubled (* result 2))
+;; => result 11
+;; => doubled 22
+```
+
+## 25. Verification and Source References
+
+Check both a relationship's computed value and an explicit consistency result.
+The assertions below are executed by the companion example runner; links in the
+guide identify the production implementations behind the source forms.
+
+```lain
+(define triple (network [x] (* x 3)))
+(define answer (triple 5))
+(define checked (= answer 15))
+;; => answer 15
+;; => checked true
+```
+
+## Additional example: keep the public interface relational
 
 Expose endpoints and relationships rather than implementation calls. The search
 itself stays a forward-only function — a recursive search is lossy and is not
