@@ -1,6 +1,4 @@
-(load-primitive-environment
-  "examples/lain/amb/web_editor.clj"
-  :examples.lain.amb.web-editor/primitive-bindings)
+(load-primitive-environment "examples/lain/amb/web_editor.clj")
 
 (load-lain "examples/lain/network_replay/collect-history.lain")
 

@@ -45,6 +45,20 @@
             (is (= "applied" (:status receipt)))
             (is (= "g2" (get-in receipt [:result :generation])))))))))
 
+(deftest editor-primitive-import-can-use-the-module-default
+  (fixture/with-root
+    (fn [root service]
+      (let [registry (atom {})
+            view {:desktop "desktop" :panes [{:id "pane" :generation "g1"}]}
+            poll {:op "workspace-poll" :workspace "view" :snapshot view}
+            file (files/write-file! service {:path "native.clj" :source "(ns sample.math)"})]
+        (commands/command! registry root poll)
+        (bridge/editor-command! registry service {:op "editor/extend-primitives" :workspace "view"
+                                                  :pane "pane" :path "native.clj" :generation "g1"})
+        (let [queued (:command (commands/command! registry root poll))]
+          (is (= "sample.math/primitive-bindings" (:entry queued)))
+          (is (= (:version file) (:version queued))))))))
+
 (deftest captured-file-and-primitive-bridges-extend-an-existing-owner
   (fixture/with-root
     (fn [_ service]

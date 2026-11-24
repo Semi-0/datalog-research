@@ -1,9 +1,6 @@
 ;; Composable relationships. See propagators/doc/how-to-think-in-lain.md.
 ;; Import once per session; primitive factories install ordinary propagators.
-(load-primitive-environment
-  "propagators/compiler_2/runtime/operators/combinator.clj"
-  :propagators.compiler-2.runtime.operators.combinator/primitive-bindings
-  0)
+(load-primitive-environment "propagators/compiler_2/runtime/operators/combinator.clj")
 
 ;; |> connects unary stages left to right. compose returns a unary stage and
 ;; applies its stages right to left. Empty compositions preserve an endpoint.

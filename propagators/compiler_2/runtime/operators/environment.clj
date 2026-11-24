@@ -3,7 +3,8 @@
 
   These operators only declare boundary requests.  They deliberately know
   nothing about files, sessions, compilation, or effect execution."
-  (:require [propagators.compiler-2.model.operator-value :as operator-value]
+  (:require [propagators.compiler-2.primitive-import :as primitive-import]
+            [propagators.compiler-2.model.operator-value :as operator-value]
             [propagators.compiler-2.runtime.boundary :as boundary]
             [propagators.compiler-2.runtime.ids :as runtime-ids]
             [propagators.cells.value :as value]
@@ -118,22 +119,16 @@
   {:effect/symbol 'load-primitive-environment
    :boundary/kind :environment/load-primitive-environment
    :boundary/port :environment
-   :effect/arities #{2 3}
+   :effect/arities #{1 2 3}
    :effect/handler-symbol
    'propagators.compiler-2.runtime.session.environment-io/load-primitive-environment
    :effect/normalize
-   (fn [_context [file entry revision]]
-     (cond
-       (not (string? file))
-       (invalid :invalid-file "load-primitive-environment expects a file path"
-                {:file file})
-
-       (not (qualified-keyword? entry))
-       (invalid :invalid-entry "primitive entry must be a namespaced keyword"
-                {:entry entry})
-
-       :else
-       (valid {:file file :entry entry :revision (or revision 0)})))
+   (fn [_context args]
+     (try
+       (let [[file entry revision] (primitive-import/parse-arguments args)]
+         (valid {:file file :entry entry :revision revision}))
+       (catch clojure.lang.ExceptionInfo e
+         (invalid (:reason (ex-data e)) (.getMessage e) (dissoc (ex-data e) :reason)))))
    :effect/identity-parts (juxt :file :entry :revision)})
 
 (defn load-primitive-environment-operator

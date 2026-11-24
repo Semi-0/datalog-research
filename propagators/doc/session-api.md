@@ -234,6 +234,11 @@ The host currently delivers its callback-kind requests and schedules the existin
    :dependencies {:service capability}})
 ```
 
+In Lain source, `(load-primitive-environment "examples/lain/amb/web_editor.clj")`
+uses the module's default factory. Add an integer revision to version that import,
+or a qualified keyword to select a different factory. The resolved qualified
+keyword is also the key for `:factory-arguments`.
+
 `:root` defaults to `"."`; `:files`/`:read-files` can be combined. Optional `:factory-arguments` maps a qualified factory entry keyword to an explicit argument vector, for example `{:experiment-v1/bindings [interpreter]}`. The default is `[]`, preserving zero-argument factories. Arguments participate in frozen artifact identity; reuse the same stable capability objects when repeating preparation. Changing injected arguments conflicts with an existing import identity. This is a trusted Clojure preparation API, not a client-selected transport argument list. Static top-level `load-lain` imports are snapshotted transitively. Canonical paths outside the allowed root fail. A `load-primitive-environment` entry must be a qualified keyword; its factory must resolve on the classpath and return ordered `[symbol implementation]` pairs.
 
 Preparation uses `requiring-resolve`, invokes the factory, computes a file digest and builds frozen binding/import declarations. It never explicitly reloads an already-loaded namespace. **This operation is trusted executable code, not a pure transaction or an OS isolation mechanism.** A factory may mutate vars, launch processes, perform IO or terminate the JVM before an extension is accepted. Atomic catalog publication does not undo those side effects.

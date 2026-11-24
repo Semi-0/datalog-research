@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.runtime.operators.composable-tracer
+(ns ^{:lain/primitive-entry :bindings} propagators.compiler-2.runtime.operators.composable-tracer
   "Factories return caller-installed operators, preserving the actual root identity."
   (:require [clojure.set :as set]
             [propagators.cells.value :as value]

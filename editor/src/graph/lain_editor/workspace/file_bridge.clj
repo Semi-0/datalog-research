@@ -2,6 +2,7 @@
   "Explicit adapters between file/editor commands and existing runtime owners."
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
+            [propagators.compiler-2.runtime.session.environment-io :as environment-io]
             [graph.lain-editor.workspace.file-service :as files]
             [graph.lain-editor.workspace.commands :as commands]
             [graph.lain-editor.runtime.session :as runtime]))
@@ -30,13 +31,17 @@
                            (assoc request :op "editor-command" :action "extend-file"
                                   :version (:version snapshot) :source (:source snapshot))))
       "editor/extend-primitives"
-      (let [snapshot (captured service request)]
-        (when-not (and (str/ends-with? (:path request) ".clj")
-                       (string? (:entry request)) (re-matches #"[A-Za-z0-9_.-]+/[A-Za-z0-9_!?*+.-]+" (:entry request)))
-          (throw (ex-info "Primitive environment requires a .clj file and namespace/entry name" {})))
+      (let [{:keys [path entry]} request
+            snapshot (captured service request)]
+        (when-not (and (str/ends-with? path ".clj")
+                       (or (nil? entry)
+                           (and (string? entry) (re-matches #"[A-Za-z0-9_.-]+/[A-Za-z0-9_!?*+.-]+" entry))))
+          (throw (ex-info "Expected a .clj module and optional namespace/entry name" {})))
+        (let [entry (or entry (str (symbol (environment-io/default-primitive-entry
+                                                 (java.io.StringReader. (:source snapshot)) path))))]
         (commands/command! registry root
                            (assoc request :op "editor-command" :action "extend-primitives"
-                                  :version (:version snapshot))))
+                                    :entry entry :version (:version snapshot)))))
       (throw (ex-info "Unknown editor bridge operation" {:op op})))))
 
 (defn extend-file! [editors service {:keys [entry revision] :as request}]

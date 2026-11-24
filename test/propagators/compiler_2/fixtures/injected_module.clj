@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.fixtures.injected-module
+(ns ^{:lain/primitive-entry :bindings} propagators.compiler-2.fixtures.injected-module
   (:require [propagators.compiler-2.session.operators :as operators]))
 
 (defn bindings [interpreter]

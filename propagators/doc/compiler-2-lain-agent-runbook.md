@@ -71,10 +71,7 @@ The repository includes a boundary-backed extension whose operator remains
 declarative while the runtime owns wall-clock IO and scheduling:
 
 ```clojure
-(load-primitive-environment
- "extensions/runtime_clock.clj"
- :extensions.runtime-clock/primitive-bindings
- 0)
+(load-primitive-environment "extensions/runtime_clock.clj")
 
 (clock-in 1000)
 ```
@@ -92,10 +89,7 @@ Imports and their consumers can live in one file because loading is staged one
 form at a time:
 
 ```clojure
-(load-primitive-environment
- "extensions/project_math.clj"
- :extensions.project-math/primitive-bindings
- 0)
+(load-primitive-environment "extensions/project_math.clj")
 
 (def-cell radius 4)
 (def-cell area (square radius))
@@ -112,10 +106,7 @@ entry, and revision is idempotent. Increment the revision only when an edited
 module should create a new child frame for future forms:
 
 ```clojure
-(load-primitive-environment
- "extensions/project_math.clj"
- :extensions.project-math/primitive-bindings
- 1)
+(load-primitive-environment "extensions/project_math.clj" 1)
 ```
 
 Load hidden sequential source with:

@@ -86,9 +86,7 @@ and AMB bindings plus `amb:learning-view`. The existing
 child environment. Other panes and compiler defaults are unchanged.
 
 ```clojure
-(load-primitive-environment
-  "examples/lain/amb/web_editor.clj"
-  :examples.lain.amb.web-editor/primitive-bindings)
+(load-primitive-environment "examples/lain/amb/web_editor.clj")
 ```
 
 The public `propagators.experimental.amb.learning-view` abstraction provides

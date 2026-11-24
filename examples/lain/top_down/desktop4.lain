@@ -1,7 +1,5 @@
 ;; Desktop 4 source copied on 2026-10-19. Intentional unresolved callables remain.
-(load-primitive-environment
-  "examples/lain/amb/web_editor.clj"
-  :examples.lain.amb.web-editor/primitive-bindings)
+(load-primitive-environment "examples/lain/amb/web_editor.clj")
 (load-lain "examples/lain/network_replay/collect-history.lain")
 ;; Find positive integer sides with a <= b <= c and a*a + b*b = c*c.
 ;; Extend with (-> (list 3 4 5) domain) to start; at most 3*3*3 combinations.

@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.runtime.one-time-network
+(ns ^{:lain/primitive-entry :trace-environment} propagators.compiler-2.runtime.one-time-network
   "Run one flat-GUR closure against an immutable snapshot and discard its topology."
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.compiler.basis :as basis]

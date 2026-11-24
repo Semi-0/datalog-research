@@ -150,10 +150,7 @@ branching over versioned arguments, explicitly load the existing layered TTMS
 procedures before declaring the callback:
 
 ```clojure
-(load-primitive-environment
-  "propagators/compiler_2/runtime/operators/retained_observation.clj"
-  :propagators.compiler-2.runtime.operators.retained-observation/layered-environment
-  0)
+(load-primitive-environment "propagators/compiler_2/runtime/operators/retained_observation.clj")
 
 (define sample
   (network (snapshot root n)

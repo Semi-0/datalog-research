@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.session
   "Immutable Lain compiler sessions. No host callback or file IO runs here."
-  (:require [propagators.cell-evaluator :as cell-evaluator]
+  (:require [propagators.compiler-2.primitive-import :as primitive-import]
+            [propagators.cell-evaluator :as cell-evaluator]
             [propagators.cells.value :as value]
             [propagators.compiler-2.cps-core :as compiler]
             [propagators.compiler-2.session.supported :as supported]
@@ -376,8 +377,8 @@
                           {:file file :import imported})))
         (compile-file runtime [imported text]))
       load-primitive-environment
-      (let [[_ module entry revision] form]
-        (when-not (contains? (get-in runtime [::catalog :imports]) [module entry (or revision 0)])
+      (let [[module entry _revision :as id] (primitive-import/parse-arguments (rest form))]
+        (when-not (contains? (get-in runtime [::catalog :imports]) id)
           (throw (ex-info "Primitive import must be prepared before compilation"
                           {:file file :module module :entry entry})))
         runtime)

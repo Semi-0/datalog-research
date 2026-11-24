@@ -1,6 +1,4 @@
-(load-primitive-environment
-  "examples/lain/amb/web_editor.clj"
-  :examples.lain.amb.web-editor/primitive-bindings)
+(load-primitive-environment "examples/lain/amb/web_editor.clj")
 
 (def-cells domain repairs decision)
 (define chosen (amb domain repairs decision))

@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.runtime.operators.network-traversal
+(ns ^{:lain/primitive-entry :traversal-environment} propagators.compiler-2.runtime.operators.network-traversal
   "Semantic graph snapshots implement the same read-only traversal API as raw snapshots."
   (:require [propagators.cells.value :as value]
             [propagators.compiler-2.model.operator-value :as operator]

@@ -42,9 +42,11 @@ obtain its workspace ID, pane ID, and current owner generation, then queue a com
 {"op":"editor/open-file","workspace":"<workspace>","path":"examples/demo.lain"}
 {"op":"editor/extend-code","workspace":"<workspace>","pane":"<pane>","generation":"<generation>","source":"(define next (+ x 1))"}
 {"op":"editor/extend-file","workspace":"<workspace>","pane":"<pane>","generation":"<generation>","path":"extensions/next.lain","version":"<hash>"}
-{"op":"editor/extend-primitives","workspace":"<workspace>","pane":"<pane>","generation":"<generation>","path":"extensions/primitives.clj","version":"<hash>","entry":"extensions.primitives/bindings","revision":0}
+{"op":"editor/extend-primitives","workspace":"<workspace>","pane":"<pane>","generation":"<generation>","path":"extensions/primitives.clj","version":"<hash>","revision":0}
 {"op":"editor/status","workspace":"<workspace>","request":"<request>"}
 ```
+
+`editor/extend-primitives` uses the module default. Supply `entry` to select another factory.
 
 Commands return a request receipt; poll status until `applied` or `failed`. An
 applied extension receipt includes the current owner metadata. Use its generation

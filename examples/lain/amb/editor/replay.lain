@@ -1,6 +1,4 @@
-(load-primitive-environment
-  "examples/lain/amb/web_editor.clj"
-  :examples.lain.amb.web-editor/primitive-bindings)
+(load-primitive-environment "examples/lain/amb/web_editor.clj")
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 
 ;; The existing recorder accumulates published semantic graphs and their values.

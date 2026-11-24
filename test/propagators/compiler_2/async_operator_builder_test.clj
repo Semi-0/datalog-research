@@ -226,6 +226,8 @@
                      :files {"injected.lain"
                              (str "(load-primitive-environment "
                                   "\"test/propagators/compiler_2/fixtures/injected_module.clj\" "
+                                  "1) (load-primitive-environment "
+                                  "\"test/propagators/compiler_2/fixtures/injected_module.clj\" "
                                   entry " 1) (define result (module-later 10))")}
                      :factory-arguments {entry [interpreter]}}
             prepared (files/prepare-extension! options)]

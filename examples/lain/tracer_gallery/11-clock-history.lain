@@ -1,6 +1,4 @@
-(load-primitive-environment
-  "extensions/runtime_clock.clj"
-  :extensions.runtime-clock/primitive-bindings)
+(load-primitive-environment "extensions/runtime_clock.clj")
 
 (load-lain
   "propagators/compiler_2/runtime/lain/tracers.lain")

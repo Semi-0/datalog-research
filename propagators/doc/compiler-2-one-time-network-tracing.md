@@ -49,10 +49,7 @@ leaves the traversal result unavailable.
 Load the primitives and Lain code through the existing environment boundary:
 
 ```clojure
-(load-primitive-environment
- "propagators/compiler_2/runtime/one_time_network.clj"
- :propagators.compiler-2.runtime.one-time-network/trace-environment
- 0)
+(load-primitive-environment "propagators/compiler_2/runtime/one_time_network.clj")
 
 (load-lain
  "propagators/compiler_2/runtime/lain/network_trace.lain"

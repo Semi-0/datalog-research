@@ -1,4 +1,4 @@
-(ns propagators.compiler-2.runtime.operators.retained-observation
+(ns ^{:lain/primitive-entry :layered-environment} propagators.compiler-2.runtime.operators.retained-observation
   "Opt-in retained observation composed from ordinary propagators and TTMS cells."
   (:require [clojure.set :as set]
             [propagators.cells.value :as value]

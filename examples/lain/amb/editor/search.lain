@@ -1,6 +1,4 @@
-(load-primitive-environment
-  "examples/lain/amb/web_editor.clj"
-  :examples.lain.amb.web-editor/primitive-bindings)
+(load-primitive-environment "examples/lain/amb/web_editor.clj")
 
 ;; Add (-> (list 1 2) domain) with Extend to start this search.
 (def-cells domain repairs decision)

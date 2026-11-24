@@ -27,7 +27,7 @@
                  (io/file "benchmark/gx10-clojure" relative))
         imported (str "(load-primitive-environment "
                       (pr-str (.getCanonicalPath file))
-                      " :gx10-benchmark.primitives/primitive-bindings)\n\n"
+                      ")\n\n"
                       (source "workflow.lain"))
         candidate (editor/prepare imported [])
         editors (atom {"benchmark" candidate})]

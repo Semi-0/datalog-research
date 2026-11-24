@@ -187,6 +187,19 @@
                    :installed-form-count installed
                    :diagnostics []}}))))
 
+(defn default-primitive-entry
+  ([file] (default-primitive-entry file file))
+  ([source file]
+   (with-open [reader (java.io.PushbackReader. (io/reader source))]
+     (let [form (binding [*read-eval* false *data-readers* {}] (read reader false nil))]
+       (when-not (and (seq? form) (= 'ns (first form)) (simple-symbol? (second form)))
+         (throw (ex-info "Default primitive import requires a leading ns declaration" {:file (str file)})))
+       (let [ns-name (second form)
+             entry (get (meta ns-name) :lain/primitive-entry :primitive-bindings)]
+         (when-not (simple-keyword? entry)
+           (throw (ex-info "Module default entry must name a local factory" {:file (str file) :entry entry})))
+         (keyword (str ns-name) (name entry)))))))
+
 (defn- keyword->var
   [entry]
   (let [ns-sym (symbol (namespace entry))
@@ -222,40 +235,26 @@
 (defn install-primitive-environment
   [runtime-state {:keys [file entry revision]}]
   (let [canonical (canonical-file file)
+        path (.getPath canonical)
         digest (file-digest canonical)
-        bindings (read-primitive-bindings canonical entry)
-        extension-id [:live-primitive-environment
-                      (.getPath canonical) entry revision digest]
-        bundle (extension/extension-bundle
-                {:id extension-id
-                 :bindings bindings
-                 :effects []})
-        installed (extension/install-session-extension
-                   runtime-state bundle {})
-        child-id (:program/env installed)
-        import-record {:file (.getPath canonical)
-                       :entry entry
-                       :revision revision
-                       :digest digest
-                       :environment child-id
-                       :binding-count (count bindings)}]
+        entry (or entry (default-primitive-entry canonical))
+        extension-id [:live-primitive-environment path entry revision digest]
+        receipt {:status :loaded :canonical-path path :digest digest
+                 :revision revision :diagnostics []}]
+    (if (contains? (:session/extensions runtime-state) extension-id)
+      {:state runtime-state :receipt (assoc receipt :installed-form-count 0 :replayed? true)}
+      (let [bindings (read-primitive-bindings canonical entry)
+            bundle (extension/extension-bundle {:id extension-id :bindings bindings :effects []})
+            installed (extension/install-session-extension runtime-state bundle {})
+            record {:file path :entry entry :revision revision :digest digest
+                    :environment (:program/env installed) :binding-count (count bindings)}
+            form (list 'load-primitive-environment path entry revision)]
     {:state (-> installed
-                (update :environment/primitive-imports (fnil conj []) import-record)
-                (update :environment/source-ledger
-                        (fnil conj [])
+                    (update :environment/primitive-imports (fnil conj []) record)
+                    (update :environment/source-ledger (fnil conj [])
                         {:order (block-model/next-global-order runtime-state)
-                         :origin (.getPath canonical)
-                         :form (list 'load-primitive-environment
-                                     (.getPath canonical) entry revision)
-                         :source (pr-str
-                                  (list 'load-primitive-environment
-                                        (.getPath canonical) entry revision))}))
-     :receipt {:status :loaded
-               :canonical-path (.getPath canonical)
-               :digest digest
-               :revision revision
-               :installed-form-count (count bindings)
-               :diagnostics []}}))
+                             :origin path :form form :source (pr-str form)}))
+         :receipt (assoc receipt :installed-form-count (count bindings))}))))
 
 (defn- uuid-for
   [& parts]

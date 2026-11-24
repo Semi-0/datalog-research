@@ -1,7 +1,8 @@
 (ns propagators.compiler-2.session.files
   "Trusted host preparation of a frozen file/primitive declaration bundle.
   Reads occur before the immutable compiler transaction, never during propagation."
-  (:require [clojure.java.io :as io]
+  (:require [propagators.compiler-2.primitive-import :as primitive-import]
+            [clojure.java.io :as io]
             [propagators.compiler-2.runtime.session.environment-io :as environment-io]
             [propagators.compiler-2.runtime.session.program.source :as source]
             [propagators.compiler-2.session :as session]
@@ -14,23 +15,22 @@
       (throw (ex-info "Source import escapes its allowed root" {:file file})))
     candidate))
 
-(defn- snapshot-module! [root file entry revision factory-arguments]
+(defn- snapshot-module! [canonical file entry factory-arguments]
   (when-not (qualified-keyword? entry)
     (throw (ex-info "Primitive entry must be a qualified keyword" {:entry entry})))
-  (let [canonical (within-root root file)
-        digest (environment-io/file-digest canonical)
+  (let [digest (environment-io/file-digest canonical)
         entry-symbol (symbol (namespace entry) (name entry))
         arguments (get factory-arguments entry [])
         artifact (cond-> [(.getPath canonical) entry digest]
                    (seq arguments) (conj arguments))
-        factory (requiring-resolve entry-symbol)
+        factory (or (requiring-resolve entry-symbol)
+                    (throw (ex-info "Primitive environment entry not found" {:file file :entry entry})))
         declaration (apply (var-get factory) arguments)
         bindings (if (map? declaration) (:bindings declaration) declaration)
         evaluation (when (map? declaration) (:evaluation declaration))]
     (when-not (sequential? bindings)
       (throw (ex-info "Primitive factory must return ordered bindings" {:entry entry})))
-    {:id [file entry (or revision 0)]
-     :artifact artifact
+    {:artifact artifact
      :evaluation evaluation
      :bindings (mapv (fn [[sym implementation :as binding]]
                        (when-not (and (= 2 (count binding)) (symbol? sym))
@@ -45,6 +45,25 @@
                  (throw (ex-info "Conflicting imported evaluator" {:key k})))
                (assoc result k v)) (or existing {}) (or additions {})))
 
+(defn- add-prepared-binding [result [sym binding]]
+  (when (and (contains? (:primitives result) sym) (not= (get-in result [:primitives sym]) binding))
+    (throw (ex-info "Conflicting prepared primitive" {:symbol sym})))
+  (assoc-in result [:primitives sym] binding))
+
+(defn- prepare-module! [root prepared [file entry revision :as requested]]
+  (if (contains? (:imports prepared) requested)
+    prepared
+    (let [canonical (within-root root file)
+          resolved (or entry (environment-io/default-primitive-entry canonical))
+          id [file resolved revision]]
+      (if-let [artifact (get-in prepared [:imports id])]
+        (assoc-in prepared [:imports requested] artifact)
+        (let [{:keys [bindings artifact evaluation]}
+              (snapshot-module! canonical file resolved (:factory-arguments prepared))]
+          (-> (reduce add-prepared-binding prepared bindings)
+              (update :imports assoc id artifact requested artifact)
+              (update :evaluation join-evaluation evaluation)))))))
+
 (declare snapshot-file!)
 
 (defn- snapshot-form! [root prepared form]
@@ -56,19 +75,7 @@
           (throw (ex-info "Source import must name a file" {:form form})))
         (snapshot-file! root prepared file))
       load-primitive-environment
-      (let [[_ file entry revision] form]
-        (if (contains? (:imports prepared) [file entry (or revision 0)])
-          prepared
-          (let [imported (snapshot-module! root file entry revision (:factory-arguments prepared))]
-            (reduce (fn [result [sym binding]]
-                      (when (and (contains? (:primitives result) sym)
-                                 (not= (get-in result [:primitives sym]) binding))
-                        (throw (ex-info "Conflicting prepared primitive" {:symbol sym})))
-                      (assoc-in result [:primitives sym] binding))
-                    (-> prepared
-                        (assoc-in [:imports (:id imported)] (:artifact imported))
-                        (update :evaluation join-evaluation (:evaluation imported)))
-                    (:bindings imported)))))
+      (prepare-module! root prepared (primitive-import/parse-arguments (rest form)))
       prepared)
     prepared))
 

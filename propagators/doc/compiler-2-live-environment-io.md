@@ -11,7 +11,8 @@ S-expressions). There is no manifest reader and no second evaluator.
 ## Ordinary bootstrap operators
 
 ```clojure
-(load-primitive-environment file entry [revision])
+(load-primitive-environment file [revision])
+(load-primitive-environment file :namespace/entry [revision])
 (load-lain file [revision])
 (save-environment file mode checkpoint-id)
 (load-blocks file [revision])
@@ -96,13 +97,16 @@ A trusted Clojure module exports a zero-argument function returning ordered
    ['average (basis/primitive-operator #(/ (+ %1 %2) 2))]])
 ```
 
+The short import calls `primitive-bindings` in the module’s declared namespace.
+A module with an existing factory can select it once in its namespace declaration,
+for example `(ns ^{:lain/primitive-entry :bindings} my.module)`. An explicit
+qualified entry selects another factory. Both forms accept a revision (default 0).
+Prepared imports look up factory arguments by the resolved qualified entry.
+
 Load it from ordinary source:
 
 ```clojure
-(load-primitive-environment
- "extensions/project_math.clj"
- :extensions.project-math/primitive-bindings
- 0)
+(load-primitive-environment "extensions/project_math.clj")
 ```
 
 All pairs are validated before publication. A successful import declares a

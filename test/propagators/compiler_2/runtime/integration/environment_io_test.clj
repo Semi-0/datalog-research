@@ -39,12 +39,12 @@
 (deftest primitive-module-extends-the-live-environment
   (let [session (runtime/new-session)]
     (runtime/register-tui! session {:client-id "live" :mode :versioned-premise})
-    (commit! session "live" 0
-             (pr-str (list 'load-primitive-environment
-                           fixture-module fixture-entry 0)))
+    (commit! session "live" 0 (pr-str (list 'load-primitive-environment fixture-module)))
     (commit! session "live" 1 "(square 5)")
     (is (= 25 (get-in (runtime/read-tui-view @session {:client-id "live"})
                       [:blocks 2 :value])))
+    (is (= fixture-entry (:entry (first (:environment/primitive-imports @session)))))
+    (commit! session "live" 2 (pr-str (list 'load-primitive-environment fixture-module fixture-entry 0)))
     (is (= 1 (count (:environment/primitive-imports @session))))))
 
 (deftest lain-loads-one-form-at-a-time

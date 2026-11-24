@@ -1,9 +1,7 @@
 ;; Observe cell identities even when their values are unavailable.
 ;; These are declared obligations, not a task inferred from every empty cell.
 (load-lain "propagators/compiler_2/runtime/lain/semantic_traversal.lain")
-(load-primitive-environment
-  "examples/lain/top_down/scanner.clj"
-  :examples.lain.top-down.scanner/primitive-bindings)
+(load-primitive-environment "examples/lain/top_down/scanner.clj")
 (define inspect-obligation
   (network (snapshot node label role)
     (top-down:scan-node snapshot node label role)))
