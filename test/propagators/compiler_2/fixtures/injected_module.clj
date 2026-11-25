@@ -4,6 +4,6 @@
 (defn bindings [interpreter]
   [['module-later
     (operators/async-op interpreter
-      (fn [make]
-        (make (fn [n]
-                (operators/effect-output (operators/next-round-input (inc n)))))))]])
+                        (fn [make]
+                          (make (fn [n]
+                                  (operators/effect-output (operators/next-round-input (inc n)))))))]])

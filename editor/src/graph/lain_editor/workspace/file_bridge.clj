@@ -38,9 +38,9 @@
                            (and (string? entry) (re-matches #"[A-Za-z0-9_.-]+/[A-Za-z0-9_!?*+.-]+" entry))))
           (throw (ex-info "Expected a .clj module and optional namespace/entry name" {})))
         (let [entry (or entry (str (symbol (environment-io/default-primitive-entry
-                                                 (java.io.StringReader. (:source snapshot)) path))))]
-        (commands/command! registry root
-                           (assoc request :op "editor-command" :action "extend-primitives"
+                                            (java.io.StringReader. (:source snapshot)) path))))]
+          (commands/command! registry root
+                             (assoc request :op "editor-command" :action "extend-primitives"
                                     :entry entry :version (:version snapshot)))))
       (throw (ex-info "Unknown editor bridge operation" {:op op})))))
 

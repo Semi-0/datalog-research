@@ -146,39 +146,39 @@
    (run-flat-gur-once active-net context-id closure-id argument-ids projection result-id
                       (observation/frozen-snapshot active-net)))
   ([active-net context-id closure-id argument-ids projection result-id snapshot]
-  (let [snapshot-id
-        (assert-private-id!
-         active-net
-         (private-id result-id :snapshot)
-         :snapshot)
+   (let [snapshot-id
+         (assert-private-id!
+          active-net
+          (private-id result-id :snapshot)
+          :snapshot)
 
-        inner-result-id
-        (assert-private-id!
-         active-net
-         (private-id result-id :result)
-         :result)
+         inner-result-id
+         (assert-private-id!
+          active-net
+          (private-id result-id :result)
+          :result)
 
-        prepared
-        (-> active-net
-            gur/vm-net
-            (nb/install-cell snapshot-id snapshot snapshot)
-            (nb/ensure-cell inner-result-id))
+         prepared
+         (-> active-net
+             gur/vm-net
+             (nb/install-cell snapshot-id snapshot snapshot)
+             (nb/ensure-cell inner-result-id))
 
-        effect
-        (gur/apply-closure-effect
-         closure-id
-         (into [context-id snapshot-id] argument-ids)
-         inner-result-id)
+         effect
+         (gur/apply-closure-effect
+          closure-id
+          (into [context-id snapshot-id] argument-ids)
+          inner-result-id)
 
-        [tasks declared] (patch/apply-root-patch effect prepared)
+         [tasks declared] (patch/apply-root-patch effect prepared)
 
-        completed (runner/completed-network
-                   (runner/run-network tasks declared))]
-    {:value
-     (project-trace projection completed inner-result-id)
+         completed (runner/completed-network
+                    (runner/run-network tasks declared))]
+     {:value
+      (project-trace projection completed inner-result-id)
 
-     :temporary-net
-     completed
+      :temporary-net
+      completed
 
       :temporary-net-disposed?
       true})))

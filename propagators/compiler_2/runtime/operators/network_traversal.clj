@@ -64,24 +64,24 @@
 
 (defn- value-operator [name arity compute]
   (let [base (supported/from-primitive
-               (prop/primitive-propagator
-                 name
-                 (fn [& values]
-                   (cond
-                     (some value/contradiction? values)
-                     (value/contradiction-with-provenance
-                       (mapcat value/contradiction-provenance
-                               (filter value/contradiction? values)))
-                     (some value/nothing? values) value/nothing
-                     :else (apply compute values)))))]
+              (prop/primitive-propagator
+               name
+               (fn [& values]
+                 (cond
+                   (some value/contradiction? values)
+                   (value/contradiction-with-provenance
+                    (mapcat value/contradiction-provenance
+                            (filter value/contradiction? values)))
+                   (some value/nothing? values) value/nothing
+                   :else (apply compute values)))))]
     (operator/operator-closure
-      {:name name
-       :application-installer
-       (fn [network arguments output _context]
-         (when-not (= arity (count arguments))
-           (throw (ex-info (str name " received the wrong number of inputs") {:expected arity})))
-         (let [[installed props selected] (supported/install base network arguments output)]
-           [(declarations/register-props installed props) props selected]))})))
+     {:name name
+      :application-installer
+      (fn [network arguments output _context]
+        (when-not (= arity (count arguments))
+          (throw (ex-info (str name " received the wrong number of inputs") {:expected arity})))
+        (let [[installed props selected] (supported/install base network arguments output)]
+          [(declarations/register-props installed props) props selected]))})))
 
 (defn traversal-environment []
   (into (observation/observation-environment)

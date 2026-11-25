@@ -48,40 +48,40 @@
   ([parent inputs output context]
    (install parent inputs output context [(first inputs)]))
   ([parent [root callback & arguments] output context watched-roots]
-  (let [id #(gur/stable-node-id [::observer output %])
-        request (id :request) state (id :state)
-        prepared (reduce declarations/ensure-cell parent [request state])
-        [_ registered] (declarations/eval-activation-result
-                        [(gur/bind-name retained/storage-scope [output :request] request)
-                         (gur/bind-name retained/storage-scope [output :state] state)] prepared)
-        before (set (keys (net/net-env registered)))
-        [initial watched] ((roots/p:observe-roots watched-roots request output) registered)
-        introduced (set/difference (set (keys (net/net-env watched))) before)
-        watches (conj (set (filter #(prop/prop? (net/network-env-lookup watched %)) introduced)) initial)
-        sample (fn [_inputs _outputs current]
-                 [(retained/publish current request (retained/snapshot-view current))])
-        decorated (reduce (fn [current watch]
-                            (net/assoc-net-prop current watch
-                              (assoc (net/network-env-lookup current watch) :activate sample))) watched watches)
-        [_ registered] (declarations/eval-activation-result
-                        [(gur/bind-name [:relationship/root-observers] [watched-roots request output] output)] decorated)
-        [request-control requested] ((prop/construct-propagator
+   (let [id #(gur/stable-node-id [::observer output %])
+         request (id :request) state (id :state)
+         prepared (reduce declarations/ensure-cell parent [request state])
+         [_ registered] (declarations/eval-activation-result
+                         [(gur/bind-name retained/storage-scope [output :request] request)
+                          (gur/bind-name retained/storage-scope [output :state] state)] prepared)
+         before (set (keys (net/net-env registered)))
+         [initial watched] ((roots/p:observe-roots watched-roots request output) registered)
+         introduced (set/difference (set (keys (net/net-env watched))) before)
+         watches (conj (set (filter #(prop/prop? (net/network-env-lookup watched %)) introduced)) initial)
+         sample (fn [_inputs _outputs current]
+                  [(retained/publish current request (retained/snapshot-view current))])
+         decorated (reduce (fn [current watch]
+                             (net/assoc-net-prop current watch
+                                                 (assoc (net/network-env-lookup current watch) :activate sample))) watched watches)
+         [_ registered] (declarations/eval-activation-result
+                         [(gur/bind-name [:relationship/root-observers] [watched-roots request output] output)] decorated)
+         [request-control requested] ((prop/construct-propagator
                                        (id :request-control) ::request sample
                                        (into [callback] arguments) [request]) registered)
-        [control installed] ((prop/construct-propagator
+         [control installed] ((prop/construct-propagator
                                (id :control) ::control
                                (activate request state root callback arguments context output)
                                (into [request state callback] arguments) [state output]) requested)]
-    [installed (into (vec watches) [request-control control]) output])))
+     [installed (into (vec watches) [request-control control]) output])))
 
 (defn operator []
   (operators/operator-closure
-    {:name 'observe-network-retained
-     :application-installer
-     (fn [network arguments output context]
-       (when (< (count arguments) 2)
-         (throw (ex-info "observe-network-retained expects root, callback and optional arguments" {})))
-       (install network arguments output context))}))
+   {:name 'observe-network-retained
+    :application-installer
+    (fn [network arguments output context]
+      (when (< (count arguments) 2)
+        (throw (ex-info "observe-network-retained expects root, callback and optional arguments" {})))
+      (install network arguments output context))}))
 
 (defn layered-environment
   "Explicit opt-in for version-aware arithmetic and branching bindings."

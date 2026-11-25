@@ -21,13 +21,13 @@
     (try
       (let [interpreter (host/effect-interpreter boundary (fn [_] (swap! routed inc)))
             operation (operators/async-op interpreter
-                        (fn [make]
-                          (swap! constructed inc)
-                          (let [call (make #(operators/cell-output (inc %)))]
-                            (is (fn? call))
-                            (fn [cells]
-                              (let [output (call cells)]
-                                (swap! installations conj [cells output]) output)))))
+                                          (fn [make]
+                                            (swap! constructed inc)
+                                            (let [call (make #(operators/cell-output (inc %)))]
+                                              (is (fn? call))
+                                              (fn [cells]
+                                                (let [output (call cells)]
+                                                  (swap! installations conj [cells output]) output)))))
             declaration (extension :direct {'operation operation}
                                    "(define input) (define result (operation input))")
             compiler (session/extend-session (host/current-session boundary) declaration)
@@ -41,7 +41,7 @@
         (is (zero? (host/pending-count boundary)))
         (is (empty? (host/receipts boundary)))
         (is (thrown-with-msg? clojure.lang.ExceptionInfo #"effect interpreter"
-                             (operators/async-primitive-maker (fn [_ _] nil)))))
+                              (operators/async-primitive-maker (fn [_ _] nil)))))
       (finally (host/close! boundary)))))
 
 (deftest effect-receiver-routes-only-after-publication
@@ -49,14 +49,14 @@
         boundary (host/open! (session/create-session) {:auto-advance? false})]
     (try
       (let [interpreter (host/effect-interpreter boundary
-                          (fn [input]
-                            (swap! routed conj
-                                   [input (value/nothing? (observed (host/current-session boundary) 'result))])
-                            (operators/next-round-input (inc input))))
+                                                 (fn [input]
+                                                   (swap! routed conj
+                                                          [input (value/nothing? (observed (host/current-session boundary) 'result))])
+                                                   (operators/next-round-input (inc input))))
             declaration (extension :later
-                          {'later (operators/async-op interpreter
-                                    (fn [make] (make operators/effect-output)))}
-                          "(define result (later 10))")
+                                   {'later (operators/async-op interpreter
+                                                               (fn [make] (make operators/effect-output)))}
+                                   "(define result (later 10))")
             candidate (session/extend-session (host/current-session boundary) declaration)]
         (is (value/nothing? (observed candidate 'result)))
         (is (empty? @routed) "Pure compilation does not invoke the interpreter")
@@ -85,15 +85,15 @@
                    (fn [] (swap! stops inc) {:status :closed}))
                  (fn [[revision result]] (publication/active :stream revision result)))
         compiler (session/extend-session (session/create-session)
-                   (session/session-extension {:id :service :dependencies {:service service}}))
+                                         (session/session-extension {:id :service :dependencies {:service service}}))
         boundary (host/open! compiler {:auto-advance? false})]
     (try
       (let [interpreter (host/effect-interpreter boundary
-                          #(operators/dependency-input :service {:number %}))
+                                                 #(operators/dependency-input :service {:number %}))
             declaration (extension :stream
-                          {'stream (operators/async-op interpreter
-                                     (fn [make] (make operators/effect-output)))}
-                          "(define result (stream 21))")
+                                   {'stream (operators/async-op interpreter
+                                                                (fn [make] (make operators/effect-output)))}
+                                   "(define result (stream 21))")
             candidate (session/extend-session compiler declaration)]
         (is (value/nothing? (observed candidate 'result)))
         (is (zero? @starts))
@@ -125,13 +125,13 @@
     (try
       (let [interpreter (host/effect-interpreter boundary operators/next-round-input)]
         (host/extend! boundary
-          (extension :module
-            {'increment (operators/frozen-primitive [:module 1 'increment]
-                          (operators/prim-op (fn [make] (make inc))))
-             'later (operators/frozen-primitive [:module 1 'later]
-                      (operators/async-op interpreter
-                        (fn [make] (make operators/effect-output))))}
-            "(define result (later (increment 10)))"))
+                      (extension :module
+                                 {'increment (operators/frozen-primitive [:module 1 'increment]
+                                                                         (operators/prim-op (fn [make] (make inc))))
+                                  'later (operators/frozen-primitive [:module 1 'later]
+                                                                     (operators/async-op interpreter
+                                                                                         (fn [make] (make operators/effect-output))))}
+                                 "(define result (later (increment 10)))"))
         (await! #(pos? (host/pending-count boundary)))
         (is (value/nothing? (observed (host/current-session boundary) 'result)))
         (host/step! boundary)
@@ -144,9 +144,9 @@
     (try
       (let [interpreter (host/effect-interpreter owner operators/next-round-input)]
         (host/extend! other
-          (extension :foreign
-            {'later (operators/async-op interpreter (fn [make] (make operators/effect-output)))}
-            "(define result (later 10))"))
+                      (extension :foreign
+                                 {'later (operators/async-op interpreter (fn [make] (make operators/effect-output)))}
+                                 "(define result (later 10))"))
         (await! #(seq (host/failures other)))
         (is (re-find #"another session boundary" (.getMessage (first (host/failures other)))))
         (is (zero? (host/pending-count owner)))
@@ -161,16 +161,16 @@
         boundary (host/open! (session/create-session) {:auto-advance? false :capacity 1})]
     (try
       (let [interpreter (host/effect-interpreter boundary
-                          (fn [input] (deliver entered true) @release
-                            (operators/next-round-input input)))]
+                                                 (fn [input] (deliver entered true) @release
+                                                   (operators/next-round-input input)))]
         (host/extend! boundary
-          (extension :bounded
-            {'later (operators/async-op interpreter (fn [make] (make operators/effect-output)))}
-            "(define inlet) (define result (later 10))"))
+                      (extension :bounded
+                                 {'later (operators/async-op interpreter (fn [make] (make operators/effect-output)))}
+                                 "(define inlet) (define result (later 10))"))
         (is (= true (deref entered 5000 :timeout)))
         (is (= :accepted
                (host/submit! boundary
-                 (session/cell-input (session/binding-cell (host/current-session boundary) 'inlet) 7))))
+                             (session/cell-input (session/binding-cell (host/current-session boundary) 'inlet) 7))))
         (deliver release true)
         (await! #(seq (host/failures boundary)))
         (is (= :backpressured (:status (ex-data (first (host/failures boundary))))))
@@ -189,15 +189,15 @@
                    (fn [] (swap! stops inc) {:status :closed}))
                  (fn [[revision result]] (publication/active :rerun-stream revision result)))
         compiler (session/extend-session (session/create-session)
-                   (session/session-extension {:id :service :dependencies {:service service}}))
+                                         (session/session-extension {:id :service :dependencies {:service service}}))
         boundary (host/open! compiler {:auto-advance? false})]
     (try
       (let [interpreter (host/effect-interpreter boundary
-                          #(operators/dependency-input :service %))]
+                                                 #(operators/dependency-input :service %))]
         (host/extend! boundary
-          (extension :rerunnable
-            {'stream (operators/async-op interpreter (fn [make] (make operators/effect-output)))}
-            "(define result (stream 21))"))
+                      (extension :rerunnable
+                                 {'stream (operators/async-op interpreter (fn [make] (make operators/effect-output)))}
+                                 "(define result (stream 21))"))
         (await! #(= 1 (count @handles)))
         (let [old-emit (:emit! (first @handles))
               old-run (:run-id (session/session-identity (host/current-session boundary)))]
@@ -241,10 +241,10 @@
           (is (identical? before (session/extend-session before same)))
           (is (thrown? clojure.lang.ExceptionInfo
                        (session/extend-session before
-                         (files/prepare-extension!
-                           (assoc options :factory-arguments
-                                  {entry [(host/effect-interpreter boundary)]})))))
+                                               (files/prepare-extension!
+                                                (assoc options :factory-arguments
+                                                       {entry [(host/effect-interpreter boundary)]})))))
           (is (= 11 (observed (host/current-session boundary) 'result))))
         (is (thrown-with-msg? clojure.lang.ExceptionInfo #"argument vectors"
-              (files/prepare-extension! (assoc options :factory-arguments {entry interpreter})))))
+                              (files/prepare-extension! (assoc options :factory-arguments {entry interpreter})))))
       (finally (host/close! boundary)))))

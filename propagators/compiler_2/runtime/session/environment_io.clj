@@ -249,10 +249,10 @@
             record {:file path :entry entry :revision revision :digest digest
                     :environment (:program/env installed) :binding-count (count bindings)}
             form (list 'load-primitive-environment path entry revision)]
-    {:state (-> installed
+        {:state (-> installed
                     (update :environment/primitive-imports (fnil conj []) record)
                     (update :environment/source-ledger (fnil conj [])
-                        {:order (block-model/next-global-order runtime-state)
+                            {:order (block-model/next-global-order runtime-state)
                              :origin path :form form :source (pr-str form)}))
          :receipt (assoc receipt :installed-form-count (count bindings))}))))
 
