@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.compiler.handlers
   "Active continuation-based compiler-2 handlers."
   (:require [propagators.compiler-2.language.ast :as ast]
+            [propagators.compiler-2.language.quotation :as quotation]
             [propagators.compiler-2.compiler.declarations :as declarations]
             [propagators.compiler-2.compiler.cell-names :as cell-names]
             [propagators.compiler-2.model.env :as env]
@@ -22,6 +23,16 @@
     (let [[declared binding] (h/new-cell state :literal candidate (cell-names/source-name expr))
           declared (update declared :net cell-names/assign (env/binding-id binding) expr)]
       (finish k (declarations/declare-operator-description declared binding candidate)))))
+
+(defn compile-quotation [compile-k state expr k]
+  (let [datum (ast/value expr)]
+    (if (seq? datum)
+      (h/list-compiler-operands compile-k state (mapv ast/quotation datum)
+                                (h/node-id state :quoted-list) k)
+      (finish k (h/new-cell state :quote datum)))))
+
+(defn compile-environment [_ state _expr k]
+  (finish k (h/new-cell state :environment (quotation/->LexicalEnvironment (:env state)))))
 
 (defn- compile-accessed-symbol
   [state sym k]

@@ -1,11 +1,9 @@
 (ns propagators.compiler-2.runtime.session.program.source
   "Compiler source normalization helpers for compiler-2 runtime."
-  (:require [clojure.edn :as edn]
-            [clojure.string :as str]
+  (:require [propagators.compiler-2.language.reader :as reader]
             [clojure.walk :as walk]
             [propagators.compiler-2.runtime.tui.block-model :as block-model]
-            [propagators.compiler-2.language.parser :as compiler-parser])
-  (:import [java.io PushbackReader StringReader]))
+            [propagators.compiler-2.language.parser :as compiler-parser]))
 
 (def block-by-index block-model/block-by-index)
 
@@ -55,22 +53,12 @@
 (defn trace-source? [source]
   (= 'trace (top-level-form-head source)))
 
-(def ^:private source-reader-eof (Object.))
+(def read-source-forms reader/source-forms)
 
-(defn read-source-forms
-  [source]
-  (let [source (str/replace source
-                            #"\(\s*::(?=\s)"
-                            (str "(" compiler-parser/network-marker))
-        reader (PushbackReader. (StringReader. source))]
-    (loop [forms []]
-      (let [form (edn/read {:eof source-reader-eof} reader)]
-        (if (identical? source-reader-eof form)
-          (do
-            (when-not (seq forms)
-              (throw (ex-info "empty compiler-2 source" {:source source})))
-            forms)
-          (recur (conj forms form)))))))
+(defn- quoted? [form] (and (seq? form) (= 'quote (first form))))
+
+(defn executable-nodes [form]
+  (tree-seq #(and (coll? %) (not (quoted? %))) seq form))
 
 (defn trace-form? [source]
   (try
@@ -79,29 +67,22 @@
        (some (fn [x]
                (and (seq? x)
                     (= 'trace (first x))))
-             (tree-seq coll? seq form))))
+             (executable-nodes form))))
     (catch Throwable _
       false)))
 
-(defn normalize-trace-source
-  [source]
+(defn- wrap-trace-target [form]
+  (if (and (seq? form) (= 'trace (first form)) (symbol? (second form)))
+    (list* 'trace (list 'trace-target (name (second form)) (second form)) (nnext form))
+    form))
+
+(defn- rewrite-traces [form]
+  (if (quoted? form) form (walk/walk rewrite-traces wrap-trace-target form)))
+
+(defn normalize-trace-source [source]
   (try
-    (let [form (compiler-parser/read-form source)]
-      (pr-str
-       (walk/postwalk
-        (fn [form]
-          (if (and (seq? form)
-                   (= 'trace (first form))
-                   (symbol? (second form)))
-            (cons 'trace
-                  (cons (list 'trace-target
-                              (name (second form))
-                              (second form))
-                        (nnext form)))
-            form))
-        form)))
-    (catch Throwable _
-      source)))
+    (pr-str (rewrite-traces (compiler-parser/read-form source)))
+    (catch Throwable _ source)))
 
 (defn auto-output-display-form
   ([source target-index]

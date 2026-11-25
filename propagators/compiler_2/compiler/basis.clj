@@ -25,6 +25,8 @@
             [propagators.message :refer [message]]
             [propagators.network :as net]
             [propagators.compiler-2.runtime.declaration-effects :as nb]
+            [propagators.compiler-2.runtime.evaluate :as evaluate]
+            [propagators.compiler-2.language.quotation :as quotation]
             [propagators.compiler-2.runtime.supported-application.runtime]
             [propagators.propagator :as prop]
             [propagators.stdlib.observation :as observation]
@@ -118,7 +120,7 @@
                     (into (slot-messages :car head-id collection-id network)
                           (slot-messages :cdr tail-id collection-id network))))})))
 
-(def list-empty-marker :compiler-2/list-empty)
+(def list-empty-marker quotation/empty-list-value)
 
 (defn declare-list
   [state element-bindings out-id]
@@ -449,8 +451,8 @@
                                                       value-id)]
                          [network' prop-ids cell-id])
                        (let [[id network'] ((obj/p:slot slot-key
-                                                       value-id
-                                                       collection-id)
+                                                        value-id
+                                                        collection-id)
                                             network)]
                          [network' [id] result-id])))))
       :activate (fn [network _context-id arg-ids out-id]
@@ -512,8 +514,8 @@
              (filter tms/distributed-value?)
              (mapcat tms/distributed-supports)
              (map (fn [support]
-                     [(tms/premise support)
-                      (tms/support-source support)
+                    [(tms/premise support)
+                     (tms/support-source support)
                      (tms/support-kind-value support)]))
              set)
         claim-id [:compiler-2/primitive out-id support-version]]
@@ -763,7 +765,7 @@
                       [then-out else-out] outputs
                       condition (unwrap-compiler-value
                                  (net/network-cell-strongest current-net
-                                                            condition-id))]
+                                                             condition-id))]
                   (cond
                     (value/contradiction? condition)
                     [(message then-out value/contradiction)
@@ -886,6 +888,7 @@
     ['cdr (accessor-operator :cdr obj/p:cdr "cdr")]
     ['call-graph (call-graph/call-graph-operator)]
     ['p:call-graph (call-graph/call-graph-operator)]
+    ['eval (evaluate/eval-operator)]
     ['execute-sub-env (execute-sub-env-operator)]
     ['-> (sync-operator)]
     ['<-> (bi-sync-operator)]]))
@@ -893,7 +896,7 @@
 (defn default-bindings []
   (conj (vec (operator-bindings primitive-operator))
         ['apply (var-get (requiring-resolve
-                         'propagators.compiler-2.runtime.linked-application/apply-operator))]))
+                          'propagators.compiler-2.runtime.linked-application/apply-operator))]))
 
 (defn dependency-bindings []
   (operator-bindings contextual-primitive-operator))

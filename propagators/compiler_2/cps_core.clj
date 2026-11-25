@@ -26,6 +26,8 @@
 
 (def compiler-dispatch
   (cps/compose-rules
+   (cps/on predicates/quotation? handlers/compile-quotation)
+   (cps/on predicates/current-environment? handlers/compile-environment)
    (cps/on predicates/literal? handlers/compile-literal)
    (cps/on predicates/symbol? handlers/compile-symbol)
    (cps/on predicates/sequence? handlers/compile-sequence)

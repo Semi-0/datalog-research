@@ -11,10 +11,10 @@ demonstrate the public tracing layers against independent, current pane sessions
 | Observers | `06-downstream.lain`, `07-both.lain`, `10-live-observer.lain` | Lain-defined retained traversal and the non-retained live sampler |
 | Presentation | `08-caller-view.lain`, `09-replay.lain` | Caller projection, values, recording, range selection, reduction, and playback |
 | Call graph | `12-call-graph.lain` | Datalog-derived calls/called-by relations, potential and realized calls, and their lexical environment and call frames |
+| Code as data | `13-code-as-data.lain` | Replace an operator in a quoted form, evaluate it in a lexical environment and trace its result |
 
-The gallery is one editor workspace session: importing `workspace.json` restores
-its desktops, panes, sources, and displays, then runs each pane in its own live
-compiler-2 runtime session. The built-in `trace` operator receives its pane's
+Import `workspace.json` to restore the gallery desktops, panes, sources and
+display settings. Press **Run** in a pane to start its compiler-2 session. The built-in `trace` operator receives its pane's
 current graph from that runtime; no graph snapshot is passed in source. Saving
 the workspace preserves the replayable editor document rather than JVM objects.
 

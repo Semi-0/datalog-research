@@ -4,7 +4,7 @@
 
 (defn children [expression]
   (case (ast/type expression)
-    (:literal :symbol) []
+    (:literal :symbol :quote :current-environment) []
     :sequence (ast/body expression)
     :let-cell [(ast/body expression)]
     :let (conj (mapv second (ast/bindings expression)) (ast/body expression))

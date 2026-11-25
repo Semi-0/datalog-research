@@ -2,37 +2,25 @@
   "Reader-backed source parser for compile-2 expressions.
 
   Functional networks use the ordinary reader and named CPS handlers."
-  (:require [clojure.edn :as edn]
-            [clojure.string :as str]
+  (:require [propagators.compiler-2.language.reader :as reader]
             [propagators.cells.value :as value]
             [propagators.compiler-2.language.ast :as ast]
-            [propagators.compiler-2.model.rest-parameters :as rest-parameters])
-  (:import [java.io PushbackReader StringReader]))
+            [propagators.compiler-2.model.rest-parameters :as rest-parameters]))
 
-(def network-marker :compiler/network)
-(def ^:private eof (Object.))
+(def network-marker reader/network-marker)
 
 (declare parse-form)
 
 (defn- parse-error [message data]
   (throw (ex-info message data)))
 
-(defn- preprocess-source [source]
-  (str/replace source #"\(\s*::(?=\s)" (str "(" network-marker)))
-
 (defn read-form
   "Read exactly one source form."
   [source]
-  (let [reader (PushbackReader. (StringReader. (preprocess-source source)))
-        form (edn/read {:eof eof} reader)
-        trailing (edn/read {:eof eof} reader)]
-    (when (identical? eof form)
-      (parse-error "empty compiler-2 source" {:source source}))
-    (when-not (identical? eof trailing)
+  (let [[form & trailing] (reader/source-forms source)]
+    (when (seq trailing)
       (parse-error "compiler-2 source must contain exactly one form"
-                   {:source source
-                    :form form
-                    :trailing trailing}))
+                   {:source source :form form :trailing (first trailing)}))
     form))
 
 (defn- symbol-vector [v role]
@@ -68,7 +56,7 @@
     (ast/let* (mapv (fn [[name expr]]
                       [name (parse-form expr)])
                     pairs)
-              (body-form body "let"))))
+      (body-form body "let"))))
 
 (defn- parse-functional-network [[parameters & body]]
   (when-not (sequential? parameters)
@@ -154,6 +142,12 @@
 
     (seq? form)
     (case (first form)
+      quote (if (= 2 (count form))
+              (ast/quotation (second form))
+              (parse-error "quote expects one datum" {:form form}))
+      current-environment (if (= 1 (count form))
+                            (ast/current-environment)
+                            (parse-error "current-environment takes no operands" {:form form}))
       let (parse-let (rest form))
       let-cell (parse-let-cell (rest form))
       (:compiler/network cell-expr def-net def-constraint def def-cell compound)

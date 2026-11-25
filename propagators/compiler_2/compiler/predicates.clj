@@ -6,6 +6,8 @@
 (defn- kind? [kind expr]
   (= kind (common/expression-kind expr)))
 
+(def quotation? (partial kind? :quote))
+(def current-environment? (partial kind? :current-environment))
 (def literal? (partial kind? :literal))
 (def symbol? (partial kind? :symbol))
 (def sequence? (partial kind? :sequence))

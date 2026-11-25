@@ -43,6 +43,8 @@
   (obj/compound-object m))
 
 (defn lit [v] (ast-object {type-slot :literal value-slot v}))
+(defn quotation [v] (ast-object {type-slot :quote value-slot v}))
+(defn current-environment [] (ast-object {type-slot :current-environment}))
 (defn sym [s] (ast-object {type-slot :symbol name-slot s}))
 
 (defn app [op & args]
