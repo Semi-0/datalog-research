@@ -1,6 +1,7 @@
 (ns propagators.compiler-2.runtime.session.program.rebuild
   "Transactional rebuild path for compiler-2 runtime source blocks."
   (:require [propagators.compiler-2.runtime.session.program :as program]
+            [propagators.compiler-2.runtime.session.program.source :as source-forms]
             [propagators.compiler-2.runtime.session.state :as state]
             [propagators.compiler-2.runtime.session.program.topology :as topology]
             [propagators.compiler-2.runtime.inspection.temperature :as temperature]
@@ -114,17 +115,17 @@
                    epoch)
                   (program/runtime-graph-id))
         root (state/runtime-root base-net)]
-   (assoc state
-         :program/net (:net root)
-         :program/env (:env root)
-         :program/props (:props root)
-         :program/graph (program/empty-graph)
-         :program/results {}
-         :program/epoch epoch
-         :compiled nil
-         :compiled-network net/empty-net
-         :graph (program/empty-graph)
-         :source nil)))
+    (assoc state
+           :program/net (:net root)
+           :program/env (:env root)
+           :program/props (:props root)
+           :program/graph (program/empty-graph)
+           :program/results {}
+           :program/epoch epoch
+           :compiled nil
+           :compiled-network net/empty-net
+           :graph (program/empty-graph)
+           :source nil)))
 
 (defn- compiled-entry
   [state block]
@@ -164,7 +165,7 @@
   [state graph]
   (let [graph-id (program/runtime-graph-id)
         [tasks n1] (core/eval-cells (graph-union/publish-derived
-                                    (:program/net state) graph-id graph [])
+                                     (:program/net state) graph-id graph [])
                                     (nb/ensure-cell (:program/net state)
                                                     graph-id))
         [state' n2] (temperature/run-tasks state
@@ -214,9 +215,9 @@
   (let [epoch (inc (or (:program/epoch state) 0))
         source-blocks (program/source-blocks state)
         compiled (as-> (reduce (fn [s block]
-                                  (rebuild-topology-block s epoch block))
-                                (base-rebuild-state state epoch)
-                                source-blocks) s
+                                 (rebuild-topology-block s epoch block))
+                               (base-rebuild-state state epoch)
+                               source-blocks) s
                    (retry-errored-blocks s epoch source-blocks)
                    (retry-expression-blocks s epoch source-blocks)
                    (compile-trace-source-blocks s epoch source-blocks))
@@ -339,7 +340,7 @@
               (try
                 (boolean
                  (some syms
-                       (mapcat #(tree-seq coll? seq %)
+                       (mapcat source-forms/executable-nodes
                                (program/read-source-forms source))))
                 (catch Throwable _
                   false)))

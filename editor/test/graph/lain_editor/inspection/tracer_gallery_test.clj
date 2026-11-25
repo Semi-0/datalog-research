@@ -26,7 +26,9 @@
    "10-live-observer" ["trace:observe-live" ":upstream"]
    "11-clock-history" ["clock-in 500" "trace:history"]
    "12-call-graph" ["trace:calls pipeline" "pipeline 4"
-                    "Datalog derives calls/called-by"]})
+                    "Datalog derives calls/called-by"]
+   "13-code-as-data" ["(cons operator (cdr expression))" "(eval rewritten scope)"
+                      "(trace:semantic rewritten-answer)"]})
 
 (defn- inspect-pane [editors pane]
   (inspection/inspect
@@ -146,8 +148,9 @@
         (doseq [required (get required-surface id)]
           (is (str/includes? source required)))))
     (try
-      (is (= (set (keys required-surface))
-             (set (keys (:generations (runtime/restore! editors document))))))
+      (is (empty? (:generations (runtime/restore! editors document))))
+      (doseq [{:keys [id source extensions]} (:panes document)]
+        (runtime/run! editors {:pane id :source source :extensions extensions}))
       (let [pane (get @editors "11-clock-history")
             session (:session pane)
             subscription-id (first (keys (:clock/subscriptions @session)))
@@ -170,6 +173,9 @@
             (if (contains? #{"09-replay" "11-clock-history"} (:id pane))
               (is (seq (get-in result [:replay :frames])))
               (is (seq (get-in result [:graph :nodes]))))
+            (when (= "13-code-as-data" (:id pane))
+              (is (some #(and (= "rewritten-answer" (:label %)) (= "12" (:value %)))
+                        (get-in result [:graph :nodes]))))
             (when (= "01-current-session" (:id pane))
               (is (= 1 (count (:trace/subscriptions
                                @(:session (get @editors (:id pane)))))))

@@ -133,6 +133,21 @@
       "extensionDraft": "",
       "outputRatio": 0.58,
       "display": {"cell": "@display", "mode": "graph", "direction": "both"}
+    },
+    {
+      "id": "13-code-as-data",
+      "title": "Rewrite quoted code",
+      "filename": "13-code-as-data.lain",
+      "source": "(load-lain \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n; Replace the operator while retaining both operand expressions.\n(define replace-operator\n  (network [expression operator]\n    (cons operator (cdr expression))))\n\n(define units 6)\n(define scope (current-environment))\n(define expression '(+ units 2))\n(define rewritten (replace-operator expression '*))\n\n(define original-answer (eval expression scope))\n(define rewritten-answer (eval rewritten scope))\n\n; The same operands give 8 and 12. Inspect the evaluated result in this pane.\n(display (trace:semantic rewritten-answer))\n",
+      "executedSource": "(load-lain \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n; Replace the operator while retaining both operand expressions.\n(define replace-operator\n  (network [expression operator]\n    (cons operator (cdr expression))))\n\n(define units 6)\n(define scope (current-environment))\n(define expression '(+ units 2))\n(define rewritten (replace-operator expression '*))\n\n(define original-answer (eval expression scope))\n(define rewritten-answer (eval rewritten scope))\n\n; The same operands give 8 and 12. Inspect the evaluated result in this pane.\n(display (trace:semantic rewritten-answer))\n",
+      "extensions": [],
+      "extensionDraft": "",
+      "outputRatio": 0.58,
+      "display": {
+        "cell": "@display",
+        "mode": "graph",
+        "direction": "both"
+      }
     }
   ],
   "activeDesktop": "call-graph",
@@ -142,6 +157,7 @@
     {"id": "scope", "name": "Scope", "selectedPane": "04-roots-semantic", "layout": {"type": "split", "axis": "row", "ratio": 0.5, "first": {"type": "pane", "id": "04-roots-semantic"}, "second": {"type": "pane", "id": "05-children"}}},
     {"id": "observers", "name": "Observers", "selectedPane": "06-downstream", "layout": {"type": "split", "axis": "row", "ratio": 0.5, "first": {"type": "pane", "id": "06-downstream"}, "second": {"type": "split", "axis": "column", "ratio": 0.5, "first": {"type": "pane", "id": "07-both"}, "second": {"type": "pane", "id": "10-live-observer"}}}},
     {"id": "presentation", "name": "Presentation", "selectedPane": "08-caller-view", "layout": {"type": "split", "axis": "row", "ratio": 0.5, "first": {"type": "pane", "id": "08-caller-view"}, "second": {"type": "pane", "id": "09-replay"}}},
-    {"id": "call-graph", "name": "Call graph", "selectedPane": "12-call-graph", "layout": {"type": "pane", "id": "12-call-graph"}}
+    {"id": "call-graph", "name": "Call graph", "selectedPane": "12-call-graph", "layout": {"type": "pane", "id": "12-call-graph"}},
+    {"id": "code-as-data", "name": "Code as data", "selectedPane": "13-code-as-data", "layout": {"type": "pane", "id": "13-code-as-data"}}
   ]
 }

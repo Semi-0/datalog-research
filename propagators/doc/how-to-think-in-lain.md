@@ -889,6 +889,44 @@ answer
 
 `((compose increment double) 3)` applies the rightmost stage first and produces `7`. Names such as `normalize`, `observe`, and `sender-slot-of` in the earlier domain illustrations still need application definitions.
 
+### Quotation, expression rewriting, and lexical evaluation
+
+An apostrophe quotes the following datum. `'units` holds the symbol
+`units`. A reference written as `units` connects to its binding.
+`'(plus x 2)` is a native Lain list of three data values and
+`(quote (plus x 2))` is the same spelling in long form. Nested lists
+have ordinary car/cdr connections. An empty quoted list is `'()`.
+Quoting a definition or a call leaves it inert, including names that
+have no binding yet.
+
+```lain
+(define units 6)
+(define scope (current-environment))
+(define expression '(+ units 2))
+(define replace-operator
+  (network [form operator] (cons operator (cdr form))))
+(define rewritten (replace-operator expression '*))
+(define original-answer (eval expression scope))
+(define rewritten-answer (eval rewritten scope))
+;; original-answer = 8, rewritten-answer = 12
+```
+
+`eval` takes the code cell first and a lexical environment reference second.
+`(current-environment)` captures the current frame, including a local
+`let` or network invocation. Passing the reference alongside the form
+makes the interpretation of a free symbol explicit. Evaluation connects
+the compiled result to the output cell once per form and frame. Each
+independent rewrite above gets its own output. An unbound operand can acquire
+its value later. A list built by `cons` can also have an open head or tail:
+evaluation waits for the complete expression. A non-list tail is an error.
+The evaluator uses Lain’s parser and CPS compiler in the running network.
+Evaluation of definitions and effectful calls has the semantics of ordinary
+Lain code in the supplied environment.
+
+Open **Code as data** in the [tracer gallery](../../examples/lain/tracer_gallery/README.md)
+to inspect the evaluated rewrite. The seeded expression is shared by both
+evaluations. Only the operator at its head changes.
+
 ## 18. Branching Selects Information; `when` Installs Topology
 
 ### Binary selection

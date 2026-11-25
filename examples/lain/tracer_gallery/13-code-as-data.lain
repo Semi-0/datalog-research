@@ -1,0 +1,17 @@
+(load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
+
+; Replace the operator while retaining both operand expressions.
+(define replace-operator
+  (network [expression operator]
+    (cons operator (cdr expression))))
+
+(define units 6)
+(define scope (current-environment))
+(define expression '(+ units 2))
+(define rewritten (replace-operator expression '*))
+
+(define original-answer (eval expression scope))
+(define rewritten-answer (eval rewritten scope))
+
+; The same operands give 8 and 12. Inspect the evaluated result in this pane.
+(display (trace:semantic rewritten-answer))
