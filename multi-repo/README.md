@@ -109,3 +109,10 @@ against the intended revisions before committing them.
 Pushing is a separate, explicit step; neither committing nor `repo sync`
 publishes local commits. Changes in the original research checkout also remain
 separate from this workspace until explicitly transferred.
+
+The workspace test launcher prints the path to a per-run JSON Lines timing log
+under `.repo/ci/`. Every selected repository records start and finish events,
+elapsed milliseconds and exit status. Set `LAIN_CI_TIMINGS` to an absolute
+path to select a different log. For existing workspaces, copy the updated
+`tools/workspace` launcher to `WORKSPACE/workspace` after syncing the
+research checkout that provides `deploy/ci_timing.py`.

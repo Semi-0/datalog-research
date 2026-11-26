@@ -11,6 +11,7 @@ import shutil
 import signal
 import socket
 import subprocess
+import sys
 import time
 import urllib.request
 import uuid
@@ -193,10 +194,15 @@ def run_ci(release):
             role_env["LAIN_CI_BASE_SHA"] = baseline[role]["sha"]
         return role_env
 
-    run(["bash", "deploy/ci.sh"], cwd=release / "backend",
-        env=quality_environment("backend"), timeout=3600)
-    run(["bash", "scripts/ci.sh"], cwd=release / "frontend",
-        env=quality_environment("frontend"), timeout=1800)
+    timer = release / "backend/deploy/ci_timing.py"
+    for role, script, timeout in (("backend", "deploy/ci.sh", 3600),
+                                  ("frontend", "scripts/ci.sh", 1800)):
+        command = ["bash", script]
+        role_env = quality_environment(role)
+        if timer.is_file():
+            role_env["LAIN_CI_TIMINGS"] = str(release / "ci-timings.jsonl")
+            command = [sys.executable, str(timer), role, *command]
+        run(command, cwd=release / role, env=role_env, timeout=timeout)
 
 
 def build(release):

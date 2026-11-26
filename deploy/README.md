@@ -82,3 +82,19 @@ with other selectors. An unrun experimental lane is not a passing test result.
 
 The immutable compiler/session API and editor integration remain in the production
 gate, along with sandbox bootstrap, network, transport and client tests.
+
+### CI test timings
+
+GX10 writes `ci-timings.jsonl` in each candidate release. Each backend test
+stage and each repository's CI command appends a UTC start event and a finish
+event with its monotonic elapsed milliseconds, status and exit code. A start
+without a finish marks an interrupted or still-running stage. The shell also
+prints the duration and exit status in the pull service journal. To find the
+slowest completed stages in the active release, run:
+
+```sh
+jq -s 'map(select(.event=="finish")) | sort_by(-.elapsed_ms) | .[] | [.stage,.elapsed_ms,.status]' ~/.local/share/lain-editor-deploy/current/ci-timings.jsonl
+```
+
+Running `deploy/ci.sh` standalone creates a new log under `target/ci/`.
+Set `LAIN_CI_TIMINGS` to an absolute path to collect related stages together.

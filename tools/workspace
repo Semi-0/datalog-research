@@ -97,6 +97,15 @@ case "$command" in
   sync) exec repo sync -c -j2 "$@" ;;
   status) exec repo status "$@" ;;
   list) exec repo list "$@" ;;
-  test) exec repo forall -p -j1 "$@" -c 'clojure -M:test' ;;
+  test)
+    if [[ -z ${LAIN_CI_TIMINGS:-} ]]; then
+      mkdir -p "$workspace_dir/.repo/ci"
+      LAIN_CI_TIMINGS=$(mktemp "$workspace_dir/.repo/ci/timings.XXXXXXXX.jsonl")
+    fi
+    export LAIN_CI_TIMINGS
+    export LAIN_WORKSPACE_TIMER="$workspace_dir/datalog-research/deploy/ci_timing.py"
+    echo "Workspace timings: $LAIN_CI_TIMINGS"
+    exec repo forall -p -j1 "$@" -c 'python3 "$LAIN_WORKSPACE_TIMER" "$REPO_PROJECT" clojure -M:test'
+    ;;
   forall) exec repo forall -p "$@" ;;
 esac

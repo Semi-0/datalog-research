@@ -19,3 +19,5 @@ __pycache__/
 
 # Local JavaScript dependency installation
 /benchmark/gx10-langgraph/node_modules
+
+/target/ci/
