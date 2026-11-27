@@ -1,4 +1,4 @@
-{:paths ["." "editor/src" "target/lain-editor" "deprecated" "leapfrog" "reference" "differential_leapfrog"]
+{:paths ["." "L-2/src" "editor/src" "target/lain-editor" "deprecated" "leapfrog" "reference" "differential_leapfrog"]
  :deps {lain-editor/contracts {:git/url "https://github.com/Semi-0/lain-editor.git"
                                :git/sha "602eb67f70020982ae56a6e1522fa4d119889c64"
                                :deps/root "contracts"}
@@ -56,7 +56,7 @@
            :example/overtone {:extra-deps {overtone/overtone {:mvn/version "0.16.3331"}}}
            :differential-v5 {:main-opts ["-m" "deprecated.differential-v5"]}
            :test
-           {:extra-paths ["test" "editor/test"]
+           {:extra-paths ["test" "L-2/test" "editor/test"]
             :extra-deps {lain-editor/frontend {:git/url "https://github.com/Semi-0/lain-editor.git"
                                                :git/sha "602eb67f70020982ae56a6e1522fa4d119889c64"}}
             :main-opts ["-m" "run-tests"]}
