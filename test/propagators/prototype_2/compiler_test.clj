@@ -73,3 +73,45 @@
            '(map-list inc (cons 1 (cons 2 ()))))]
       (is (plist/church-cons? v))
       (is (= [2 3] (p-list-values network v))))))
+
+(deftest compile-lazy-before-wake
+  (testing "L-2 compounds stay pending until the runner drains the queue"
+    (let [state (comp/compile-program
+                 (comp/fresh-state)
+                 '[(if (empty-list? ()) 1 2)])
+          network (:network state)
+          compounds (into []
+                          (keep (fn [[id v]]
+                                  (when (p2/compound-f? v) id)))
+                          (p2/network-value network))]
+      (is (seq compounds))
+      (is (every? #(not (p2/topology-built? (p2/lookup-node network %)))
+                  compounds)
+          "compiled network is lazily unbuilt before wake")
+      (let [network (p2/run-tasks network)]
+        (is (= 1 (p2/cell-value network (:result state))))
+        (is (every? #(p2/topology-built? (p2/lookup-node network %))
+                    compounds))))))
+
+(deftest compile-gur-map-list-multi-cons
+  (testing "GUR map-list walks a multi-cons cdr spine in L-2"
+    (let [[v network]
+          (comp/run
+           '(define (inc x) (+ x 1))
+           '(define (map-list f xs)
+              (if (empty-list? xs)
+                ()
+                (cons (f (car xs)) (map-list f (cdr xs)))))
+           '(map-list inc (cons 1 (cons 2 (cons 3 ())))))]
+      (is (= [2 3 4] (p-list-values network v))))))
+
+(deftest compile-gur-append-two-chains
+  (testing "GUR append joins two Church list chains in L-2"
+    (let [[v network]
+          (comp/run
+           '(define (append xs ys)
+              (if (empty-list? xs)
+                ys
+                (cons (car xs) (append (cdr xs) ys))))
+           '(append (cons 1 (cons 2 ())) (cons 3 (cons 4 ()))))]
+      (is (= [1 2 3 4] (p-list-values network v))))))

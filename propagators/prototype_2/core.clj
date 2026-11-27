@@ -23,10 +23,10 @@
   Dependence follows realized chains: each new node inherits upstream origin
   sets and sets tail to its downstream cell. A chain is *complete* when its
   terminal is satisfied and every origin is satisfied. Completed chains may
-  optionally be GC'd.
+  optionally be GC'd (`gc` via runner `:done` transform — independent of evaluate).
 
-  Modules: edge-chain, types, network, construct, evaluate, primitives,
-  session, church, p-list, trace-ops, debug.
+  Modules: edge-chain, types, network, construct, evaluate, runner,
+  runner-constructor, gc, primitives, session, church, p-list, trace-ops, debug.
 
   L-2 (compiler) exposes `origins` / `neighbors` over EdgeChain dependence."
   (:require [propagators.prototype-2.church :as church]
@@ -34,9 +34,12 @@
             [propagators.prototype-2.debug :as debug]
             [propagators.prototype-2.edge-chain :as ec]
             [propagators.prototype-2.evaluate :as ev]
+            [propagators.prototype-2.gc :as gc]
             [propagators.prototype-2.network :as net]
             [propagators.prototype-2.p-list :as plist]
             [propagators.prototype-2.primitives :as prim]
+            [propagators.prototype-2.runner :as runner]
+            [propagators.prototype-2.runner-constructor :as runner-ctor]
             [propagators.prototype-2.session :as session]
             [propagators.prototype-2.trace-ops :as trace]
             [propagators.prototype-2.types :as t]))
@@ -113,7 +116,23 @@
 (def evaluate-propagator ev/evaluate-propagator)
 (def write-cell ev/write-cell)
 (def empty-stream ev/empty-stream)
-(def run-tasks ev/run-tasks)
+(def run-tasks runner/run-tasks)
+
+;; runner / constructor
+(def network-iterator-constructor runner-ctor/network-iterator-constructor)
+(def with-done-transform runner-ctor/with-done-transform)
+(def network-iterator runner/network-iterator)
+(def run-network runner/run-network)
+(def completed-network runner/completed-network)
+(def gc-iterator runner/gc-iterator)
+(def run-tasks-gc runner/run-tasks-gc)
+
+;; gc (independent mark/sweep)
+(def completed-propagator? gc/completed-propagator?)
+(def completed-cell? gc/completed-cell?)
+(def mark-completed gc/mark-completed)
+(def sweep gc/sweep)
+(def collect gc/collect)
 
 ;; primitives
 (def id-f prim/id-f)

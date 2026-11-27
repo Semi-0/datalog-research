@@ -65,3 +65,8 @@
               (do (println "empty-list?: expected list shape, got" (pr-str v))
                   n))))]
     (ctor/pending-compound-constructor network expand [xs] [out])))
+
+(defn install-eq?-prop
+  "Primitive: when both sides concrete, write `(= a b)` to `out`."
+  [network a b out]
+  (ctor/pending-propagator-constructor network = [[a b] out]))
