@@ -104,6 +104,32 @@
                   :else acc)))]
         (is (= [1 2 3] partials) "each step's merge state visible on spine")))))
 
+(deftest l2-tms-join-commutative-incomparable
+  (testing "lattice tms-join keeps both; order of join does not matter"
+    (let [a (ids/new-node-id)
+          b (ids/new-node-id)
+          sa (stag/stamp a 1)
+          sb (stag/stamp b 1)
+          [v-ab network-ab r-ab]
+          (run-l2
+           {'sa sa 'sb sb}
+           '[(tms-join-obs (observation 10 sa) (observation 20 sb))])
+          [v-ba network-ba r-ba]
+          (run-l2
+           {'sa sa 'sb sb}
+           '[(tms-join-obs (observation 20 sb) (observation 10 sa))])]
+      (letfn [(bases [network cell]
+                (loop [id cell acc #{}]
+                  (let [v (net/cell-value network id)]
+                    (cond
+                      (plist/empty-list? v) acc
+                      (plist/church-cons? v)
+                      (recur (:b v) (conj acc (stag/base-of network (:a v))))
+                      :else acc))))]
+        (is (plist/church-cons? v-ab))
+        (is (= #{10 20} (bases network-ab r-ab)))
+        (is (= #{10 20} (bases network-ba r-ba)) "commutative frontier")))))
+
 (deftest l2-amb-repair-via-tms-merge-tips
   (testing "amb-repair-step extends choice spine then projects repaired tip"
     (let [src (ids/new-node-id)

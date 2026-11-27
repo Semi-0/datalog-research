@@ -5,6 +5,10 @@ structure. It maintains a current value together with its source-cell dependenci
 supports withdrawal and recovery, and removes evidence subsumed by stronger support.
 This document names the existing implementation; it does not introduce a new runtime.
 
+For prototype_2’s split between incremental cell project (`tms-step`) and
+dependence-directed nogood learning (failure certificates), see
+[prototype-2-ddb-rx.md](prototype-2-ddb-rx.md).
+
 The precise [constraint declaration](ttms-constraint.edn) is approved in the local
 KIROSHI database as `:constraint/ttms-compacts-by-support-dominance` by `linpandi`
 on 2026-09-29. It supersedes `:constraint/merge-never-silently-deletes-evidence`,

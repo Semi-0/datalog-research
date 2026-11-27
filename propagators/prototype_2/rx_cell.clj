@@ -2,13 +2,16 @@
   "Cell as reactive operator (Art of the Propagator + L-2 spines).
 
   Content is not overwritten: each `add-content` extends an observation spine
-  and projects via `tms-reduce` / incremental `tms-step`. Neighbors alert only
-  when the projected tip changes (thesis `eq?` short-circuit).
+  and merges via lattice `front-add` / `tms-step` into an undominated frontier
+  (incremental dataflow aggregate — C/A/I). Full `tms-front-reduce` on
+  `reproject`. Neighbors alert only when the frontier changes.
 
   Shape:
     spine      — Church list cell of observations (newest at car)
-    projected  — `[base support]` or nil (cached strongest consequence)
-    neighbors  — propagator ids / callbacks alerted on projection change"
+    projected  — frontier vector of `[base support]` (undominated set)
+    neighbors  — callbacks alerted on frontier change
+
+  See `propagators/doc/prototype-2-ddb-rx.md`."
   (:require [propagators.prototype-2.church :as church]
             [propagators.prototype-2.construct :as ctor]
             [propagators.prototype-2.evaluate :as ev]
@@ -22,25 +25,41 @@
 (defn rx-cell? [x]
   (instance? RxCell x))
 
+(defn- frontier
+  [projected]
+  (cond
+    (nil? projected) []
+    (and (vector? projected)
+         (or (empty? projected)
+             (and (vector? (first projected))
+                  (= 2 (count (first projected))))))
+    projected
+    :else [projected]))
+
 (defn empty-rx
-  "Fresh rx-cell whose spine is `'()` and projected content is nothing."
+  "Fresh rx-cell whose spine is `'()` and frontier is empty."
   [network]
   (let [[spine network] (church/empty-list-cell network)]
     {:network network
-     :cell (->RxCell spine nil #{})}))
+     :cell (->RxCell spine [] #{})}))
+
+(defn content-frontier
+  "Cached undominated frontier (vector of `[base support]`)."
+  [rx]
+  (frontier (:projected rx)))
 
 (defn content
-  "Thesis `content`: projected `[base support]`, or nil when empty."
+  "Thesis tip view: first frontier member, or nil when empty."
   [rx]
-  (:projected rx))
+  (first (content-frontier rx)))
 
 (defn content-base
   [rx]
-  (when-let [[b _] (:projected rx)] b))
+  (when-let [[b _] (content rx)] b))
 
 (defn content-support
   [rx]
-  (when-let [[_ s] (:projected rx)] s))
+  (when-let [[_ s] (content rx)] s))
 
 (defn spine-id
   [rx]
@@ -57,12 +76,14 @@
     (when (fn? n) (n rx)))
   rx)
 
-(defn add-content
-  "Thesis `add-content`: extend spine with observation, merge via tms-step.
+(defn- frontier-changed?
+  [prior next]
+  (not= (set (frontier prior)) (set (frontier next))))
 
-  `obs-cell` — network cell holding `(cons base support)`.
-  Returns `{:network :cell :changed?}`. Alerts neighbors only when projected
-  tip moves (redundant increments are silent)."
+(defn add-content
+  "Thesis `add-content`: extend spine; lattice-join tip into frontier.
+
+  Returns `{:network :cell :changed?}`. Alerts only when the frontier moves."
   [network rx obs-cell]
   (let [pair (let [v (net/cell-value network obs-cell)]
                (when (plist/church-cons? v)
@@ -71,9 +92,9 @@
     (if-not pair
       {:network network :cell rx :changed? false}
       (let [{:keys [network list]} (stag/extend-tip network (:spine-id rx) obs-cell)
-            prior (:projected rx)
+            prior (content-frontier rx)
             next (stag/tms-step-incremental prior pair)
-            changed? (not= prior next)
+            changed? (frontier-changed? prior next)
             rx' (assoc rx :spine-id list :projected next)]
         {:network network
          :cell (if changed? (alert rx') rx')
@@ -86,12 +107,11 @@
     (add-content network rx obs)))
 
 (defn reproject
-  "Full `tms-reduce` over the spine (worldview / kick-out style refresh).
-  Returns `{:network :cell :changed?}`."
+  "Full lattice front-reduce over the spine (worldview-style refresh)."
   [network rx]
-  (let [next (stag/project-tip network (:spine-id rx))
-        prior (:projected rx)
-        changed? (not= prior next)
+  (let [next (stag/project-frontier network (:spine-id rx))
+        prior (content-frontier rx)
+        changed? (frontier-changed? prior next)
         rx' (assoc rx :projected next)]
     {:network network
      :cell (if changed? (alert rx') rx')
@@ -100,8 +120,7 @@
 (defn install-add-content-prop
   "Propagator: rx-handle + observation → updated rx-handle.
 
-  Handles hold host `RxCell` records; merge is incremental `tms-step`
-  (spine extend + project; no content overwrite)."
+  Merge is incremental lattice `tms-step` (no content overwrite)."
   [network rx-in-cell obs-cell out]
   (let [expand
         (fn [n]

@@ -5,7 +5,11 @@
   Observation     ::= (cons base support)   ; support = host premise-set in a cell
 
   Concurrency gate = `propagators.datastructures.support/compatible?` before derive;
-  result support   = `combine`. Retraction = cons a newer tip (extension)."
+  result support   = `combine`. Retraction = cons a newer tip (extension).
+
+  Project: lattice frontier via `front-add` / `tms-join` / `tms-front-reduce`
+  (C/A/I — incremental dataflow + async partial merge). `tms-project` is the
+  tip view. DDB nogoods are *not* built here; see amb + doc/prototype-2-ddb-rx.md."
   (:require [propagators.datastructures.support :as support]
             [propagators.prototype-2.church :as church]
             [propagators.prototype-2.construct :as ctor]
@@ -111,50 +115,97 @@
             acc))
         :else acc))))
 
-(defn tms-step
-  "One merge step over observations `[base support]`.
-  Prefer the dominating support; when incomparable keep `best` (newer-first)."
-  [best cand]
-  (let [[_ sb] best
-        [_ sc] cand]
+(defn- obs-dominates?
+  "True when observation a’s support strictly dominates b’s."
+  [[_ sa] [_ sb]]
+  (and (support/support? sa) (support/support? sb) (dominates? sa sb)))
+
+(defn- obs-equivalent?
+  "Same base and support — join keeps one (idempotent)."
+  [[ba sa] [bb sb]]
+  (and (= ba bb) (= sa sb)))
+
+(defn front-add
+  "Lattice assimilate: insert `obs` into undominated frontier (vector).
+
+  Drop members `obs` dominates; drop `obs` if dominated or duplicate.
+  Incomparable observations are both kept — commutative / associative join."
+  [front obs]
+  (let [front (vec front)]
     (cond
-      (and (support/support? sc) (support/support? sb) (dominates? sc sb)) cand
-      (and (support/support? sb) (support/support? sc) (dominates? sb sc)) best
-      :else best)))
+      (some #(or (obs-dominates? % obs) (obs-equivalent? % obs)) front)
+      front
+      :else
+      (conj (filterv #(not (obs-dominates? obs %)) front) obs))))
+
+(defn frontier-join
+  "Join two frontiers (partial reduce states). Semilattice: C / A / I."
+  [f1 f2]
+  (reduce front-add (vec f1) f2))
+
+(defn tms-join
+  "Join two observations into a frontier (unary case of `frontier-join`)."
+  [a b]
+  (frontier-join [a] [b]))
+
+(defn- as-frontier
+  "Normalize cached projection to a frontier vector of observations."
+  [best]
+  (cond
+    (nil? best) []
+    (and (vector? best) (empty? best)) []
+    (and (vector? best) (vector? (first best))) best
+    :else [best]))
+
+(defn tms-step
+  "Incremental dataflow step: assimilate `cand` into frontier `best`.
+
+  `best` may be a single observation `[base support]` or a frontier vector.
+  Returns a frontier vector. Prefer this over order-biased single-tip merge."
+  [best cand]
+  (front-add (as-frontier best) cand))
 
 (defn tms-reduce
-  "Tail-recursive fold of `f` over observations (thesis cell merge as pull)."
+  "Fold `f` over observations (thesis cell merge as pull / incremental dataflow)."
   [f acc obs]
   (reduce f acc obs))
 
-(defn tms-project
-  "Strongest observation on a newest-first seq via `tms-reduce`/`tms-step`.
-  Returns `[base support]` or nil."
+(defn tms-front-reduce
+  "Reduce observation stream → undominated frontier (async-safe aggregate)."
   [obs]
-  (when (seq obs)
-    (tms-reduce tms-step (first obs) (rest obs))))
+  (tms-reduce front-add [] obs))
+
+(defn tms-project
+  "Tip view of `tms-front-reduce`: one undominated observation, or nil.
+
+  When several are incomparable, returns the first frontier member (stable
+  relative to assimilate order). The *content* for async merge is the frontier
+  (`tms-front-reduce` / `frontier-join`), not this tip alone."
+  [obs]
+  (first (tms-front-reduce obs)))
 
 (defn project-tip
-  "Pick an undominated observation from the reactive list (TTMS dominates?).
+  "Undominated tip from a reactive spine via lattice front-reduce.
 
-  Returns `[base support]` or nil. Prefers newer cars when incomparable.
-  Implemented as `tms-reduce` over the spine (Art of the Propagator style)."
+  Returns `[base support]` or nil. See `tms-front-reduce` for full frontier."
   [network rx-cell]
   (tms-project (collect-observations network rx-cell)))
 
+(defn project-frontier
+  "Full undominated frontier from a reactive spine."
+  [network rx-cell]
+  (tms-front-reduce (collect-observations network rx-cell)))
+
 (defn tms-merge-obs
-  "Assimilate `obs` (`[base support]`) into projected content of `rx-cell`.
-  Full re-fold of the extended history (correct under worldview changes)."
+  "Assimilate `obs` into projected frontier of `rx-cell` (full re-fold)."
   [network rx-cell obs-pair]
-  (tms-project (cons obs-pair (collect-observations network rx-cell))))
+  (tms-front-reduce (cons obs-pair (collect-observations network rx-cell))))
 
 (defn tms-step-incremental
-  "Amortized merge when `cand` is a newer tip: one `tms-step` against prior best.
-  Equivalent to full `tms-project` when history is newest-first and cand is car."
-  [prior-best cand]
-  (if prior-best
-    (tms-step cand prior-best)
-    cand))
+  "Amortized merge: assimilate newer tip into cached frontier / single tip.
+  Returns a frontier vector."
+  [prior cand]
+  (tms-step prior cand))
 
 ;; ---------------------------------------------------------------------------
 ;; L-2 primitives — bridge TTMS checks into cells

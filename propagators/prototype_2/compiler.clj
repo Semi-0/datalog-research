@@ -682,9 +682,13 @@
   TTMS concurrency via `compatible?` / `combine-support` / `dominates?`.
   Grow spines outside-in with `open` / `next` / `fill`.
 
-  TMS merge is an L-2 recursive reducer over the spine (no cell overwrite):
-    `tms-reduce` / `tms-scan` / `tms-project` / `tms-merge`
-  Amb/require/repair publish *tips* onto spines; `switch` gates projected bases.
+  Cell project = incremental dataflow reducer over a lattice frontier:
+    `front-add` / `tms-join` / `tms-front-reduce` / `tms-project` (tip view).
+  Join is commutative, associative, idempotent — partial aggregates merge
+  under async arrival. Tip view is `car` of the undominated frontier.
+
+  DDB (`ddb-pyth`): nogoods from `learn` on require failure supports — not from
+  projecting the `attempts` log. See `propagators/doc/prototype-2-ddb-rx.md`.
 
   `(supported-map f xss)` — Church fn over a list of spines."
   '[(define (tip rx) (car rx))
@@ -754,32 +758,59 @@
           (supported-plus shared right)
           ())))
 
-    ;; --- TMS merge as recursive L-2 reducers (intermediates = reactive tips) ---
+    ;; --- TMS as incremental dataflow reducer (lattice frontier join) ---
+    ;; Aggregate state = undominated frontier (list of observations).
+    ;; front-add / tms-join are commutative, associative, idempotent — async-safe.
     (define (tms-better? a b)
       (dominates? (obs-support a) (obs-support b)))
     (define (tms-reduce f acc rx)
       (if (empty-list? rx)
         acc
         (tms-reduce f (f acc (car rx)) (cdr rx))))
-    ;; Partial folds as a spine — each car is an intermediate merge state
     (define (tms-scan f acc rx)
       (if (empty-list? rx)
         ()
         (cons (f acc (car rx))
               (tms-scan f (f acc (car rx)) (cdr rx)))))
-    (define (tms-step best cand)
-      (if (tms-better? cand best) cand best))
+    ;; Assimilate one observation into a frontier (drop dominated / dups)
+    (define (front-add front obs)
+      (if (empty-list? front)
+        (cons obs ())
+        (if (tms-better? (car front) obs)
+          front
+          (if (tms-better? obs (car front))
+            (front-add (cdr front) obs)
+            (if (eq? (obs-support (car front)) (obs-support obs))
+              front
+              (cons (car front) (front-add (cdr front) obs)))))))
+    ;; Join two partial reduce states (frontiers) — C / A / I lattice join
+    (define (tms-join f1 f2)
+      (if (empty-list? f2)
+        f1
+        (tms-join (front-add f1 (car f2)) (cdr f2))))
+    (define (tms-join-obs a b)
+      (tms-join (cons a ()) (cons b ())))
+    ;; Incremental dataflow step: frontier × observation → frontier
+    (define (tms-step front cand)
+      (front-add front cand))
+    (define (tms-front-reduce rx)
+      (tms-reduce front-add () rx))
+    ;; Tip view: car of frontier (singleton when supports totally order)
     (define (tms-project rx)
-      (if (empty-list? rx)
-        ()
-        (tms-reduce tms-step (car rx) (cdr rx))))
+      (define f (tms-front-reduce rx))
+      (if (empty-list? f) () (car f)))
     (define (tms-merge rx obs)
       (tms-project (extend rx obs)))
-    ;; Oldest-first scan including the seed observation as first intermediate
+    (define (tms-scan-front rx)
+      (tms-scan front-add () rx))
+    ;; Dominating chains: each partial tip after joining cand into {best}
+    (define (tms-scan-tip best cand)
+      (car (front-add (cons best ()) cand)))
     (define (tms-scan-obs rx)
       (if (empty-list? rx)
         ()
-        (cons (car rx) (tms-scan tms-step (car rx) (cdr rx)))))
+        (cons (car rx)
+              (tms-scan tms-scan-tip (car rx) (cdr rx)))))
 
     ;; --- In-network amb/require/switch via tip publish (no cell overwrite) ---
     (define (supported-under v s)

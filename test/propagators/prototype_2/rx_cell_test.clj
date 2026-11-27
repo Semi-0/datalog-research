@@ -27,6 +27,29 @@
       (is (= [3 s3] via-tip))
       (is (= via-tip via-reduce)))))
 
+(deftest frontier-join-is-commutative-associative-idempotent
+  (testing "incomparable sources: join order does not change frontier set"
+    (let [a (ids/new-node-id)
+          b (ids/new-node-id)
+          c (ids/new-node-id)
+          oa [10 (stag/stamp a 1)]
+          ob [20 (stag/stamp b 1)]
+          oc [30 (stag/stamp c 1)]
+          ab (stag/frontier-join [oa] [ob])
+          ba (stag/frontier-join [ob] [oa])]
+      (is (= (set ab) (set ba)) "commutative")
+      (is (= (set (stag/frontier-join ab [oc]))
+             (set (stag/frontier-join [oa] (stag/frontier-join [ob] [oc]))))
+          "associative")
+      (is (= (set ab) (set (stag/frontier-join ab ab))) "idempotent")
+      (is (= 2 (count ab)) "both incomparable kept")))
+  (testing "dominating tip collapses frontier to singleton"
+    (let [src (ids/new-node-id)
+          weak [1 (stag/stamp src 1)]
+          strong [2 (stag/stamp src 2)]]
+      (is (= [strong] (stag/tms-join weak strong)))
+      (is (= [strong] (stag/tms-join strong weak))))))
+
 (deftest rx-cell-add-content-incremental-merge
   (testing "redundant older tip does not change projected content"
     (let [src (ids/new-node-id)

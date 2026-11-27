@@ -4,11 +4,15 @@
   Mirrors experimental amb algebra at a smaller scale:
     choice → require certificate → learn nogood → backtrack repair → apply
 
+  Nogoods come from failure-certificate supports (`learn` /
+  `certificate->nogood`), not from `tms-reduce` over attempt spines.
   Repair is dependence-directed: only decisions whose literals appear in an
   applicable nogood are withdrawn; the next admissible alternative is chosen.
 
   Subworlds: `solve-worlds` forks lazy children (replace-definition) per domain
-  value, probes via observe, and backtracks without copying parent env."
+  value, probes via observe, and backtracks without copying parent env.
+
+  See `propagators/doc/prototype-2-ddb-rx.md`."
   (:require [clojure.set :as set]
             [propagators.datastructures.support :as support]
             [propagators.ids :as ids]
