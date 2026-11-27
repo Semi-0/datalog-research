@@ -129,3 +129,111 @@
   (fn [a]
     (fn [b]
       (install-cons network a b))))
+
+;; ---------------------------------------------------------------------------
+;; Host → L-2 linked list (shared by closures, worlds, args, trace)
+;; ---------------------------------------------------------------------------
+
+(defn- wake
+  [network]
+  (ev/run-tasks network))
+
+(defn tell-cell
+  "Ensure `cell` and tell `value`; drain. Returns network."
+  [network cell value]
+  (let [network (net/ensure-cell network cell)
+        [_ network] (session/tell network cell value)]
+    (wake network)))
+
+(defn fresh-cell
+  "New cell holding `value`. Returns `[cell network]`."
+  ([network value] (fresh-cell network value "lit"))
+  ([network value label]
+   (let [cell (net/new-cell-id label)
+         network (tell-cell network cell value)]
+     [cell network])))
+
+(defn empty-list-cell
+  "Fresh cell holding `'()`. Returns `[cell network]`."
+  [network]
+  (fresh-cell network plist/empty-list "nil"))
+
+(defn place
+  "Copy cell content of `from` onto `to` (same Church cons / literal). Returns network."
+  [network from to]
+  (let [network (net/ensure-cell network to)
+        v (net/cell-value network from)]
+    (net/assoc-value network to (t/cell v))))
+
+(defn list-from-cells
+  "Cell ids → Church p-list (first at car). Optional `tail` cell (default `'()`).
+
+  Dotted products: `(list-from-cells n [a b c] bound)` ⇒ `(a b c . bound)`.
+  Returns `{:network :list}`."
+  ([network cells]
+   (list-from-cells network cells nil))
+  ([network cells tail]
+   (let [[tail network] (if tail [tail network] (empty-list-cell network))
+         [list network]
+         (reduce (fn [[t n] cell]
+                   (let [{:keys [network list]} (install-cons n cell t)]
+                     [list network]))
+                 [tail network]
+                 (reverse (vec cells)))]
+     {:network network :list list})))
+
+(defn list-from-values
+  "Host values → each in a fresh cell → Church p-list. Returns `{:network :list}`."
+  [network values]
+  (let [[cells network]
+        (reduce (fn [[cs n] v]
+                  (let [[c n] (fresh-cell n v)]
+                    [(conj cs c) n]))
+                [[] network]
+                (vec values))]
+    (list-from-cells network cells)))
+
+(defn pair-cells
+  " `(cons a b)` as a list node (not terminated). Returns `{:network :list}`."
+  [network a b]
+  (install-cons network a b))
+
+(defn from-data
+  "Arbitrary host data → L-2 cell. Returns `{:network :cell}`.
+
+  - `()` / empty sequential → empty-list cell
+  - sequential → p-list of recursively converted elements
+  - map → alist p-list of `(cons k v)` binding nodes
+  - else → literal cell"
+  [network x]
+  (cond
+    (or (plist/empty-list? x)
+        (and (sequential? x) (not (map-entry? x)) (empty? x)))
+    (let [[c network] (empty-list-cell network)]
+      {:network network :cell c})
+
+    (map? x)
+    (let [[pairs network]
+          (reduce (fn [[ps n] [k v]]
+                    (let [{n :network k-c :cell} (from-data n k)
+                          {n :network v-c :cell} (from-data n v)
+                          {:keys [network list]} (pair-cells n k-c v-c)]
+                      [(conj ps list) network]))
+                  [[] network]
+                  x)]
+      (let [{:keys [network list]} (list-from-cells network pairs)]
+        {:network network :cell list}))
+
+    (and (sequential? x) (not (string? x)) (not (map-entry? x)))
+    (let [[cells network]
+          (reduce (fn [[cs n] el]
+                    (let [{:keys [network cell]} (from-data n el)]
+                      [(conj cs cell) network]))
+                  [[] network]
+                  x)
+          {:keys [network list]} (list-from-cells network cells)]
+      {:network network :cell list})
+
+    :else
+    (let [[c network] (fresh-cell network x)]
+      {:network network :cell c})))

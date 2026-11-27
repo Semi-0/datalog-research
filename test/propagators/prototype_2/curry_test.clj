@@ -4,6 +4,7 @@
             [propagators.prototype-2.church :as church]
             [propagators.prototype-2.compiler :as comp]
             [propagators.prototype-2.core :as p2]
+            [propagators.prototype-2.env :as lenv]
             [propagators.prototype-2.gc :as gc]
             [propagators.prototype-2.p-list :as plist]
             [propagators.prototype-2.session :as session]))
@@ -39,6 +40,7 @@
     (let [[_ network state]
           (comp/run '(define (f a b) (+ a b)) '(define fref f))
           f-cell (:result state)
+          env-cell (:env state)
           open (keyword "open-cdr")
           a (keyword "arg-a")
           network (p2/ensure-cells network [open a])
@@ -47,7 +49,7 @@
           {:keys [network list]} (church/install-cons network a open)
           out (keyword "open-app-out")
           network (p2/ensure-cell network out)
-          network (#'comp/install-fn-apply-list network f-cell list out)
+          network (#'comp/install-fn-apply-list network f-cell list env-cell out)
           network (p2/run-tasks network)
           props (into []
                       (keep (fn [[id v]]
@@ -71,7 +73,7 @@
         (is (= 3 (p2/cell-value network out)))))))
 
 (deftest curry-survives-gc-with-live-roots
-  (testing "retain curried handle → live-roots keep env; re-apply after collect"
+  (testing "retain curried handle → live-roots keep bound spine; re-apply after collect"
     (let [state (comp/compile-program
                  (comp/fresh-state)
                  '[(define (f a b) (+ a b))
@@ -80,13 +82,17 @@
           network (p2/run-tasks (:network state))
           g-cell (:result state)
           gval (p2/cell-value network g-cell)
-          _ (is (comp/church-fn? gval))
-          _ (is (= ['b] (:params gval)))
+          _ (is (comp/church-fn-node? network gval))
+          _ (is (= ['b] (comp/fn-params-of network g-cell)))
+          pairs (comp/fn-bound-pairs-of network g-cell)
+          _ (is (= 1 (count pairs)))
           swept (gc/collect network #{g-cell})
           g2 (p2/cell-value swept g-cell)
-          _ (is (comp/church-fn? g2))
-          _ (is (some? (p2/lookup-value swept (:env g2))))
-          ;; apply g to (cons 2 ()) on swept network
+          _ (is (comp/church-fn-node? swept g2))
+          bound-cell (second (first (comp/fn-bound-pairs-of swept g-cell)))
+          _ (is (= 1 (p2/cell-value swept bound-cell)))
+          ;; apply g to (cons 2 ()) under a fresh call-site env
+          [env-cell swept] (lenv/empty-env swept)
           two (keyword "two")
           nil-c (keyword "nil3")
           out (keyword "g-out")
@@ -95,6 +101,6 @@
           [_ swept] (session/tell swept nil-c plist/empty-list)
           swept (p2/run-tasks swept)
           {:keys [network list]} (church/install-cons swept two nil-c)
-          network (#'comp/install-fn-apply-list network g-cell list out)
+          network (#'comp/install-fn-apply-list network g-cell list env-cell out)
           network (p2/run-tasks network)]
       (is (= 3 (p2/cell-value network out))))))

@@ -53,15 +53,11 @@
                   prop-id)))
         (net/network-value network)))
 
-(defn- church-fn-value?
-  [x]
-  (boolean (and (map? x) (:church/fn x))))
-
 (defn live-roots
-  "Expand `retain` through Church-fn envs and Church p-list / binding spines.
+  "Expand `retain` through Church p-list / church-fn spines.
 
-  Env ref-cells hold value-cell ids (keywords); those targets are retained too
-  so a curried network handle stays apply-able after collect."
+  Closures are L-2 lists `(cons 'church-fn (cons params (cons body bound)))`;
+  walking cons cells + keyword value-cell refs keeps curry/capture bindings live."
   [network retain]
   (loop [front (vec retain)
          seen (set retain)]
@@ -72,10 +68,6 @@
             v (net/cell-value network id)
             more
             (cond
-              (church-fn-value? v)
-              (when-let [e (:env v)]
-                (when (and (keyword? e) (not (contains? seen e))) [e]))
-
               (plist/church-cons? v)
               (filterv #(and (keyword? %) (not (contains? seen %)))
                        [(:a v) (:b v) (:visitor v)])

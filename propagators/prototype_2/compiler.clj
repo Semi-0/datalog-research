@@ -17,8 +17,21 @@
   Layers (on top of L-2, not a core cell patch): see `l2-layers-prelude` —
   a layer bag is a Church p-list of `(cons name value)` bindings.
 
-  Closures: `define` / anonymous `network` are Church fns. Application walks a
-  Church p-list of argument cells (Lain/compiler-2 linked apply):
+  Closures: `define` / anonymous `network` are Church *lists* (no host :env):
+
+    (cons 'church-fn (cons params (cons body bound)))
+
+  `bound` is an env-shaped p-list of closed-over / curry bindings. Apply always
+  starts from the call-site world env, then replays `bound` — same handle
+  reusable under W0/W1. Top-level `define` does not capture free vars (world-
+  relative); `network` captures free vars into `bound` (nested params).
+
+  Worlds (L-2):
+    (current-world)      — world list handle for the current env
+    (revive w transform) — fork; transform is data (usually quoted)
+    (observe w expr)     — eval expr under w (expr not compiled outer)
+
+  Application walks a Church p-list of argument cells:
 
     (f a b)     → apply f to (cons a (cons b ()))
     (apply f xs) → apply f to linked list xs
@@ -76,15 +89,172 @@
   (ev/run-tasks network))
 
 ;; ---------------------------------------------------------------------------
-;; Church fn — captures env *cell* (live linked list), not a host snapshot
+;; Church fn — L-2 list: (cons 'church-fn (cons params (cons body bound)))
 ;; ---------------------------------------------------------------------------
 
-(defn church-fn
-  [params body env-cell]
-  {:church/fn true :params (vec params) :body body :env env-cell})
+(def ^:private church-fn-tag 'church-fn)
 
-(defn church-fn? [x]
-  (boolean (and (map? x) (:church/fn x))))
+(defn- materialize-bound-list
+  "Host [[name value-cell] …] (apply-order) → Church p-list, first at car."
+  [network pairs]
+  (let [[bind-cells network]
+        (reduce (fn [[cs n] [name value-cell]]
+                  (let [[name-c n] (church/fresh-cell n name "bname")
+                        [ref-c n] (church/fresh-cell n value-cell "bref")
+                        {:keys [network list]} (church/pair-cells n name-c ref-c)]
+                    [(conj cs list) network]))
+                [[] network]
+                (vec pairs))
+        {:keys [network list]} (church/list-from-cells network bind-cells)]
+    [list network]))
+
+(defn install-church-fn
+  "Build L-2 closure spine; return `{:network :handle}`.
+
+  Shape: `(cons 'church-fn (cons params (cons body bound)))` via `list-from-cells`.
+  `bound-pairs` is [[name value-cell] …] in replay order (curry / captures)."
+  ([network params body bound-pairs]
+   (install-church-fn network params body bound-pairs nil))
+  ([network params body bound-pairs target]
+   (let [[tag-c network] (church/fresh-cell network church-fn-tag "fntag")
+         [params-c network] (church/fresh-cell network (vec params) "fnparams")
+         [body-c network] (church/fresh-cell network (vec body) "fnbody")
+         [bound-c network] (materialize-bound-list network (vec bound-pairs))
+         {:keys [network list]} (church/list-from-cells network
+                                                        [tag-c params-c body-c]
+                                                        bound-c)
+         network (if target (church/place network list target) network)
+         handle (or target list)]
+     {:network network :handle handle})))
+
+(defn church-fn-node?
+  "True when cell content `v` is an L-2 church-fn cons spine."
+  [network v]
+  (boolean
+   (and (plist/church-cons? v)
+        (= church-fn-tag (net/cell-value network (:a v))))))
+
+(defn church-fn?
+  "Host predicate for a church-fn cons value (needs network to read tag).
+
+  `(church-fn? network v)` — preferred.
+  `(church-fn? v)` — true only for legacy host-map tags (compat)."
+  ([v] (boolean (and (map? v) (:church/fn v))))
+  ([network v] (or (church-fn-node? network v) (church-fn? v))))
+
+(defn- fn-spine
+  "Read `{params-cell body-cell bound-cell}` from a church-fn handle."
+  [network handle]
+  (let [c0 (net/cell-value network handle)
+        c1 (net/cell-value network (:b c0))
+        c2 (net/cell-value network (:b c1))]
+    {:params-cell (:a c1)
+     :body-cell (:a c2)
+     :bound-cell (:b c2)}))
+
+(defn fn-params-of
+  [network handle]
+  (let [{:keys [params-cell]} (fn-spine network handle)]
+    (vec (net/cell-value network params-cell))))
+
+(defn fn-body-of
+  [network handle]
+  (let [{:keys [body-cell]} (fn-spine network handle)]
+    (vec (net/cell-value network body-cell))))
+
+(defn fn-bound-cell-of
+  [network handle]
+  (:bound-cell (fn-spine network handle)))
+
+(defn- bound-pairs-of
+  "Walk bound p-list → [[name value-cell] …] in car→cdr (replay) order."
+  [network bound-cell]
+  (loop [id bound-cell
+         acc []]
+    (let [v (net/cell-value network id)]
+      (cond
+        (plist/empty-list? v) acc
+        (plist/church-cons? v)
+        (let [binding (net/cell-value network (:a v))
+              name (net/cell-value network (:a binding))
+              value-cell (net/cell-value network (:b binding))]
+          (recur (:b v) (conj acc [name value-cell])))
+        :else acc))))
+
+(defn fn-bound-pairs-of
+  [network handle]
+  (bound-pairs-of network (fn-bound-cell-of network handle)))
+
+(defn- env-lookup-sync
+  "Synchronous env walk → value-cell id or nil (for free-var capture)."
+  [network env-cell sym]
+  (loop [id env-cell]
+    (let [v (net/cell-value network id)]
+      (cond
+        (plist/empty-list? v) nil
+        (plist/church-cons? v)
+        (let [binding (net/cell-value network (:a v))
+              name (net/cell-value network (:a binding))]
+          (if (= name sym)
+            (net/cell-value network (:b binding))
+            (recur (:b v))))
+        :else nil))))
+
+(def ^:private special-forms
+  '#{quote define network do if apply current-world revive observe})
+
+(def primitive-ops
+  #{'+ '- '* '/ 'cons 'car 'cdr 'empty-list? 'eq? 'origins 'neighbors})
+
+(defn- free-symbols
+  "Symbols in `form` not bound by `params` / inner lambdas / specials."
+  [form params]
+  (letfn [(walk [f scope]
+            (cond
+              (symbol? f)
+              (if (or (contains? scope f)
+                      (contains? special-forms f)
+                      (contains? primitive-ops f))
+                []
+                [f])
+
+              (and (seq? f) (seq f))
+              (let [op (first f)]
+                (cond
+                  (= 'quote op) []
+                  (= 'network op)
+                  (let [ps (second f)
+                        body (nnext f)
+                        scope' (into scope ps)]
+                    (mapcat #(walk % scope') body))
+                  (and (= 'define op) (seq? (second f)))
+                  (let [sig (second f)
+                        name (first sig)
+                        ps (rest sig)
+                        body (nnext f)
+                        scope' (into (conj scope name) ps)]
+                    (mapcat #(walk % scope') body))
+                  (= 'define op)
+                  (walk (nth f 2) (conj scope (second f)))
+                  :else
+                  (mapcat #(walk % scope) f)))
+
+              (vector? f)
+              (mapcat #(walk % scope) f)
+
+              :else []))]
+    (vec (distinct (walk form (set params))))))
+
+(defn- capture-free-bound
+  "Free vars of body (minus params) resolved in `env` → bound pairs."
+  [network env params body]
+  (let [form (if (= 1 (count body)) (first body) (cons 'do body))
+        frees (free-symbols form params)]
+    (into []
+          (keep (fn [sym]
+                  (when-let [vc (env-lookup-sync network env sym)]
+                    (when (keyword? vc) [sym vc]))))
+          frees)))
 
 (declare compile-form)
 
@@ -95,6 +265,14 @@
         [tasks network] (session/tell network cell value)
         network (ev/run-tasks network tasks)]
     (with-result state network cell)))
+
+(defn- compile-quote
+  "Quote → host data literal in a cell (compiler-2-style data boundary, small).
+
+  Symbols/numbers/keywords/() land as-is; non-empty lists stay Clojure lists
+  for rewrite rules / observe. Church spines remain for computed lists."
+  [state form]
+  (compile-literal state form))
 
 (defn- compile-symbol
   "Lexical access via lazy env walk → result cell (pending; scheduler drains)."
@@ -113,28 +291,27 @@
         (assoc :network network :env env' :result cell))))
 
 (defn- compile-define-fn
-  "define (name params…) body… — Church fn capturing env that includes self
-  (letrec-style), so recursive map-list / etc. can look themselves up."
+  "define (name params…) body… — L-2 church-fn list in env (letrec-style).
+
+  No free-var capture: body free names resolve at apply against the call-site
+  world env (revive shadows). Recursion via the env binding of `name`."
   [state name params body]
   (let [cell (net/new-cell-id (str name))
         network (net/ensure-cell (:network state) cell)
         [env' network] (lenv/env-extend network (:env state) name cell)
-        fn-val (church-fn params body env')
-        [tasks network] (session/tell network cell fn-val)
-        network (ev/run-tasks network tasks)]
+        {:keys [network]} (install-church-fn network params body [] cell)]
     (-> state
         (assoc :network network :env env' :result cell))))
 
 (defn- compile-network-fn
-  "Anonymous Church fn — Lain `network` / compiler-2 closure shape.
+  "Anonymous L-2 church-fn — capture free vars into bound (nested params).
 
-  No extra lambda machinery: same Church fn as `define`, application curries."
+  Same handle is world-reusable: apply uses call-site env + bound, no :env."
   [state params body]
   (let [cell (result-cell state "network")
         network (net/ensure-cell (:network state) cell)
-        fn-val (church-fn params body (:env state))
-        [tasks network] (session/tell network cell fn-val)
-        network (ev/run-tasks network tasks)]
+        pairs (capture-free-bound network (:env state) params body)
+        {:keys [network]} (install-church-fn network params body pairs cell)]
     (with-result state network cell)))
 
 (defn- install-primitive-apply
@@ -156,11 +333,12 @@
           _ (throw (ex-info "unknown primitive" {:op op})))]
     (with-result state network out)))
 
-(defn- fn-body
-  [fval]
-  (if (= 1 (count (:body fval)))
-    (first (:body fval))
-    (cons 'do (:body fval))))
+(defn- fn-body-form
+  [body]
+  (let [body (vec body)]
+    (if (= 1 (count body))
+      (first body)
+      (cons 'do body))))
 
 (defn- compile-args
   "Compile each arg form → vector of cells (primitives still use fixed ports)."
@@ -179,15 +357,8 @@
 
   Returns `[list-cell network]`."
   [network arg-cells]
-  (let [empty-c (net/new-cell-id "arg-nil")
-        network (net/ensure-cell network empty-c)
-        [_ network] (session/tell network empty-c plist/empty-list)
-        network (ev/run-tasks network)]
-    (reduce (fn [[tail n] arg-cell]
-              (let [{:keys [network list]} (church/install-cons n arg-cell tail)]
-                [list network]))
-            [empty-c network]
-            (reverse arg-cells))))
+  (let [{:keys [network list]} (church/list-from-cells network arg-cells)]
+    [list network]))
 
 (defn- compile-arg-list
   "Compile arg forms and cons them into one linked argument-list cell."
@@ -200,55 +371,65 @@
 
 (declare install-fn-apply-list)
 
-(defn- apply-church-to-arglist
-  "Walk Church fn params against a live arg p-list cell (compiler-2 linked apply).
+(defn- replay-bound-pairs
+  "env-extend each [param value-cell] onto `env` (replay order)."
+  [network env pairs]
+  (reduce (fn [[e n] [p a]]
+            (lenv/env-extend n e p a))
+          [env network]
+          pairs))
 
+(defn- apply-church-to-arglist
+  "Walk L-2 church-fn handle against arg p-list under call-site `env-cell`.
+
+  Base env = call-site; then replay bound pairs. No captured creation env.
   - args nothing → leave unbuilt (open tail / long-lived)
-  - params left + args () → curry: write Church fn with remaining params
+  - params left + args () → curry with extended bound
   - no params + args () → compile body into `out`
   - no params + args cons → compile body to mid, apply mid to same arg list
-  - params + args cons → bind car cell, continue on cdr"
-  [network fval args-list-cell out]
+  - params + args cons → record bind, continue on cdr"
+  [network fn-cell args-list-cell env-cell out]
   (let [args-v (net/cell-value network args-list-cell)
-        params (vec (:params fval))]
+        params (fn-params-of network fn-cell)
+        body (fn-body-of network fn-cell)
+        pairs (fn-bound-pairs-of network fn-cell)
+        [env0 network] (replay-bound-pairs network env-cell pairs)]
     (cond
       (t/nothing? args-v)
       network
 
       (and (empty? params) (plist/empty-list? args-v))
       (let [compiled (compile-form {:network network
-                                    :env (:env fval)
+                                    :env env0
                                     :out out
                                     :tail? true
                                     :result nil}
-                                   (fn-body fval))]
+                                   (fn-body-form body))]
         (:network compiled))
 
       (and (empty? params) (plist/church-cons? args-v))
       (let [mid (net/new-cell-id "over-mid")
             compiled (compile-form {:network network
-                                    :env (:env fval)
+                                    :env env0
                                     :out mid
                                     :tail? true
                                     :result nil}
-                                   (fn-body fval))]
-        (install-fn-apply-list (:network compiled) mid args-list-cell out))
+                                   (fn-body-form body))]
+        (install-fn-apply-list (:network compiled) mid args-list-cell env-cell out))
 
       (and (seq params) (plist/empty-list? args-v))
-      (let [curried (church-fn params (:body fval) (:env fval))
-            [_ network] (session/tell network out curried)]
+      (let [{:keys [network]} (install-church-fn network params body pairs out)]
         network)
 
       (and (seq params) (plist/church-cons? args-v))
       (let [p (first params)
             arg-cell (:a args-v)
             rest-args (:b args-v)
-            [env' network] (lenv/env-extend network (:env fval) p arg-cell)
-            rest-fn (church-fn (subvec params 1) (:body fval) env')
+            rest-pairs (conj pairs [p arg-cell])
             rest-cell (net/new-cell-id "curry-fn")
-            network (net/ensure-cell network rest-cell)
-            [_ network] (session/tell network rest-cell rest-fn)]
-        (install-fn-apply-list network rest-cell rest-args out))
+            {:keys [network]} (install-church-fn network (subvec params 1) body
+                                                 rest-pairs rest-cell)]
+        (install-fn-apply-list network rest-cell rest-args env-cell out))
 
       :else
       (do (println "apply: malformed arg list" (pr-str args-v)
@@ -256,17 +437,17 @@
           network))))
 
 (defn- install-fn-apply-list
-  "Pending apply: operator cell × linked arg-list cell → `out`."
-  [network op-cell args-list-cell out]
+  "Pending apply: operator × arg-list × call-site env → `out`."
+  [network op-cell args-list-cell env-cell out]
   (let [expand
         (fn [n]
           (let [fval (net/cell-value n op-cell)]
-            (if-not (church-fn? fval)
+            (if-not (church-fn-node? n fval)
               (do (println "apply: expected church-fn, got" (pr-str fval))
                   n)
-              (apply-church-to-arglist n fval args-list-cell out))))]
+              (apply-church-to-arglist n op-cell args-list-cell env-cell out))))]
     (ctor/pending-compound-constructor
-     network expand [op-cell args-list-cell] [out])))
+     network expand [op-cell args-list-cell env-cell] [out])))
 
 (defn- compile-if
   "Compile condition now; delay then/else until cond is concrete.
@@ -292,8 +473,40 @@
                  (:network state) expand [cond-cell] [out])]
     (with-result state network out)))
 
-(def primitive-ops
-  #{'+ '- '* '/ 'cons 'car 'cdr 'empty-list? 'eq? 'origins 'neighbors})
+(defn- world-var
+  "Resolve a `world` ns var at call time (avoids compiler↔world load cycle)."
+  [sym]
+  (requiring-resolve (symbol "propagators.prototype-2.world" (name sym))))
+
+(defn- compile-current-world
+  "L-2 `(current-world)` → world list handle for `:env`."
+  [state]
+  (let [out (result-cell state "cur-world")
+        install (world-var 'install-current-world-prop)
+        network (install (:network state) (:env state) out)]
+    (with-result state network out)))
+
+(defn- compile-revive
+  "L-2 `(revive w transform)` — transform compiled (usually quoted data)."
+  [state w-form transform-form]
+  (let [out (result-cell state "revive")
+        state (compile-form (assoc state :tail? false :out nil) w-form)
+        w-cell (:result state)
+        state (compile-form (assoc state :tail? false :out nil) transform-form)
+        t-cell (:result state)
+        install (world-var 'install-revive-prop)
+        network (install (:network state) w-cell t-cell out)]
+    (with-result state network out)))
+
+(defn- compile-observe
+  "L-2 `(observe w expr)` — `expr` is host form, compiled under w's env only."
+  [state w-form expr]
+  (let [out (result-cell state "observe")
+        state (compile-form (assoc state :tail? false :out nil) w-form)
+        w-cell (:result state)
+        install (world-var 'install-observe-prop)
+        network (install (:network state) w-cell expr out)]
+    (with-result state network out)))
 
 (defn- compile-apply
   [state op args]
@@ -309,14 +522,16 @@
             f-cell (:result state)
             state (compile-form (assoc state :tail? false :out nil) (second args))
             args-list-cell (:result state)
-            network (install-fn-apply-list (:network state) f-cell args-list-cell out)]
+            network (install-fn-apply-list (:network state) f-cell args-list-cell
+                                           (:env state) out)]
         (with-result state network out))
 
       (m/pred symbol? ?s)
       (let [[state args-list-cell] (compile-arg-list state args)
             op-cell (net/new-cell-id "op")
             network (lenv/install-lookup (:network state) (:env state) ?s op-cell)
-            network (install-fn-apply-list network op-cell args-list-cell out)]
+            network (install-fn-apply-list network op-cell args-list-cell
+                                           (:env state) out)]
         (with-result (assoc state :network network) network out))
 
       _
@@ -405,6 +620,18 @@
 
     (m/seqable)
     (compile-literal state plist/empty-list)
+
+    (m/seqable 'quote ?x)
+    (compile-quote state ?x)
+
+    (m/seqable 'current-world)
+    (compile-current-world state)
+
+    (m/seqable 'revive ?w ?transform)
+    (compile-revive state ?w ?transform)
+
+    (m/seqable 'observe ?w ?expr)
+    (compile-observe state ?w ?expr)
 
     (m/seqable 'define (m/seqable ?name & ?params) & ?body)
     (compile-define-fn state ?name ?params ?body)

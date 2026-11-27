@@ -28,7 +28,8 @@
   Modules: edge-chain, types, network, construct, evaluate, runner,
   runner-constructor, gc, primitives, session, church, p-list, trace-ops, debug.
 
-  L-2 (compiler) exposes `origins` / `neighbors` over EdgeChain dependence."
+  L-2 (compiler) exposes `origins` / `neighbors` over EdgeChain dependence.
+  Worlds (`world` / `world-specs`): env spines as a DAG; revive/observe experiment."
   (:require [propagators.prototype-2.church :as church]
             [propagators.prototype-2.construct :as ctor]
             [propagators.prototype-2.debug :as debug]
@@ -42,7 +43,8 @@
             [propagators.prototype-2.runner-constructor :as runner-ctor]
             [propagators.prototype-2.session :as session]
             [propagators.prototype-2.trace-ops :as trace]
-            [propagators.prototype-2.types :as t]))
+            [propagators.prototype-2.types :as t]
+            [propagators.prototype-2.world :as world]))
 
 ;; edge-chain
 (def edge-chain ec/edge-chain)
@@ -157,6 +159,14 @@
 (def install-car church/install-car)
 (def install-cdr church/install-cdr)
 (def cons-then church/cons-then)
+(def tell-cell church/tell-cell)
+(def fresh-cell church/fresh-cell)
+(def empty-list-cell church/empty-list-cell)
+(def place church/place)
+(def list-from-cells church/list-from-cells)
+(def list-from-values church/list-from-values)
+(def pair-cells church/pair-cells)
+(def from-data church/from-data)
 
 ;; p-list (Church cons spine — no separate Pair)
 (def empty-list plist/empty-list)
@@ -180,3 +190,24 @@
 (def evaluate-propagator-debug debug/evaluate-propagator-debug)
 (def run-tasks-debug debug/run-tasks-debug)
 (def tell-debug debug/tell-debug)
+
+;; worlds (env DAG experiment)
+(def current-world world/current-world)
+(def reify-world world/reify-world)
+(def rewrite-spec world/rewrite-spec)
+(def instantiate world/instantiate)
+(def revive world/revive)
+(def observe-world world/observe)
+(def retire-world world/retire)
+(def activate-world world/activate)
+(def world-from-forms world/world-from-forms)
+(def make-world world/make-world)
+(def world-id-of world/world-id-of)
+(def world-env-of world/world-env-of)
+(def world-lineage-cell-of world/world-lineage-cell-of)
+(def lineage-frames-of world/lineage-frames-of)
+(def install-world-node world/install-world-node)
+(def world-from-handle world/world-from-handle)
+(def install-current-world-prop world/install-current-world-prop)
+(def install-revive-prop world/install-revive-prop)
+(def install-observe-prop world/install-observe-prop)

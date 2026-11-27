@@ -39,17 +39,8 @@
 (defn materialize-id-list
   "Install a Church p-list of keyword/ids into `network`. Returns `[list-cell network]`."
   [network ids]
-  (if-not (seq ids)
-    (let [out (net/new-cell-id "trace-empty")
-          network (net/ensure-cell network out)
-          [_ network] (session/tell network out plist/empty-list)]
-      [out network])
-    (let [[tail network] (materialize-id-list network (rest ids))
-          head (net/new-cell-id "trace-id")
-          network (net/ensure-cell network head)
-          [_ network] (session/tell network head (first ids))
-          {:keys [network list]} (church/install-cons network head tail)]
-      [list network])))
+  (let [{:keys [network list]} (church/list-from-values network (vec ids))]
+    [list network]))
 
 (defn install-origins-prop
   "When `cell-in` is concrete, write EdgeChain origins of the target as a p-list."
