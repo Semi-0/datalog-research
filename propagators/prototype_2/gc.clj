@@ -107,15 +107,36 @@
      (into marked-props marked-cells))))
 
 (defn sweep
-  "Remove `marked` ids from topology, value, and name dict."
+  "Remove `marked` ids from topology, value, name dict, and listeners index."
   [network marked]
   (let [marked (set marked)
+        old-value (net/network-value network)
         topology (reduce dissoc (net/network-topology network) marked)
-        value (reduce dissoc (net/network-value network) marked)
+        value (reduce dissoc old-value marked)
         name (into {}
                    (remove (fn [[_ id]] (contains? marked id)))
-                   (net/network-name network))]
-    (net/network topology value name (net/network-queue network))))
+                   (net/network-name network))
+        ;; Drop swept props from listener sets; drop swept cells as keys.
+        listeners
+        (reduce (fn [lis id]
+                  (let [entry (get old-value id)]
+                    (cond
+                      (t/propagator-value? entry)
+                      (reduce (fn [lis cell-id]
+                                (let [next (disj (get lis cell-id #{}) id)]
+                                  (if (seq next)
+                                    (assoc lis cell-id next)
+                                    (dissoc lis cell-id))))
+                              lis
+                              (:input-ids entry))
+
+                      (contains? lis id)
+                      (dissoc lis id)
+
+                      :else lis)))
+                (net/network-listeners network)
+                marked)]
+    (net/network topology value name (net/network-queue network) listeners)))
 
 (defn collect
   "Mark completed topology then sweep. Independent of the evaluator.

@@ -111,27 +111,50 @@
             acc))
         :else acc))))
 
+(defn tms-step
+  "One merge step over observations `[base support]`.
+  Prefer the dominating support; when incomparable keep `best` (newer-first)."
+  [best cand]
+  (let [[_ sb] best
+        [_ sc] cand]
+    (cond
+      (and (support/support? sc) (support/support? sb) (dominates? sc sb)) cand
+      (and (support/support? sb) (support/support? sc) (dominates? sb sc)) best
+      :else best)))
+
+(defn tms-reduce
+  "Tail-recursive fold of `f` over observations (thesis cell merge as pull)."
+  [f acc obs]
+  (reduce f acc obs))
+
+(defn tms-project
+  "Strongest observation on a newest-first seq via `tms-reduce`/`tms-step`.
+  Returns `[base support]` or nil."
+  [obs]
+  (when (seq obs)
+    (tms-reduce tms-step (first obs) (rest obs))))
+
 (defn project-tip
   "Pick an undominated observation from the reactive list (TTMS dominates?).
 
-  Returns `[base support]` or nil. Prefers newer cars when incomparable."
+  Returns `[base support]` or nil. Prefers newer cars when incomparable.
+  Implemented as `tms-reduce` over the spine (Art of the Propagator style)."
   [network rx-cell]
-  (let [obs (collect-observations network rx-cell)]
-    (when (seq obs)
-      (reduce
-       (fn [best candidate]
-         (let [[_ sb] best
-               [_ sc] candidate]
-           (cond
-             (and (support/support? sc) (support/support? sb)
-                  (dominates? sc sb))
-             candidate
-             (and (support/support? sb) (support/support? sc)
-                  (dominates? sb sc))
-             best
-             :else best)))
-       (first obs)
-       (rest obs)))))
+  (tms-project (collect-observations network rx-cell)))
+
+(defn tms-merge-obs
+  "Assimilate `obs` (`[base support]`) into projected content of `rx-cell`.
+  Full re-fold of the extended history (correct under worldview changes)."
+  [network rx-cell obs-pair]
+  (tms-project (cons obs-pair (collect-observations network rx-cell))))
+
+(defn tms-step-incremental
+  "Amortized merge when `cand` is a newer tip: one `tms-step` against prior best.
+  Equivalent to full `tms-project` when history is newest-first and cand is car."
+  [prior-best cand]
+  (if prior-best
+    (tms-step cand prior-best)
+    cand))
 
 ;; ---------------------------------------------------------------------------
 ;; L-2 primitives — bridge TTMS checks into cells

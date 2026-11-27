@@ -74,14 +74,12 @@
 (def expand-compound ensure-topology)
 
 (defn propagator-tasks-for
-  "Propagator ids whose intended inputs include `cell-id`."
+  "Propagator ids whose intended inputs include `cell-id`.
+
+  Uses the network listeners index (cell → props) so alert is O(#listeners)
+  instead of scanning every propagator."
   [network cell-id]
-  (into []
-        (keep (fn [[prop-id entry]]
-                (when (and (t/propagator-value? entry)
-                           (some #{cell-id} (:input-ids entry)))
-                  prop-id)))
-        (net/network-value network)))
+  (vec (net/listeners-for network cell-id)))
 
 (defn write-cell
   "Set cell content and enqueue listening props onto Network.queue."

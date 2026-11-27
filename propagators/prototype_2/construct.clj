@@ -28,6 +28,7 @@
          pf (t/propagator-f f input-ids output name)]
      (-> network
          (net/assoc-value prop-id pf)
+         (net/register-listeners prop-id input-ids)
          (net/bind-prop-name name prop-id)
          (net/enqueue prop-id)))))
 
@@ -52,5 +53,6 @@
          cf (t/compound-f expand input-ids outputs name)]
      (-> network
          (net/assoc-value prop-id cf)
+         (net/register-listeners prop-id input-ids)
          (net/bind-prop-name name prop-id)
          (net/enqueue prop-id)))))

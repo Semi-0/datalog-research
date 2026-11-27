@@ -43,6 +43,7 @@
             [propagators.prototype-2.runner-constructor :as runner-ctor]
             [propagators.prototype-2.session :as session]
             [propagators.prototype-2.amb :as amb]
+            [propagators.prototype-2.rx-cell :as rx]
             [propagators.prototype-2.support-tag :as stag]
             [propagators.prototype-2.trace-ops :as trace]
             [propagators.prototype-2.types :as t]
@@ -241,9 +242,23 @@
 (def tip-base stag/tip-base)
 (def tip-support stag/tip-support)
 (def project-tip stag/project-tip)
+(def tms-step stag/tms-step)
+(def tms-reduce stag/tms-reduce)
+(def tms-project stag/tms-project)
+(def tms-step-incremental stag/tms-step-incremental)
 (def install-compatible?-prop stag/install-compatible?-prop)
 (def install-combine-support-prop stag/install-combine-support-prop)
 (def install-dominates?-prop stag/install-dominates?-prop)
+
+;; cell as reactive operator (spine + tms-reduce / incremental merge)
+(def empty-rx-cell rx/empty-rx)
+(def rx-cell? rx/rx-cell?)
+(def rx-content rx/content)
+(def rx-content-base rx/content-base)
+(def rx-add-content rx/add-content)
+(def rx-add-content-values rx/add-content-values)
+(def rx-reproject rx/reproject)
+(def install-rx-add-content-prop rx/install-add-content-prop)
 
 ;; dependence-directed amb (+ subworld solve)
 (def amb-initial-choice amb/initial-choice)
