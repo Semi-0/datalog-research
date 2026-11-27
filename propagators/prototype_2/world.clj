@@ -77,12 +77,18 @@
   (when-let [outer (node-cons network handle)]
     (net/cell-value network (:a outer))))
 
-(defn world-env-of
-  "Read env-root cell id from a world list handle."
+(defn world-env-ref-cell-of
+  "Cell that holds the env-root cell id inside the world list node."
   [network handle]
   (when-let [outer (node-cons network handle)]
     (when-let [inner (node-cons network (:b outer))]
-      (net/cell-value network (:a inner)))))
+      (:a inner))))
+
+(defn world-env-of
+  "Read env-root cell id from a world list handle."
+  [network handle]
+  (when-let [ref-c (world-env-ref-cell-of network handle)]
+    (net/cell-value network ref-c)))
 
 (defn world-lineage-cell-of
   "Lineage list cell (Church p-list of frame cells)."
@@ -90,6 +96,15 @@
   (when-let [outer (node-cons network handle)]
     (when-let [inner (node-cons network (:b outer))]
       (:b inner))))
+
+(defn patch-world-env
+  "Point world's env-ref at `env-cell` (no parent copy). Returns updated world."
+  [world env-cell]
+  (let [network (:network world)
+        handle (:handle world)
+        ref-c (world-env-ref-cell-of network handle)
+        network (net/assoc-value network ref-c (t/cell env-cell))]
+    (assoc world :network network :env-cell env-cell)))
 
 (defn lineage-frames-of
   "Host vector of rewrite frames from the world lineage spine (newest first)."
@@ -172,6 +187,13 @@
 
       (throw (ex-info "unknown rule" {:rule rule})))))
 
+(defn apply-rules
+  "Env-extend each rewrite onto `env` (mono-directional). Returns `[env network]`."
+  [network env rules]
+  (reduce (fn [[e n] rule] (apply-rule n e rule))
+          [env network]
+          (vec (as-rules rules))))
+
 (defn instantiate
   "WorldSpec → World on `network`, applying lineage rewrites oldest-first."
   [spec network]
@@ -191,32 +213,60 @@
                 (vec (:lineage spec)))))
 
 (defn revive
-  "Fork `world` with `transformation` — new child env + new world list node."
-  [world transformation]
-  (let [rules (vec (as-rules transformation))
-        network (:network world)
-        env (or (when (:handle world)
-                  (world-env-of network (:handle world)))
-                (:env-cell world))
-        parent-id (or (when (:handle world)
-                        (world-id-of network (:handle world)))
-                      (:world-id world))
-        old-frames (or (when (:handle world)
-                         (lineage-frames-of network (:handle world)))
-                       (vec (:lineage world)))
-        [env network]
-        (reduce (fn [[e n] rule] (apply-rule n e rule))
-                [env network]
-                rules)
-        child-id (new-world-id)
-        frame {:world-id child-id :rewrites rules}
-        lineage (into [frame] old-frames)]
-    (make-world network env child-id parent-id lineage)))
+  "Fork `world` with `transformation` — child world list node on shared network.
+
+  Options:
+    :lazy? false (default) — env-extend rewrite frames now
+    :lazy? true  — keep parent env spine; store `:pending-rewrites` until
+                   `materialize-pending` / observe (no eager child frames)"
+  ([world transformation]
+   (revive world transformation nil))
+  ([world transformation {:keys [lazy?] :or {lazy? false}}]
+   (let [rules (vec (as-rules transformation))
+         network (:network world)
+         env (or (when (:handle world)
+                   (world-env-of network (:handle world)))
+                 (:env-cell world))
+         parent-id (or (when (:handle world)
+                         (world-id-of network (:handle world)))
+                       (:world-id world))
+         old-frames (or (when (:handle world)
+                          (lineage-frames-of network (:handle world)))
+                        (vec (:lineage world)))
+         child-id (new-world-id)
+         frame {:world-id child-id :rewrites rules}
+         lineage (into [frame] old-frames)
+         [env network]
+         (if lazy?
+           [env network]
+           (apply-rules network env rules))
+         child (make-world network env child-id parent-id lineage)]
+     (cond-> child
+       lazy? (assoc :pending-rewrites rules)))))
+
+(defn materialize-pending
+  "Apply `:pending-rewrites` via env-extend onto the shared parent spine.
+  No-op when none pending. Parent env cell unchanged."
+  [world]
+  (let [pending (vec (:pending-rewrites world))]
+    (if (empty? pending)
+      world
+      (let [env (or (when (:handle world)
+                      (world-env-of (:network world) (:handle world)))
+                    (:env-cell world))
+            [env network] (apply-rules (:network world) env pending)
+            world (-> world
+                      (assoc :network network)
+                      (patch-world-env env)
+                      (dissoc :pending-rewrites))]
+        world))))
 
 (defn observe
-  "Evaluate `expression` under the world's env (call-site env = world env)."
+  "Evaluate `expression` under the world's env (call-site env = world env).
+  Materializes pending child frames first (lazy revive)."
   [world expression]
-  (let [network (:network world)
+  (let [world (materialize-pending world)
+        network (:network world)
         env (or (when (:handle world)
                   (world-env-of network (:handle world)))
                 (:env-cell world))
@@ -229,7 +279,6 @@
         network (ev/run-tasks (:network state))
         value (net/cell-value network (:result state))]
     [value (assoc world :network network) (:result state)]))
-
 (defn retire
   "Hibernate: store WorldSpec, return effect map."
   [world]

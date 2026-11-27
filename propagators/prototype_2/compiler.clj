@@ -31,6 +31,10 @@
     (revive w transform) — fork; transform is data (usually quoted)
     (observe w expr)     — eval expr under w (expr not compiled outer)
 
+  Reactive (L-2, see `l2-reactive-prelude`):
+    observation lists + TTMS `compatible?` / `combine-support` / `dominates?`
+    `(open)` / `(next cursor v)` / `(fill hole expr)` — outside growth of list spines
+
   Application walks a Church p-list of argument cells:
 
     (f a b)     → apply f to (cons a (cons b ()))
@@ -61,6 +65,7 @@
             [propagators.prototype-2.p-list :as plist]
             [propagators.prototype-2.primitives :as prim]
             [propagators.prototype-2.session :as session]
+            [propagators.prototype-2.support-tag :as stag]
             [propagators.prototype-2.trace-ops :as trace]
             [propagators.prototype-2.types :as t]))
 
@@ -201,10 +206,11 @@
         :else nil))))
 
 (def ^:private special-forms
-  '#{quote define network do if apply current-world revive observe})
+  '#{quote define network do if apply current-world revive observe open next fill})
 
 (def primitive-ops
-  #{'+ '- '* '/ 'cons 'car 'cdr 'empty-list? 'eq? 'origins 'neighbors})
+  #{'+ '- '* '/ 'cons 'car 'cdr 'empty-list? 'eq? 'origins 'neighbors
+    'compatible? 'combine-support 'dominates? 'open})
 
 (defn- free-symbols
   "Symbols in `form` not bound by `params` / inner lambdas / specials."
@@ -314,6 +320,59 @@
         {:keys [network]} (install-church-fn network params body pairs cell)]
     (with-result state network cell)))
 
+(defn- compile-cell-ref
+  "Compile `form` to a cell. Symbols reuse the env binding cell (shared identity)
+  so `(cons x hole)` / `(fill hole …)` grow the same spine."
+  [state form]
+  (if (symbol? form)
+    (if-let [vc (env-lookup-sync (:network state) (:env state) form)]
+      [state vc]
+      (let [state (compile-form (assoc state :tail? false :out nil) form)]
+        [state (:result state)]))
+    (let [state (compile-form (assoc state :tail? false :out nil) form)]
+      [state (:result state)])))
+
+(defn- compile-open
+  "L-2 `(open)` — fresh cell left as `nothing` (reserved list slot / hole)."
+  [state]
+  (let [out (result-cell state "open")
+        network (net/ensure-cell (:network state) out)]
+    (with-result state network out)))
+
+(defn- compile-fill
+  "L-2 `(fill place expr)` — write `expr` into `place`'s binding cell (in-place).
+
+  Typical close: `(fill cursor ())`."
+  [state place value-form]
+  (when-not (symbol? place)
+    (throw (ex-info "fill: place must be a symbol" {:place place})))
+  (let [vc (env-lookup-sync (:network state) (:env state) place)]
+    (when-not (keyword? vc)
+      (throw (ex-info "fill: unbound place" {:place place})))
+    (let [state (compile-form (assoc state :out vc :tail? true) value-form)]
+      (with-result state (:network state) vc))))
+
+(defn- compile-next
+  "L-2 `(next cursor value)` — outside growth of an open list.
+
+  Writes `(cons value new-open)` into `cursor`'s binding cell and returns
+  `new-open` so `(define c (next c v))` advances the write head while the
+  original root (first `open`) stays map-able."
+  [state cursor value-form]
+  (when-not (symbol? cursor)
+    (throw (ex-info "next: cursor must be a symbol" {:cursor cursor})))
+  (let [vc (env-lookup-sync (:network state) (:env state) cursor)]
+    (when-not (keyword? vc)
+      (throw (ex-info "next: unbound cursor" {:cursor cursor})))
+    (let [new-open (net/new-cell-id "next-open")
+          network (net/ensure-cell (:network state) new-open)
+          state (assoc state :network network)
+          state (compile-form (assoc state :tail? false :out nil) value-form)
+          val-cell (:result state)
+          ;; cons into the cursor cell; result of next is the new open cdr
+          network (lists/install-cons-prop (:network state) val-cell new-open vc)]
+      (with-result (assoc state :network network) network new-open))))
+
 (defn- install-primitive-apply
   [state op arg-cells out]
   (let [network (:network state)
@@ -330,6 +389,10 @@
           'eq? (lists/install-eq?-prop network (arg-cells 0) (arg-cells 1) out)
           'origins (trace/install-origins-prop network (arg-cells 0) out)
           'neighbors (trace/install-neighbors-prop network (arg-cells 0) out)
+          'compatible? (stag/install-compatible?-prop network (arg-cells 0) (arg-cells 1) out)
+          'combine-support (stag/install-combine-support-prop network (arg-cells 0) (arg-cells 1) out)
+          'dominates? (stag/install-dominates?-prop network (arg-cells 0) (arg-cells 1) out)
+          'open (throw (ex-info "open takes no args" {}))
           _ (throw (ex-info "unknown primitive" {:op op})))]
     (with-result state network out)))
 
@@ -512,6 +575,16 @@
   [state op args]
   (let [out (result-cell state "app")]
     (m/match op
+      'open
+      (compile-open state)
+
+      ;; cons shares binding cells for symbol args (open-hole identity)
+      'cons
+      (let [[state a] (compile-cell-ref state (first args))
+            [state b] (compile-cell-ref state (second args))
+            network (lists/install-cons-prop (:network state) a b out)]
+        (with-result state network out))
+
       (m/pred primitive-ops ?p)
       (let [[state arg-cells] (compile-args state args)]
         (install-primitive-apply state ?p arg-cells out))
@@ -590,6 +663,82 @@
           (define (observe-base lv)
             (layer-base lv))]))
 
+(def l2-reactive-prelude
+  "Reactive values = Church lists of observations `(cons base support)`.
+
+  TTMS concurrency via `compatible?` / `combine-support` / `dominates?`.
+  Grow spines outside-in with `open` / `next` / `fill`.
+
+  `(supported-map f xss)` — `f` is a Church fn; `xss` is a list of reactive
+  spines. Zips cars: all supports compatible → `(apply f bases)` + combine;
+  else skip; open car/cdr stays pending (GUR). Stable `(define out …)` root."
+  '[(define (tip rx) (car rx))
+    (define (obs-base o) (car o))
+    (define (obs-support o) (cdr o))
+    (define (observation v s) (cons v s))
+    (define (extend rx obs) (cons obs rx))
+    (define (rss-empty? rss)
+      (if (empty-list? rss)
+        false
+        (if (empty-list? (car rss))
+          true
+          (rss-empty? (cdr rss)))))
+    (define (rss-cars rss)
+      (if (empty-list? rss)
+        ()
+        (cons (car (car rss)) (rss-cars (cdr rss)))))
+    (define (rss-cdrs rss)
+      (if (empty-list? rss)
+        ()
+        (cons (cdr (car rss)) (rss-cdrs (cdr rss)))))
+    (define (obs-list-bases os)
+      (if (empty-list? os)
+        ()
+        (cons (obs-base (car os)) (obs-list-bases (cdr os)))))
+    (define (obs-list-supports os)
+      (if (empty-list? os)
+        ()
+        (cons (obs-support (car os)) (obs-list-supports (cdr os)))))
+    (define (combine-supports ss)
+      (if (empty-list? ss)
+        ()
+        (if (empty-list? (cdr ss))
+          (car ss)
+          (combine-support (car ss) (combine-supports (cdr ss))))))
+    (define (supports-ok? ss)
+      (if (empty-list? ss)
+        true
+        (if (empty-list? (cdr ss))
+          true
+          (compatible? (car ss) (combine-supports (cdr ss))))))
+    (define (supported-map f xss)
+      (if (rss-empty? xss)
+        ()
+        (if (supports-ok? (obs-list-supports (rss-cars xss)))
+          (cons (observation (apply f (obs-list-bases (rss-cars xss)))
+                             (combine-supports (obs-list-supports (rss-cars xss))))
+                (supported-map f (rss-cdrs xss)))
+          (supported-map f (rss-cdrs xss)))))
+    (define (add a b) (+ a b))
+    (define (add3 a b c) (+ (+ a b) c))
+    (define (supported-map-plus xs ys)
+      (supported-map add (cons xs (cons ys ()))))
+    (define (supported-plus rx ry)
+      (if (compatible? (obs-support (tip rx)) (obs-support (tip ry)))
+        (extend ()
+          (observation (+ (obs-base (tip rx)) (obs-base (tip ry)))
+                       (combine-support (obs-support (tip rx))
+                                        (obs-support (tip ry)))))
+        ()))
+    (define (retract-tip rx s)
+      (extend rx (observation (obs-base (tip rx)) s)))
+    (define (amb-join shared left right)
+      (if (compatible? (obs-support (tip shared)) (obs-support (tip left)))
+        (supported-plus shared left)
+        (if (compatible? (obs-support (tip shared)) (obs-support (tip right)))
+          (supported-plus shared right)
+          ())))])
+
 (defn- compile-do
   [state forms]
   (if-not (seq forms)
@@ -608,6 +757,9 @@
   (m/match form
     (m/pred number? ?n)
     (compile-literal state ?n)
+
+    (m/pred boolean? ?b)
+    (compile-literal state ?b)
 
     (m/pred string? ?s)
     (compile-literal state ?s)
@@ -632,6 +784,15 @@
 
     (m/seqable 'observe ?w ?expr)
     (compile-observe state ?w ?expr)
+
+    (m/seqable 'open)
+    (compile-open state)
+
+    (m/seqable 'next (m/pred symbol? ?cursor) ?value)
+    (compile-next state ?cursor ?value)
+
+    (m/seqable 'fill (m/pred symbol? ?place) ?expr)
+    (compile-fill state ?place ?expr)
 
     (m/seqable 'define (m/seqable ?name & ?params) & ?body)
     (compile-define-fn state ?name ?params ?body)

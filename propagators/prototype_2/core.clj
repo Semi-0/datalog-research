@@ -42,9 +42,11 @@
             [propagators.prototype-2.runner :as runner]
             [propagators.prototype-2.runner-constructor :as runner-ctor]
             [propagators.prototype-2.session :as session]
+            [propagators.prototype-2.support-tag :as stag]
             [propagators.prototype-2.trace-ops :as trace]
             [propagators.prototype-2.types :as t]
-            [propagators.prototype-2.world :as world]))
+            [propagators.prototype-2.world :as world]
+            [propagators.prototype-2.world-registry :as wreg]))
 
 ;; edge-chain
 (def edge-chain ec/edge-chain)
@@ -211,3 +213,33 @@
 (def install-current-world-prop world/install-current-world-prop)
 (def install-revive-prop world/install-revive-prop)
 (def install-observe-prop world/install-observe-prop)
+(def materialize-pending world/materialize-pending)
+(def apply-world-rules world/apply-rules)
+(def patch-world-env world/patch-world-env)
+
+;; world registry (runner-side hibernate/activate, lazy mono children)
+(def empty-world-registry wreg/empty-registry)
+(def register-world wreg/register)
+(def spawn-world wreg/spawn)
+(def touch-world wreg/touch)
+(def observe-registered wreg/observe)
+(def hibernate-world wreg/hibernate)
+(def activate-registered wreg/activate)
+(def get-registered-world wreg/get-world)
+
+;; reactive observation lists (TTMS concurrency bridge)
+(def stamp stag/stamp)
+(def premise stag/premise)
+(def compatible? stag/compatible?)
+(def combine-support stag/combine)
+(def covers? stag/covers?)
+(def dominates? stag/dominates?)
+(def observation-from-values stag/observation-from-values)
+(def extend-tip stag/extend-tip)
+(def tip stag/tip)
+(def tip-base stag/tip-base)
+(def tip-support stag/tip-support)
+(def project-tip stag/project-tip)
+(def install-compatible?-prop stag/install-compatible?-prop)
+(def install-combine-support-prop stag/install-combine-support-prop)
+(def install-dominates?-prop stag/install-dominates?-prop)

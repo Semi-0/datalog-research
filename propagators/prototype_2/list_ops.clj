@@ -8,13 +8,18 @@
             [propagators.prototype-2.primitives :as prim]))
 
 (defn install-cons-prop
-  "Compound: when `a` and `b` are concrete, install Church cons and id list→`out`."
+  "Compound: install Church cons spine immediately and id list→`out`.
+
+  Does not wait for `a`/`b` to be concrete — open cars/cdrs stay `nothing`
+  until told (GUR). Recursive map can emit a head while the recursive cdr
+  is still pending."
   [network a b out]
   (let [expand
         (fn [n]
           (let [{:keys [network list]} (church/install-cons n a b)]
             (prim/install-id network list out)))]
-    (ctor/pending-compound-constructor network expand [a b] [out])))
+    ;; no input gate — structure first; values flow through a/b cells later
+    (ctor/pending-compound-constructor network expand [] [out])))
 
 (defn install-car-prop
   "Compound: when `xs` holds a Church cons, bi-sync its `a` into `out`."
