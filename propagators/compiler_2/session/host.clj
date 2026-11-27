@@ -3,6 +3,7 @@
   This is host infrastructure, not a workflow or another session abstraction."
   (:require [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.runtime.boundary.effects :as effects]
+            [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.session :as session]
             [propagators.compiler-2.session.connected :as connected]
             [propagators.network :as net]
@@ -471,16 +472,48 @@
                   :runtime/on-clock-commit #(native-clock-committed! host))
      host)))
 
-(defn extend! [host extension]
+(def revisions-key ::binding-revisions)
+
+(defn- select-child [candidate old-frame frame bindings]
+  (let [network (session/network candidate)
+        pairs (for [[name _] bindings
+                    :let [prior (env/lexical-binding-id network name old-frame)]
+                    :when prior]
+                [prior (env/local-binding-id network frame name)])
+        revised (net/update-net-dict-entry network revisions-key #(into (or % {}) pairs))]
+    (session/with-compiler-state candidate
+      (assoc (session/compiler-state candidate) :program/env frame :program/net revised))))
+
+(defn- extend-with [host extension select-environment]
   (locking (round-gate host)
     (locking (gate host)
       (require-open! host)
       (when-not (= :idle (::phase @(runtime-session host)))
         (throw (ex-info "Cannot extend during dependency dispatch" {})))
-      (let [candidate (session/extend-session (current-session host) extension)]
+      (let [current (current-session host)
+            _ (when (and select-environment
+                         (not= (session/environment current)
+                               (get-in (session/extension-parts extension) [:frames select-environment :parent])))
+                (throw (ex-info "Live reload frame was prepared against an older environment" {:stale true})))
+            candidate (session/extend-session current extension)
+            candidate (if select-environment
+                        (select-child candidate (session/environment current) select-environment
+                                      (get-in (session/extension-parts extension) [:frames select-environment :bindings]))
+                        candidate)]
         (validate-dependencies! candidate)
         (publish! host candidate)))
     (step! host)))
+
+(defn extend! [host extension]
+  (extend-with host extension nil))
+
+(defn extend-in-child!
+  "Atomically publish an extension and select its new lexical frame for subsequent
+  evaluations. Already installed applications and their effect receipts stay live."
+  [host extension frame]
+  (when-not (contains? (:frames (session/extension-parts extension)) frame)
+    (throw (ex-info "Reload must select a frame declared by its extension" {:frame frame})))
+  (extend-with host extension frame))
 
 (defn extend-source!
   "Editor/CLI source ingress: snapshot imports before publishing an atomic extension."

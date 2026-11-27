@@ -1,6 +1,7 @@
 (ns graph.lain-editor.runtime.display
   "A pane-local display sink using the same layered forwarding policy as ->."
-  (:require [graph.lain-editor.stack.scene :as stack-scene]
+  (:require [graph.lain-editor.runtime.live-call :as live-call]
+            [graph.lain-editor.stack.scene :as stack-scene]
             [propagators.semantic-trace.capture :as capture]
             [propagators.compiler-2.compiler.basis :as basis]
             [propagators.compiler-2.model.operator-value :as operator]
@@ -25,7 +26,8 @@
 (def extension
   (extension/extension-bundle
    {:id :graph.lain-editor.display/display
-    :bindings [['display
+    :bindings [['editor:live-call live-call/live-call]
+               ['display
                 (operator/propagator-operator
                  {:name 'display
                   :input-selector source-ids

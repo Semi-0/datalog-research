@@ -58,3 +58,49 @@ draft.
 Closing a managed view is not test teardown. Tests and health probes must
 explicitly stop temporary owners. `editor/close!` is explicit service teardown and
 stops owned entries, including owners without views.
+
+## Reloading a live definition
+
+The editor palette action **Reload definitions in this session** submits the full
+main source with the current owner generation. The same command can target a
+headless owner.
+
+```json
+{"op":"reload","sessionId":"<sessionId>","generation":"<generation>","source":"<complete revised main source>"}
+```
+
+A successful revision returns its `reloaded` names. The compiler selects a new
+lexical child for future evaluations. The owner, run ID, user ingress cells and
+outstanding callbacks remain live. Each changed binding and its dependent
+network definitions are declared in the same child. The editor also checks
+transitive `load-lain` snapshots. A reload with identical main text can pick up
+an edited imported Lain definition.
+
+An ordinary application already installed in the graph retains its original
+closure. To choose a revision for each incoming request, wire an identified
+packet through `editor:live-call` when declaring the session.
+
+```clojure
+(define request-policy (network [packet] packet))
+(define next-packet (editor:live-call request-policy incoming-packet))
+```
+
+Each incoming finite packet needs a unique, nonempty string `:id`. This site
+captures the packet and callable on first dispatch. Outstanding requests finish
+in their original closure. The live output follows the current request ID, so a
+late completion from an older request cannot overwrite it. An existing Soul
+program can place this site between its conversation request and model input.
+Previously installed ordinary wires continue to use their original closures.
+
+Reload supports adding and editing top-level network and literal definitions
+while preserving callable arity. Changes to installed wiring, removed bindings,
+and changed native primitive artifacts return an error. A rejected revision
+keeps the current generation and the local draft. The palette action changes
+the session source; the editor's Save file action persists a file-backed draft.
+
+The editor service must load the version that provides `reload` and
+`editor:live-call` at startup. Running owners on an older JVM keep their
+existing capabilities. Installing a request boundary for the first time changes
+the wiring and needs an explicit new run. For Soul, one possible initial site
+is `(editor:live-call request-policy (conversation-request chronology))` where
+`request-policy` is a named unary network and its result feeds the model input.

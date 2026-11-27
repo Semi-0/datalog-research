@@ -79,6 +79,8 @@
                    result)
            "extend-from-file" (let [result (file-bridge/extend-file! editors *files* command)]
                                 (graph-layout/close-pane! layouts id) result)
+           "reload" (let [result (editor/reload! editors command)]
+                      (graph-layout/close-pane! layouts id) result)
            "extend" (let [result (editor/extend! editors command)] (graph-layout/close-pane! layouts id) result)
            "spawn-slot" (let [result (editor/spawn-slots! editors command)]
                           (graph-layout/close-pane! layouts id)

@@ -5,6 +5,7 @@
   (:refer-clojure :exclude [run!])
   (:require [graph.lain-editor.workspace.model :as workspace]
             [graph.lain-editor.runtime.display :as display]
+            [graph.lain-editor.runtime.reload :as reload]
             [graph.lain-editor.inspection.retained :as retained-inspection]
             [graph.lain-editor.inspection.semantic-capture :as semantic-capture]
             [graph.lain-editor.stack.primitives :as stack-primitives]
@@ -283,6 +284,25 @@
                                     (update :appliedExtensions conj applied)
                                     (update :committedDeclarations assoc (:id applied) extension))))
       (extend-legacy! editors command))))
+
+(defn reload! [editors {:keys [source generation] :as command}]
+  (let [previous (require-owner editors command)]
+    (require-owned! previous)
+    (require-generation previous generation)
+    (when-not (and (:managed previous) (string? source))
+      (throw (ex-info "Live reload requires a managed compiler session and source" {})))
+    (let [boundary (compiler-host/boundary-for (:session previous))
+          current (compiler-host/current-session boundary)
+          committed (get-in previous [:committedDeclarations "base"])
+          prepared (reload/prepare (or *source-root* ".") committed source)
+          forms (reload/changes committed prepared)]
+      (when (seq forms)
+        (let [{:keys [extension frame]} (reload/revision current forms)]
+          (compiler-host/extend-in-child! boundary extension frame)))
+      (let [entry (if (and (empty? forms) (= source (:source previous))) previous
+                      (-> previous (assoc :source source :generation (str (random-uuid)))
+                          (assoc-in [:committedDeclarations "base"] prepared)))]
+        (assoc (publish-owner! editors entry) :reloaded (mapv (comp str second) forms))))))
 
 (defn remove-extension! [editors {:keys [generation extensionId] :as command}]
   (let [previous (require-owner editors command)]
