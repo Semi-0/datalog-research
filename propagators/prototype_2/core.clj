@@ -42,6 +42,7 @@
             [propagators.prototype-2.runner :as runner]
             [propagators.prototype-2.runner-constructor :as runner-ctor]
             [propagators.prototype-2.session :as session]
+            [propagators.prototype-2.amb :as amb]
             [propagators.prototype-2.support-tag :as stag]
             [propagators.prototype-2.trace-ops :as trace]
             [propagators.prototype-2.types :as t]
@@ -243,3 +244,26 @@
 (def install-compatible?-prop stag/install-compatible?-prop)
 (def install-combine-support-prop stag/install-combine-support-prop)
 (def install-dominates?-prop stag/install-dominates?-prop)
+
+;; dependence-directed amb (+ subworld solve)
+(def amb-initial-choice amb/initial-choice)
+(def amb-chosen amb/chosen)
+(def amb-stamp amb/stamp)
+(def amb-learn amb/learn)
+(def amb-decide amb/decide)
+(def amb-apply-repair amb/apply-repair)
+(def amb-require-bool amb/require-bool)
+(def amb-solve amb/solve)
+(def amb-solve-choices amb/solve-choices)
+(def amb-solve-worlds amb/solve-worlds)
+(def amb-pythagorean amb/pythagorean)
+(def amb-pythagorean-l2 amb/pythagorean-l2)
+(def amb-pythagorean-subworlds amb/pythagorean-subworlds)
+(def amb-pythagorean? amb/pythagorean?)
+(def l2-pythagorean-forms amb/l2-pythagorean-forms)
+(def install-amb-chosen-prop amb/install-amb-chosen-prop)
+(def install-amb-support-prop amb/install-amb-support-prop)
+(def install-require-bool-prop amb/install-require-bool-prop)
+(def install-learn-prop amb/install-learn-prop)
+(def install-backtrack-prop amb/install-backtrack-prop)
+(def install-apply-repair-prop amb/install-apply-repair-prop)

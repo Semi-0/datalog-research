@@ -65,6 +65,7 @@
             [propagators.prototype-2.p-list :as plist]
             [propagators.prototype-2.primitives :as prim]
             [propagators.prototype-2.session :as session]
+            [propagators.prototype-2.amb :as amb]
             [propagators.prototype-2.support-tag :as stag]
             [propagators.prototype-2.trace-ops :as trace]
             [propagators.prototype-2.types :as t]))
@@ -209,8 +210,10 @@
   '#{quote define network do if apply current-world revive observe open next fill})
 
 (def primitive-ops
-  #{'+ '- '* '/ 'cons 'car 'cdr 'empty-list? 'eq? 'origins 'neighbors
-    'compatible? 'combine-support 'dominates? 'open})
+  #{'+ '- '* '/ '<= 'and? 'cons 'car 'cdr 'empty-list? 'eq? 'origins 'neighbors
+    'compatible? 'combine-support 'dominates? 'open
+    'amb-chosen 'amb-support 'require-bool 'learn 'backtrack 'apply-repair
+    'repair-choices 'repair-unsat?})
 
 (defn- free-symbols
   "Symbols in `form` not bound by `params` / inner lambdas / specials."
@@ -382,6 +385,8 @@
           '-  (arith/install-sub network (arg-cells 0) (arg-cells 1) out)
           '*  (arith/install-mul network (arg-cells 0) (arg-cells 1) out)
           '/  (arith/install-div network (arg-cells 0) (arg-cells 1) out)
+          '<= (arith/install-le network (arg-cells 0) (arg-cells 1) out)
+          'and? (lists/install-and?-prop network (arg-cells 0) (arg-cells 1) out)
           'cons (lists/install-cons-prop network (arg-cells 0) (arg-cells 1) out)
           'car  (lists/install-car-prop network (arg-cells 0) out)
           'cdr  (lists/install-cdr-prop network (arg-cells 0) out)
@@ -392,6 +397,14 @@
           'compatible? (stag/install-compatible?-prop network (arg-cells 0) (arg-cells 1) out)
           'combine-support (stag/install-combine-support-prop network (arg-cells 0) (arg-cells 1) out)
           'dominates? (stag/install-dominates?-prop network (arg-cells 0) (arg-cells 1) out)
+          'amb-chosen (amb/install-amb-chosen-prop network (arg-cells 0) out)
+          'amb-support (amb/install-amb-support-prop network (arg-cells 0) out)
+          'require-bool (amb/install-require-bool-prop network (arg-cells 0) (arg-cells 1) out)
+          'learn (amb/install-learn-prop network (arg-cells 0) (arg-cells 1) (arg-cells 2) out)
+          'backtrack (amb/install-backtrack-prop network (arg-cells 0) (arg-cells 1) out)
+          'apply-repair (amb/install-apply-repair-prop network (arg-cells 0) (arg-cells 1) out)
+          'repair-choices (amb/install-repair-choices-prop network (arg-cells 0) (arg-cells 1) out)
+          'repair-unsat? (amb/install-repair-unsat?-prop network (arg-cells 0) out)
           'open (throw (ex-info "open takes no args" {}))
           _ (throw (ex-info "unknown primitive" {:op op})))]
     (with-result state network out)))
@@ -669,9 +682,11 @@
   TTMS concurrency via `compatible?` / `combine-support` / `dominates?`.
   Grow spines outside-in with `open` / `next` / `fill`.
 
-  `(supported-map f xss)` — `f` is a Church fn; `xss` is a list of reactive
-  spines. Zips cars: all supports compatible → `(apply f bases)` + combine;
-  else skip; open car/cdr stays pending (GUR). Stable `(define out …)` root."
+  TMS merge is an L-2 recursive reducer over the spine (no cell overwrite):
+    `tms-reduce` / `tms-scan` / `tms-project` / `tms-merge`
+  Amb/require/repair publish *tips* onto spines; `switch` gates projected bases.
+
+  `(supported-map f xss)` — Church fn over a list of spines."
   '[(define (tip rx) (car rx))
     (define (obs-base o) (car o))
     (define (obs-support o) (cdr o))
@@ -737,7 +752,96 @@
         (supported-plus shared left)
         (if (compatible? (obs-support (tip shared)) (obs-support (tip right)))
           (supported-plus shared right)
-          ())))])
+          ())))
+
+    ;; --- TMS merge as recursive L-2 reducers (intermediates = reactive tips) ---
+    (define (tms-better? a b)
+      (dominates? (obs-support a) (obs-support b)))
+    (define (tms-reduce f acc rx)
+      (if (empty-list? rx)
+        acc
+        (tms-reduce f (f acc (car rx)) (cdr rx))))
+    ;; Partial folds as a spine — each car is an intermediate merge state
+    (define (tms-scan f acc rx)
+      (if (empty-list? rx)
+        ()
+        (cons (f acc (car rx))
+              (tms-scan f (f acc (car rx)) (cdr rx)))))
+    (define (tms-step best cand)
+      (if (tms-better? cand best) cand best))
+    (define (tms-project rx)
+      (if (empty-list? rx)
+        ()
+        (tms-reduce tms-step (car rx) (cdr rx))))
+    (define (tms-merge rx obs)
+      (tms-project (extend rx obs)))
+    ;; Oldest-first scan including the seed observation as first intermediate
+    (define (tms-scan-obs rx)
+      (if (empty-list? rx)
+        ()
+        (cons (car rx) (tms-scan tms-step (car rx) (cdr rx)))))
+
+    ;; --- In-network amb/require/switch via tip publish (no cell overwrite) ---
+    (define (supported-under v s)
+      (extend () (observation v s)))
+    (define (world-observation v s)
+      (observation v s))
+    (define (amb-tip decision)
+      (observation (amb-chosen decision) (amb-support decision)))
+    (define (amb-publish rx decision)
+      (extend rx (amb-tip decision)))
+    (define (require-rx ok? s)
+      (supported-under (require-bool ok? s) s))
+    (define (switch cond? v)
+      (if cond? v ()))
+    (define (switch-rx cond? v s)
+      (if cond? (supported-under v s) ()))
+    (define (backtrack-unless ok? decision knowledge)
+      (apply-repair decision
+                    (backtrack (cons decision ())
+                               (learn knowledge
+                                      (require-bool ok? (amb-support decision))
+                                      (cons decision ())))))
+    ;; One repair round: publish old tip, repair, publish new tip, project
+    (define (amb-repair-step choice-rx decision knowledge ok?)
+      (tms-project
+       (amb-publish (amb-publish choice-rx decision)
+                    (backtrack-unless ok? decision knowledge))))
+
+    ;; --- Propagator-sense DDB (tip publish + L-2 recursion, no host solve loop) ---
+    (define (choices3 ca cb cc)
+      (cons ca (cons cb (cons cc ()))))
+    (define (support3 ca cb cc)
+      (combine-support (amb-support ca)
+                       (combine-support (amb-support cb) (amb-support cc))))
+    (define (pyth-ok? ca cb cc)
+      (and? (<= (amb-chosen ca) (amb-chosen cb))
+            (and? (<= (amb-chosen cb) (amb-chosen cc))
+                  (eq? (+ (* (amb-chosen ca) (amb-chosen ca))
+                          (* (amb-chosen cb) (amb-chosen cb)))
+                       (* (amb-chosen cc) (amb-chosen cc))))))
+    (define (ddb-pyth-continue ca cb cc kn attempts cert)
+      (define kn2 (learn kn cert (choices3 ca cb cc)))
+      (define req (backtrack (choices3 ca cb cc) kn2))
+      (if (repair-unsat? req)
+        ()
+        (do
+          (define cs (repair-choices (choices3 ca cb cc) req))
+          (ddb-pyth (car cs) (car (cdr cs)) (car (cdr (cdr cs))) kn2 attempts))))
+    (define (ddb-pyth ca cb cc kn attempts)
+      (define ok? (pyth-ok? ca cb cc))
+      (define attempts2
+        (extend attempts
+                (observation (cons (amb-chosen ca)
+                                   (cons (amb-chosen cb)
+                                         (cons (amb-chosen cc) ())))
+                             (support3 ca cb cc))))
+      (if ok?
+        (cons (amb-chosen ca)
+              (cons (amb-chosen cb)
+                    (cons (amb-chosen cc) ())))
+        (ddb-pyth-continue ca cb cc kn attempts2
+                           (require-bool ok? (support3 ca cb cc)))))])
 
 (defn- compile-do
   [state forms]

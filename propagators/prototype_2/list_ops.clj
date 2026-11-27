@@ -75,3 +75,11 @@
   "Primitive: when both sides concrete, write `(= a b)` to `out`."
   [network a b out]
   (ctor/pending-propagator-constructor network = [[a b] out]))
+
+(defn install-and?-prop
+  "Primitive boolean and (for DDB constraints without one-shot `if`)."
+  [network a b out]
+  (ctor/pending-propagator-constructor
+   network
+   (fn [x y] (boolean (and x y)))
+   [[a b] out]))

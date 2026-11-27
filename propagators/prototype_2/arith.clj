@@ -17,8 +17,12 @@
 (defn install-div [network a b out]
   (ctor/pending-propagator-constructor network (binop /) [[a b] out]))
 
+(defn install-le [network a b out]
+  (ctor/pending-propagator-constructor network (binop <=) [[a b] out]))
+
 (def installers
   {'+ install-add
    '- install-sub
    '* install-mul
-   '/ install-div})
+   '/ install-div
+   '<= install-le})
