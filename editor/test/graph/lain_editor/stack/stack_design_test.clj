@@ -16,13 +16,13 @@
     (data/payload (net/network-cell-strongest network id))))
 
 (deftest struct-stack-design-is-an-executable-partial-specification
-  (let [source (str "(def-cells struct stack-slot stack-shape? scope-content? direct-expansions? "
-                    "reference-integrity? root-compound-node compound-occurrence content-of-scope "
-                    "direct-compound-expansions occurrence-identity begin-traversal "
-                    "traversal-empty? take-pending pending-work pending-remaining "
-                    "pending-occurrence discovered-occurrence? register-occurrence "
-                    "connect-reference connect-expansion-outputs "
-                    "enqueue-expansion-work finish-traversal traversal-result)\n"
+  (let [endpoints '[struct stack-slot stack-shape? scope-content?
+                       direct-expansions? reference-integrity? root-compound-node compound-occurrence
+                       content-of-scope direct-compound-expansions occurrence-identity begin-traversal
+                       traversal-empty? take-pending pending-work pending-remaining
+                       pending-occurrence discovered-occurrence? register-occurrence connect-reference
+                       connect-expansion-outputs enqueue-expansion-work finish-traversal traversal-result]
+        source (str (apply str (map #(format "(define %s (let-cell [port] port))\n" %) endpoints))
                     (slurp "examples/lain/top_down/stack-design.lain"))
         session (:session (editor/prepare source []))]
     (try

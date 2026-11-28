@@ -43,8 +43,8 @@
 
 (deftest functional-top-level-tracing-quiesces-and-reruns-idempotently
   (let [session (bounded #(loader/load-session-from-source
-                          "(define input 2) (define copied)
-                           (<-> input copied) (define roots) (define projected)
+                          "(define input 2) (define copied (let-cell [port] port))
+                           (<-> input copied) (define roots (let-cell [port] port)) (define projected (let-cell [port] port))
                            (relationship:roots input roots)
                            (relationship:dataflow roots projected)" options))
         state @session
@@ -85,7 +85,7 @@
 
 (def reload-prefix
   "(define increment (network (x) (+ x 1)))
-   (define input 2) (define output) (define roots) (define projected)")
+   (define input 2) (define output (let-cell [port] port)) (define roots (let-cell [port] port)) (define projected (let-cell [port] port))")
 
 (def reload-trace
   "(relationship:roots input output roots)
@@ -97,7 +97,7 @@
     (try
       (spit file (str reload-prefix "(-> (increment input) output)" reload-trace))
       (spit replacement
-            (str reload-prefix "(define intermediate)
+            (str reload-prefix "(define intermediate (let-cell [port] port))
                  (-> (increment input) intermediate)
                  (-> (increment intermediate) output)" reload-trace))
       (let [session (loader/load-session-from-file file options)

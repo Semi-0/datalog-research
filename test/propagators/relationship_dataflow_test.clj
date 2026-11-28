@@ -60,7 +60,7 @@
 
 (deftest fan-out-retains-expression-result
   (let [state @(loader/load-session-from-source
-                "(define a) (define b) (define c) (define raw) (define semantic)
+                "(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define c (let-cell [port] port)) (define raw (let-cell [port] port)) (define semantic (let-cell [port] port))
                  (<-> 1 a)
                  (let-cell [v] (-> (+ a 1) v) (-> v b) (-> v c))
                  (relationship:roots a raw)
@@ -71,7 +71,7 @@
     (is (contains? edges ['+ 'v]))))
 
 (deftest projection-follows-cell-updates-and-environment-replacement
-  (let [source "(define a) (define b) (define raw) (define semantic)
+  (let [source "(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define raw (let-cell [port] port)) (define semantic (let-cell [port] port))
                 (-> (+ a 1) b)
                 (relationship:roots a raw)
                 (relationship:dataflow raw semantic)"
@@ -178,10 +178,10 @@
 
 (deftest if-selected-operator-is-a-semantic-input-to-the-dynamic-call
   (doseq [[flag expected] [["true" 5] ["false" 8]]]
-    (let [source (str "(define flag " flag ") (define input 4) (define result)
+    (let [source (str "(define flag " flag ") (define input 4) (define result (let-cell [port] port))
                        (-> ((if flag (network [x] (+ x 1))
                                      (network [x] (* x 2))) input) result)
-                       (define raw) (define semantic)
+                       (define raw (let-cell [port] port)) (define semantic (let-cell [port] port))
                        (relationship:roots input raw)
                        (relationship:dataflow raw semantic)")
           session (loader/load-session-from-source source options)
@@ -199,9 +199,9 @@
 (deftest returned-member-values-reach-their-caller-cells
   (let [source "(define stats (network [x y sum product]
                   (-> (+ x y) sum) (-> (* x y) product) (list sum product)))
-                (define sum) (define product) (define result)
+                (define sum (let-cell [port] port)) (define product (let-cell [port] port)) (define result (let-cell [port] port))
                 (stats 3 4 sum product) (-> (+ sum product) result)
-                (define raw) (define semantic)
+                (define raw (let-cell [port] port)) (define semantic (let-cell [port] port))
                 (relationship:roots sum raw) (relationship:dataflow raw semantic)"
         session (loader/load-session-from-source source options)
         graph (graph-value @session 'semantic)

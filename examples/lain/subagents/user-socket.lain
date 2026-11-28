@@ -22,12 +22,12 @@
 
 ;; Session-extension policies normalize identified, ordered command facts.
 ;; Submission/reorder enrich assignment facts; cancellation becomes a control.
-(define socket:normalize-commands)
-(define user:derive-assignments)
-(define user:derive-controls)
-(define user:describe-commands)
-(define user:describe-assignments)
-(define socket:encode-feedback)
+(define socket:normalize-commands (let-cell [port] port))
+(define user:derive-assignments (let-cell [port] port))
+(define user:derive-controls (let-cell [port] port))
+(define user:describe-commands (let-cell [port] port))
+(define user:describe-assignments (let-cell [port] port))
+(define socket:encode-feedback (let-cell [port] port))
 
 (define user:accept-commands
   (network [commands assignment-facts controls]

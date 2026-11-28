@@ -6,7 +6,7 @@
 (define memory-not-settled (admit-workers? true false true true))
 (define reserve-crossed (admit-workers? true true false true))
 (define sandbox-not-verified (admit-workers? true true true false))
-(define unknown-unload)
+(define unknown-unload (let-cell [port] port))
 (define pending-admission (admit-workers? unknown-unload true true true))
 
 (define result

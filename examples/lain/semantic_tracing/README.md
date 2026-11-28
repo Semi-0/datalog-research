@@ -20,7 +20,7 @@ graph cell to `display` and composes through arbitrarily named Lain wrappers.
 The existing `relationship:roots-semantic`, `relationship:roots`, and
 `relationship:dataflow` APIs remain available.
 
-Each program declares its result cells with `def-cells`. Declarations and
+Each program names its results with initialized `define` forms. Declarations and
 expressions occupy separate lines, with blank lines between logical sections.
 The observed input binding varies by program. `display` sends the returned graph
 to the current pane and reveals Topology automatically. The editor displays

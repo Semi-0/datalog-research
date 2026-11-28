@@ -1,10 +1,4 @@
-(define a)
-
-(define result)
-
-(define raw)
-
-(define semantic)
+(define a (let-cell [port] port))
 
 (define step
   (network [x]
@@ -14,8 +8,8 @@
   (network [x]
     (step (step x))))
 
-(-> (pair a) result)
+(define result (pair a))
 
-(relationship:roots a raw)
+(define raw (relationship:roots a))
 
-(relationship:dataflow raw semantic)
+(define semantic (relationship:dataflow raw))

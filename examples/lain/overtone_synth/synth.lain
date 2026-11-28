@@ -1,6 +1,6 @@
 ;; Canonical functional-network compiler. Sound executes only at io:audio.
-(define pulse)
-(define activation-log)
+(define pulse (let-cell [port] port))
+(define activation-log (let-cell [port] port))
 (define clock (network (pulse) pulse))
 (define melody (network (tick) (note-hz tick)))
 (define envelope
@@ -13,11 +13,10 @@
 (define note (voice (envelope frequency tick)))
 (define receipt (output note))
 
-(define relationships)
-(define dataflow)
+(define relationships (let-cell [port] port))
 ;; Observe each public stage boundary explicitly, including identity-return stages.
 (relationship:roots pulse tick frequency note receipt relationships)
-(relationship:dataflow relationships dataflow)
+(define dataflow (relationship:dataflow relationships))
 (define melody-body (body-snapshot (occurrence-of melody tick) tick))
 (define timing (activation-timeline activation-log))
 (define current-note (note-window note))

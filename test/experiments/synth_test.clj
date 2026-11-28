@@ -113,7 +113,7 @@
   (let [backend (backend)]
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Candidate must wait"
           (synth/candidate
-           "(define pulse) (define activation-log)
+           "(define pulse (let-cell [port] port)) (define activation-log (let-cell [port] port))
             (io:audio (note-data :lead 440 1 0.18 0.08))" backend)))
     (is (empty? @(:notes backend)))))
 

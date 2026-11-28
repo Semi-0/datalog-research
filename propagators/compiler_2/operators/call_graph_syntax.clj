@@ -4,7 +4,7 @@
 
 (defn- declaration-names [expr]
   (case (ast/type expr)
-    :def [(ast/name expr)]
+    (:def :cell-declaration) [(ast/name expr)]
     :sequence (mapcat declaration-names (ast/body expr))
     (:literal :symbol :apply :if :let :let-cell :when-topology :network
      :compound :def-net :def-constraint) []
@@ -24,7 +24,7 @@
                 [(ast/condition expr) (ast/then-expression expr) (ast/else-expression expr)])
       :when-topology [(child (ast/condition expr) bound) (child (ast/body expr) bound)]
       :def (if-let [body (ast/body expr)] [(child body bound)] [])
-      (:network :compound :def-net :def-constraint :literal :symbol) []
+      (:network :compound :def-net :def-constraint :literal :symbol :cell-declaration) []
       (throw (ex-info "Unsupported call-graph syntax" {:type (ast/type expr)})))))
 
 (defn call-sites [expr bound]

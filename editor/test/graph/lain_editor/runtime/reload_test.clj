@@ -10,7 +10,7 @@
 
 (deftest reload-pins-old-applications-and-selects-a-child-for-future-source
   (let [editors (atom {})
-        source "(define delayed) (define f (network [n] (+ n 1))) (define call-f (network [n] (f n))) (define in-flight (call-f delayed))"
+        source "(define delayed (let-cell [port] port)) (define f (network [n] (+ n 1))) (define call-f (network [n] (f n))) (define in-flight (call-f delayed))"
         revised (.replace source "(+ n 1)" "(+ n 2)")
         run (server/command! editors {:op "run" :pane "p" :source source})
         owner (host/boundary-for (:session (editor/require-pane editors "p")))
@@ -37,7 +37,7 @@
 
 (deftest running-site-uses-new-revision-on-next-packet
   (let [editors (atom {})
-        src "(define wait) (define packet) (define route (network [req] wait)) (define output (editor:live-call route packet))"
+        src "(define wait (let-cell [port] port)) (define packet (let-cell [port] port)) (define route (network [req] wait)) (define output (editor:live-call route packet))"
         run (server/command! editors {:op "run" :pane "p" :source src})
         owner (host/boundary-for (:session (editor/require-pane editors "p")))
         current #(host/current-session owner)
@@ -74,7 +74,7 @@
 
 (deftest reload-preserves-a-pending-callback-and-user-history
   (let [editors (atom {}) command #(server/command! editors %)
-        src "(define fetch) (define chat-log) (define route (network [req] (fetch req))) (define packet) (define result (editor:live-call route packet))"
+        src "(define fetch (let-cell [port] port)) (define chat-log (let-cell [port] port)) (define route (network [req] (fetch req))) (define packet (let-cell [port] port)) (define result (editor:live-call route packet))"
         revised (.replace src "(fetch req)" "42")
         run (command {:op "run" :pane "p" :source src})
         owner (host/boundary-for (:session (editor/require-pane editors "p")))

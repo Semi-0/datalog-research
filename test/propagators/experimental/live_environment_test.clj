@@ -182,7 +182,7 @@
                 session
                 {:source (str "(define first-version (network [v] (+ v 1))) "
                               "(define second-version (network [v] (+ v 2))) "
-                              "(define selected) (define argument) "
+                              "(define selected (let-cell [port] port)) (define argument (let-cell [port] port)) "
                               "(define answer (selected argument))")}))))
     (let [operator-id (binding-id @session 'selected)
           argument-id (binding-id @session 'argument)
@@ -221,7 +221,7 @@
 (deftest persistent-submissions-share-an-environment
   (let [session (runtime/new-session)
         first-load (runtime/extend-source!
-                    session {:source "(define x) (define y (+ x 1))"})
+                    session {:source "(define x (let-cell [port] port)) (define y (+ x 1))"})
         initial-net (:program/net @session)
         second-load (runtime/extend-source! session {:source "(-> 10 x)"})
         third-load (runtime/extend-source! session {:source "(define z (* y 2))"})]
@@ -235,7 +235,7 @@
     (runtime/install-session-extension! session ttms/session-extension
                                         {:outbox-id (runtime-ids/boundary-outbox-id)})
     (is (nil? (:error (runtime/extend-source!
-                      session {:source "(define x) (define y (+ x 1))"}))))
+                      session {:source "(define x (let-cell [port] port)) (define y (+ x 1))"}))))
     (let [initial {:session @session :source (binding-id @session 'x)}
           first-state (publish initial 10 1 :active)
           second-state (publish first-state 20 2 :active)

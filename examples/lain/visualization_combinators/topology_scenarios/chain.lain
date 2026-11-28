@@ -1,19 +1,11 @@
-(define a)
+(define a (let-cell [port] port))
 
-(define b)
+(define b (let-cell [port] port))
 
-(define middle)
+(define middle (+ a b))
 
-(define result)
+(define result (* middle b))
 
-(define raw)
+(define raw (relationship:roots a))
 
-(define semantic)
-
-(-> (+ a b) middle)
-
-(-> (* middle b) result)
-
-(relationship:roots a raw)
-
-(relationship:dataflow raw semantic)
+(define semantic (relationship:dataflow raw))

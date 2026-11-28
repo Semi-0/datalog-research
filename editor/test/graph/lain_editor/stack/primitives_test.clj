@@ -86,7 +86,7 @@
     (data/payload (net/network-cell-strongest network id))))
 
 (deftest live-struct-fields-refine-and-conflict-independently
-  (let [source (str "(def-cells struct input) "
+  (let [source (str "(define struct (let-cell [port] port)) (define input (let-cell [port] port)) "
                     "(-> stack:struct struct) "
                     "(define candidate (struct (list (list :x input) (list :y 2)))) "
                     "(define x (p:slot :x candidate)) "
@@ -207,11 +207,11 @@
                 set)))))
 
 (deftest supported-traversal-operators-produce-readable-stack-fields
-  (let [source (str "(def-cells struct stack-slot begin-traversal traversal-empty? "
-                    "take-pending pending-work pending-remaining pending-occurrence "
-                    "discovered-occurrence? register-occurrence "
-                    "connect-reference connect-expansion-outputs "
-                    "enqueue-expansion-work finish-traversal traversal-result)\n"
+  (let [endpoints '[struct stack-slot begin-traversal traversal-empty?
+                       take-pending pending-work pending-remaining pending-occurrence
+                       discovered-occurrence? register-occurrence connect-reference connect-expansion-outputs
+                       enqueue-expansion-work finish-traversal traversal-result]
+        source (str (apply str (map #(format "(define %s (let-cell [port] port))\n" %) endpoints))
                     (slurp "examples/lain/top_down/stack/structure.lain") "\n"
                     (slurp "examples/lain/top_down/stack/traversal-state.lain") "\n"
                     "(-> stack:struct struct) (-> stack:stack-slot stack-slot) "

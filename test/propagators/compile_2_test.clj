@@ -1230,19 +1230,15 @@
 
 (deftest compile-2-parser-supports-definition-receipts
   (let [defined (parse "(define answer (+ 1 2))")
-        waiting (parse "(define signal)")
+        waiting (parse "(define signal (let-cell [port] port))")
         literal-nil (parse "(define signal nil)")]
     (is (= :def (ast/type defined)))
     (is (= 'answer (ast/name defined)))
     (is (= :apply (ast/type (ast/body defined))))
-    (is (nil? (ast/body waiting)))
+    (is (= :cell-declaration (ast/type waiting)))
+    (is (= 'signal (ast/name waiting)))
     (is (= :literal (ast/type (ast/body literal-nil))))
     (is (nil? (ast/value (ast/body literal-nil)))))
-  (let [declarations (parse "(def-cells x y)")]
-    (is (= :sequence (ast/type declarations)))
-    (is (= '[x y] (mapv ast/name (ast/body declarations))))
-    (is (every? #(and (= :def (ast/type %)) (nil? (ast/body %)))
-                (ast/body declarations))))
   (doseq [source ["(def x 1)" "(def-cell x)"]]
     (is (thrown? clojure.lang.ExceptionInfo (parse source))))
   (is (thrown? clojure.lang.ExceptionInfo (parse "(define inc [x] (+ x 1))"))))
@@ -1261,8 +1257,9 @@
                     "(let-network [x] x)"
                     "(let-compound [x] x)"]]
       (is (= :apply (ast/type (parse source))) source)))
-  (testing "retired behavior spellings are not runtime declarations"
-    (doseq [source ["(def-behavior a)"
+  (testing "retired spellings are not runtime declarations"
+    (doseq [source ["(def-cells a b)"
+                    "(def-behavior a)"
                     "(def-behaviours a b)"
                     "(define-behaviors a b)"]]
       (is (false? (program-source/top-level-declaration? source)) source)))
@@ -1298,7 +1295,7 @@
       (is (= '[a b] (ast/inputs (ast/body constraint-ast))))))
   (testing "invalid def-constraint syntax reports parser errors"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"define expects"
+                          #"define requires"
                           (parse "(define 1 (network [a] a (list a)))")))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"was removed"
@@ -1383,8 +1380,8 @@
 (deftest compile-2-presence-when-delays-body-topology
   (testing "when compiles the condition immediately and installs body topology only after a usable value"
     (let [expr (ast/sequence*
-                (parse "(define trigger)")
-                (parse "(define out)")
+                (parse "(define trigger (let-cell [port] port))")
+                (parse "(define out (let-cell [port] port))")
                 (parse "(when trigger (-> 1 out))")
                 (parse "out"))
           compiled (compile-expr expr)
@@ -1480,13 +1477,13 @@
     (let [named-value (compile-source "(define answer (+ 1 2))")
           named-value-net (run-compiled named-value)
           answer-id (compiled-binding-id named-value 'answer)
-          free-def (compile-source "(define signal)")
+          free-def (compile-source "(define signal (let-cell [port] port))")
           signal-id (compiled-binding-id free-def 'signal)
-          free-def-cell (compile-source "(define signal)")
+          free-def-cell (compile-source "(define signal (let-cell [port] port))")
           free-def-cell-id (compiled-binding-id free-def-cell 'signal)
-          free-def-cells (compile-expr (ast/sequence* (parse "(define a)") (parse "(define b)")))
-          a-id (compiled-binding-id free-def-cells 'a)
-          b-id (compiled-binding-id free-def-cells 'b)
+          named-ports (compile-expr (ast/sequence* (parse "(define a (let-cell [port] port))") (parse "(define b (let-cell [port] port))")))
+          a-id (compiled-binding-id named-ports 'a)
+          b-id (compiled-binding-id named-ports 'b)
           expr-cell (compile-source "(let-cell [out] (define inc (network [x] (+ x 1))) (<-> (inc 4) out) out)")
           named-cell (compile-source "(let-cell [out] (define inc (network [x] (+ x 1))) (<-> (inc 4) out) out)")
           expr-cell-net (run-compiled expr-cell)
@@ -1891,7 +1888,7 @@
 
 (deftest compile-2-definition-refines-unresolved-operator-cell
   (testing "a later definition refines the waiting operator and activates the retained application"
-    (let [a-def (compile-source "(define a)")
+    (let [a-def (compile-source "(define a (let-cell [port] port))")
           early (compile-source "(inc 1 a)"
                                 (:env a-def)
                                 {:net (:net a-def)})
@@ -2175,7 +2172,7 @@
                       'tms-insert
                       (tms-insert-fact-operator)
                       0)
-        compiled (compile-source "(let-cell [] (define value :yes) (define premise :from-pair) (define tms) (define pair (cons value premise)) (tms-insert tms (car pair) (cdr pair)) tms)"
+        compiled (compile-source "(let-cell [] (define value :yes) (define premise :from-pair) (define tms (let-cell [port] port)) (define pair (cons value premise)) (tms-insert tms (car pair) (cdr pair)) tms)"
                                  env)
         n0 (run-compiled compiled)
         result-id (addressed-cell-id n0 (:cell compiled))
@@ -2200,7 +2197,7 @@
                                (tms-premise-epoch-operator false)
                                0))
         setup (compile-source
-                    "(let-cell [] (define p-one :definition/plus-one) (define p-ten :definition/plus-ten) (define one-believe 0) (define ten-believe 0) (define tms) (premise-out tms 6 p-one) (premise-out tms 15 p-ten) (believe-premise p-one one-believe tms) (believe-premise p-ten ten-believe tms) tms)"
+                    "(let-cell [] (define p-one :definition/plus-one) (define p-ten :definition/plus-ten) (define one-believe 0) (define ten-believe 0) (define tms (let-cell [port] port)) (premise-out tms 6 p-one) (premise-out tms 15 p-ten) (believe-premise p-one one-believe tms) (believe-premise p-ten ten-believe tms) tms)"
                     base-env
                     {:net net/empty-net})
         n0 (run-compiled setup)
@@ -2447,7 +2444,7 @@
                        (let [compiled (compile-source source env {:net network})]
                          [compiled (run-compiled compiled)]))
         [setup n0] (compile-step
-                    "(let-cell [] (define p-left :premise/left) (define p-right :premise/right) (define tms) (believe-premise p-left 0 tms) (believe-premise p-right 0 tms) (claim-left 28 tms) (claim-right 36 tms) tms)"
+                    "(let-cell [] (define p-left :premise/left) (define p-right :premise/right) (define tms (let-cell [port] port)) (believe-premise p-left 0 tms) (believe-premise p-right 0 tms) (claim-left 28 tms) (claim-right 36 tms) tms)"
                     base-env
                     net/empty-net)
         env0 (compiled-result-env setup)

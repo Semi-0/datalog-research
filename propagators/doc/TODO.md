@@ -91,7 +91,8 @@ Status: reproduced on 2026-10-25; deferred, not fixed.
 
 ```clojure
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
-(def-cells left right)
+(define left (let-cell [port] port))
+(define right (let-cell [port] port))
 (<-> left right)
 (display (trace:root-semantic left))
 ```
@@ -143,16 +144,10 @@ applications.
 In a fresh versioned TUI client:
 
 ```clojure
-(def-cells first-result second-result graph)
-
-(def-net inc1 [x] [result]
-  (<-> (+ x 1) result))
-
-(inc1 4 first-result)
-
-(inc1 10 second-result)
-
-(call-graph inc1 graph)
+(define inc1 (network [x] (+ x 1)))
+(define first-result (inc1 4))
+(define second-result (inc1 10))
+(define graph (call-graph inc1))
 ```
 
 Expected reflective result:

@@ -23,7 +23,6 @@ or the external effect execution boundary.
 ```text
 expression := literal
             | symbol
-            | (define symbol)
             | (define symbol expression)
             | (network parameters expression+)
             | (let [symbol expression ...] expression+)
@@ -36,8 +35,10 @@ expression := literal
 parameters := (symbol* [& symbol]) | [symbol* [& symbol]]
 ```
 
-`nil` is a literal. An omitted definition value is distinct from a literal
-`nil`. A source entry point reads exactly one form. `compile-program` compiles
+`define` requires an expression, which can be the literal `nil`. Use `let-cell`
+for local wiring. To expose a writable endpoint, use `(define input (let-cell [port] port))`.
+The compiler binds the endpoint itself and installs no copy propagator.
+A source entry point reads exactly one form. `compile-program` compiles
 nonempty ordered reader forms in a shared environment.
 
 There is no `do` form. Bodies contain ordered expressions and return the final
@@ -79,12 +80,12 @@ inspectable receipt immediately. Propagation supplies the target's information.
 
 ```clojure
 (let []
-  (define answer)
+  (define answer (let-cell [port] port))
   (define answer 42)
   answer)
 ```
 
-Both definitions refer to the same target. Conflicting information follows the
+The named port and the initialized definition refer to the same target. Conflicting information follows the
 existing cell/TMS merge rules; a later definition does not silently replace it.
 
 ```clojure
@@ -290,7 +291,8 @@ registered handler, records success/failure receipts, and prevents replay.
 Removed forms fail with migration guidance. There is no runtime conversion:
 
 ```text
-def / def-cell / def-cells -> define
+def                      -> define with an initializer
+def-cell                 -> a returned let-cell for a named port, let-cell for private wiring
 cell-expr / ::            -> network with a body return
 def-net / compound        -> define + network
 explicit output vectors  -> ordinary parameters + explicit connections + list
@@ -332,8 +334,9 @@ These are bounded acceptance scenarios, not an all-context equivalence proof
 or a claim that every compound-object traversal is supported. Publication and
 complete suite outcomes are recorded in the migration verification report.
 
-Literal `nil` and explicit `(define x nil)` are distinct from an omitted value.
-They do not imply general `nil` transport through every operator: the fixed
+`(define x nil)` supplies the literal `nil`. A port declared with `(define x (let-cell [port] port))`
+can remain pending until a producer supplies a value.
+Literal initialization does not imply general `nil` transport through every operator: the fixed
 readiness/value-projection path does not currently produce a selected `nil`
 primitive branch, and `when nil` is unsupported. Changing that requires a
 separate review of the shared value/readiness contract.

@@ -2,10 +2,8 @@
   "propagators/compiler_2/runtime/lain/tracers.lain")
 
 (define input 4)
-(def-cells shifted result)
-
-(-> (+ input 1) shifted)
-(-> (* shifted shifted) result)
+(define shifted (+ input 1))
+(define result (* shifted shifted))
 
 (display
   (trace:downstream-retained input))

@@ -56,7 +56,7 @@
                   :choose "(choose flag left-object right-object)")) relays))
 
 (defn nested-program [kind relays accessor]
-  (str "(def-cells flag left-value right-value unrelated)
+  (str "(define flag (let-cell [port] port)) (define left-value (let-cell [port] port)) (define right-value (let-cell [port] port)) (define unrelated (let-cell [port] port))
         (define relay (network [x] x))
         (define choose (network [condition left right] (if condition left right)))
         (define left-object (struct :nested (struct :value left-value :unrelated unrelated)))
@@ -133,7 +133,7 @@
 
 (deftest predicates-distinguish-pending-empty-and-nonempty-lists
   (let [loaded (load-session
-                "(define unavailable)
+                "(define unavailable (let-cell [port] port))
                  (define pending-network (network? unavailable))
                  (define pending-value (value? unavailable))
                  (define pending-empty (empty-list? unavailable))
@@ -159,7 +159,7 @@
 (deftest selected-open-prefix-grows-when-a-live-source-tail-arrives
   (doseq [transport [:membership :publication]]
     (let [loaded (load-session
-                  "(def-cells flag later)
+                  "(define flag (let-cell [port] port)) (define later (let-cell [port] port))
                    (define selected (if flag (cons 1 later) (list 10)))
                    (define first (car selected))
                    (define tail (cdr selected))
@@ -183,7 +183,7 @@
 (deftest selected-explicit-open-tail-stays-pending-until-it-is-closed
   (doseq [transport [:membership :publication]]
     (let [loaded (load-session
-                  "(def-cells flag short-tail)
+                  "(define flag (let-cell [port] port)) (define short-tail (let-cell [port] port))
                    (define selected (if flag (list 1 2) (cons 10 short-tail)))
                    (define head (car selected))
                    (define tail (cdr selected))
@@ -211,7 +211,7 @@
   (doseq [transport [:membership :publication]]
     (testing transport
       (let [loaded (load-session
-                    "(define flag)
+                    "(define flag (let-cell [port] port))
                      (define selected (if flag (list 1 2 3) (list 10)))
                      (define head (car selected))
                      (define tail (cdr selected))

@@ -1,17 +1,11 @@
-(define condition)
+(define condition (let-cell [port] port))
 
-(define a)
+(define a (let-cell [port] port))
 
-(define b)
+(define b (let-cell [port] port))
 
-(define result)
+(define result (select condition a b))
 
-(define raw)
+(define raw (relationship:roots condition))
 
-(define semantic)
-
-(-> (select condition a b) result)
-
-(relationship:roots condition raw)
-
-(relationship:dataflow raw semantic)
+(define semantic (relationship:dataflow raw))

@@ -73,7 +73,7 @@
   (doseq [factory ["slot" "history"]]
     (testing factory
       (let [unknown (session
-                     (str "(define configuration)
+                     (str "(define configuration (let-cell [port] port))
                            (define answer (" factory " configuration))"))
             contradictory (session
                            (str "(define answer (" factory " :bool4/contradiction))"))]
@@ -87,7 +87,7 @@
 
 (deftest structs-declare-connected-partial-endpoints
   (let [loaded (session
-                "(def-cells incoming feedback untouched)
+                "(define incoming (let-cell [port] port)) (define feedback (let-cell [port] port)) (define untouched (let-cell [port] port))
                  (define object (struct :incoming incoming :feedback feedback
                                         :untouched untouched))
                  (define read-input ((slot :incoming) object))
@@ -108,7 +108,7 @@
 
 (deftest nested-structs-preserve-writeback-to-the-original-cell
   (let [loaded (session
-                "(define result)
+                "(define result (let-cell [port] port))
                  (define framework (struct :harbor (struct :observations result)))
                  (-> 7 (|> framework (slot :harbor) (slot :observations)))
                  (define empty (struct))")]
@@ -135,7 +135,7 @@
       (is (= expected (binding-value (session source) 'answer))))))
 
 (deftest a-pipe-remains-connected-to-a-deferred-stage
-  (let [loaded (session "(define stage) (define answer (|> 3 stage))")]
+  (let [loaded (session "(define stage (let-cell [port] port)) (define answer (|> 3 stage))")]
     (is (value/nothing? (binding-value loaded 'answer)))
     (let [update (loader/load-source! loaded
                   "(-> (network [x] (+ x 2)) stage)")]
@@ -148,7 +148,7 @@
                    (network [framework]
                      (-> 42 (|> framework (slot :answer)))
                      (list framework)))
-                 (define framework)
+                 (define framework (let-cell [port] port))
                  (write-protocol framework)
                  (define answer (p:slot :answer framework))")]
     (is (= 42 (binding-value loaded 'answer))
@@ -165,7 +165,7 @@
             "(p:slot :answer (p:slot :nested framework))"]]]
     (testing endpoint
       (let [loaded (session
-                    (str "(define framework)
+                    (str "(define framework (let-cell [port] port))
                           (define unseen (|> framework (slot :unseen)))
                           (-> 42 " endpoint ")
                           (define selected " endpoint ")
@@ -179,7 +179,7 @@
 (deftest accessor-endpoints-can-share-information-between-partial-components
   (let [loaded (session
                 "(define position-of (slot :position))
-                 (def-cells left right)
+                 (define left (let-cell [port] port)) (define right (let-cell [port] port))
                  (<-> (position-of left) (position-of right))
                  (-> 42 (position-of left))
                  (define answer (position-of right))")]
@@ -196,13 +196,13 @@
         (is (value/nothing? answer))
         (is (= expected answer)))))
   (let [loaded (session
-                "(define predicate)
+                "(define predicate (let-cell [port] port))
                  (define answer (|> 7 (switch predicate)))")]
     (is (value/nothing? (binding-value loaded 'answer)))))
 
 (deftest predicate-gates-react-to-new-information
   (let [loaded (session
-                "(define permission)
+                "(define permission (let-cell [port] port))
                  (define predicate (network [x] permission))
                  (define answer (|> 7 (switch predicate)))")]
     (is (value/nothing? (binding-value loaded 'answer)))
@@ -278,7 +278,7 @@
                 "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
                  (define first-framework (make-evaluation-framework))
                  (define second-framework (make-evaluation-framework))
-                 (define incoming)
+                 (define incoming (let-cell [port] port))
                  (<-> incoming (assignments first-framework))
                  (define first-assignment (assignments first-framework))
                  (define other-assignment (assignments second-framework))
@@ -298,8 +298,8 @@
                   (checked-load! library-source)
                   (checked-load!
                    "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
-                    (define order)
-                    (define results)
+                    (define order (let-cell [port] port))
+                    (define results (let-cell [port] port))
                     (define harbor (make-harbor))
                     (define framework (evaluation-framework-from-harbor harbor))
                     (<-> (struct :order order :results results) (assignments framework))
@@ -330,7 +330,7 @@
                     "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
                      (define harbor (make-harbor))
                      (define framework (evaluation-framework-from-harbor harbor))
-                     (define runner-result)
+                     (define runner-result (let-cell [port] port))
                      (<-> runner-result (assignment-result framework))
                      (define grading-input (harbor:requests harbor))"))]
     (is (value/nothing? (binding-value loaded 'grading-input)))
@@ -350,7 +350,7 @@
                    (checked-load!
                     "(load-lain \"examples/lain/subagents/composition.lain\")
                      (define execute-assignment (slot :commands))
-                     (define order)
+                     (define order (let-cell [port] port))
                      (<-> (struct :order order) (assignments user))
                      (define offered ((slot :order) ((slot :commands) runtime)))
                      (define graded-input ((slot :execution) (harbor:requests harbor)))
@@ -372,13 +372,13 @@
            ["(-> 5 c) (-> 3 b)" ['a 2]]
            ["(-> 5 c) (-> 2 a)" ['b 3]]]]
     (let [loaded (session
-                  (str "(def-cells a b c)
+                  (str "(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define c (let-cell [port] port))
                         (constraint:+ a b c) " known))]
       (is (= (second expected) (binding-value loaded (first expected)))))))
 
 (deftest predicate-gates-retract-obsolete-supported-truth
   (let [loaded (session
-                "(define permission)
+                "(define permission (let-cell [port] port))
                  (define predicate (network [x] permission))
                  (define answer (|> 7 (switch predicate)))")]
     (publish! loaded 'permission ::permission 0 true)
@@ -392,7 +392,7 @@
   (let [loaded (session
                 "(define position-of (slot :position))
                  (define retain (history 2))
-                 (define owner)
+                 (define owner (let-cell [port] port))
                  (define recent (|> 1 retain))
                  (-> 42 (position-of owner))
                  (define answer (position-of owner))")
@@ -409,8 +409,8 @@
 
 (deftest importing-the-library-in-another-session-preserves-existing-gates
   (let [first-session (session
-                       "(define incoming)
-                        (define permission)
+                       "(define incoming (let-cell [port] port))
+                        (define permission (let-cell [port] port))
                         (define predicate (network [x] permission))
                         (define filtered (|> incoming (switch predicate)))
                         (define legacy (switch incoming permission))")]
@@ -466,8 +466,8 @@
     (is (thrown? Exception (history/new-recording capacity)))))
 
 (deftest incoming-value-history-is-bounded-reactive-and-session-local
-  (let [source "(define incoming)
-                (define other-incoming)
+  (let [source "(define incoming (let-cell [port] port))
+                (define other-incoming (let-cell [port] port))
                 (define retain (history 5))
                 (define recent (|> incoming retain))
                 (define other (|> other-incoming retain))"

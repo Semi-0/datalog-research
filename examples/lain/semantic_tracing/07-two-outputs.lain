@@ -8,10 +8,11 @@
     (-> (* x y) product)
     (list sum product)))
 
-(def-cells sum product result)
+(define sum (let-cell [port] port))
+(define product (let-cell [port] port))
 
 (stats 3 4 sum product)
-(-> (+ sum product) result)
+(define result (+ sum product))
 
 (display
   (observe-dependents-retained sum))

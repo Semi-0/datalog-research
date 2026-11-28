@@ -13,7 +13,7 @@
     (testing (str tracer " " root)
       (let [editors (atom {})
             source (str "(load-lain \"propagators/compiler_2/runtime/lain/tracers.lain\")\n"
-                        "(define queue)\n"
+                        "(define queue (let-cell [port] port))\n"
                         "(define consumed (consume-task agents queue))\n"
                         "(define consume-task (network [agents queue] (+ queue 1)))\n"
                         "(display (" tracer " " root "))")]

@@ -159,16 +159,16 @@
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A"
-                                        :text "(define a)"})
+                                        :text "(define a (let-cell [port] port))"})
     (let [view (runtime/read-tui-view @session {:client-id "A"})]
-      (is (= "(define a)" (get-in view [:blocks 0 :value])))
+      (is (= "(define a (let-cell [port] port))" (get-in view [:blocks 0 :value])))
       (is (nil? (get-in @session [:program/results ["A" 0] :error]))))))
 
 (deftest explicit-block-at-target-displays-nothing
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A"
-                                        :text "(define a)"})
+                                        :text "(define a (let-cell [port] port))"})
     (runtime/append-tui-block! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A"})
     (runtime/edit-tui-block! session {:client-id "A"
@@ -267,8 +267,8 @@
 #_(deftest be-block-target-expression-displays-latest-update
     (let [session (assembly/new-session)]
       (runtime/register-tui! session {:client-id "A"})
-      (runtime/append-tui-block! session {:client-id "A" :text "(define events)"})
-      (runtime/append-tui-block! session {:client-id "A" :text "(define out)"})
+      (runtime/append-tui-block! session {:client-id "A" :text "(define events (let-cell [port] port))"})
+      (runtime/append-tui-block! session {:client-id "A" :text "(define out (let-cell [port] port))"})
       (runtime/append-tui-block!
        session
        {:client-id "A"
@@ -306,7 +306,7 @@
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A"
-                                        :text "(define a)\n(define out)"})
+                                        :text "(define a (let-cell [port] port))\n(define out (let-cell [port] port))"})
     (runtime/append-tui-block! session {:client-id "A"
                                         :text "(-> (+ a 1) out)"})
     (runtime/append-tui-block! session {:client-id "A"
@@ -616,9 +616,9 @@
 (deftest tui-slider-panel-events-feed-default-arithmetic
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(define a)\n(define b)\n(define c)\n(define d)"
+    (doseq [source ["(define a (let-cell [port] port))\n(define b (let-cell [port] port))\n(define c (let-cell [port] port))\n(define d (let-cell [port] port))"
                     "(-> (- (+ a c) b) d)"
-                    "(define g)"
+                    "(define g (let-cell [port] port))"
                     "(trace d g)"
                     "(io:xr g)"
                     "(io:slider-panels a b c)"
@@ -655,7 +655,7 @@
 (deftest tui-slider-panel-events-feed-nested-derived-event-arithmetic
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [source ["(define a)\n(define b)\n(define c)\n(define d)\n(define e)"
+    (doseq [source ["(define a (let-cell [port] port))\n(define b (let-cell [port] port))\n(define c (let-cell [port] port))\n(define d (let-cell [port] port))\n(define e (let-cell [port] port))"
                     "(-> (+ a (- b c)) e)"
                     "(-> e (block 3))"
                     "(io:slider-panels a b c)"]]
@@ -711,7 +711,7 @@
 (deftest block-target-rejects-non-empty-past-block
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(define occupied)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define occupied (let-cell [port] port))"})
     (runtime/append-tui-block! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A"})
     (is (thrown-with-msg?
@@ -726,7 +726,7 @@
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A"
-                                        :text "(define a)"})
+                                        :text "(define a (let-cell [port] port))"})
     (runtime/append-tui-block! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A"})
     (runtime/edit-tui-block! session {:client-id "A"
@@ -843,7 +843,7 @@
   ;; Compile the shared fixture once; every test owns a fresh session atom.
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime/append-tui-block! session {:client-id "A" :text "(define x0)"})
+    (runtime/append-tui-block! session {:client-id "A" :text "(define x0 (let-cell [port] port))"})
     (doseq [i (range 1 11)]
       (runtime/append-tui-block!
        session
@@ -891,7 +891,7 @@
     (runtime/register-tui! session {:client-id "A"})
     (runtime/register-tui! session {:client-id "B"})
     (runtime/append-tui-block! session {:client-id "A"
-                                        :text "(define a)"})
+                                        :text "(define a (let-cell [port] port))"})
     (runtime/append-tui-block! session {:client-id "A"})
     (runtime/append-tui-block! session {:client-id "A"})
     (runtime/edit-tui-block! session {:client-id "A"
@@ -933,7 +933,7 @@
     (let [session (assembly/new-session)]
       (xr/xr-extend-graph!
        session
-       {:source "(define events)\n(define retained)\n(define out)\n(define retain (network [acc update full] (behavior-add-event acc update full) (list full)))\n(behavior-event 6 2 events)\n(behavior events retain (behavior-empty-state) retained)\n(<-> (+ retained retained) out)"})
+       {:source "(define events (let-cell [port] port))\n(define retained (let-cell [port] port))\n(define out (let-cell [port] port))\n(define retain (network [acc update full] (behavior-add-event acc update full) (list full)))\n(behavior-event 6 2 events)\n(behavior events retain (behavior-empty-state) retained)\n(<-> (+ retained retained) out)"})
       (let [labels (set (map :label (:nodes (xr/graph->json (:graph @session)))))]
         (is (not-any? #(str/starts-with? % "slot generic/") labels))
         (is (not-any? #(str/starts-with? % "slot method/") labels))
@@ -983,7 +983,7 @@
     (runtime/register-tui! session {:client-id "A"})
     (dotimes [_ 10]
       (runtime/append-tui-block! session {:client-id "A"}))
-    (doseq [[index text] [[5 "(define out3)"]
+    (doseq [[index text] [[5 "(define out3 (let-cell [port] port))"]
                           [6 "(define x 1)"]
                           [7 "(<-> (- 3 x) out3)"]
                           [8 "(block-at (instance A) 9 out3)"]]]
@@ -998,8 +998,8 @@
 (deftest translate-primitive-is-bidirectional
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [text ["(define jp)"
-                  "(define en)"
+    (doseq [text ["(define jp (let-cell [port] port))"
+                  "(define en (let-cell [port] port))"
                   "(translate jp en)"
                   "(<-> jp \"猫\")"
                   "(block-at (instance A) 5 en)"]]
@@ -1010,8 +1010,8 @@
       (is (= "cat" (get-in view [:blocks 5 :value])))))
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [text ["(define jp)"
-                  "(define en)"
+    (doseq [text ["(define jp (let-cell [port] port))"
+                  "(define en (let-cell [port] port))"
                   "(translate jp en)"
                   "(<-> en \"dog\")"
                   "(block-at (instance A) 5 jp)"]]
@@ -1024,9 +1024,9 @@
 (deftest blank-target-append-rebuilds-previous-trace-output
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [text ["(define a)"
+    (doseq [text ["(define a (let-cell [port] port))"
                   "(<-> (- 3 1) a)"
-                  "(define g)"
+                  "(define g (let-cell [port] port))"
                   "(trace a :upstream g)"]]
       (runtime/append-tui-block! session {:client-id "A"
                                           :text text}))
@@ -1042,9 +1042,9 @@
 (deftest terminal-trace-coalesces-aliased-target-cell
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [text ["(define a)\n(define b)\n(define c)\n(define d)"
+    (doseq [text ["(define a (let-cell [port] port))\n(define b (let-cell [port] port))\n(define c (let-cell [port] port))\n(define d (let-cell [port] port))"
                   "(-> (- (+ a c) b) d)"
-                  "(define g)"
+                  "(define g (let-cell [port] port))"
                   "(trace d g)"
                   "(-> g (block 5))"]]
       (runtime/append-tui-block! session {:client-id "A"
@@ -1063,9 +1063,9 @@
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
     (runtime/register-tui! session {:client-id "B"})
-    (doseq [text ["(define a)"
+    (doseq [text ["(define a (let-cell [port] port))"
                   "(<-> (- 3 1) a)"
-                  "(define g)"
+                  "(define g (let-cell [port] port))"
                   "(trace a :upstream g)"]]
       (runtime/append-tui-block! session {:client-id "A"
                                           :text text}))
@@ -1080,8 +1080,8 @@
 (deftest trace-block-reacts-to-later-upstream-relationships
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [text ["(define a)"
-                  "(define g)"
+    (doseq [text ["(define a (let-cell [port] port))"
+                  "(define g (let-cell [port] port))"
                   "(trace a :upstream g)"]]
       (runtime/submit-tui-block! session {:client-id "A"
                                           :text text}))
@@ -1099,9 +1099,9 @@
 (deftest submitted-trace-keeps-upstream-literal-constants
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [text ["(define a)"
+    (doseq [text ["(define a (let-cell [port] port))"
                   "(<-> (+ 1 2) a)"
-                  "(define g)"
+                  "(define g (let-cell [port] port))"
                   "(trace a :upstream g)"]]
       (runtime/submit-tui-block! session {:client-id "A"
                                           :text text}))
@@ -1122,10 +1122,10 @@
 (deftest trace-block-reacts-through-intermediate-cell-chain
   (let [session (assembly/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (doseq [text ["(define a)"
-                  "(define b)"
+    (doseq [text ["(define a (let-cell [port] port))"
+                  "(define b (let-cell [port] port))"
                   "(<-> b a)"
-                  "(define g)"
+                  "(define g (let-cell [port] port))"
                   "(trace a :upstream g)"]]
       (runtime/submit-tui-block! session {:client-id "A"
                                           :text text}))

@@ -27,11 +27,11 @@
 ;; Session-extension policies fold identified observations into normalized facts.
 ;; Receipts and uncertain launches participate in request derivation. A request
 ;; is not a launch; the outside interpreter owns deduplication/reconciliation.
-(define pi:normalize-observations)
-(define pi:derive-execution-requests)
-(define pi:derive-control-requests)
-(define pi:derive-completions)
-(define pi:derive-status)
+(define pi:normalize-observations (let-cell [port] port))
+(define pi:derive-execution-requests (let-cell [port] port))
+(define pi:derive-control-requests (let-cell [port] port))
+(define pi:derive-completions (let-cell [port] port))
+(define pi:derive-status (let-cell [port] port))
 
 (define runtime:request-with
   (network [pi]

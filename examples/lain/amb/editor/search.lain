@@ -1,12 +1,13 @@
 (load-primitive-environment "examples/lain/amb/web_editor.clj")
 
 ;; Add (-> (list 1 2) domain) with Extend to start this search.
-(def-cells domain repairs decision)
+(define domain (let-cell [port] port))
+(define decision (let-cell [port] port))
 (define chosen (amb domain repairs decision))
 (define decisions (list decision))
 (define valid (= chosen 2))
 (define failure (require valid))
 (define knowledge (learn failure decisions))
-(-> (backtrack decisions knowledge) repairs)
+(define repairs (backtrack decisions knowledge))
 (define learning (amb:learning-view knowledge))
 (display learning)

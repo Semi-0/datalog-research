@@ -1,6 +1,6 @@
 ;; Independent view-development block: the graph is an intentionally open input.
 ;; No AMB/replay program or dummy implementation is needed to inspect these holes.
-(def-cells traced-network)
+(define traced-network (let-cell [port] port))
 (define target?
   (pred-or (cell-name-eq? 'result)
            (cell-name-eq? 'valid)))

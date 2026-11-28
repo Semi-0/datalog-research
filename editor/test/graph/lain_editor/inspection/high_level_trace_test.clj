@@ -32,7 +32,7 @@
 (deftest pending-source-stays-pending
   (let [result (inspect-source
                 (str "(load-lain \"propagators/compiler_2/runtime/lain/tracers.lain\")\n"
-                     "(def-cells pending)\n"
+                     "(define pending (let-cell [port] port))\n"
                      "(define result (trace:high-level pending \"input\"))"))]
     (is (not= "ready" (:status result)))
     (is (not= "contradiction" (:status result)))))

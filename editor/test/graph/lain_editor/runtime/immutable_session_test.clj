@@ -18,7 +18,7 @@
   (editor/prepare-compiler source []))
 
 (deftest headless-compiler-attachment-extension-detachment-and-rerun
-  (let [source "(define input) (define result (+ input 1))"
+  (let [source "(define input (let-cell [port] port)) (define result (+ input 1))"
         editors (atom {})
         registered (editor/open-session! editors {:source source})
         detached (editor/owner-catalog editors)
@@ -82,7 +82,7 @@
 
 (deftest live-tracers-observe-updates-retraction-and-recovery-without-changing-values
   (let [program "(define step (network [x] (+ x 1)))
-                 (define input) (def-cells output) (-> (step input) output)"
+                 (define input (let-cell [port] port)) (define output (let-cell [port] port)) (-> (step input) output)"
         traced (str "(load-lain \"propagators/compiler_2/runtime/lain/tracers.lain\")\n"
                     program "\n(define trace-result
                     (trace:high-level (trace:semantic input) \"input\" \"output\"))")

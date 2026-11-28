@@ -12,8 +12,7 @@
   (let [inputs (mapv #(symbol (str "input-" (inc %))) (range arity))]
     (str "(define " binding "\n"
          "  (network " (pr-str inputs) "\n"
-         "    (define out)\n"
-         "    out))")))
+         "    (let-cell [out] out)))")))
 
 (defn- unresolved-calls [network]
   (filter (fn [{:keys [operator-id]}]

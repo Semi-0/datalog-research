@@ -4,9 +4,7 @@
 ; binary primitive: 7
 (define left 3)
 (define right 4)
-(def-cells result)
-
-(-> (+ left right) result)
+(define result (+ left right))
 
 (display
   (observe-dependents-retained left))

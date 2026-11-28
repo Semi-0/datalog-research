@@ -37,6 +37,7 @@
    (cps/on predicates/conditional? handlers/compile-conditional)
    (cps/on predicates/when-topology? handlers/compile-when-topology)
    (cps/on predicates/network? handlers/compile-network)
+   (cps/on predicates/cell-declaration? handlers/compile-cell-declaration)
    (cps/on predicates/definition? handlers/compile-def)
    handlers/compile-application))
 

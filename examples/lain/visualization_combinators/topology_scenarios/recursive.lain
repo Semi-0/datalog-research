@@ -1,28 +1,20 @@
 (define down
   (network [a]
-    (define out)
-    (when (switch true (<= a 1))
-      (-> a out))
-    (when (switch true (> a 1))
-      (-> (down (- a 1)) out))
-    out))
+    (let-cell [out]
+      (when (switch true (<= a 1))
+        (-> a out))
+      (when (switch true (> a 1))
+        (-> (down (- a 1)) out))
+      out)))
 
-(define input)
+(define input (let-cell [port] port))
 
-(define result)
+(define other (let-cell [port] port))
 
-(define other)
+(define result (down input))
 
-(define unused)
+(define unused (down other))
 
-(define raw)
+(define raw (relationship:roots input))
 
-(define semantic)
-
-(-> (down input) result)
-
-(-> (down other) unused)
-
-(relationship:roots input raw)
-
-(relationship:dataflow raw semantic)
+(define semantic (relationship:dataflow raw))

@@ -28,7 +28,7 @@
 (deftest headless-views-refresh-and-stale-fences
   (let [views (atom {}) cmd #(server/command! views %)]
     (try
-      (let [opened (cmd {:op "open-session" :source "(define input) (define result (+ input 1))"})
+      (let [opened (cmd {:op "open-session" :source "(define input (let-cell [port] port)) (define result (+ input 1))"})
             id (:sessionId opened) owner (boundary views id)]
         (is (empty? @views))
         (is (every? string? (map opened [:sessionId :runId :generation :lifecycle])))
@@ -168,7 +168,7 @@
 (deftest managed-trace-snapshots-survive-extension-update-and-retraction
   (let [views (atom {}) cmd #(server/command! views %)
         source (str "(load-lain \"propagators/compiler_2/runtime/lain/tracers.lain\") "
-                    "(define step (network [x] (+ x 1))) (define input) (define output (step input)) "
+                    "(define step (network [x] (+ x 1))) (define input (let-cell [port] port)) (define output (step input)) "
                     "(define trace-result (trace:high-level (trace:semantic input) \"input\" \"output\"))")]
     (try
       (let [opened (cmd {:op "open-session" :source source})

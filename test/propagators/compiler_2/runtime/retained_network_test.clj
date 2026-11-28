@@ -54,7 +54,7 @@
                                 (let [result (apply step args)]
                                   (swap! calls conj (:compiled? result)) result))]
       (let [pane (editor/prepare
-                   (str imports "(def-cells input result) (-> (+ input 1) result)
+                   (str imports "(define input (let-cell [port] port)) (define result (let-cell [port] port)) (-> (+ input 1) result)
                          (display (observe-dependents-retained input))") [])]
         (try
           (is (seq (:nodes (result pane))))
@@ -72,7 +72,7 @@
 
 (deftest retained-callback-accepts-ordinary-arguments
   (let [pane (editor/prepare
-               (str imports "(define input 3) (def-cells offset)
+               (str imports "(define input 3) (define offset (let-cell [port] port))
                  (define sample (network (snapshot root n) (+ n 1)))
                  (display (observe-network-retained input sample offset))") [])]
     (try
@@ -152,7 +152,7 @@
            ["(define sum-to (network (n acc) ((if (<= n 0) (network (n acc) acc) (network (n acc) (sum-to (- n 1) (+ acc n)))) n acc)))"
             "(sum-to n 0)" [[2 3] [4 10] [1 1]]]]]
     (let [pane (editor/prepare
-                 (str imports layered-import definitions "(define root 0) (def-cells n)"
+                 (str imports layered-import definitions "(define root 0) (define n (let-cell [port] port))"
                       "(define sample (network (snapshot root n) " expression "))"
                       "(display (observe-network-retained root sample n))") [])]
       (try

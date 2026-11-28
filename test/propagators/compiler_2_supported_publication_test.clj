@@ -20,10 +20,9 @@
 
 (use-fixtures :each acceptance/bounded)
 
-(defn publication-fixture [source-program]
+(defn publication-fixture []
   (let [loaded (fixture/session
-                (str "(define source " source-program ")"
-                     "(define target) (define callable (network [] 1))"))
+                "(define source (let-cell [port] port)) (define target (let-cell [port] port)) (define callable (network [] 1))")
         program @loaded
         network (:program/net program)
         resolve-id #(env/resolve-binding-id network (:program/env program) %)
@@ -39,7 +38,7 @@
 (deftest publication-preserves-supported-bottom-and-contradiction
   (doseq [base [value/nothing value/contradiction]]
     (testing (str base)
-      (let [{:keys [network publisher source target]} (publication-fixture "")
+      (let [{:keys [network publisher source target]} (publication-fixture)
             premise {:source source :timestamp 1 :premises-status :active}
             withdrawn {:source target :timestamp 2 :premises-status :retracted}
             prepared (second
@@ -89,7 +88,7 @@
 (deftest closed-legacy-contract-survives-owner-publication-and-late-tail-completion
   (let [loaded (fixture/session
                 "(define legacy (list 1))
-                 (define open-end)
+                 (define open-end (let-cell [port] port))
                  (define actual (cons 1 (cons 2 open-end)))
                  (define callable (network [] 1))")
         program @loaded

@@ -16,9 +16,6 @@
     (catch Throwable _
       nil)))
 
-(def ^:private declaration-heads
-  '#{define})
-
 (def ^:private boundary-effect-heads
   '#{be:block be:event-block-at translate xr-io io:xr
      slider-io slider-panel-io io:slider io:slider-panel
@@ -34,7 +31,7 @@
     (catch Throwable _ nil)))
 
 (defn top-level-declaration? [source]
-  (contains? declaration-heads (top-level-form-head source)))
+  (= 'define (top-level-form-head source)))
 
 (defn explicit-output-form?
   "True when a form deliberately targets an external/runtime destination.

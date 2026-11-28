@@ -64,7 +64,7 @@ Require `[propagators.compiler-2.session :as s]`.
 - `:files` maps string identities to source strings, **not filesystem paths to read**. Source is parsed when constructing the declaration.
 - `:imports` is a trusted prepared manifest. Normal callers obtain it through `files/prepare-extension!`; do not hand-invent it.
 
-Equal catalogs accumulate without reinstalling existing operators. A new extension ID can produce a new session value while reusing the identical environment/network. Repeating that recorded extension is a no-op. Conflicting primitive/dependency/file/import identities fail. A new primitive cannot replace an existing value-bearing source definition or source alias. A bare `(define name)` can be refined. Supported unresolved lookup reservations are reused so an already-compiled GUR chain can become ready after late installation.
+Equal catalogs accumulate without reinstalling existing operators. A new extension ID can produce a new session value while reusing the identical environment/network. Repeating that recorded extension is a no-op. Conflicting primitive/dependency/file/import identities fail. A new primitive cannot replace an existing value-bearing source definition or source alias. A port declared with `(define name (let-cell [port] port))` can be refined. Supported unresolved lookup reservations are reused so an already-compiled GUR chain can become ready after late installation.
 
 New file identities accumulate. Replacing text under an existing file identity is not an edit operation. Source redefinition conflicts fail; create an explicit fresh program/run when changing declarations rather than weakening global merge rules.
 
@@ -82,7 +82,7 @@ New file identities accumulate. Replacing text under an existing file identity i
       {:id :example
        :primitives {'increment (op/prim-op (fn [make] (make inc)))}
        :files {"main.lain"
-               "(define input) (define result (increment input))"}})))
+               "(define input (let-cell [port] port)) (define result (increment input))"}})))
 (def committed
   (:session (s/advance compiled
               [(s/cell-input (s/binding-cell compiled 'input) 10)])))

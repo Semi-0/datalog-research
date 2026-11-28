@@ -43,11 +43,11 @@
 
 (defn callback-source [execution]
   (case execution
-    :direct "(define seed) (define captured) (define out) (-> (tracked+ seed captured) out)"
-    :compiler-direct "(define seed) (define captured) (define out) (-> (+ seed captured) out)"
+    :direct "(define seed (let-cell [port] port)) (define captured (let-cell [port] port)) (define out (let-cell [port] port)) (-> (tracked+ seed captured) out)"
+    :compiler-direct "(define seed (let-cell [port] port)) (define captured (let-cell [port] port)) (define out (let-cell [port] port)) (-> (+ seed captured) out)"
     :higher-order (slurp "examples/lain/visualization_combinators/tracked_callback.lain")
     :chained
-    "(define seed) (define captured) (define out)
+    "(define seed (let-cell [port] port)) (define captured (let-cell [port] port)) (define out (let-cell [port] port))
      (define transform (network (item)
        (tracked+ (tracked+ item captured) captured)))
      (define apply-transform (network (f item) (f item)))
@@ -122,7 +122,7 @@
 (deftest late-callback-definition
   (let [[item captured] (tracked-inputs)
         running (session
-                 "(define seed) (define captured) (define callback) (define out)
+                 "(define seed (let-cell [port] port)) (define captured (let-cell [port] port)) (define callback (let-cell [port] port)) (define out (let-cell [port] port))
                   (define apply-transform (network (f item) (f item)))
                   (-> (apply-transform callback seed) out)")]
     (swap! running #(-> % (seed 'seed item) (seed 'captured captured)))

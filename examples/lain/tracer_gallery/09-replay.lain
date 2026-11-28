@@ -2,9 +2,7 @@
   "propagators/compiler_2/runtime/lain/tracers.lain")
 
 (define input 4)
-(def-cells result)
-
-(-> (+ input 1) result)
+(define result (+ input 1))
 
 (display
   (trace:history input 0 60000))

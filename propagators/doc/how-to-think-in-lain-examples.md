@@ -49,7 +49,7 @@ sequence. Two independent networks compose into a third.
 ## 2. The three semantic layers: verbs, relations, sentences
 
 * verbs — factories that build transformations (`network`, `struct`, `slot`, `|>`, `compose`);
-* relations — named endpoints that hold information (`def-cells`, `let-cell`, `<->`);
+* relations — endpoints that hold information (`let-cell` for local wiring, `define` for named results, `<->` for bidirectional connections);
 * sentences — statements that connect them (`->`, applications, assertions).
 
 ```lain
@@ -57,7 +57,8 @@ sequence. Two independent networks compose into a third.
 
 (define scale (network [x] (* x 3)))
 (define shift (network [x] (+ x 10)))
-(def-cells raw result)
+(define raw (let-cell [port] port))
+(define result (let-cell [port] port))
 (-> 4 raw)
 (-> (|> raw scale shift) result)
 ;; => result 22
@@ -71,7 +72,9 @@ relationship and two of them are driven.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells total left right)
+(define total (let-cell [port] port))
+(define left (let-cell [port] port))
+(define right (let-cell [port] port))
 (constraint:+ left right total)
 (-> 7 left)
 (-> 5 right)
@@ -86,7 +89,9 @@ and the same answer. Textual order never schedules execution.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b c)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c (let-cell [port] port))
 (-> 3 a)
 (-> (+ a 1) b)
 (-> (* b 2) c)
@@ -96,7 +101,9 @@ and the same answer. Textual order never schedules execution.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b c)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c (let-cell [port] port))
 (-> (* b 2) c)
 (-> 3 a)
 (-> (+ a 1) b)
@@ -112,7 +119,9 @@ questions.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b c)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c (let-cell [port] port))
 (constraint:+ a b c)
 (-> 4 a)
 (-> 6 b)
@@ -123,7 +132,9 @@ questions.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b c)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c (let-cell [port] port))
 (constraint:+ a b c)
 (-> 10 c)
 (-> 4 b)
@@ -139,7 +150,8 @@ never chains.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
 (-> a b)
 (-> 7 a)
 (define forwarded b)
@@ -149,7 +161,8 @@ never chains.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
 (-> a b)
 (-> 7 b)
 (define back-propagated a)
@@ -159,7 +172,8 @@ never chains.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
 (<-> a b)
 (-> 7 b)
 (define coordinated a)
@@ -203,7 +217,8 @@ information.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
 (-> 1 a)
 (-> a b)
 (define answer b)
@@ -218,7 +233,7 @@ arrival order and ignores reevaluation of the same publication.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(define incoming)
+(define incoming (let-cell [port] port))
 (-> 7 incoming)
 (define samples (|> incoming (history 4)))
 ;; => samples [7]
@@ -242,9 +257,9 @@ stages around it, and the gate reacts when evidence arrives later.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(define permission)
+(define permission (let-cell [port] port))
 (define permitted? (network [x] permission))
-(define cleaned)
+(define cleaned (let-cell [port] port))
 (-> 6 cleaned)
 (define answer (|> cleaned (switch permitted?)))
 (define audit-log (|> cleaned (history 4)))
@@ -266,7 +281,7 @@ nothing reaches into its internals.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(define incoming)
+(define incoming (let-cell [port] port))
 (define object (struct :nested (struct :value incoming)))
 (-> 42 (|> object (slot :nested) (slot :value)))
 ;; => incoming 42
@@ -295,7 +310,9 @@ with an assertion.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells width height perimeter)
+(define width (let-cell [port] port))
+(define height (let-cell [port] port))
+(define perimeter (let-cell [port] port))
 (define perimeter-of (network [w h] (* 2 (+ w h))))
 (-> 3 width)
 (-> 4 height)
@@ -313,7 +330,8 @@ justified directions and returns its endpoints as a list.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells x y)
+(define x (let-cell [port] port))
+(define y (let-cell [port] port))
 (-> (+ x 1) y)
 (-> 5 y)
 (define inverse-answer x)
@@ -328,7 +346,8 @@ justified directions and returns its endpoints as a list.
     (-> (+ x 1) y)
     (-> (- y 1) x)
     (list x y)))
-(def-cells x y)
+(define x (let-cell [port] port))
+(define y (let-cell [port] port))
 (next x y)
 (-> 5 y)
 (define inverse-answer x)
@@ -342,7 +361,8 @@ Coordinating a filtered view with its source does not recover the source.
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
 (define keep-positive (network [x] (switch x (> x 0))))
-(def-cells source mirror)
+(define source (let-cell [port] port))
+(define mirror (let-cell [port] port))
 (<-> source (keep-positive source))
 (-> 5 mirror)
 (define recovered source)
@@ -355,7 +375,7 @@ reported, not silently overwritten.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(define c)
+(define c (let-cell [port] port))
 (-> 1 c)
 (-> 2 c)
 (define answer c)
@@ -377,7 +397,9 @@ relationship, preserved boundaries, and an observable inverse question.
     (-> (/ c a) b)
     (list a b c)))
 
-(def-cells price quantity total)
+(define price (let-cell [port] port))
+(define quantity (let-cell [port] port))
+(define total (let-cell [port] port))
 (product price quantity total)
 (-> 4 price)
 (-> 3 quantity)
@@ -395,7 +417,9 @@ relationship, preserved boundaries, and an observable inverse question.
     (-> (/ c a) b)
     (list a b c)))
 
-(def-cells price quantity total)
+(define price (let-cell [port] port))
+(define quantity (let-cell [port] port))
+(define total (let-cell [port] port))
 (product price quantity total)
 (-> 12 total)
 (-> 3 quantity)
@@ -411,7 +435,9 @@ relationship, preserved boundaries, and an observable inverse question.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells left right sum)
+(define left (let-cell [port] port))
+(define right (let-cell [port] port))
+(define sum (let-cell [port] port))
 (constraint:+ left right sum)
 (-> 2 left)
 (-> 3 right)
@@ -463,7 +489,7 @@ process the available prefix and wait for the rest.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/list.lain")
 
-(define tail)
+(define tail (let-cell [port] port))
 (define xs (cons 1 tail))
 (define doubled (map-list (network [x] (* x 2)) xs))
 (define first-value (car doubled))
@@ -505,7 +531,9 @@ relationship; the ports are symmetric even though the source text is not.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/combinator.lain")
 
-(def-cells a b c)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c (let-cell [port] port))
 (constraint:+ a b c)
 (-> 1 a)
 (-> 2 b)
@@ -581,7 +609,7 @@ and add a producer and a consumer. The guide's public session API examples show
 the equivalent host-side extension declarations.
 
 ```lain
-(define input)
+(define input (let-cell [port] port))
 (define result (+ input 1))
 ;; => result :unresolved
 ```
@@ -622,7 +650,9 @@ justified directions.
 ```lain
 (load-lain "propagators/compiler_2/runtime/lain/list.lain")
 
-(def-cells needle haystack result)
+(define needle (let-cell [port] port))
+(define haystack (let-cell [port] port))
+(define result (let-cell [port] port))
 
 (define position-of
   (network [x xs]

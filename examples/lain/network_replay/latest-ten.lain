@@ -3,7 +3,7 @@
 ;; Extend this session with (-> 7 input), then (-> 9 input), to record changes.
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 
-(def-cells input)
+(define input (let-cell [port] port))
 (define result (+ input 1))
 
 (display

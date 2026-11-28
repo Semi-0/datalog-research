@@ -64,7 +64,7 @@ An unresolved head or tail keeps the selector pending. Observing a prefix does
 not establish that it is the complete selection:
 
 ```lisp
-(define tail)
+(define tail (let-cell [port] port))
 (define selected (modifier:select (cons "user" tail)))
 ;; selected is pending here
 (-> (list "runtime") tail)

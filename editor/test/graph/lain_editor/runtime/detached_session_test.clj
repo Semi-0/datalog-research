@@ -11,7 +11,7 @@
 (deftest live-session-ownership-and-failures
   (let [editors (atom {}) detached (atom {}) layouts (atom {}) developments (atom {})
         command! #(server/command! editors layouts developments detached %)
-        source "(define input) (define result (+ input 1))"]
+        source "(define input (let-cell [port] port)) (define result (+ input 1))"]
     (try
       (let [run (command! {:op "run" :pane "a" :source source})
             extended (command! {:op "extend" :pane "a" :generation (:generation run) :source "(-> 10 input)"})

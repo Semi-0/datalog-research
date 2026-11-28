@@ -18,7 +18,7 @@
 
 (deftest plans-callable-slots-without-filling-inputs-or-known-operators
   (let [pane (runtime/prepare
-              "(define queue) (define consumed (consume-task agents queue))
+              "(define queue (let-cell [port] port)) (define consumed (consume-task agents queue))
                (define other (consume-task agents queue))
                (define first (zero)) (define second (one 1))
                (define available (+ 2 3))" [])]
@@ -30,7 +30,7 @@
                 {:name "zero" :inputCount 0 :callCount 1}]
                (:slots planned)))
         (is (empty? (:skipped planned)))
-        (is (= '(define consume-task (network [input-1 input-2] (define out) out))
+        (is (= '(define consume-task (network [input-1 input-2] (let-cell [out] out)))
                (read-string (:source planned))))
         (is (value/nothing? (binding-value pane 'queue)))
         (is (value/nothing? (binding-value pane 'agents)))
@@ -38,7 +38,7 @@
       (finally (runtime/close-session! (:session pane))))))
 
 (deftest spawn-slot-applies-an-ordinary-replayable-extension-once
-  (let [editors (atom {}) source "(define queue) (define consumed (consume-task agents queue))"]
+  (let [editors (atom {}) source "(define queue (let-cell [port] port)) (define consumed (consume-task agents queue))"]
     (try
       (let [{:keys [generation]} (runtime/run! editors {:pane "target" :source source})
             _ (runtime/run! editors {:pane "neighbor" :source source})
@@ -87,7 +87,7 @@
       (finally (runtime/close! editors)))))
 
 (deftest lexical-callable-parameters-are-reported-without-root-definitions
-  (let [pane (runtime/prepare "(define apply-one (network [f] (f 1))) (define callback) (apply-one callback)" [])]
+  (let [pane (runtime/prepare "(define apply-one (network [f] (f 1))) (define callback (let-cell [port] port)) (apply-one callback)" [])]
     (try
       (let [state @(:session pane)
             planned (slots/plan (:program/net state) (:program/env state))]
@@ -114,7 +114,7 @@
     (is (not (:enabled (command document {} false))))
     (is (:enabled (command committed {id "generation"} false)))
     (doseq [changed [(model/update-pane committed id assoc :source "(missing 2)")
-                     (model/update-pane committed id assoc :extensionDraft "(define pending)")
+                     (model/update-pane committed id assoc :extensionDraft "(define pending (let-cell [port] port))")
                      (model/update-pane committed id assoc :extensions ["(define x 1)"] :extensionEdits ["(define x 2)"])
                      (model/update-pane committed id assoc :development true)]]
       (is (not (:enabled (command changed {id "generation"} false)))))

@@ -40,7 +40,7 @@
 
 (deftest graph-inspection-selects-stack-scene-without-semantic-rescanning
   (let [editors (atom {})
-        source (str "(def-cells s0 step work s1 s2 s3 s4 finished result) "
+        source (str "(define s0 (let-cell [port] port)) (define step (let-cell [port] port)) (define work (let-cell [port] port)) (define s1 (let-cell [port] port)) (define s2 (let-cell [port] port)) (define s3 (let-cell [port] port)) (define s4 (let-cell [port] port)) (define finished (let-cell [port] port)) (define result (let-cell [port] port)) "
                     "(stack:begin-traversal :observation :root s0) "
                     "(stack:take-pending s0 step) "
                     "(stack:pending-work step work) "

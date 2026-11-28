@@ -28,7 +28,7 @@ command palette and apply these two extensions in sequence:
 ```
 
 ```clojure
-(def-cells doubled)
+(define doubled (let-cell [port] port))
 
 (-> (* input 2) doubled)
 ```

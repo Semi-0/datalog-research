@@ -9,11 +9,11 @@
 
 (def simple-trace-commands
   [{:op :tui/register :client-id "A"}
-   {:op :tui/append-block :client-id "A" :text "(define a)"}
+   {:op :tui/append-block :client-id "A" :text "(define a (let-cell [port] port))"}
    {:op :tui/append-block :client-id "A" :text "(<-> 2 a)"}
-   {:op :tui/append-block :client-id "A" :text "(define out)"}
+   {:op :tui/append-block :client-id "A" :text "(define out (let-cell [port] port))"}
    {:op :tui/append-block :client-id "A" :text "(-> (+ 1 a) out)"}
-   {:op :tui/append-block :client-id "A" :text "(define g)"}
+   {:op :tui/append-block :client-id "A" :text "(define g (let-cell [port] port))"}
    {:op :tui/append-block :client-id "A" :text "(trace out g)"}])
 
 (defn- elapsed-ms
@@ -171,8 +171,8 @@
   [op]
   [(format "(define-behaviors %s)"
            (str/join " " behavior-graph-channels))
-   "(define out)"
-   "(define g)"
+   "(define out (let-cell [port] port))"
+   "(define g (let-cell [port] port))"
    (format "(io:slider-panel %s)"
            (str/join " " behavior-graph-channels))
    (format "(-> %s out)" (behavior-graph-expr op))
@@ -208,11 +208,11 @@
 
 (defn- slider-cache-sources
   [full?]
-  (cond-> ["(define a)\n(define b)\n(define c)\n(define d)"
+  (cond-> ["(define a (let-cell [port] port))\n(define b (let-cell [port] port))\n(define c (let-cell [port] port))\n(define d (let-cell [port] port))"
            "(-> (- (+ a c) b) d)"
            "(io:slider-panels a b c)"]
     full?
-    (into ["(define g)"
+    (into ["(define g (let-cell [port] port))"
            "(trace d g)"
            "(io:xr g)"
            "(-> d (block 7))"])))
@@ -417,7 +417,7 @@
            #(do
               (doseq [i (range 5)]
                 (runtime-append! session
-                                 (format "(define %s)" (trace-cell-symbol i))))
+                                 (format "(define %s (let-cell [port] port))" (trace-cell-symbol i))))
               (doseq [i (range 5)]
                 (let [before (trace-completions session)]
                   (runtime-append!
@@ -663,7 +663,7 @@
   []
   (let [session (runtime/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime-append-source! session "(define x0)")
+    (runtime-append-source! session "(define x0 (let-cell [port] port))")
     (runtime-append-source! session "(<-> 0 x0)")
     (doseq [i (range 1 101)]
       (runtime-append-source! session
@@ -690,7 +690,7 @@
   []
   (let [session (runtime/new-session)]
     (runtime/register-tui! session {:client-id "A"})
-    (runtime-append-source! session "(define x0)")
+    (runtime-append-source! session "(define x0 (let-cell [port] port))")
     (doseq [i (range 1 101)]
       (runtime-append-source! session
                               (format "(-> (+ %d x%d) x%d)"

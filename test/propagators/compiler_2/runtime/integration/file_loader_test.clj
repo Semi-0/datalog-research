@@ -104,12 +104,12 @@
         (close)))))
 
 (deftest lain-source-normalizer-accepts-consecutive-top-level-forms
-  (is (= ['(define x) '(<-> 1 x)]
-         (loader/source-forms "(define x)\n(<-> 1 x)"))))
+  (is (= ['(define x (let-cell [port] port)) '(<-> 1 x)]
+         (loader/source-forms "(define x (let-cell [port] port))\n(<-> 1 x)"))))
 
 (deftest lain-loader-preserves-block-by-block-def-net-application
   (let [session (assembly/new-session)
-        source "(define clients)\n(runtime:clients clients)\n(define first-client (network [clients out] (p:car out clients) (list out)))\n(define f)\n(first-client clients f)"]
+        source "(define clients (let-cell [port] port))\n(runtime:clients clients)\n(define first-client (network [clients out] (p:car out clients) (list out)))\n(define f (let-cell [port] port))\n(first-client clients f)"]
     (loader/load-source! session source {:client-id "file-test"})
     (runtime/commit-runtime-input! session
                                    {:runtime/input :cell-message
@@ -124,7 +124,7 @@
 (deftest runtime-server-watch-loads-a-fresh-relationship-environment
   (let [temporary (java.io.File/createTempFile "compiler2-watch-server-" ".lain")
         _ (spit temporary
-                "(define a) (define graph) (<-> 1 a) (relationship:roots a graph) (xr:io graph)")
+                "(define a (let-cell [port] port)) (define graph (let-cell [port] port)) (<-> 1 a) (relationship:roots a graph) (xr:io graph)")
         path (.getAbsolutePath temporary)
         opts (#'server/parse-server-args ["--watch" path "--no-dashboard"])
         server-state (binding [server/*temperature-logger-enabled?* false]

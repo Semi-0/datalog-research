@@ -65,7 +65,7 @@
                       "((network [project graph] (project graph)) relationship:dataflow raw)"
                       "(relationship:dataflow raw semantic)"]]
     (let [session (load-observed
-                   (str "(def-cells a b raw semantic) (-> 3 a) (-> (+ a 4) b) "
+                   (str "(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define raw (let-cell [port] port)) (define semantic (let-cell [port] port)) (-> 3 a) (-> (+ a 4) b) "
                         "(relationship:roots a raw) (define result " expression ")")
                    {:extensions [(relationship-xr/extension)]})
           state @session network (:program/net state)
@@ -93,7 +93,7 @@
                       (str "(" name " a output)")
                       (str "(" name " a b output)")]]
     (let [session (load-observed
-                   (str "(def-cells a b output) (-> 3 a) (-> (+ a 4) b) "
+                   (str "(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define output (let-cell [port] port)) (-> 3 a) (-> (+ a 4) b) "
                         "(define result " expression ")")
                    {:extensions [(relationship-xr/extension)]})
           state @session network (:program/net state)
@@ -105,7 +105,7 @@
 
 (deftest direct-semantic-is-the-shared-roots-dataflow-composition
   (let [session (load-observed
-                 "(def-cells a b) (-> 3 a) (-> (+ a 4) b)
+                 "(define a (let-cell [port] port)) (define b (let-cell [port] port)) (-> 3 a) (-> (+ a 4) b)
                   (define raw (relationship:roots a))
                   (define composed (relationship:dataflow raw))
                   (define direct (relationship:roots-semantic a))"
@@ -126,5 +126,5 @@
 
 (deftest observers-reject-missing-seeds
   (doseq [name ["relationship:roots" "relationship:semantic" "relationship:roots-semantic"]]
-    (let [session (load-observed "(def-cells a)" {:extensions [(relationship-xr/extension)]})]
+    (let [session (load-observed "(define a (let-cell [port] port))" {:extensions [(relationship-xr/extension)]})]
       (is (some? (get-in (loader/load-source! session (str "(" name ")")) [:load-result :error]))))))

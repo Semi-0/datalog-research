@@ -27,7 +27,7 @@
       (testing (name label)
         (with-redefs [options environment] (test))))))
 (def source
-  "(define selection)
+  "(define selection (let-cell [port] port))
    (define raw (list 2 3))
    (define values (map (network (x) (tracked+ x 1)) raw))
    (define zoom (map (network (ref) (strongest-of ref)) (sources-of (focus values selection))))

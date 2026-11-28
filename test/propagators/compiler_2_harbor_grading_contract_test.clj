@@ -149,7 +149,7 @@
                        "(load-lain \"examples/lain/subagents/evaluation-framework.lain\")
                         (define harbor (make-harbor))
                         (define framework (evaluation-framework-from-harbor harbor))
-                        (def-cells input result observations)
+                        (define input (let-cell [port] port)) (define result (let-cell [port] port)) (define observations (let-cell [port] port))
                         (<-> input (assignments framework))
                         (<-> result (assignment-result framework))
                         (<-> observations (harbor:observations harbor))

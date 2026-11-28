@@ -37,7 +37,7 @@
   (doseq [ingress [:publication :membership]]
     (testing ingress
       (let [loaded (acceptance/load-session
-                    "(def-cells flag cycle)
+                    "(define flag (let-cell [port] port)) (define cycle (let-cell [port] port))
                      (-> (cons 1 cycle) cycle)
                      (define selected (if flag cycle cycle))
                      (define answer (apply + selected))")]
@@ -104,7 +104,7 @@
   (doseq [ingress [:publication :membership]]
     (testing ingress
       (let [loaded (acceptance/load-session
-                    "(def-cells flag tail)
+                    "(define flag (let-cell [port] port)) (define tail (let-cell [port] port))
                        (define fixed (network [x] (+ x 1)))
                        (define rest (network [& xs] (car xs)))
                        (define selected (if flag fixed rest))
@@ -118,7 +118,7 @@
 (deftest argument-owner-availability-gates-even-a-constant-return
   (doseq [ingress [:publication :membership]]
     (let [loaded (acceptance/load-session
-                  "(def-cells flag unknown-head left-tail right-tail)
+                  "(define flag (let-cell [port] port)) (define unknown-head (let-cell [port] port)) (define left-tail (let-cell [port] port)) (define right-tail (let-cell [port] port))
                    (define selected (if flag (cons unknown-head left-tail)
                                              (cons 9 right-tail)))
                    (define answer (apply (network [x] 42) selected))")]
@@ -132,7 +132,7 @@
   (doseq [ingress [:publication :membership]]
     (testing ingress
       (let [loaded (acceptance/load-session
-                    "(def-cells flag left-value right-value left-tail right-tail)
+                    "(define flag (let-cell [port] port)) (define left-value (let-cell [port] port)) (define right-value (let-cell [port] port)) (define left-tail (let-cell [port] port)) (define right-tail (let-cell [port] port))
                        (define left (cons left-value left-tail))
                        (define right (cons right-value right-tail))
                        (define selected (if flag left right))
@@ -167,7 +167,7 @@
 (deftest unspecified-arity-completion-withdraws-with-its-known-end
   (doseq [ingress [:publication :membership]]
     (let [loaded (acceptance/load-session
-                  "(def-cells end)
+                  "(define end (let-cell [port] port))
                    (define args (cons 2 (cons 3 end)))
                    (define primitive (apply + args))
                    (define fixed (apply (network [x y] (+ x y)) args))")]

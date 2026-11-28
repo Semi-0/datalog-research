@@ -31,7 +31,7 @@
               (runner/compose-advance-transforms runner/*advance-transform*
                                                   (primitives/runner-transform session-id))]
       (loader/load-session-from-source
-       "(define incoming)
+       "(define incoming (let-cell [port] port))
         (define echoed (echo-facts incoming))
         (define selected (current-choice incoming))"
        {:extensions [bundle]}))))
@@ -88,7 +88,7 @@
                           (runner/compose-advance-transforms
                            runner/*advance-transform* (primitives/runner-transform session-id))]
                   (loader/load-session-from-source
-                   "(define left) (define right)
+                   "(define left (let-cell [port] port)) (define right (let-cell [port] port))
                     (define counts (partition-counts left right))"
                    {:extensions [bundle]}))
         publish-port! (fn [symbol log]

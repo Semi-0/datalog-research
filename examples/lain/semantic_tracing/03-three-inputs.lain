@@ -9,9 +9,7 @@
 (define a 2)
 (define b 3)
 (define c 4)
-(def-cells result)
-
-(-> (combine a b c) result)
+(define result (combine a b c))
 
 (display
   (observe-dependents-retained a))

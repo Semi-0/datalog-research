@@ -3,8 +3,10 @@
 ;; content-of-scope: actual semantic nodes and dataflow edges of this occurrence.
 ;; direct-compound-children: immediate compound occurrences, not raw value shapes.
 ;; occurrence-on-path?: compare occurrence identities, not function names.
-(def-cells root-compound-occurrence content-of-scope
-           direct-compound-children occurrence-on-path?)
+(define root-compound-occurrence (let-cell [port] port))
+(define content-of-scope (let-cell [port] port))
+(define direct-compound-children (let-cell [port] port))
+(define occurrence-on-path? (let-cell [port] port))
 
 ;; High-level transformation, with mutually recursive network declarations.
 ;; Missing readers stay unresolved instead of returning dummy empty hierarchies.

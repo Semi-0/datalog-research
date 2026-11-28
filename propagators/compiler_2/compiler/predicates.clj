@@ -19,4 +19,5 @@
 (def compound? (partial kind? :compound))
 (def def-net? (partial kind? :def-net))
 (def def-constraint? (partial kind? :def-constraint))
+(def cell-declaration? (partial kind? :cell-declaration))
 (def definition? (partial kind? :def))

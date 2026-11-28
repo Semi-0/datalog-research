@@ -102,8 +102,10 @@ Default arithmetic is event-current-aware. When any primitive input is event
 content, compiler-2 lifts the scalar operator over compatible active event facts:
 
 ```clojure
-(def-cells a b c d)
-(-> (- (+ a c) b) d)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c (let-cell [port] port))
+(define d (- (+ a c) b))
 (io:slider-panel a b c)
 ```
 

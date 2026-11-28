@@ -1,8 +1,6 @@
 (define left 3)
 (define right 4)
-(def-cells result)
-
-(-> (+ left right) result)
+(define result (+ left right))
 
 (display
   (relationship:with-values

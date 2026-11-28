@@ -155,7 +155,7 @@
 
 (deftest explicit-trace-refreshes-deferred-versioned-semantic-graph
   (let [session (runtime/new-session)
-        sources ["(def-cells a g)"
+        sources ["(define a (let-cell [port] port)) (define g (let-cell [port] port))"
                  "(<-> (- 3 1) a)"
                  "(trace a :upstream g)"]]
     (runtime/register-tui! session {:client-id "A" :mode :versioned-premise})

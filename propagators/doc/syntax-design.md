@@ -1,6 +1,6 @@
 # Compiler-2 Syntax Design
 
-Current checkpoint: 2026-07-10.
+Design checkpoint: 2026-07-10. Some sections record historical forms. See [How to think in Lain](how-to-think-in-lain.md) for the current compiler surface.
 
 Compiler-2 is a propagator-language prototype. The syntax should expose ordinary
 propagator topology, closure/network values, behavior/TMS composition, and
@@ -11,8 +11,7 @@ boundaries.
 
 Implemented compiler-2 surface:
 
-- ordinary application, `let-cell`, `let`, `def`, `def-cell`, `def-cells`,
-  `def-net`, `def-constraint`, `network`, `cell`, and `::`;
+- ordinary application, `define`, `let-cell`, `let`, and `network`;
 - declared-output closure application;
 - pair access through `cons`, `car`, and `cdr`;
 - linked list construction through `list`, lowered to `p:cons` topology;
@@ -135,47 +134,18 @@ Current implementation:
 
 ## Local Cells And Bindings
 
-### `def`
+### Definitions and writable endpoints
 
 ```clojure
-(def signal)
-(def answer (+ 1 2))
-(def inc (:: [x] (+ x 1)))
+(define signal (let-cell [port] port))
+(define answer (+ signal 2))
+(define inc (network [x] (+ x 1)))
 ```
 
-Current implementation:
-
-- `(def name)` creates a named free cell;
-- `(def name expr)` binds `name` directly to the result cell of `expr`;
-- a later `def` with the same name creates a fresh binding rather than mutating
-  an old name cell.
-
-### `def-cell`
-
-```clojure
-(def-cell out)
-(-> (+ 1 2) out)
-```
-
-
-Current implementation:
-
-- `(def-cell name)` is a free-cell declaration, equivalent in binding behavior
-  to `(def name)`;
-- `(def-cell name expr)` lowers directly to the ordinary `def` rule;
-- callable definitions use `(def name (cell-expr [args] body))` or
-  `(def name (:: [args] body))`.
-
-### `def-cells`
-
-```clojure
-(def-cells a b c out)
-```
-
-Current implementation:
-
-- shorthand for repeated free-cell declarations;
-- equivalent to `(def-cell a)`, `(def-cell b)`, etc.
+Each definition has an initializer. Bind a computed expression directly. When
+another component must supply a value later, the first form exposes an initially
+unknown, writable endpoint under the public name `signal`. Use `let-cell` to
+keep intermediate connections local to a computation.
 
 ### `let-cell`
 
@@ -761,7 +731,7 @@ Current implementation:
   reducer-subnet machinery;
 - `be:behavior` and `be:behavior-cell` are implemented aliases for behavior
   construction. `be` stands for behavior;
-- behavior declarations use ordinary `def-cells` plus explicit construction;
+- scoped event and behavior endpoints can be connected inside `let-cell`;
   the parser has no `def-behavior` or `let-behavior` family.
 
 Verified in tests:
@@ -1145,27 +1115,35 @@ Current implementation:
 Example:
 
 ```clojure
-(def-cells a-events a b-events b c-events c out)
+(define a-events (let-cell [port] port))
+(define a (let-cell [port] port))
+(define b-events (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c-events (let-cell [port] port))
+(define c (let-cell [port] port))
 (be:latest a-events a)
 (be:latest b-events b)
 (be:latest c-events c)
 (io:slider-panel a b c)
-(<-> (be:- (be:+ a b) c) out)
+(define out (be:- (be:+ a b) c))
 ```
 
 Plain event-current arithmetic does not require behavior promotion:
 
 ```clojure
-(def-cells a b c d)
-(-> (- (+ a c) b) d)
-(def-cell g)
-(trace d g)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c (let-cell [port] port))
+(define d (- (+ a c) b))
+(define g (let-cell [graph] (trace d graph) graph))
 (io:xr g)
 (io:slider-panels a b c)
 ```
 
 ```clojure
-(def-cells a b c)
+(define a (let-cell [port] port))
+(define b (let-cell [port] port))
+(define c (let-cell [port] port))
 (io:slider-panel-name "mix" a b c)
 ```
 
@@ -1190,22 +1168,21 @@ channels:
 Example:
 
 ```clojure
-(def-cells a-events b-events c-events a b c out widget)
+(define retain-event
+  (network [acc update out]
+    (behavior-add-event acc update out)
+    (list out)))
 
-(def-net retain-event [acc update] [out]
-  (behavior-add-event acc update out))
-
-(behavior a-events retain-event (behavior-empty-state) a)
-(behavior b-events retain-event (behavior-empty-state) b)
-(behavior c-events retain-event (behavior-empty-state) c)
-
-(slider-panel-io "mix"
-  "a" a a-events
-  "b" b b-events
-  "c" c c-events
-  widget)
-
-(<-> (- (+ a b) c) out)
+(let-cell [a-events b-events c-events a b c widget]
+  (behavior a-events retain-event (behavior-empty-state) a)
+  (behavior b-events retain-event (behavior-empty-state) b)
+  (behavior c-events retain-event (behavior-empty-state) c)
+  (slider-panel-io "mix"
+    "a" a a-events
+    "b" b b-events
+    "c" c c-events
+    widget)
+  (- (+ a b) c))
 ```
 
 ## Networking

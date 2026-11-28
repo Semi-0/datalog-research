@@ -38,7 +38,7 @@
 
 (deftest open-tail-is-pending-and-resolves-through-current-live-fields
   (with-program
-    (str "(define pending)\n"
+    (str "(define pending (let-cell [port] port))\n"
          "(define selected (modifier:select (cons \"user\" pending)))")
     (fn [editors run]
       (let [before (inspect-value editors run "selected")]
@@ -53,7 +53,7 @@
 
 (deftest unresolved-selector-head-does-not-become-an-empty-selection
   (with-program
-    "(define pending) (define selected (modifier:select (list pending)))"
+    "(define pending (let-cell [port] port)) (define selected (modifier:select (list pending)))"
     (fn [editors run]
       (is (= "waiting" (:status (inspect-value editors run "selected")))))))
 

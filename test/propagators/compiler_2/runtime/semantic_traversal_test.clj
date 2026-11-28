@@ -26,7 +26,7 @@
    (define input 3)
    (define other 9)
    (define unrelated (* other 3))
-   (def-cells result)
+   (define result (let-cell [port] port))
    (-> (+ input right) result)")
 
 (defn- prepare [source]
@@ -136,7 +136,7 @@
   (let [editors (atom {})]
     (try
       (editor/run! editors {:pane "a" :source (str imports
-        "(def-cells input result) (-> (+ input 1) result)
+        "(define input (let-cell [port] port)) (define result (let-cell [port] port)) (-> (+ input 1) result)
          (display (observe-dependents input))")})
       (let [pane (get @editors "a") session (:session pane) root (binding-id pane 'input)]
         (is (contains? (labels (graph pane)) "+"))
@@ -154,13 +154,13 @@
             (is (= #{version} (set (map :timestamp (datum/support-of result))))))
           (is (= size (count (net/net-env (:program/net @session)))))))
         (editor/extend! editors {:pane "a" :generation (:generation pane)
-                                :source "(def-cells doubled) (-> (* result 2) doubled)"})
+                                :source "(define doubled (let-cell [port] port)) (-> (* result 2) doubled)"})
         (is (every? (labels (graph (get @editors "a"))) ["*" "doubled"])))
       (finally (editor/close! editors)))))
 
 (deftest a-co-input-update-refreshes-the-observation
   (let [pane (prepare
-              "(define input 3) (def-cells right result)
+              "(define input 3) (define right (let-cell [port] port)) (define result (let-cell [port] port))
                (-> (+ input right) result)
                (display (observe-dependents input))")]
     (try

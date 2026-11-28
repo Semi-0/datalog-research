@@ -376,7 +376,7 @@
       :effects [intents-effect]})))
 
 (def intents-source
-  "(define emit:in)
+  "(define emit:in (let-cell [port] port))
    (define emit:intents (test:current-intents emit:in))
    (define emit:emitted (test:emit-intents emit:intents))")
 

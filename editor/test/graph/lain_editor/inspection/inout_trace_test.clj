@@ -44,7 +44,7 @@
       (runtime/run! editors {:pane "a" :source
         "(define pair (network [x] (list (+ x 1) (* x 2))))
          (define input 3)
-         (def-cells result)
+         (define result (let-cell [port] port))
          (-> (pair input) result)
          (display (relationship:roots-semantic input))"})
       (let [graph (:graph (inspection/inspect editors (request editors)))]

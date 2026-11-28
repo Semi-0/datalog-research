@@ -185,7 +185,7 @@ form `do` is intentionally not supported.
 | `(def name expr)` | Compile `expr` and define `name` to its binding. |
 | `(def-cell name)` / `(def-cell name expr)` | Storage/value declaration aliases. |
 | `(def name (cell-expr [inputs] body...))` | Define an implicit-output callable cell closure. |
-| `(def-cells a b ...)` | Lower to a sequence of free cell declarations. |
+| `(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define ... (let-cell [port] port))` | Lower to a sequence of free cell declarations. |
 | `(if condition then else)` | Lower to application of the `if` operator. |
 | `(cond [c1 e1 ... else e])` | Lower recursively to `if`/`switch` applications. |
 
@@ -575,7 +575,7 @@ design for a first-class async worker propagator is documented in
 format for multiple forms. It accepts either consecutive top-level forms:
 
 ```clojure
-(def-cells a b out)
+(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define out (let-cell [port] port))
 (-> 20 a)
 (-> (+ a 10) out)
 ```
@@ -688,7 +688,7 @@ Do not merely register or suppress this suite.
 The live form:
 
 ```clojure
-(def-cells a b c d)
+(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define c (let-cell [port] port)) (define d (let-cell [port] port))
 (-> (+ a 10) c)
 (-> c (block 5))
 (-> 20 a)

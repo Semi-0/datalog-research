@@ -108,7 +108,7 @@
                 "(load-lain \"examples/lain/subagents/user-socket.lain\")
                  (define socket (make-socket))
                  (define actor (user-from-socket socket))
-                 (define incoming)
+                 (define incoming (let-cell [port] port))
                  (<-> incoming (socket:observations socket))
                  (define assignments (user:assignments actor))
                  (define controls (user:controls actor))

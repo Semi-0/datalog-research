@@ -8,7 +8,7 @@
   "(load-lain \"examples/lain/subagents/composition.lain\")")
 
 (def probe-source
-  "(def-cells incoming-order incoming-control observed-status completed-result assessment rejected-command)
+  "(define incoming-order (let-cell [port] port)) (define incoming-control (let-cell [port] port)) (define observed-status (let-cell [port] port)) (define completed-result (let-cell [port] port)) (define assessment (let-cell [port] port)) (define rejected-command (let-cell [port] port))
    (<-> (struct :assignments (struct :order incoming-order)
                 :controls incoming-control
                 :feedback (struct :errors rejected-command))

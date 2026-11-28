@@ -4,7 +4,10 @@
 
 ;; Find positive integer sides with a <= b <= c and a*a + b*b = c*c.
 ;; Extend with (-> (list 3 4 5) domain) to start; at most 3*3*3 combinations.
-(def-cells domain repairs choice-a choice-b choice-c)
+(define domain (let-cell [port] port))
+(define choice-a (let-cell [port] port))
+(define choice-b (let-cell [port] port))
+(define choice-c (let-cell [port] port))
 (define a (amb domain repairs choice-a))
 (define b (amb domain repairs choice-b))
 (define c (amb domain repairs choice-c))
@@ -14,7 +17,7 @@
                    (= (+ (* a a) (* b b)) (* c c))))
 (define failure (require valid))
 (define knowledge (learn failure choices))
-(-> (backtrack choices knowledge) repairs)
+(define repairs (backtrack choices knowledge))
 ;; Gate scalar sides separately; keep the result an ordinary compound list.
 (define triangle (list (switch a valid) (switch b valid) (switch c valid)))
 ;; Root at the constraint's dataflow, not the list container's structure.

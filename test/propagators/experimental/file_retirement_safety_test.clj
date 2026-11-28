@@ -48,14 +48,14 @@
 (deftest bidirectional-cycle-remains-idempotent-across-replacement
   (let [session (runtime/new-session)]
     (load-source session "a" "(define x 10)")
-    (load-source session "b" "(define y) (<-> x y) (define answer (+ y 1))")
+    (load-source session "b" "(define y (let-cell [port] port)) (<-> x y) (define answer (+ y 1))")
     (is (= 11 (payload session 'answer)))
     (load-source session "a" "(define x 20)")
     (is (= 21 (payload session 'answer)))
     (let [before @session]
       (is (= :unchanged (:status (load-source session "a" "(define x 20)"))))
       (is (identical? before @session)))
-    (load-source session "b" "(define y) (<-> x y) (define answer (+ y 2))")
+    (load-source session "b" "(define y (let-cell [port] port)) (<-> x y) (define answer (+ y 2))")
     (is (= 22 (payload session 'answer)))))
 
 (deftest reactive-branch-changes-with-the-replaced-source

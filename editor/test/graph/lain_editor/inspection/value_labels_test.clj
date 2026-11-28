@@ -83,7 +83,7 @@
         "(define decorate relationship:with-values)
          (define combine (network [a b] (+ a b)))
          (define input 3)
-         (def-cells result)
+         (define result (let-cell [port] port))
          (-> (combine input 4) result)
          (display (decorate (relationship:roots-semantic input)))"})
       (let [req (request editors) graph (:graph (inspection/inspect editors req))

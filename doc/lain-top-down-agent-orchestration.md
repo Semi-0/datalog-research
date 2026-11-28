@@ -97,7 +97,7 @@ For example, this is a Lain composition for review, not an implemented agent
 executor. Its three lower-level operations are explicit implementation holes:
 
 ```clojure
-(def-cells required-obligations eligible-work dispatch-requests)
+(define required-obligations (let-cell [port] port)) (define eligible-work (let-cell [port] port)) (define dispatch-requests (let-cell [port] port))
 
 (define plan-step
   (network [goal specification implementations evidence policy]
@@ -112,7 +112,7 @@ executor. Its three lower-level operations are explicit implementation holes:
         (list :proposals proposals)
         (list :dispatch-requests requests)))))
 
-(def-cells goal accepted-specification implementations evidence policy)
+(define goal (let-cell [port] port)) (define accepted-specification (let-cell [port] port)) (define implementations (let-cell [port] port)) (define evidence (let-cell [port] port)) (define policy (let-cell [port] port))
 (define proposed-step
   (plan-step goal accepted-specification implementations evidence policy))
 ```

@@ -14,7 +14,7 @@
 (deftest display-target-observes-a-late-application-result
   (let [session (runtime/new-session)]
     (runtime/register-tui! session {:client-id "display"})
-    (doseq [source ["(define x)" "(define y (+ x 1))" "(-> y (be:block 4))"]]
+    (doseq [source ["(define x (let-cell [port] port))" "(define y (+ x 1))" "(-> y (be:block 4))"]]
       (runtime/append-tui-block! session {:client-id "display" :text source}))
     (let [input (env/resolve-binding-id (:program/net @session) (:program/env @session) 'x)]
       (runtime/commit-runtime-input! session

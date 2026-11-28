@@ -9,7 +9,7 @@ scalar return through a one-way copy boundary.
 ## Reproduction
 
 ```clojure
-(define a)
+(define a (let-cell [port] port))
 (define identity-network (network [x] x))
 (define b (identity-network a))
 (-> 42 b)

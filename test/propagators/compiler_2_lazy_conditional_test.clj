@@ -107,7 +107,7 @@
 (deftest pending-condition-and-branch-switching-use-current-support
   (observe-declarations
    (fn [calls]
-     (let [pane (editor/prepare "(def-cells flag) (define x 7) (define result (if flag (+ x 1) (* x 2)))" [])]
+     (let [pane (editor/prepare "(define flag (let-cell [port] port)) (define x 7) (define result (if flag (+ x 1) (* x 2)))" [])]
        (try
          (is (= value/nothing (base (read-cell pane 'result))))
          (is (not-any? #{'+ '*} @calls))
@@ -132,7 +132,7 @@
   (observe-declarations
    (fn [calls]
      (let [pane (editor/prepare
-                 "(def-cells first-flag second-flag)
+                 "(define first-flag (let-cell [port] port)) (define second-flag (let-cell [port] port))
                   (define result (cond [first-flag (+ 1 2)
                                         second-flag (* 3 4)
                                         else (- 9 1)]))" [])]
@@ -157,7 +157,7 @@
 (deftest contradictory-condition-is-visible-and-can-recover
   (observe-declarations
    (fn [calls]
-     (let [pane (editor/prepare "(def-cells flag) (define result (if flag (+ 1 2) (* 3 4)))" [])]
+     (let [pane (editor/prepare "(define flag (let-cell [port] port)) (define result (if flag (+ 1 2) (* 3 4)))" [])]
        (try
          (publish! pane 'flag 1 value/contradiction :active)
          (is (value/contradiction? (base (read-cell pane 'result))))

@@ -26,6 +26,26 @@
     (is (= 1 (data/payload (s/binding-value second 'x))))
     (is (thrown? Exception (s/extend-session second (s/session-extension {:id :bad :target child :files {"bad" "(define partial 9) (define x 8)"}}))))
     (is (thrown? Exception (s/scoped-binding-cell second child 'partial)))))
+(deftest named-child-ports-remain-local-and-failed-declarations-are-atomic
+  (let [parent (s/extend-session (s/create-session)
+                                 (s/session-extension {:id :parent :files {"parent" "(define x 1)"}}))
+        child (b/stable-node-id :test :child-ports)
+        scoped-session (s/extend-session
+                        parent (s/session-extension
+                                {:id :ports :frames {child {:parent (s/environment parent) :bindings []}}
+                                 :target child :files {"ports" "(define x (let-cell [port] port)) (define y (let-cell [port] port)) (-> 7 x) (-> (+ x 1) y)"}}))]
+    (is (= 1 (data/payload (s/binding-value scoped-session 'x))))
+    (is (= 7 (data/payload (scoped scoped-session child 'x))))
+    (is (= 8 (data/payload (scoped scoped-session child 'y))))
+    (doseq [[source diagnostic] [["(define missing)" #"define requires"]
+                                  ["(def-cells missing)" #"def-cells was removed"]]]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo diagnostic
+                            (s/extend-session
+                             scoped-session
+                             (s/session-extension {:id :invalid :target child
+                                                   :files {"invalid" (str "(define partial 9) " source)}})))))
+    (is (thrown? Exception (s/scoped-binding-cell scoped-session child 'partial)))))
+
 (deftest support-withdrawal-recovery
   (let [base (s/create-session) child (b/stable-node-id :support :child)
         model (b/stable-node-id :model) round (b/stable-node-id :round) emission (b/stable-node-id :emission)
@@ -62,7 +82,7 @@
         ext (s/session-extension {:id :compound :target target :support-cell premise
                                   :cells {premise (stamp premise 1 :active)}
                                   :frames {target {:parent (s/environment base) :bindings []}}
-                                  :files {"compound" "(define direct-out) (-> 40 direct-out) (define out) (define write-port (network [port] (define port 41) port)) (write-port out)
+                                  :files {"compound" "(define direct-out (let-cell [port] port)) (-> 40 direct-out) (define out (let-cell [port] port)) (define write-port (network [port] (define port 41) port)) (write-port out)
                                    (define pair-for (network [x] (list x (+ x 1))))
                                    (define pair (pair-for 2)) (define left (car pair)) (define right (car (cdr pair)))"}})
         before (s/extend-session base ext)

@@ -108,9 +108,10 @@
                body-slot (ast body)}))
 
 (defn def* [name body]
-  (ast-object (cond-> {type-slot :def
-                       name-slot name}
-                (some? body) (assoc body-slot (ast body)))))
+  (ast-object {type-slot :def name-slot name body-slot (ast body)}))
+
+(defn cell-declaration [name]
+  (ast-object {type-slot :cell-declaration name-slot name}))
 
 (defn ast [x]
   (cond

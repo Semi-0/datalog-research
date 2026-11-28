@@ -17,8 +17,8 @@
   (env/resolve-binding-id (:program/net state) (:program/env state) symbol))
 
 (defn- direct-source [n]
-  (str "(def-cells " (str/join " " (map #(str "ref" %) (range n))) ")\n"
-       (str/join "\n" (map #(str "(def out" % " (tracked+ (strongest-of ref" % ") 1))") (range n)))))
+  (str (str/join "\n" (map #(str "(define ref" % " (let-cell [port] port))") (range n))) "\n"
+       (str/join "\n" (map #(str "(define out" % " (tracked+ (strongest-of ref" % ") 1))") (range n)))))
 
 (defn- populate-direct [state n]
   (let [raw (binding-id state 'raw)
@@ -38,10 +38,10 @@
 
 (defn measure [mode n]
   (let [session (loader/load-session-from-source
-                 (str "(def raw (list " (str/join " " (range n)) "))") demo/options)
+                 (str "(define raw (list " (str/join " " (range n)) "))") demo/options)
         before (count (net/net-env (:program/net @session)))
         code (case mode
-               :generic "(def result (map (:: [x] (tracked+ x 1)) raw))"
+               :generic "(define result (map (network [x] (tracked+ x 1)) raw))"
                :direct (direct-source n))
         activations (atom 0)
         start (System/nanoTime)]

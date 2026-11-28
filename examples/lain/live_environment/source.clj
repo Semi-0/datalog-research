@@ -9,7 +9,7 @@
 
 (defn- local-definitions [expression]
   (case (ast/type expression)
-    :def #{(ast/name expression)}
+    (:def :cell-declaration) #{(ast/name expression)}
     :sequence (into #{} (mapcat local-definitions) (ast/body expression))
     #{}))
 
@@ -22,7 +22,7 @@
     (vector? expression) (apply set/union #{} (map #(free-names % bound) expression))
     :else
     (case (ast/type expression)
-      :literal #{}
+      (:cell-declaration :literal) #{}
       :symbol (if (contains? bound (ast/name expression)) #{} #{(ast/name expression)})
       :sequence (apply set/union #{} (map #(free-body % bound) (ast/body expression)))
       :def (free-names (ast/body expression) (conj bound (ast/name expression)))
@@ -47,7 +47,7 @@
   (let [;; A discarded reader sentinel permits an empty/comment-only file.
         forms (pop (source/read-source-forms (str text "\nnil")))
         expressions (mapv parser/parse-form forms)
-        names (mapv ast/name (filter #(= :def (ast/type %)) expressions))]
+        names (vec (mapcat local-definitions expressions))]
     (when-not (= (count names) (count (set names)))
       (throw (ex-info "Duplicate file export" {:exports names})))
     {:forms forms :exports (set names)

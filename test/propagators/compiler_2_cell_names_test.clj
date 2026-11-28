@@ -76,7 +76,7 @@
                        (-> (+ x y) sum)
                        (-> (* x y) product)
                        (list sum product)))")
-                   (compiler/parse-source "(def-cells sum product)")
+                   (compiler/parse-source "(define sum (let-cell [port] port)) (define product (let-cell [port] port))")
                    (compiler/parse-source "(stats 3 4 sum product)")))
         network (completed compiled)
         port-names (set (map #(name-at network %) (vals (outputs/outputs network))))]

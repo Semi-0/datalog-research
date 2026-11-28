@@ -7,8 +7,8 @@
       "id": "values",
       "title": "values",
       "filename": "values.lain",
-      "source": "(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (+ left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic left)))\n",
-      "executedSource": "(define left 3)\n(define right 4)\n(def-cells result)\n\n(-> (+ left right) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic left)))\n",
+      "source": "(define left 3)\n(define right 4)\n(define result (+ left right))\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic left)))\n",
+      "executedSource": "(define left 3)\n(define right 4)\n(define result (+ left right))\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic left)))\n",
       "extensions": [],
       "extensionDraft": "",
       "display": {
@@ -41,8 +41,8 @@
       "id": "layers",
       "title": "layers",
       "filename": "layers.lain",
-      "source": "(define input {:base 7\n               :unit \"ms\"\n               :quality :measured})\n(def-cells result)\n\n(-> (p:slot :base input) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
-      "executedSource": "(define input {:base 7\n               :unit \"ms\"\n               :quality :measured})\n(def-cells result)\n\n(-> (p:slot :base input) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "source": "(define input {:base 7\n               :unit \"ms\"\n               :quality :measured})\n(define result (p:slot :base input))\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "executedSource": "(define input {:base 7\n               :unit \"ms\"\n               :quality :measured})\n(define result (p:slot :base input))\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
       "extensions": [],
       "extensionDraft": "",
       "display": {
@@ -75,8 +75,8 @@
       "id": "pending",
       "title": "pending",
       "filename": "pending.lain",
-      "source": "(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
-      "executedSource": "(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "source": "(define input (let-cell [port] port))\n\n(define result (+ input 1))\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
+      "executedSource": "(define input (let-cell [port] port))\n\n(define result (+ input 1))\n\n(display\n  (relationship:with-values\n    (relationship:roots-semantic input)))\n",
       "extensions": [],
       "extensionDraft": "",
       "display": {

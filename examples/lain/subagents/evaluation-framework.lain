@@ -25,14 +25,14 @@
 
 ;; A session extension supplies pure policy/translation propagators.
 ;; These declarations do not bind a bridge, run Pi, or invoke Harbor.
-(define evaluation:derive-trials)
-(define evaluation:incorporate-results)
-(define evaluation:select-pending-assignment)
-(define evaluation:derive-assignment-updates)
-(define harbor:observe-context)
-(define harbor:observe-assessment)
-(define harbor:prepare)
-(define harbor:grade)
+(define evaluation:derive-trials (let-cell [port] port))
+(define evaluation:incorporate-results (let-cell [port] port))
+(define evaluation:select-pending-assignment (let-cell [port] port))
+(define evaluation:derive-assignment-updates (let-cell [port] port))
+(define harbor:observe-context (let-cell [port] port))
+(define harbor:observe-assessment (let-cell [port] port))
+(define harbor:prepare (let-cell [port] port))
+(define harbor:grade (let-cell [port] port))
 
 ;; Expose the requested fact directly, rather than wrapping it in a list.
 (define harbor:request-preparation

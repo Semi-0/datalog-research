@@ -39,7 +39,7 @@
 
 (deftest eval-waits-for-data-and-connects-live-bindings
   (let [s (r/new-session)]
-    (r/load-source! s "(def-cells operand tail x)
+    (r/load-source! s "(define operand (let-cell [port] port)) (define tail (let-cell [port] port)) (define x (let-cell [port] port))
                        (define scope (current-environment))
                        (define code (cons '+ (cons operand tail)))
                        (define answer (eval code scope))")
@@ -77,7 +77,7 @@
 
 (deftest eval-waits-for-its-environment-and-propagates-conflicts
   (let [s (r/new-session)]
-    (r/load-source! s "(def-cells scope operator)
+    (r/load-source! s "(define scope (let-cell [port] port)) (define operator (let-cell [port] port))
                        (define form (cons operator '(4 3)))
                        (define answer (eval form scope))
                        (-> '+ operator)")

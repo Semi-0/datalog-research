@@ -10,42 +10,24 @@
 
 (define stage
   (network [x]
-    (define out)
-    (-> (square (shift x)) out)
-    out))
+    (square (shift x))))
 
 (define pipeline
   (network [x]
-    (define out)
-    (define middle)
-    (-> (stage x) middle)
-    (-> (stage middle) out)
-    out))
+    (stage (stage x))))
 
-(define source)
+(define source (let-cell [port] port))
 
-(define prepared)
+(define other (let-cell [port] port))
 
-(define left)
+(define prepared (shift source))
 
-(define result)
+(define left (stage prepared))
 
-(define other)
+(define result (pipeline left))
 
-(define unused)
+(define unused (stage other))
 
-(define raw)
+(define raw (relationship:roots source))
 
-(define semantic)
-
-(-> (shift source) prepared)
-
-(-> (stage prepared) left)
-
-(-> (pipeline left) result)
-
-(-> (stage other) unused)
-
-(relationship:roots source raw)
-
-(relationship:dataflow raw semantic)
+(define semantic (relationship:dataflow raw))

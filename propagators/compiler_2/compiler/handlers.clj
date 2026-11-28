@@ -138,23 +138,33 @@
                                           (ast/output expr)
                                           (ast/body expr))))
 
+(defn compile-cell-declaration
+  [compile-k state expr k]
+  (let [name (ast/name expr)
+        path (:path state)]
+    (cps/call compile-k (h/child state :definition-target) (ast/sym name)
+              (fn [compiled port]
+                (let [declared (-> compiled
+                                   (assoc :path path)
+                                   (update :net env/consume-reserved-binding (:env state) name
+                                           (env/binding-id port) (:seed state)))]
+                  (finish k (declarations/declare-definition-receipt declared port port)))))))
+
 (defn compile-def
   [compile-k state expr k]
   (let [body (ast/body expr)
         name (ast/name expr)
         path (:path state)]
+    (when-not body
+      (throw (ex-info "define requires a name and an initializer"
+                      {:syntax/error :invalid-definition :name name})))
     (cps/call
      compile-k (h/child state :definition-target) (ast/sym name)
      (fn [target-state target]
-       (let [value-state (h/child (assoc target-state :path path) :definition-value)]
-         (if body
-           (cps/call compile-k value-state body
-                     (fn [compiled source]
-                       (finish k (declarations/declare-definition
-                                  (assoc compiled :path path) name target source))))
-           (let [[declared source] (h/new-cell value-state :unfilled)]
-             (finish k (declarations/declare-definition
-                        (assoc declared :path path) name target source)))))))))
+       (cps/call compile-k (h/child (assoc target-state :path path) :definition-value) body
+                 (fn [compiled source]
+                   (finish k (declarations/declare-definition
+                              (assoc compiled :path path) name target source))))))))
 
 (defn compile-operator
   [compile-k state expression continuation]

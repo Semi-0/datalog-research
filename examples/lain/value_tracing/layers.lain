@@ -1,9 +1,7 @@
 (define input {:base 7
                :unit "ms"
                :quality :measured})
-(def-cells result)
-
-(-> (p:slot :base input) result)
+(define result (p:slot :base input))
 
 (display
   (relationship:with-values

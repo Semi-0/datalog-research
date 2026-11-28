@@ -7,6 +7,7 @@
             [propagators.compiler-2.session.supported :as supported]
             [propagators.compiler-2.session.connected :as connected]
             [propagators.compiler-2.compiler.basis :as basis]
+            [propagators.compiler-2.language.parser :as parser]
             [propagators.compiler-2.model.env :as env]
             [propagators.compiler-2.model.env.binding :as binding]
             [propagators.compiler-2.runtime.boundary.effects :as effects]
@@ -260,7 +261,7 @@
           runtime (group-by (comp first key) bindings)))
 
 (defn- definition-name [form]
-  (when (and (seq? form) (= 'define (first form)))
+  (when (and (seq? form) (= 'define (first form)) (not (parser/public-port-definition? form)))
     (let [name (second form)]
       (if (seq? name) (first name) name))))
 
@@ -288,9 +289,11 @@
                                (empty? (datum/support-of (net/network-cell-strongest (:program/net runtime) support-cell)))))
                   (throw (ex-info "Definition support is unavailable" {:support-cell support-cell})))
                 (let [network (:program/net runtime)
-                      declared (if (and name (not (env/local-binding-id network target name)))
-                                 (env/declare-bindings network target [[name (env/cell-binding
-                                                                              (basis/stable-node-id :session-local target name))]])
+                      local-name (or name (when (parser/public-port-definition? form) (second form)))
+                      declared (if (and local-name (not (env/local-binding-id network target local-name)))
+                                 (env/declare-bindings network target
+                                                       [[local-name (env/cell-binding
+                                                                     (basis/stable-node-id :session-local target local-name))]])
                                  {:net network :props []})
                       compiled (compiler/compile-form form target
                                                       {:net (:net declared) :environment-props (:props declared)

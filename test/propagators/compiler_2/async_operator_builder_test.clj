@@ -29,7 +29,7 @@
                                                 (let [output (call cells)]
                                                   (swap! installations conj [cells output]) output)))))
             declaration (extension :direct {'operation operation}
-                                   "(define input) (define result (operation input))")
+                                   "(define input (let-cell [port] port)) (define result (operation input))")
             compiler (session/extend-session (host/current-session boundary) declaration)
             output (session/binding-cell compiler 'result)
             ready (publish compiler 'input 1 10)]
@@ -166,7 +166,7 @@
         (host/extend! boundary
                       (extension :bounded
                                  {'later (operators/async-op interpreter (fn [make] (make operators/effect-output)))}
-                                 "(define inlet) (define result (later 10))"))
+                                 "(define inlet (let-cell [port] port)) (define result (later 10))"))
         (is (= true (deref entered 5000 :timeout)))
         (is (= :accepted
                (host/submit! boundary

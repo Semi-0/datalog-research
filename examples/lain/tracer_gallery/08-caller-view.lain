@@ -6,8 +6,6 @@
 
 (define left 3)
 (define right 4)
-(def-cells result)
-
-(-> (combine left right) result)
+(define result (combine left right))
 
 (display (trace:caller left))

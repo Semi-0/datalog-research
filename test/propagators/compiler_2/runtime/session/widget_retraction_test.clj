@@ -10,7 +10,7 @@
   (let [session (assembly/new-session)]
     (xr/handle-command! session
                         {:op :xr/extend-graph
-                         :source (str "(define events) (define out) (define widget) "
+                         :source (str "(define events (let-cell [port] port)) (define out (let-cell [port] port)) (define widget (let-cell [port] port)) "
                                       "(-> events out) (slider-io \"gain\" out events widget)")})
     (xr/handle-command! session {:op :xr/widget-event :widget-id "gain"
                                  :channel "value" :value 42})

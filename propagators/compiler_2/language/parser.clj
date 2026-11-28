@@ -69,16 +69,23 @@
                    {:parameters parameters :body body}))
     (ast/network parameters (body-form body "network"))))
 
+(defn public-port-definition?
+  "A named, uninitialized lexical cell is itself the externally writable port."
+  [form]
+  (and (seq? form) (= 'define (first form)) (= 3 (count form)) (symbol? (second form))
+       (let [initializer (nth form 2)]
+         (and (seq? initializer) (= 'let-cell (first initializer)) (= 3 (count initializer))
+              (let [[_ names result] initializer]
+                (and (vector? names) (symbol? result) (= [result] names)))))))
+
 (defn- parse-define [operands]
   (let [[name expression] operands]
-    (when-not (and (symbol? name) (contains? #{1 2} (count operands)))
-      (parse-error "define expects a name and optional expression" {:operands operands}))
-    (ast/def* name (if (= 2 (count operands)) (parse-form expression) nil))))
-
-(defn- parse-def-cells [names]
-  (when-not (and (seq names) (every? symbol? names) (= (count names) (count (distinct names))))
-    (parse-error "def-cells expects one or more distinct symbol names" {:names names}))
-  (apply ast/sequence* (map #(ast/def* % nil) names)))
+    (when-not (and (symbol? name) (= 2 (count operands)))
+      (parse-error "define requires a name and an initializer. Use an expression for a derived result or (let-cell [port] port) for a writable endpoint."
+                   {:syntax/error :invalid-definition :operands operands}))
+    (if (public-port-definition? (cons 'define operands))
+      (ast/cell-declaration name)
+      (ast/def* name (parse-form expression)))))
 
 (defn- removed-form [form]
   (parse-error (str (first form) " was removed; use define, network, connections, and a body return")
@@ -154,7 +161,8 @@
       (removed-form form)
       network (parse-functional-network (rest form))
       define (parse-define (rest form))
-      def-cells (parse-def-cells (rest form))
+      def-cells (parse-error "def-cells was removed. Use let-cell for local wiring or (define name (let-cell [port] port)) for a writable endpoint."
+                             {:form form :syntax/error :removed-form})
       if (parse-if (rest form))
       when (parse-when (rest form))
       cond (parse-cond-form (rest form))

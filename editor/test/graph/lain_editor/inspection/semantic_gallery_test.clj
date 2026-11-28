@@ -50,7 +50,8 @@
     (is (= (cond-> (frequencies (keys (get root-contracts pane)))
              (contains? #{"04-branch-true" "05-branch-false"} pane)
              (assoc ":propagator/anonymous" 2)) (frequencies (map :label semantic-calls))))
-    (is (= 1 (count (filter #(= "->" (:label %)) calls))))
+    (is (not-any? #(= "->" (:label %)) calls)
+        "Each gallery result comes directly from its defining expression")
     (is (not-any? #(= "define" (:label %)) calls))
     (is (every? #(= #{"cell" "propagator"} #{(kinds (:from %)) (kinds (:to %))}) (:edges graph)))
     (is (not-any? #(contains? % :caption) (:nodes graph)))
@@ -115,7 +116,7 @@
                 (is (= 2 (count displayed)))
                  (is (= 'observe-dependents-retained (first (second displayed))))
                 (is (= 2 (count (second displayed))))
-                (is (some #(= 'def-cells (first %)) forms))))))))))
+                (is (some #(and (= 'define (first %)) (= 'result (second %))) forms))))))))))
 
 (deftest gallery-programs-and-real-traces
   (let [directory "examples/lain/semantic_tracing/"

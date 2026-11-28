@@ -1,9 +1,9 @@
 (load-lain
   "propagators/compiler_2/runtime/lain/tracers.lain")
 
-(def-cells input result)
+(define input (let-cell [port] port))
 
-(-> (+ input 1) result)
+(define result (+ input 1))
 
 (display
   (trace:history input 0 60000))

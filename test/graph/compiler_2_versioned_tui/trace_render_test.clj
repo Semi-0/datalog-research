@@ -38,9 +38,9 @@
     (runtime/handle-command! session {:op :tui/register
                                       :client-id "B"
                                       :mode :versioned-premise})
-    (doseq [source ["(define a)"
+    (doseq [source ["(define a (let-cell [port] port))"
                     "(<-> (+ 1 2) a)"
-                    "(define g)"
+                    "(define g (let-cell [port] port))"
                     "(trace a :upstream g)"]]
       (is (:ok (commit-next! session source))))
     (is (wait-until #(pos? (long (or (:trace/published-results @session) 0)))))
@@ -69,9 +69,9 @@
     (runtime/handle-command! session {:op :tui/register
                                       :client-id "B"
                                       :mode :versioned-premise})
-    (doseq [source ["(define a)"
+    (doseq [source ["(define a (let-cell [port] port))"
                     "(<-> (+ 1 2) a)"
-                    "(define g)"
+                    "(define g (let-cell [port] port))"
                     "(trace a :upstream g)"]]
       (is (:ok (commit-next! session source))))
     (is (wait-until #(pos? (long (or (:trace/published-results @session) 0)))))

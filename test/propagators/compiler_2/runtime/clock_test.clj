@@ -99,7 +99,7 @@
         (command
          (request
           "00000000-0000-0000-0000-000000000203" 1 0
-          "(define stopped)"))
+          "(define stopped (let-cell [port] port))"))
         (let [epoch-key (or (:clock/source-id subscription) subscription-id)
               epoch-after-retraction (get-in @session
                                              [:clock/epochs epoch-key])]

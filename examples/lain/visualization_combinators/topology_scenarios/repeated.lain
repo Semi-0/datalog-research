@@ -1,21 +1,13 @@
-(define a)
-
-(define middle)
-
-(define result)
-
-(define raw)
-
-(define semantic)
+(define a (let-cell [port] port))
 
 (define step
   (network [x]
     (+ x 1)))
 
-(-> (step a) middle)
+(define middle (step a))
 
-(-> (step middle) result)
+(define result (step middle))
 
-(relationship:roots a raw)
+(define raw (relationship:roots a))
 
-(relationship:dataflow raw semantic)
+(define semantic (relationship:dataflow raw))

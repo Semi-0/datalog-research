@@ -57,7 +57,7 @@
 
 (deftest semantic-repl-canonicalizes-variable-cell-through-call
   (let [graph (repl/semantic-graph
-               "(let-cell [] (define out) (-> 42 out) (define inc (network [a b] (-> (+ a 1) b) (list b))) (define out3) (inc out out3))")
+               "(let-cell [] (define out (let-cell [port] port)) (-> 42 out) (define inc (network [a b] (-> (+ a 1) b) (list b))) (define out3 (let-cell [port] port)) (inc out out3))")
         edges (label-edges graph)]
     (is (= 1 (get (label-frequencies graph) "out")))
     (is (contains? edges ["42" "->"]))

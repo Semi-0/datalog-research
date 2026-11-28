@@ -3,12 +3,13 @@
 
 ;; The existing recorder accumulates published semantic graphs and their values.
 ;; It does not claim to capture every internal learning operation.
-(def-cells domain repairs decision)
+(define domain (let-cell [port] port))
+(define decision (let-cell [port] port))
 (define chosen (amb domain repairs decision))
 (define decisions (list decision))
 (define valid (= chosen 2))
 (define failure (require valid))
 (define knowledge (learn failure decisions))
-(-> (backtrack decisions knowledge) repairs)
+(define repairs (backtrack decisions knowledge))
 (define learning (amb:learning-view knowledge))
 (display (trace:history learning 0 600000))

@@ -7,6 +7,7 @@
             [propagators.compiler-2.runtime.application-ports :as ports]
             [propagators.compiler-2-functional-network-test :as fixture]
             [propagators.cells.value :as value]
+            [propagators.datastructures.compound-object :as obj]
             [propagators.gur :as gur]
             [propagators.ids :as ids]
             [propagators.network :as net]
@@ -17,21 +18,46 @@
     (net/network-cell-strongest (fixture/run compiled) (:cell compiled))))
 
 (deftest all-handler-results-are-cells
-  (doseq [source ["nil" "42" "+" "missing" "(define missing)"
+  (doseq [source ["nil" "42" "+" "missing" "(define missing (let-cell [port] port))"
                   "(define answer 42)" "(network () 42)" "(+ 2 3)"
                   "(let [x 42] x)" "(let-cell [x] x)" "(when missing 42)"]]
     (is (ids/node-id? (:cell (compiler/compile-source source))))))
 
 (deftest literal-nil-is-not-an-omitted-definition
   (is (= :literal (ast/type (ast/body (compiler/parse-form '(define x nil))))))
-  (is (nil? (ast/body (compiler/parse-form '(define x)))))
+  (doseq [compile-invalid [#(compiler/parse-form '(define x))
+                           #(compiler/compile-source "(network [] (define x) x)")
+                           #(compiler/compile-program '[(define ready 1) (define x)])]]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"define requires.*initializer"
+                          (compile-invalid))))
+  (let [legacy-ast (obj/compound-object {:ast/type :def :ast/name 'x})]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"define requires.*initializer"
+                          (compiler/compile-expr legacy-ast))))
+  (is (= :quote (ast/type (compiler/parse-form '(quote (define x))))))
   (is (nil? (evaluate "(let [] (define x nil) x)")))
-  (is (value/nothing? (evaluate "(let [] (define x) x)"))))
+  (is (value/nothing? (evaluate "(let [] (define x (let-cell [port] port)) x)"))))
 
 (deftest define-refines-the-existing-cell
   (is (= 42 (evaluate "(let-cell [x] (define x 42) x)")))
-  (is (= 42 (evaluate "(let [] (define x) (define x 42) x)")))
+  (is (= 42 (evaluate "(let [] (define x (let-cell [port] port)) (define x 42) x)")))
   (is (value/contradiction? (evaluate "(let [] (define x 1) (define x 2) x)"))))
+
+(deftest a-returned-singleton-port-is-the-definition-target
+  (let [compiled (compiler/compile-form '(define input (let-cell [wire] wire)))
+        network (fixture/run compiled)
+        receipt (net/network-cell-strongest network (:cell compiled))
+        target (:binding/target receipt)]
+    (is (ids/node-id? target))
+    (is (= target (:binding/source receipt)))
+    (is (empty? (get-in (net/net-graph network) [target :inputs])))
+    (is (= :def (ast/type (compiler/parse-form '(define live (let-cell [x] (-> 8 x) x))))))
+    (is (= 8 (evaluate "(let [] (define live (let-cell [x] (-> 8 x) x)) live)")))))
+
+(deftest a-forward-consumer-observes-the-later-definition
+  (let [compiled (compiler/compile-program '[(define total (+ input 2))
+                                             (define input 3)
+                                             total])]
+    (is (= 5 (net/network-cell-strongest (fixture/run compiled) (:cell compiled))))))
 
 (deftest let-supplies-explicit-shadowing
   (let [compiled (compiler/compile-source
@@ -87,9 +113,12 @@
         topology (application/application-topology-for-result network (:cell compiled))]
     (is (= :pending (:output-status (ports/application-ports network topology))))))
 
-(deftest def-cells-restores-ordinary-named-declarations
-  (is (= 7 (evaluate "(let [] (def-cells a b) (-> 3 a) (-> (+ a 4) b) b)")))
-  (is (value/nothing? (evaluate "(let [] (def-cells a b) b)")))
-  (doseq [source ["(def-cells)" "(def-cells a 1)" "(def-cells a a)"]]
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"def-cells expects"
-                         (compiler/compile-source source)))))
+(deftest removed-def-cells-cannot-declare-or-fall-through-to-application
+  (doseq [form '[(def-cells) (def-cells x) (def-cells x y)
+                 (network [] (def-cells x) x)
+                 (let [def-cells (network [x] x)] (def-cells 4))]]
+    (let [error (try (compiler/compile-form form) nil
+                     (catch clojure.lang.ExceptionInfo e e))]
+      (is (= :removed-form (:syntax/error (ex-data error))))
+      (is (re-find #"def-cells was removed.*let-cell" (str error)))))
+  (is (= :quote (ast/type (compiler/parse-form '(quote (def-cells x)))))))

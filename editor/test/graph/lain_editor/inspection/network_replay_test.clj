@@ -70,7 +70,7 @@
           (is (= second-update (get-in (inspect editors) [:replay :frames])))
           (is (identical? before-net (:program/net @(:session (get @editors "replay")))))
           (editor/extend! editors {:pane "replay" :generation (:generation (get @editors "replay"))
-                                  :source "(def-cells doubled)\n(-> (* input 2) doubled)"})
+                                  :source "(define doubled (let-cell [port] port))\n(-> (* input 2) doubled)"})
           (let [extended (get-in (inspect editors) [:replay :frames])]
             (is (> (count extended) (count second-update)))
             (is (= second-update (subvec extended 0 (count second-update))))
@@ -101,7 +101,7 @@
     (try
       (editor/run! editors {:pane "replay"
         :source (str "(load-lain \"propagators/compiler_2/runtime/lain/tracers.lain\")\n"
-                     "(def-cells input)\n(define result (+ input 1))\n"
+                     "(define input (let-cell [port] port))\n(define result (+ input 1))\n"
                      "(display (trace:history-latest (trace:root-semantic input) 10))")})
       (doseq [version (range 1 16)] (send-input! editors version version))
       (let [frames (get-in (inspect editors) [:replay :frames])]
@@ -183,7 +183,7 @@
   (let [editors (atom {})]
     (try
       (editor/run! editors {:pane "replay"
-        :source "(def-cells values)\n(define scale 10)\n(define append-digit
+        :source "(define values (let-cell [port] port))\n(define scale 10)\n(define append-digit
                    (network (acc next)
                      (+ (* acc scale) (p:slot :value next))))
                  (display (reduce append-digit 0 values))"})
@@ -243,7 +243,7 @@
 
 (deftest rerunning-edited-extension-steps-rebuilds-the-history-in-order
   (let [editors (atom {}) source (slurp "examples/lain/network_replay/replay.lain")
-        topology "(def-cells doubled) (-> (* input 2) doubled)"]
+        topology "(define doubled (let-cell [port] port)) (-> (* input 2) doubled)"]
     (try
       (doseq [[initial expected] [[7 "14"] [9 "18"]]]
         (editor/run! editors {:pane "replay" :source source

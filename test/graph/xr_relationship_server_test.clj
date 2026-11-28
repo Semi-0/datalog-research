@@ -62,13 +62,13 @@
 (deftest connected-xr-client-receives-a-fresh-environment-after-file-edit
   (let [temporary (java.io.File/createTempFile "relationship-xr-reload-" ".lain")
         first-source
-        "(def-cells source result graph)
+        "(define source (let-cell [port] port)) (define result (let-cell [port] port)) (define graph (let-cell [port] port))
          (<-> 1 source)
          (-> (+ source 1) result)
          (relationship:roots source graph)
          (xr:io graph)"
         second-source
-        "(def-cells source middle result graph)
+        "(define source (let-cell [port] port)) (define middle (let-cell [port] port)) (define result (let-cell [port] port)) (define graph (let-cell [port] port))
          (<-> 2 source)
          (-> (+ source 1) middle)
          (-> (* middle 2) result)
@@ -121,7 +121,7 @@
 (deftest dataflow-endpoint-refreshes-after-an-external-file-edit
   (let [file (java.io.File/createTempFile "dataflow-reload-" ".lain")
         source (fn [v]
-                 (str "(def-cells a b raw semantic) (<-> " v " a)"
+                 (str "(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define raw (let-cell [port] port)) (define semantic (let-cell [port] port)) (<-> " v " a)"
                       "(-> (+ a 1) b) (relationship:roots a raw)"
                       "(relationship:dataflow raw semantic) (xr:io semantic)"))
         _ (spit file (source 1))
@@ -155,7 +155,7 @@
 
 (deftest xr-view-payload-resolves-against-the-replaced-environment
   (let [source (fn [value]
-                 (str "(def-cells source window history dashboard)"
+                 (str "(define source (let-cell [port] port)) (define window (let-cell [port] port)) (define history (let-cell [port] port)) (define dashboard (let-cell [port] port))"
                       "(<-> " value " source)"
                       "(cell-window source window)"
                       "(cell-history source history)"

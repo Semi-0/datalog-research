@@ -1,8 +1,10 @@
 (load-lain "propagators/compiler_2/runtime/lain/tracers.lain")
 
 (define input 4)
-(def-cells result traced)
+(define result (let-cell [port] port))
+(define traced (let-cell [port] port))
 
+; Keep the explicit result connection visible to the current-session tracer.
 (-> (+ input 1) result)
 
 ; trace reads this pane's current runtime-session graph.

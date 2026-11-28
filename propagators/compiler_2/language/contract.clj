@@ -12,7 +12,10 @@
          (ast/then-expression expression)
          (ast/else-expression expression)]
     :when-topology [(ast/condition expression) (ast/body expression)]
-    :def (if-let [body (ast/body expression)] [body] [])
+    :cell-declaration []
+    :def (if-let [body (ast/body expression)]
+           [body]
+           (throw (ex-info "define requires a name and an initializer" {:syntax/error :invalid-definition})))
     :apply (into [(ast/operator expression)] (ast/args expression))
     :network
     (if (nil? (ast/output expression))

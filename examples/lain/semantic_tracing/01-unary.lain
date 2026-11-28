@@ -3,9 +3,7 @@
 
 ; unary primitive: true
 (define flag false)
-(def-cells result)
-
-(-> (not flag) result)
+(define result (not flag))
 
 (display
   (observe-dependents-retained flag))

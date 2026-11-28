@@ -5,8 +5,7 @@
     (+ x 1)))
 
 (define input 3)
-(def-cells output)
-(-> (step input) output)
+(define output (step input))
 
 (display
   (trace:high-level

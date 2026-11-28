@@ -1,19 +1,9 @@
-(define a)
+(define b a)
 
-(define b)
+(define c b)
 
-(define c)
+(define a c)
 
-(define raw)
+(define raw (relationship:roots a))
 
-(define semantic)
-
-(-> a b)
-
-(-> b c)
-
-(-> c a)
-
-(relationship:roots a raw)
-
-(relationship:dataflow raw semantic)
+(define semantic (relationship:dataflow raw))

@@ -27,18 +27,19 @@
   (let [empty (session/create-session)
         compiled (session/extend-session empty
                    (session/session-extension {:id :program
-                     :files {"main" "(define input) (define result (+ input 1))"}}))
+                     :files {"main" "(define input (let-cell [port] port)) (define result (+ input 1))"}}))
         updated (publish compiled 'input 1 10)]
     (is (satisfies? session/CompilerSession compiled))
     (is (satisfies? session/OpenSession compiled))
     (is (satisfies? session/SessionDependencies compiled))
     (is (value/nothing? (observed compiled 'result)))
     (is (= 11 (observed updated 'result)))
+    (is (= (session/binding-cell compiled 'input) (session/binding-cell updated 'input)))
     (is (empty? (session/source-files empty)))
     (is (not (identical? compiled updated)))))
 
 (deftest late-primitive-cannot-replace-a-caller-owned-source-alias
-  (let [compiler (loaded "(define source) (define alias source)
+  (let [compiler (loaded "(define source (let-cell [port] port)) (define alias source)
                           (define result (+ source 1))")
         source-id (session/binding-cell compiler 'source)
         extension (session/session-extension
@@ -53,8 +54,8 @@
 
 (deftest canonical-gur-follows-callables-through-live-compound-owners
   (let [compiler (loaded
-                   "(define flag) (define input) (define left-offset)
-                    (define right-offset) (define independent)
+                   "(define flag (let-cell [port] port)) (define input (let-cell [port] port)) (define left-offset (let-cell [port] port))
+                    (define right-offset (let-cell [port] port)) (define independent (let-cell [port] port))
                     (define relay (network [x] x))
                     (define left (struct :inner
                       (struct :call (network [x] (+ x left-offset)) :unknown independent)))
@@ -149,7 +150,7 @@
     (is (= answer (observed (loaded source) 'result)))))
 
 (deftest chained-compounds-follow-live-selected-owner
-  (let [source "(define flag) (define left-value) (define right-value) (define unrelated)
+  (let [source "(define flag (let-cell [port] port)) (define left-value (let-cell [port] port)) (define right-value (let-cell [port] port)) (define unrelated (let-cell [port] port))
                 (define relay (network [x] x))
                 (define left (struct :inner (struct :value left-value :unknown unrelated)))
                 (define right (struct :inner (struct :value right-value :unknown unrelated)))
@@ -171,7 +172,7 @@
           (recur next-session (next changes)))))))
 
 (deftest late-extension-resolves-canonical-lookup-and-new-forms
-  (let [pending (loaded "(define input) (define result (late input))")
+  (let [pending (loaded "(define input (let-cell [port] port)) (define result (late input))")
         extension (session/session-extension {:id :late
                     :primitives {'late (operators/prim-op (fn [make] (make inc)))}})
         extended (session/extend-session pending extension)
@@ -187,7 +188,7 @@
 (declare callback-program await!)
 
 (deftest input-history-is-explicitly-opt-in
-  (let [source "(define input) (define result (+ input 1))"
+  (let [source "(define input (let-cell [port] port)) (define result (+ input 1))"
         ordinary (publish (loaded source) 'input 1 10)
         recorded (session/extend-session
                    (session/create-session {:id :history :run-id :history-run
@@ -229,7 +230,7 @@
       (finally (host/close! boundary)))))
 
 (deftest rerun-uses-definitions-with-a-fresh-run-identity
-  (let [compiler (loaded "(define input) (define result (+ input 1))")
+  (let [compiler (loaded "(define input (let-cell [port] port)) (define result (+ input 1))")
         updated (publish compiler 'input 1 10)
         fresh (session/rerun updated :fresh-run)]
     (is (= 11 (observed updated 'result)))
@@ -311,7 +312,7 @@
 (deftest external-subscription-backpressure-and-normalized-messages
   (let [emit (promise)
         starts (atom 0)
-        compiler (session/extend-session (loaded "(define input) (define result (+ input 1))")
+        compiler (session/extend-session (loaded "(define input (let-cell [port] port)) (define result (+ input 1))")
                    (session/session-extension {:id :events
                      :dependencies {:events (dependency/callback-dependency
                                               (fn [_ emit!]
@@ -366,7 +367,7 @@
                    (session/session-extension {:id :changing
                      :primitives {'fetch (operators/async-op (fn [make] (make :fetch)))}
                      :dependencies {:fetch capability}
-                     :files {"main" "(define input) (define result (fetch input))"}}))
+                     :files {"main" "(define input (let-cell [port] port)) (define result (fetch input))"}}))
         boundary (host/open! compiler {:auto-advance? false})
         input-id (session/binding-cell compiler 'input)]
     (try

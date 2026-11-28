@@ -67,7 +67,7 @@
  (fn []
    (let [pane (editor/prepare
                "(load-lain \"propagators/compiler_2/runtime/lain/combinator.lain\")
-                (def-cells flag left-value right-value unrelated)
+                (define flag (let-cell [port] port)) (define left-value (let-cell [port] port)) (define right-value (let-cell [port] port)) (define unrelated (let-cell [port] port))
                 (define relay (network [x] x))
                 (define choose (network [condition left right] (if condition left right)))
                 (define left-object

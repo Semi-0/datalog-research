@@ -9,9 +9,7 @@
            else (sum-to (- n 1) (+ acc n))])))
 
 (define input 4)
-(def-cells result)
-
-(-> (sum-to input 0) result)
+(define result (sum-to input 0))
 
 (display
   (observe-dependents-retained input))

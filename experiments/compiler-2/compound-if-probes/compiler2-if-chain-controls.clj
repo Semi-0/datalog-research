@@ -41,7 +41,7 @@
   (catch Exception e (report! {:kind :static-choice :error (.getMessage e)})))
 (doseq [conditional? [false true] transport [:membership :publication]]
   (let [source (str "(load-lain \"propagators/compiler_2/runtime/lain/combinator.lain\")
-                    (define leaf)
+                    (define leaf (let-cell [port] port))
                     (define yes-object (struct :nested (struct :value leaf)))
                     (define no-object (struct :nested (struct :value 20)))
                     (define answer (|> " (if conditional? "(if true yes-object no-object)" "yes-object")

@@ -45,7 +45,7 @@
 (deftest incremental-extension-preserves-existing-identities
   (let [editors (atom {})]
     (try
-      (editor/run! editors {:pane "a" :source "(define source) (define result (+ source 1))"})
+      (editor/run! editors {:pane "a" :source "(define source (let-cell [port] port)) (define result (+ source 1))"})
       (let [before (get @editors "a")
             ids (set (keys (net/net-env (:program/net @(:session before)))))
             generation (:generation before)]
@@ -63,7 +63,7 @@
 
 (deftest json-workspace-import-restores-drafts-without-running
   (let [editors (atom {})
-        left (assoc (pane "a" "(define source) (define result (+ source 1))")
+        left (assoc (pane "a" "(define source (let-cell [port] port)) (define result (+ source 1))")
                     :extensions ["(-> 10 source)"] :source "unrun draft")
         saved (json/read-json (json/write-json (document left (pane "b" "(define result 22)"))))]
     (try
@@ -151,7 +151,7 @@
 (deftest program-display-is-live-local-and-expression-shaped
   (let [editors (atom {})]
     (try
-      (editor/run! editors {:pane "a" :source "(def-cells input) (define returned (display (+ input 1)))"})
+      (editor/run! editors {:pane "a" :source "(define input (let-cell [port] port)) (define returned (display (+ input 1)))"})
       (editor/run! editors {:pane "b" :source "(display 22)"})
       (is (= "waiting" (:status (inspect-pane editors "a" (assoc display :cell "@display")))))
       (is (= "22" (:value (inspect-pane editors "b" (assoc display :cell "@display")))))
@@ -174,7 +174,7 @@
 
 (deftest program-display-selects-semantic-topology-and-replays
   (let [editors (atom {})
-        source "(def-cells a b raw) (-> 3 a) (-> (+ a 4) b)
+        source "(define a (let-cell [port] port)) (define b (let-cell [port] port)) (define raw (let-cell [port] port)) (-> 3 a) (-> (+ a 4) b)
                 (relationship:roots a raw) (display (relationship:dataflow raw))"
         saved (document (pane "a" source) (pane "b" "(display 22)"))]
     (try

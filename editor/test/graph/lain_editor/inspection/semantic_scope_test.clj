@@ -8,7 +8,7 @@
 (def pipeline "(define pipeline (network [x]
                   (define add-ten (make-adder 10)) (add-ten x)))")
 (defn observed [program]
-  (str program " (def-cells raw) (relationship:roots input raw) (display (relationship:dataflow raw))"))
+  (str program " (define raw (let-cell [port] port)) (relationship:roots input raw) (display (relationship:dataflow raw))"))
 (defn calls [graph]
   (set (remove #{"->" "<->" "define" "copy"}
                (map :label (filter #(= "propagator" (:kind %)) (:nodes graph))))))

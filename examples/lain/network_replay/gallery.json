@@ -36,8 +36,8 @@
       "id": "values",
       "title": "",
       "filename": "values.lain",
-      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (trace:history input 0 60000))\n",
-      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (trace:history input 0 60000))\n",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(define input (let-cell [port] port))\n(define result (+ input 1))\n\n(display\n  (trace:history input 0 60000))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(define input (let-cell [port] port))\n(define result (+ input 1))\n\n(display\n  (trace:history input 0 60000))\n",
       "extensions": [
         "(-> 7 input)"
       ],
@@ -72,11 +72,11 @@
       "id": "topology",
       "title": "",
       "filename": "topology.lain",
-      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (trace:history input 0 60000))\n",
-      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(def-cells input result)\n\n(-> (+ input 1) result)\n\n(display\n  (trace:history input 0 60000))\n",
+      "source": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(define input (let-cell [port] port))\n(define result (+ input 1))\n\n(display\n  (trace:history input 0 60000))\n",
+      "executedSource": "(load-lain\n  \"propagators/compiler_2/runtime/lain/tracers.lain\")\n\n(define input (let-cell [port] port))\n(define result (+ input 1))\n\n(display\n  (trace:history input 0 60000))\n",
       "extensions": [
         "(-> 7 input)",
-        "(def-cells doubled)\n\n(-> (* input 2) doubled)"
+        "(define doubled (* input 2))"
       ],
       "extensionDraft": "",
       "outputRatio": 0.53,

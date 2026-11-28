@@ -1,5 +1,5 @@
-(define clients)
-(define routes)
+(define clients (let-cell [port] port))
+(define routes (let-cell [port] port))
 (runtime:clients clients)
 (define connect-to-all (network [from clients outs] (-> (let-cell [to rest routed rest-outs] (p:car to clients) (p:cdr rest clients) (runtime:client-pipe from to "message" routed) (p:cons routed rest-outs outs) (when rest (connect-to-all from rest rest-outs))) outs) (list outs)))
 (define connect-clients (network [clients all-clients rows] (-> (let-cell [from rest outs row rest-rows] (p:car from clients) (p:cdr rest clients) (connect-to-all from all-clients outs) (p:cons from outs row) (p:cons row rest-rows rows) (when rest (connect-clients rest all-clients rest-rows))) rows) (list rows)))

@@ -5,6 +5,7 @@
   candidates are invoked through ordinary premise closures; no runtime router,
   generated NodeId, scheduler state, or JVM function is serialized."
   (:require [clojure.string :as str]
+            [propagators.compiler-2.language.parser :as parser]
             [propagators.compiler-2.runtime.session.program.source :as source]
             [propagators.compiler-2.runtime.tui.block-model :as block-model]
             [propagators.datastructures.tms :as tms]
@@ -14,7 +15,8 @@
 
 (defn definition-form?
   [form]
-  (and (seq? form) (contains? definition-heads (first form))))
+  (and (seq? form) (contains? definition-heads (first form))
+       (not (parser/public-port-definition? form))))
 
 (defn- form-body
   [form offset]

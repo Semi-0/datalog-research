@@ -43,7 +43,12 @@ semantic graph values are projected into browser-friendly node/edge records.
 The opt-in relationship/XR extension also binds port-neutral view propagators:
 
 ```clojure
-(def-cells value references tree current history dashboard)
+(define value (let-cell [port] port))
+(define references (let-cell [port] port))
+(define tree (let-cell [port] port))
+(define current (let-cell [port] port))
+(define history (let-cell [port] port))
+(define dashboard (let-cell [port] port))
 
 (cell-window value current)
 (cell-history value history)

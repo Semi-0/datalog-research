@@ -23,25 +23,15 @@
   (network [x]
     (stage (stage x))))
 
-(define source)
+(define prepared (stage source))
 
-(define prepared)
+(define result (pipeline prepared))
 
-(define result)
+(define source 2)
 
-(-> (stage source) prepared)
+(define relationships (relationship:roots source))
 
-(-> (pipeline prepared) result)
-
-(define relationships)
-
-(define whole-chain)
-
-(-> 2 source)
-
-(relationship:roots source relationships)
-
-(-> (relationship:caller-view (relationship:dataflow relationships)) whole-chain)
+(define whole-chain (relationship:caller-view (relationship:dataflow relationships)))
 
 (define stage-body
   (body-snapshot (occurrence-of stage source) result))

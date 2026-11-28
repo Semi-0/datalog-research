@@ -35,11 +35,11 @@
 
 (def source
   "(load-lain \"examples/lain/subagents/composition.lain\")
-   (define harness:socket-in)
+   (define harness:socket-in (let-cell [port] port))
    (-> harness:socket-in (socket:observations socket))
-   (define harness:pi-in)
+   (define harness:pi-in (let-cell [port] port))
    (-> harness:pi-in (pi:observations pi))
-   (define harness:harbor-in)
+   (define harness:harbor-in (let-cell [port] port))
    (-> harness:harbor-in (harbor:observations harbor))
    (define harness:assignments (assignments evaluation-framework))
    (define harness:controls (runtime:controls runtime))

@@ -34,7 +34,7 @@
     (is (= [3 4 5] (mapv :payload (:items (result state 'result)))))))
 
 (deftest selectable-view-remains-collection-data
-  (let [state (run-source "(def-cells selection)
+  (let [state (run-source "(define selection (let-cell [port] port))
                           (def result (map (:: [x] (tracked+ x 1))
                             (selectable (map (:: [x] x) (list 2)) selection)))")]
     (is (= [3] (mapv :payload (:items (result state 'result)))))))
@@ -52,7 +52,7 @@
     (is (= [3 4] (mapv :payload (:items (result state 'result)))))))
 
 (deftest partial-list-keeps-order-and-origins
-  (let [initial (run-source "(def-cells later)
+  (let [initial (run-source "(define later (let-cell [port] port))
                             (def identity (:: [x] x))
                             (def result (map identity (list 2 later 2)))")
         before (result initial 'result)
@@ -64,7 +64,7 @@
 
 (deftest false-and-unavailable-predicates-do-not-include
   (doseq [predicate ["false" "missing"]]
-    (let [state (run-source (str "(def-cells missing) (def predicate (:: [x] " predicate "))"
+    (let [state (run-source (str "(define missing (let-cell [port] port)) (def predicate (:: [x] " predicate "))"
                                  "(def result (filter predicate (list 1 2)))"))
           projection (result state 'result)]
       (is (empty? (:items projection)))
@@ -82,7 +82,7 @@
 
 (deftest late-callback-and-reactivation-have-stable-topology
   (let [session (loader/load-session-from-source
-                 "(def-cells callback) (def result (map callback (list 1 2)))"
+                 "(define callback (let-cell [port] port)) (def result (map callback (list 1 2)))"
                  {:extensions [primitives/session-extension extension/extension]})]
     (is (empty? (:items (result @session 'result))))
     (loader/load-source! session "(-> (:: [x] (tracked+ x 2)) callback)")
@@ -97,7 +97,7 @@
 
 (defn graph-fixture []
   (let [state (run-source
-               "(def-cells input output selected graph)
+               "(define input (let-cell [port] port)) (define output (let-cell [port] port)) (define selected (let-cell [port] port)) (define graph (let-cell [port] port))
                 (def-net chain [x] [out] (-> (tracked+ x 1) out))
                 (chain input output)
                 (def boundary? (:: [item]
@@ -131,7 +131,7 @@
     (is (= :list (:kind values)))))
 
 (deftest headless-focus-follow-sources-and-transform-again
-  (let [state (run-source "(def-cells selection)
+  (let [state (run-source "(define selection (let-cell [port] port))
                           (def values (map (:: [x] (tracked+ x 1)) (list 2 3)))
                           (def zoom (map (:: [ref] (strongest-of ref))
                                          (sources-of (focus values selection))))")
@@ -147,7 +147,7 @@
 
 (deftest lexical-callback-retains-both-supports
   (let [[item captured] (fixture/tracked-inputs)
-        state (-> (run-source "(def-cells seed captured)
+        state (-> (run-source "(define seed (let-cell [port] port)) (define captured (let-cell [port] port))
                                (def result (map (:: [x] (tracked+ x captured)) (list seed)))")
                   (fixture/seed 'seed item)
                   (fixture/seed 'captured captured))
@@ -161,7 +161,7 @@
     (is (= item (net/network-cell-content (:program/net state) (fixture/binding-id state 'seed))))))
 
 (deftest predicate-supports-survive-another-map
-  (let [state (-> (run-source "(def-cells accepted)
+  (let [state (-> (run-source "(define accepted (let-cell [port] port))
                                (def result (map (:: [x] x)
                                  (filter (:: [x] accepted) (list 4))))")
                   (fixture/seed 'accepted
@@ -175,7 +175,7 @@
     (is (contains? (set (map tms/support-source (tms/distributed-supports content))) :predicate-support))))
 
 (deftest concrete-predicate-does-not-publish-unusable-values
-  (let [state (run-source "(def-cells accepted)
+  (let [state (run-source "(define accepted (let-cell [port] port))
                           (def result (filter (:: [x] accepted) (list 4)))")
         blocked (fixture/seed state 'accepted value/contradiction)
         accepted (fixture/seed state 'accepted true)
@@ -210,7 +210,7 @@
     (is (= 42 (data/read-strongest network ref)))))
 
 (deftest cyclic-network-uses-declared-ports-not-node-degree
-  (let [state (run-source "(def-cells left right)
+  (let [state (run-source "(define left (let-cell [port] port)) (define right (let-cell [port] port))
                           (def-net loop-net [x] [out] (-> x out) (-> out x))
                           (loop-net left right)
                           (-> 4 left)
@@ -225,7 +225,7 @@
 (deftest graph-growth-preserves-existing-identity-and-admits-earlier-node
   (let [a [[:outer] :a]
         b [[:outer] :b]
-        initial (run-source "(def-cells graph)
+        initial (run-source "(define graph (let-cell [port] port))
                              (def result (transpose (filter (:: [x] true) graph) :list))")
         one (fixture/seed initial 'graph (trace/graph-union {:nodes {b "B"} :edges []}))
         two (fixture/seed one 'graph (trace/graph-union {:nodes {a "A" b "B"} :edges [[a b]]}))

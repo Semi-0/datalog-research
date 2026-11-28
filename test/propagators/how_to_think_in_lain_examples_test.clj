@@ -43,13 +43,13 @@
   (let [session (doto (runner/new-session)
                   (runner/load-source!
                    "(load-lain \"propagators/compiler_2/runtime/lain/combinator.lain\")
-                    (define open-cell)
+                    (define open-cell (let-cell [port] port))
                     (define pending (+ open-cell 1))
-                    (define clash)
+                    (define clash (let-cell [port] port))
                     (-> 1 clash)
                     (-> 2 clash)
                     (define closed (list 1 2 3))
-                    (define open-tail)
+                    (define open-tail (let-cell [port] port))
                     (define prefix (cons 9 open-tail))"))]
     (is (= :unresolved (runner/project session 'pending)))
     (is (= :contradiction (runner/project session 'clash)))

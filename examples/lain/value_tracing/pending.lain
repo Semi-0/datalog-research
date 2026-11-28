@@ -1,6 +1,6 @@
-(def-cells input result)
+(define input (let-cell [port] port))
 
-(-> (+ input 1) result)
+(define result (+ input 1))
 
 (display
   (relationship:with-values
